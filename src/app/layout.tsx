@@ -11,20 +11,40 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [queryClient] = useState(() => new QueryClient());
 
-  // === PIN-KOD TIZIMI QAYTARILDI ===
   const [isPinAuthenticated, setIsPinAuthenticated] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
+  
+  // === PWA O'RNATISH (INSTALL) TIZIMI ===
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js');
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
     }
-    // Xotiradan PIN kodni tekshirish
+    
     if (localStorage.getItem('erp-pin') === '7777') {
       setIsPinAuthenticated(true);
     }
+
+    // Telefon o'rnatishga tayyor bo'lganda tugmani chiqarish uchun ushlagich
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +58,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   };
 
-  // AGAR PIN KOD KIRITILMAGAN BO'LSA, FAQAT SHU EKRAN CHIQADI
   if (!isPinAuthenticated) {
     return (
       <html lang="uz">
@@ -73,7 +92,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // === ASOSIY MENYULAR (PIN KODDAN O'TGANDAN KEYIN) ===
   const menuGroups = [
     { title: "", items: [{ name: "Asosiy panel", path: "/", icon: "📊" }] },
     { title: "MOLIYA VA SAVDO", items: [{ name: "Sotuv va Kassa", path: "/sales", icon: "💰" }, { name: "Buyurtmalar", path: "/orders", icon: "🛍️" }] },
@@ -87,7 +105,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="manifest" href="/manifest.json" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#171923" />
       </head>
       <body className="flex h-screen bg-gray-50 overflow-hidden text-gray-900 font-sans">
@@ -99,11 +116,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-2xl focus:outline-none">{isMobileMenuOpen ? "✕" : "☰"}</button>
           </div>
+          
           <div className={`fixed inset-y-0 left-0 bg-[#171923] w-64 text-gray-300 flex flex-col transition-transform duration-300 z-40 md:relative md:translate-x-0 ${isMobileMenuOpen ? "translate-x-0 mt-16 md:mt-0" : "-translate-x-full"}`}>
             <div className="p-6 hidden md:flex items-center gap-3">
               <div className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-600/30">J</div>
               <span className="text-xl font-bold text-white tracking-wide">JewelryFlow</span>
             </div>
+            
             <div className="flex-1 overflow-y-auto py-2">
               {menuGroups.map((group, idx) => (
                 <div key={idx} className="mb-6">
@@ -123,10 +142,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               ))}
             </div>
+
+            {/* O'RNATISH TUGMASI (Agar brauzer tayyor bo'lsa chiqadi) */}
+            {installPrompt && (
+              <button 
+                onClick={handleInstallClick} 
+                className="m-4 bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-600/20 transition-all border border-green-500"
+              >
+                📱 Ilovani o'rnatish
+              </button>
+            )}
+
             <div className="p-4 bg-[#11121a] text-xs text-center text-gray-600 font-medium border-t border-gray-800">
               <button onClick={() => { localStorage.removeItem('erp-pin'); window.location.reload(); }} className="mt-2 text-gray-500 hover:text-white transition">Chiqish (Qulflash)</button>
             </div>
           </div>
+          
           <div className="flex-1 overflow-y-auto mt-16 md:mt-0 relative w-full scroll-smooth bg-gray-50">{children}</div>
           {isMobileMenuOpen && <div onClick={() => setIsMobileMenuOpen(false)} className="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-sm"></div>}
         </QueryClientProvider>
