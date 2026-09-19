@@ -6,19 +6,24 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'JewelryFlow',
     description: 'Zargarlik biznesini boshqarish tizimi',
     start_url: '/',
-    display: 'standalone', // Ilovani to'liq ekranda ochish buyrug'i
+    display: 'standalone',
     background_color: '#f9fafb',
     theme_color: '#171923',
     icons: [
       {
-        src: '/icon.png', // Boya public papkaga tashlagan rasmimiz
+        src: '/icon.jpg', // Endi .jpg bo'ldi
         sizes: '192x192',
-        type: 'image/png',
+        type: 'image/jpeg', // Chrome endi xato bermaydi
       },
       {
-        src: '/icon.png',
+        src: '/icon.jpg',
         sizes: '512x512',
-        type: 'image/png',
+        type: 'image/jpeg',
+      },
+      {
+        src: '/icon.jpg',
+        sizes: 'any',
+        type: 'image/jpeg',
       },
     ],
   }
