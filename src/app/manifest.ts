@@ -5,26 +5,22 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'JewelryFlow ERP',
     short_name: 'JewelryFlow',
     description: 'Zargarlik biznesini boshqarish tizimi',
-    start_url: '/',
+    start_url: '/?mode=pwa', // Keshni tozalash uchun maxsus yo'l
     display: 'standalone',
-    background_color: '#f9fafb',
+    background_color: '#ffffff',
     theme_color: '#171923',
     icons: [
       {
-        src: '/icon.jpg', // Endi .jpg bo'ldi
-        sizes: '192x192',
-        type: 'image/jpeg', // Chrome endi xato bermaydi
-      },
-      {
-        src: '/icon.jpg',
+        // To'g'ridan-to'g'ri ishonchli manbadan olingan PNG rasm
+        src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Diamond_emoji.png/512px-Diamond_emoji.png',
         sizes: '512x512',
-        type: 'image/jpeg',
+        type: 'image/png',
       },
       {
-        src: '/icon.jpg',
-        sizes: 'any',
-        type: 'image/jpeg',
-      },
+        src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Diamond_emoji.png/192px-Diamond_emoji.png',
+        sizes: '192x192',
+        type: 'image/png',
+      }
     ],
   }
 }
