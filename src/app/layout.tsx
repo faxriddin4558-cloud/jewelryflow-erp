@@ -143,15 +143,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               ))}
             </div>
 
-            {/* O'RNATISH TUGMASI (Agar brauzer tayyor bo'lsa chiqadi) */}
-            {installPrompt && (
-              <button 
-                onClick={handleInstallClick} 
-                className="m-4 bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-600/20 transition-all border border-green-500"
-              >
-                📱 Ilovani o'rnatish
-              </button>
-            )}
+      {/* HAR DOIM KO'RINADIGAN O'RNATISH TUGMASI */}
+            <button 
+              onClick={() => {
+                if (installPrompt) {
+                  installPrompt.prompt();
+                } else {
+                  alert("Ilovani o'rnatish uchun brauzer menyusidagi (⋮) tugmani bosing va 'Ekranga qo'shish' (Добавить на главный экран) bandini tanlang.");
+                }
+              }} 
+              className="mx-4 my-2 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 shadow-md transition-all border border-emerald-500"
+            >
+              📱 Ilovani o'rnatish
+            </button>
 
             <div className="p-4 bg-[#11121a] text-xs text-center text-gray-600 font-medium border-t border-gray-800">
               <button onClick={() => { localStorage.removeItem('erp-pin'); window.location.reload(); }} className="mt-2 text-gray-500 hover:text-white transition">Chiqish (Qulflash)</button>
