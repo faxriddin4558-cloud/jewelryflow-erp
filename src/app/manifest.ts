@@ -6,14 +6,19 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'JewelryFlow',
     description: 'Zargarlik biznesini boshqarish tizimi',
     start_url: '/',
-    display: 'standalone', // MANA SHU QATOR uni brauzer emas, haqiqiy App qilib ochadi!
+    display: 'standalone', // Ilovani to'liq ekranda ochish buyrug'i
     background_color: '#f9fafb',
     theme_color: '#171923',
     icons: [
       {
-        src: '/favicon.ico',
-        sizes: 'any',
-        type: 'image/x-icon',
+        src: '/icon.png', // Boya public papkaga tashlagan rasmimiz
+        sizes: '192x192',
+        type: 'image/png',
+      },
+      {
+        src: '/icon.png',
+        sizes: '512x512',
+        type: 'image/png',
       },
     ],
   }
