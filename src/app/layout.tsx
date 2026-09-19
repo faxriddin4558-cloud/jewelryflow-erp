@@ -11,7 +11,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [queryClient] = useState(() => new QueryClient());
 
-  // MOTORNI ISHGA TUSHIRISH
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js');
@@ -21,9 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const menuGroups = [
     {
       title: "",
-      items: [
-        { name: "Asosiy panel", path: "/", icon: "📊" },
-      ]
+      items: [{ name: "Asosiy panel", path: "/", icon: "📊" }]
     },
     {
       title: "MOLIYA VA SAVDO",
@@ -52,20 +49,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="uz">
-      {/* MANA O'SHA MAJBURIY BUYRUQLAR (To'g'ri joylashdi va to'liq yozildi) */}
       <head>
+        <link rel="manifest" href="/manifest.json" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#171923" />
-        <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Diamond_emoji.png/192px-Diamond_emoji.png" />
-        <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Diamond_emoji.png/192px-Diamond_emoji.png" />
       </head>
 
       <body className="flex h-screen bg-gray-50 overflow-hidden text-gray-900 font-sans">
         <QueryClientProvider client={queryClient}>
           
-          {/* MOBIL TELEFONLAR UCHUN TEPADAGI QORA SHAPKA */}
           <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#171923] text-white flex items-center justify-between px-4 z-50 shadow-md">
             <div className="font-bold text-xl flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">J</div>
@@ -76,7 +70,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </button>
           </div>
 
-          {/* ASOSIY QORA MENYU (SIDEBAR) */}
           <div className={`fixed inset-y-0 left-0 bg-[#171923] w-64 text-gray-300 flex flex-col transition-transform duration-300 z-40 md:relative md:translate-x-0 ${isMobileMenuOpen ? "translate-x-0 mt-16 md:mt-0" : "-translate-x-full"}`}>
             <div className="p-6 hidden md:flex items-center gap-3">
               <div className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-600/30">J</div>
@@ -112,7 +105,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
 
-          {/* O'NG TOMON - ASOSIY OYNA */}
           <div className="flex-1 overflow-y-auto mt-16 md:mt-0 relative w-full scroll-smooth">
             {children}
           </div>
