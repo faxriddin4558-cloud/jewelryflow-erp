@@ -11,7 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [queryClient] = useState(() => new QueryClient());
 
-  // MANA SHU YERDA useEffect ishlatildi (Mobil ilova motori ishga tushadi)
+  // MOTORNI ISHGA TUSHIRISH
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js');
@@ -52,6 +52,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="uz">
+      {/* MANA O'SHA MAJBURIY BUYRUQLAR (To'g'ri joylashdi va to'liq yozildi) */}
+      <head>
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="theme-color" content="#171923" />
+        <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Diamond_emoji.png/192px-Diamond_emoji.png" />
+        <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Diamond_emoji.png/192px-Diamond_emoji.png" />
+      </head>
+
       <body className="flex h-screen bg-gray-50 overflow-hidden text-gray-900 font-sans">
         <QueryClientProvider client={queryClient}>
           
