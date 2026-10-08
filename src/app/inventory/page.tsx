@@ -100,12 +100,12 @@ export default function InventoryPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <h1 className="text-2xl font-bold mb-6 text-gray-100">Xomashyo Ombori</h1>
+      <h1 className="text-2xl font-bold mb-6 text-slate-900">Xomashyo Ombori</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* CHAP TOMON: Kiritish Formasi */}
-        <div className="bg-[#1e212b] p-6 rounded-2xl shadow-lg border border-gray-800 h-fit">
-          <h2 className="text-lg font-semibold mb-4 text-gray-200">Xomashyo kiritish</h2>
+        <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 h-fit">
+          <h2 className="text-lg font-semibold mb-4 text-slate-800">Xomashyo kiritish</h2>
           <form onSubmit={handleAddStock} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1">Nomi</label>
@@ -114,7 +114,7 @@ export default function InventoryPage() {
                 value={materialName}
                 onChange={(e) => setMaterialName(e.target.value)}
                 placeholder="Masalan: Toza tilla"
-                className="w-full bg-[#171923] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none text-sm"
+                className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:border-blue-500 outline-none text-sm"
               />
             </div>
             
@@ -127,7 +127,7 @@ export default function InventoryPage() {
                   value={grossWeight}
                   onChange={(e) => setGrossWeight(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-[#171923] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none text-sm"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:border-blue-500 outline-none text-sm"
                 />
               </div>
               <div>
@@ -135,7 +135,7 @@ export default function InventoryPage() {
                 <select 
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  className="w-full bg-[#171923] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none text-sm"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:border-blue-500 outline-none text-sm"
                 >
                   <option>Gramm (gr)</option>
                   <option>Litr (l)</option>
@@ -151,14 +151,14 @@ export default function InventoryPage() {
                 value={proba}
                 onChange={(e) => setProba(e.target.value)}
                 placeholder="Masalan: 585 yoki 999"
-                className="w-full bg-[#171923] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none text-sm"
+                className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:border-blue-500 outline-none text-sm"
               />
             </div>
 
             <button 
               type="submit" 
               disabled={isLoading}
-              className="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-orange-600/20 text-sm"
+              className="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-slate-800 font-semibold py-3 rounded-xl transition-all shadow-lg shadow-orange-600/20 text-sm"
             >
               {isLoading ? "Qo'shilmoqda..." : "Omborga qo'shish"}
             </button>
@@ -166,10 +166,10 @@ export default function InventoryPage() {
         </div>
 
         {/* O'NG TOMON: Ombor Qoldig'i (Jadval) */}
-        <div className="lg:col-span-2 bg-[#1e212b] p-6 rounded-2xl shadow-lg border border-gray-800">
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold text-gray-200">Ombordagi mavjud xomashyolar</h2>
-            <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all">
+            <h2 className="text-lg font-semibold text-slate-800">Ombordagi mavjud xomashyolar</h2>
+            <button className="bg-emerald-600 hover:bg-emerald-700 text-slate-800 px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all">
               📊 Excelga yuklab olish
             </button>
           </div>
@@ -177,7 +177,7 @@ export default function InventoryPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="text-xs text-gray-500 uppercase tracking-wider border-b border-gray-700">
+                <tr className="text-xs text-gray-500 uppercase tracking-wider border-b border-slate-300">
                   <th className="pb-3 pl-2">Nomi</th>
                   <th className="pb-3 text-right">Massa (Miqdor)</th>
                   <th className="pb-3 text-center">Proba</th>
@@ -191,8 +191,8 @@ export default function InventoryPage() {
                   </tr>
                 ) : (
                   inventoryStock.map((item, idx) => (
-                    <tr key={idx} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
-                      <td className="py-4 pl-2 font-medium text-gray-200">{item.name}</td>
+                    <tr key={idx} className="border-b border-slate-200/50 hover:bg-white/5 transition-colors">
+                      <td className="py-4 pl-2 font-medium text-slate-800">{item.name}</td>
                       <td className="py-4 text-right text-emerald-400 font-semibold">{item.qty.toFixed(2)} gr</td>
                       <td className="py-4 text-center">
                         {item.proba ? (
