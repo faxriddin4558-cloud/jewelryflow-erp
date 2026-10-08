@@ -1,11 +1,6 @@
-"use client";
+﻿"use client";
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-);
+import { supabase, RBAC, logErpAudit } from "@/lib/erp-engine";
 
 export default function SalesPage() {
   const [sales, setSales] = useState<any[]>([]);
@@ -13,131 +8,116 @@ export default function SalesPage() {
   const [client, setClient] = useState("");
   const [prodName, setProdName] = useState("Komplekt");
   const [qty, setQty] = useState("1");
-  const [weight, setWeight] = useState("");
+  const [weight, setWeight] = useState("14.5");
   const [proba, setProba] = useState("585");
   const [payType, setPayType] = useState("Naqd pul");
-  const [amount, setAmount] = useState("");
-  const [debt, setDebt] = useState("0");
-  const [txType, setTxType] = useState("kirim");
-  const [receipt, setReceipt] = useState<any | null>(null);
+  const [totalPrice, setTotalPrice] = useState("18500000");
+  const [paidAmount, setPaidAmount] = useState("18500000");
+  const [txType, setTxType] = useState<"kirim" | "chiqim">("kirim");
+  const [receipt, setReceipt] = useState<any>(null);
 
   const load = async () => {
-    const { data: sData } = await supabase.from("sales").select("*").order("created_at", { ascending: false });
-    if (sData) setSales(sData);
-    const { data: pData } = await supabase.from("products").select("*");
-    if (pData) setProducts(pData);
+    const [s, p] = await Promise.all([
+      supabase.from("sales").select("*").order("created_at", { ascending: false }),
+      supabase.from("products").select("*")
+    ]);
+    if (s.data) setSales(s.data);
+    if (p.data) setProducts(p.data);
   };
   useEffect(() => { load(); }, []);
 
+  const totNum = parseFloat(totalPrice) || 0, paidNum = parseFloat(paidAmount) || 0;
+  const remDebt = Math.max(0, totNum - paidNum);
+
   const handleSale = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!client || !amount) return alert("Mijoz/Izoh va summani kiriting!");
-    const { error } = await supabase.from("sales").insert([{
-      client_name: client,
-      product_name: txType === "chiqim" ? "Kassa Xarajati (Chiqim)" : prodName,
-      quantity: parseInt(qty) || 1,
-      weight: parseFloat(weight) || 0,
-      proba: parseInt(proba) || 585,
-      payment_type: payType,
-      total_amount: parseFloat(amount) || 0,
-      debt_amount: parseFloat(debt) || 0,
-      tx_type: txType
+    if (!RBAC.can("edit_sales")) return alert("Ruxsat yo'q! Faqat Accountant yoki Director sotuv/kassa yoza oladi.");
+    if (!client || totNum <= 0) return alert("Mijoz va summani to'g'ri kiriting!");
+    if (paidNum > totNum) return alert("XATO (Payment Guard): To'langan summa umumiy narxdan katta bo'lishi mumkin emas!");
+
+    const qNum = parseInt(qty) || 1;
+    if (txType === "kirim") {
+      const prodObj = products.find(p => (p.name || "").toLowerCase() === prodName.toLowerCase());
+      if (prodObj) {
+        const curStock = Number(prodObj.stock ?? prodObj.quantity ?? 0);
+        if (qNum > curStock) return alert(`XATO (Negative Stock Guard): Vitrinada "${prodObj.name}" dan faqat ${curStock} dona bor!`);
+        await supabase.from("products").update({ stock: curStock - qNum, quantity: curStock - qNum }).eq("id", prodObj.id);
+      }
+    }
+
+    await supabase.from("sales").insert([{
+      client_name: client, product_name: txType === "chiqim" ? "Kassa Xarajati (Chiqim)" : prodName,
+      quantity: qNum, weight: parseFloat(weight) || 0, proba: parseInt(proba) || 585,
+      payment_type: payType, total_amount: paidNum, debt_amount: txType === "kirim" ? remDebt : 0, tx_type: txType
     }]);
-    if (error) alert("Xatolik: " + error.message);
-    else { setClient(""); setWeight(""); setAmount(""); setDebt("0"); load(); }
+    await logErpAudit({ table: "sales", action: `SALE_${txType.toUpperCase()}`, newData: { client, prodName, paidNum, remDebt } });
+    setClient(""); load();
   };
 
-  const totalIn = sales.filter(s => s.tx_type !== "chiqim").reduce((a, b) => a + Number(b.total_amount || b.amount || 0), 0);
-  const totalOut = sales.filter(s => s.tx_type === "chiqim").reduce((a, b) => a + Number(b.total_amount || b.amount || 0), 0);
+  const totalIn = sales.filter(s => s.tx_type !== "chiqim").reduce((a, b) => a + Number(b.total_amount || 0), 0);
+  const totalOut = sales.filter(s => s.tx_type === "chiqim").reduce((a, b) => a + Number(b.total_amount || 0), 0);
   const totalDebt = sales.reduce((a, b) => a + Number(b.debt_amount || 0), 0);
 
   return (
     <div className="p-4 md:p-8 text-slate-800 space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Sotuv va Kassa Boshqaruvi</h1>
-          <p className="text-xs text-slate-500 mt-1">Tayyor mahsulot sotuvi, naqd/karta/qarz hisobi, kassa chiqimlari va chek chiqarish</p>
-        </div>
+        <h1 className="text-2xl font-bold text-slate-900">Sotuv, Kassa va Qarzlar (Vitrina bilan bog'langan)</h1>
         <div className="flex gap-3 text-xs">
-          <div className="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl"><span className="text-emerald-700">Kassa Balans:</span> <b className="text-emerald-900 text-sm">{(totalIn - totalOut).toLocaleString()} so'm</b></div>
-          <div className="bg-red-50 border border-red-200 px-4 py-2 rounded-xl"><span className="text-red-700">Mijozlar qarzi:</span> <b className="text-red-900 text-sm">{totalDebt.toLocaleString()} so'm</b></div>
+          <div className="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl">Kassa Balans: <b className="text-emerald-900 text-sm">{(totalIn - totalOut).toLocaleString()} so'm</b></div>
+          <div className="bg-red-50 border border-red-200 px-4 py-2 rounded-xl">Qarzlar: <b className="text-red-900 text-sm">{totalDebt.toLocaleString()} so'm</b></div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
-          <div className="flex gap-2 mb-4 bg-slate-100 p-1 rounded-xl text-xs font-bold">
-            <button onClick={() => setTxType("kirim")} className={`flex-1 py-2 rounded-lg ${txType === "kirim" ? "bg-emerald-600 text-white" : "text-slate-600"}`}>➕ Sotuv (Kirim)</button>
-            <button onClick={() => setTxType("chiqim")} className={`flex-1 py-2 rounded-lg ${txType === "chiqim" ? "bg-red-600 text-white" : "text-slate-600"}`}>➖ Xarajat (Chiqim)</button>
+        <form onSubmit={handleSale} className="bg-white p-5 rounded-2xl border space-y-3 text-sm h-fit">
+          <div className="flex gap-2 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+            <button type="button" onClick={() => setTxType("kirim")} className={`flex-1 py-2 rounded-lg ${txType === "kirim" ? "bg-emerald-600 text-white" : ""}`}>➕ Sotuv (Kirim)</button>
+            <button type="button" onClick={() => setTxType("chiqim")} className={`flex-1 py-2 rounded-lg ${txType === "chiqim" ? "bg-red-600 text-white" : ""}`}>➖ Xarajat (Chiqim)</button>
           </div>
-
-          <form onSubmit={handleSale} className="space-y-3 text-sm">
-            <div><label className="text-xs font-semibold text-slate-600">{txType === "kirim" ? "Xaridor (Mijoz)" : "Xarajat sababi / Kimga"}</label><input type="text" value={client} onChange={e => setClient(e.target.value)} placeholder={txType === "kirim" ? "Mijoz ismi" : "Masalan: Reagent olindi"} className="w-full border rounded-xl p-2.5 mt-1" /></div>
-            {txType === "kirim" && (
-              <>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600">Qaysi mahsulot?</label>
-                  <input type="text" list="prod-list" value={prodName} onChange={e => setProdName(e.target.value)} className="w-full border rounded-xl p-2.5 mt-1" />
-                  <datalist id="prod-list">
-                    <option value="Komplekt" /><option value="Uzuk" /><option value="Zirak" /><option value="Braslet" />
-                    {products.map((p, i) => <option key={i} value={p.name || p.title} />)}
-                  </datalist>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div><label className="text-xs font-semibold text-slate-600">Soni</label><input type="number" value={qty} onChange={e => setQty(e.target.value)} className="w-full border rounded-xl p-2 mt-1 font-bold" /></div>
-                  <div><label className="text-xs font-semibold text-slate-600">Vazni (gr)</label><input type="number" step="0.01" value={weight} onChange={e => setWeight(e.target.value)} className="w-full border rounded-xl p-2 mt-1 font-bold" /></div>
-                  <div><label className="text-xs font-semibold text-slate-600">Proba</label><input type="number" value={proba} onChange={e => setProba(e.target.value)} className="w-full border rounded-xl p-2 mt-1 font-bold" /></div>
-                </div>
-              </>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs font-semibold text-slate-600">To'lov turi</label>
-                <select value={payType} onChange={e => setPayType(e.target.value)} className="w-full border rounded-xl p-2.5 mt-1 bg-white">
-                  <option>Naqd pul</option><option>Karta (Terminal)</option><option>O'tkazma</option><option>Qarzga / Bo'lib to'lash</option>
-                </select>
+          <input value={client} onChange={e => setClient(e.target.value)} placeholder={txType === "kirim" ? "Xaridor ismi" : "Xarajat sababi"} className="w-full border rounded-xl p-2 font-bold" />
+          {txType === "kirim" && (
+            <>
+              <input list="p-list" value={prodName} onChange={e => setProdName(e.target.value)} placeholder="Mahsulot nomi" className="w-full border rounded-xl p-2" />
+              <datalist id="p-list">{products.map((p, i) => <option key={i} value={p.name} />)}</datalist>
+              <div className="grid grid-cols-3 gap-2">
+                <div><label className="text-[11px] text-slate-500">Soni</label><input type="number" value={qty} onChange={e => setQty(e.target.value)} className="w-full border rounded-xl p-2 font-bold" /></div>
+                <div><label className="text-[11px] text-slate-500">Vazn (gr)</label><input type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className="w-full border rounded-xl p-2 font-bold" /></div>
+                <div><label className="text-[11px] text-slate-500">Proba</label><input type="number" value={proba} onChange={e => setProba(e.target.value)} className="w-full border rounded-xl p-2 font-bold" /></div>
               </div>
-              <div><label className="text-xs font-semibold text-slate-600">To'langan Summa</label><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full border rounded-xl p-2.5 mt-1 font-bold" /></div>
+            </>
+          )}
+          <select value={payType} onChange={e => setPayType(e.target.value)} className="w-full border rounded-xl p-2 bg-white font-semibold">
+            <option>Naqd pul</option><option>Karta (Terminal)</option><option>Qarzga / Bo'lib to'lash</option>
+          </select>
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className="text-[11px] text-slate-500">Jami narx (TOTAL)</label><input type="number" value={totalPrice} onChange={e => { setTotalPrice(e.target.value); setPaidAmount(e.target.value); }} className="w-full border rounded-xl p-2 font-bold" /></div>
+            <div><label className="text-[11px] text-emerald-700 font-bold">To'landi (PAID)</label><input type="number" value={paidAmount} onChange={e => setPaidAmount(e.target.value)} className="w-full border-2 border-emerald-500 rounded-xl p-2 font-bold" /></div>
+          </div>
+          {txType === "kirim" && (
+            <div className="bg-red-50 p-2.5 rounded-xl border border-red-200 flex justify-between text-xs">
+              <span className="font-bold text-red-800">Qolgan Qarz (REMAINING):</span>
+              <b className="text-red-600 text-sm">{remDebt.toLocaleString()} so'm</b>
             </div>
-            {txType === "kirim" && (
-              <div><label className="text-xs font-semibold text-red-600">Qolgan qarz summasi (agar qarzga bo'lsa)</label><input type="number" value={debt} onChange={e => setDebt(e.target.value)} className="w-full border border-red-200 rounded-xl p-2 mt-1" /></div>
-            )}
-            <button type="submit" className={`w-full font-bold py-3 rounded-xl text-white shadow ${txType === "kirim" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"}`}>
-              {txType === "kirim" ? "Sotuvni tasdiqlash" : "Chiqimni saqlash"}
-            </button>
-          </form>
-        </div>
+          )}
+          <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl">Tasdiqlash</button>
+        </form>
 
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h2 className="text-lg font-bold mb-4">So'nggi sotuvlar va Kassa tarixi</h2>
+        <div className="lg:col-span-2 bg-white p-5 rounded-2xl border">
+          <h2 className="font-bold mb-3">Sotuv va Kassa Tarixi</h2>
           <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-                <th className="p-3">Xaridor / Izoh</th>
-                <th className="p-3">Mahsulot / Vazn</th>
-                <th className="p-3">To'lov / Summa</th>
-                <th className="p-3 text-center">Harakat</th>
-              </tr>
-            </thead>
+            <thead><tr className="text-xs text-slate-500 bg-slate-50 border-b"><th className="p-2.5">Mijoz</th><th className="p-2.5">Mahsulot</th><th className="p-2.5">To'landi / Qarz</th><th className="p-2.5 text-center">Chek</th></tr></thead>
             <tbody>
-              {sales.map((s, i) => {
-                const isOut = s.tx_type === "chiqim";
-                return (
-                  <tr key={i} className="border-b hover:bg-slate-50">
-                    <td className="p-3 font-bold">{s.client_name || s.customer_name}</td>
-                    <td className="p-3 text-slate-600">{s.product_name || s.product} ({s.weight || 0}gr / {s.proba || 585})</td>
-                    <td className="p-3">
-                      <span className={`font-extrabold ${isOut ? "text-red-600" : "text-emerald-600"}`}>
-                        {isOut ? "-" : "+"}{Number(s.total_amount || s.amount || 0).toLocaleString()} so'm
-                      </span>
-                      <div className="text-[11px] text-slate-400">{s.payment_type} {s.debt_amount > 0 ? `| Qarz: ${Number(s.debt_amount).toLocaleString()}` : ""}</div>
-                    </td>
-                    <td className="p-3 text-center">
-                      <button onClick={() => setReceipt(s)} className="border border-blue-200 bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-bold">🧾 Chek</button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {sales.map((s, i) => (
+                <tr key={i} className="border-b">
+                  <td className="p-2.5 font-bold">{s.client_name}</td>
+                  <td className="p-2.5">{s.product_name} ({s.weight || 0}g / {s.proba || 585})</td>
+                  <td className="p-2.5">
+                    <span className={`font-bold ${s.tx_type === "chiqim" ? "text-red-600" : "text-emerald-600"}`}>{s.tx_type === "chiqim" ? "-" : "+"}{Number(s.total_amount || 0).toLocaleString()} so'm</span>
+                    {s.debt_amount > 0 && <div className="text-xs text-red-500 font-semibold">Qarz: {Number(s.debt_amount).toLocaleString()} so'm</div>}
+                  </td>
+                  <td className="p-2.5 text-center"><button onClick={() => setReceipt(s)} className="border bg-blue-50 text-blue-700 px-2.5 py-1 rounded text-xs font-bold">🧾 Chek</button></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -145,21 +125,15 @@ export default function SalesPage() {
 
       {receipt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-2xl max-w-sm w-full space-y-4 border shadow-2xl text-sm">
-            <div className="text-center border-b pb-3">
-              <h3 className="font-black text-lg">💎 JEWELRYFLOW ERP</h3>
-              <p className="text-xs text-slate-500">Rasmiy Savdo Cheki</p>
-            </div>
-            <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between"><span>Xaridor:</span><b>{receipt.client_name || receipt.customer_name}</b></div>
-              <div className="flex justify-between"><span>Mahsulot:</span><b>{receipt.product_name || receipt.product}</b></div>
-              <div className="flex justify-between"><span>Vazni / Proba:</span><b>{receipt.weight || 0} gr ({receipt.proba || 585})</b></div>
-              <div className="flex justify-between"><span>To'lov turi:</span><b>{receipt.payment_type}</b></div>
-              <div className="flex justify-between text-sm border-t pt-2"><span>Jami to'landi:</span><b className="text-emerald-700">{Number(receipt.total_amount || receipt.amount || 0).toLocaleString()} so'm</b></div>
-            </div>
+          <div className="bg-white p-6 rounded-2xl max-w-sm w-full space-y-3 border shadow-2xl text-xs">
+            <h3 className="font-black text-base text-center border-b pb-2">💎 JEWELRYFLOW ERP — CHEK</h3>
+            <div className="flex justify-between"><span>Mijoz:</span><b>{receipt.client_name}</b></div>
+            <div className="flex justify-between"><span>Mahsulot:</span><b>{receipt.product_name} ({receipt.weight}g)</b></div>
+            <div className="flex justify-between"><span>To'landi:</span><b className="text-emerald-700">{Number(receipt.total_amount).toLocaleString()} so'm</b></div>
+            <div className="flex justify-between"><span>Qolgan qarz:</span><b className="text-red-600">{Number(receipt.debt_amount || 0).toLocaleString()} so'm</b></div>
             <div className="flex gap-2 pt-2">
-              <button onClick={() => window.print()} className="flex-1 bg-blue-600 text-white py-2 rounded-xl font-bold text-xs">🖨️ Chop etish</button>
-              <button onClick={() => setReceipt(null)} className="flex-1 bg-slate-200 text-slate-800 py-2 rounded-xl font-bold text-xs">Yopish</button>
+              <button onClick={() => window.print()} className="flex-1 bg-blue-600 text-white py-2 rounded-xl font-bold">🖨️ Print</button>
+              <button onClick={() => setReceipt(null)} className="flex-1 bg-slate-200 py-2 rounded-xl font-bold">Yopish</button>
             </div>
           </div>
         </div>

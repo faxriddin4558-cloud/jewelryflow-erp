@@ -1,116 +1,124 @@
-"use client";
-import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-);
+﻿"use client";
+import { useState } from "react";
+import { supabase, GoldEngine, RBAC, logErpAudit } from "@/lib/erp-engine";
 
 export default function CalculatorPage() {
-  const [w, setW] = useState("100");
-  const [cP, setCP] = useState("999");
-  const [tP, setTP] = useState("585");
-  const [ratio, setRatio] = useState("70");
+  const [inW, setInW] = useState("100");
+  const [curP, setCurP] = useState("999");
+  const [tarP, setTarP] = useState("585");
+  const [ratio, setRatio] = useState(70);
 
-  const [sW, setSW] = useState("400");
-  const [sP, setSP] = useState("585");
-  const [src, setSrc] = useState("Lom / Qirindi");
-  const [reag, setReag] = useState("Mis + Azot kislotasi");
-  const [outW, setOutW] = useState("");
+  const [scrapW, setScrapW] = useState("400");
+  const [estP, setEstP] = useState("585");
+  const [outW, setOutW] = useState("233.50");
   const [outP, setOutP] = useState("999");
-  const [resp, setResp] = useState("Valijon");
-  const [list, setList] = useState<any[]>([]);
+  const [master, setMaster] = useState("Valijon");
+  const [busy, setBusy] = useState(false);
 
-  const wN = parseFloat(w) || 0, cN = parseFloat(cP) || 0, tN = parseFloat(tP) || 585, rN = parseFloat(ratio) || 70;
-  const pure = (wN * cN) / 1000;
-  const totalAlloy = tN > 0 ? (wN * cN) / tN : 0;
-  const ligatura = Math.max(0, totalAlloy - wN);
+  const alloy = GoldEngine.calculateAlloy(parseFloat(inW) || 0, parseInt(curP) || 999, parseInt(tarP) || 585, ratio);
 
-  const swN = parseFloat(sW) || 0, spN = parseFloat(sP) || 0;
-  const expPure = (swN * spN) / 1000;
-  const actualW = outW !== "" ? parseFloat(outW) : expPure;
-  const opN = parseFloat(outP) || 999;
-  const actPure = (actualW * opN) / 1000;
-  const loss = Math.max(0, expPure - actPure);
+  const scNum = parseFloat(scrapW) || 0, ePNum = parseInt(estP) || 585, oWNum = parseFloat(outW) || 0, oPNum = parseInt(outP) || 999;
+  const expectedFine = GoldEngine.toFineGold(scNum, ePNum);
+  const actualFine = GoldEngine.toFineGold(oWNum, oPNum);
+  const refLoss = Number(Math.max(0, expectedFine - actualFine).toFixed(2));
+  const copperRemoved = Number(Math.max(0, scNum - oWNum - refLoss).toFixed(2));
 
-  const load = async () => {
-    const { data } = await supabase.from("gold_transactions").select("*").eq("transaction_type", "affinaj").order("created_at", { ascending: false });
-    if (data) setList(data);
-  };
-  useEffect(() => { load(); }, []);
-
-  const saveAffinaj = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // 13-BAND: LIGATURA AMALIYOTINI OMBOR VA GOLD LEDGERGA YOZISH
+  const executeAlloyTransaction = async () => {
+    if (busy || !RBAC.can("edit_inventory")) return alert("Ruxsat yo'q!");
+    setBusy(true);
     await supabase.from("gold_transactions").insert([
-      { transaction_type: "affinaj", material_name: `${src} -> Oltin (${opN})`, gross_weight: actualW, proba: opN, pure_gold: actPure, description: `Kirdi: ${swN}g (${spN}) | Reagent: ${reag} | Yo'qotish: ${loss.toFixed(2)}g | Mas'ul: ${resp}` },
-      { transaction_type: "kirim", material_name: "Toza oltin (Affinaj)", gross_weight: actualW, proba: opN, pure_gold: actPure, description: `Affinajdan kirim (${resp})` }
+      {
+        transaction_type: "chiqim", from_location: "SAFE", to_location: "ALLOY_MELTING",
+        material_name: `Qotishma uchun oltin (${curP})`, gross_weight: parseFloat(inW) || 0,
+        proba: parseInt(curP) || 999, pure_gold: alloy.fineGold, description: `${curP} -> ${tarP} ligatura tayyorlash`
+      },
+      {
+        transaction_type: "kirim", from_location: "ALLOY_MELTING", to_location: "SAFE",
+        material_name: `Tayyor qotishma oltin (${tarP})`, gross_weight: alloy.totalOutputWeight,
+        proba: parseInt(tarP) || 585, pure_gold: alloy.fineGold, description: `Ligatura (+${alloy.requiredLigature}g mis/kumush qo'shildi)`
+      }
     ]);
-    alert(`Saqlandi! Omborga ${actualW.toFixed(2)} gr (${opN} proba) kirim qilindi.`);
-    setOutW(""); load();
+    await logErpAudit({ table: "gold_transactions", action: "ALLOY_TRANSACTION", newData: alloy });
+    setBusy(false);
+    alert(`Qotishma tranzaksiyasi bajarildi: ${inW}g (${curP}) + ${alloy.requiredLigature}g Ligatura = ${alloy.totalOutputWeight}g (${tarP} proba) SAFE omboriga kirim qilindi!`);
+  };
+
+  // 14-BAND: AFFINAJ TRANZAKSIYASI (SCRAP -> AFFINAJ -> 999 GOLD SAFE + LOSS)
+  const executeAffinajTransaction = async () => {
+    if (busy || !RBAC.can("edit_inventory")) return alert("Ruxsat yo'q!");
+    setBusy(true);
+    await supabase.from("gold_transactions").insert([
+      {
+        transaction_type: "kirim", from_location: "AFFINAJ", to_location: "SAFE",
+        material_name: `Affinaj sof oltin (${oPNum})`, gross_weight: oWNum,
+        proba: oPNum, pure_gold: actualFine, description: `Affinaj: ${scNum}g (${ePNum}) lomdan olindi. Mas'ul: ${master}`
+      }
+    ]);
+    if (refLoss > 0) {
+      await supabase.from("consumption").insert([{
+        batch_no: "AFFINAJ", master_name: master, department: "Affinaj", proba: oPNum,
+        given_weight: expectedFine, returned_weight: actualFine, sprue_gram: 0, loss_weight: refLoss
+      }]);
+    }
+    const { data: ex } = await supabase.from("inventory_items").select("*").eq("proba", oPNum).eq("category", "Gold").limit(1).single();
+    if (ex) {
+      await supabase.from("inventory_items").update({ on_hand: Number(ex.on_hand || 0) + oWNum }).eq("id", ex.id);
+    } else {
+      await supabase.from("inventory_items").insert([{ material_code: "AU-999", name: `Affinaj sof oltin (${oPNum})`, category: "Gold", unit: "gr", proba: oPNum, on_hand: oWNum, reserved: 0 }]);
+    }
+    await logErpAudit({ table: "gold_transactions", action: "AFFINAJ_COMPLETE", newData: { scNum, oWNum, refLoss, master } });
+    setBusy(false);
+    alert(`Affinaj yakunlandi! ${oWNum} gr (${oPNum}) sof oltin SAFE omboriga kirim qilindi. Pateriya: ${refLoss} gr.`);
   };
 
   return (
     <div className="p-4 md:p-8 text-slate-800 space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">Proba, Ligatura va Affinaj Markazi</h1>
+      <h1 className="text-2xl font-bold text-slate-900">Proba, Ligatura va Affinaj Markazi (Central GoldEngine)</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-          <h2 className="text-lg font-bold border-b pb-2">⚖️ Proba tushirish (Qotishma & Ligatura)</h2>
-          <div className="space-y-3 text-sm">
-            <div><label className="text-xs font-semibold text-slate-600">Tilla massasi (gr)</label><input type="number" value={w} onChange={e => setW(e.target.value)} className="w-full border rounded-xl p-2.5 font-bold mt-1" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs font-semibold text-slate-600">Joriy proba</label><input type="number" value={cP} onChange={e => setCP(e.target.value)} className="w-full border rounded-xl p-2.5 font-bold mt-1" /></div>
-              <div><label className="text-xs font-semibold text-slate-600">Kutilayotgan proba</label><input type="number" value={tP} onChange={e => setTP(e.target.value)} className="w-full border rounded-xl p-2.5 font-bold mt-1" /></div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600">Nisbat: {rN}% yangi / {100 - rN}% eski oltin</label>
-              <input type="range" min="0" max="100" step="5" value={ratio} onChange={e => setRatio(e.target.value)} className="w-full mt-1" />
-            </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border space-y-4">
+          <h2 className="text-lg font-bold border-b pb-2">⚖️ Proba tushirish / ko'tarish (Qotishma & Ligatura)</h2>
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div><label className="text-xs font-semibold text-slate-500">Kirish vazni (gr)</label><input type="number" value={inW} onChange={e => setInW(e.target.value)} className="w-full border rounded-xl p-2.5 mt-1 font-bold" /></div>
+            <div><label className="text-xs font-semibold text-slate-500">Joriy proba</label><input type="number" value={curP} onChange={e => setCurP(e.target.value)} className="w-full border rounded-xl p-2.5 mt-1 font-bold" /></div>
+            <div><label className="text-xs font-semibold text-slate-500">Maqsadli proba</label><input type="number" value={tarP} onChange={e => setTarP(e.target.value)} className="w-full border rounded-xl p-2.5 mt-1 font-bold" /></div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-600">Nisbat: {ratio}% yangi / {100 - ratio}% eski oltin</label>
+            <input type="range" min={0} max={100} value={ratio} onChange={e => setRatio(Number(e.target.value))} className="w-full mt-1" />
           </div>
           <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-2 text-sm">
-            <div className="flex justify-between"><span>Sof oltin (999.9):</span><b className="text-amber-700">{pure.toFixed(2)} gr</b></div>
-            <div className="flex justify-between border-t border-amber-200 pt-2"><span>Qo'shiladigan ligatura (Mis/Rux):</span><b className="text-amber-800 text-base">+{ligatura.toFixed(2)} gr</b></div>
-            <div className="flex justify-between border-t border-amber-200 pt-2"><span>Jami tayyor qotishma ({tN}):</span><b className="text-emerald-700 text-base">{totalAlloy.toFixed(2)} gr</b></div>
-            <div className="text-xs bg-white p-2 rounded border">Tavsiya: {((totalAlloy * rN) / 100).toFixed(2)}g yangi + {((totalAlloy * (100 - rN)) / 100).toFixed(2)}g eski</div>
+            <div className="flex justify-between"><span>Sof oltin (999.9):</span><b className="text-amber-800">{alloy.fineGold.toFixed(2)} gr</b></div>
+            <div className="flex justify-between"><span>Qo'shiladigan ligatura (Mis/Kumush):</span><b className="text-red-600">+{alloy.requiredLigature.toFixed(2)} gr</b></div>
+            <div className="flex justify-between border-t pt-2"><span>Jami tayyor qotishma ({tarP}):</span><b className="text-emerald-700 text-base">{alloy.totalOutputWeight.toFixed(2)} gr</b></div>
+            <div className="text-xs text-slate-500 bg-white p-2 rounded border">Tavsiya: {alloy.newGoldShare}g yangi + {alloy.oldGoldShare}g eski oltin</div>
           </div>
+          <button onClick={executeAlloyTransaction} disabled={busy} className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl shadow">
+            🔥 Qotishmani tasdiqlash va Gold Ledgerga yozish
+          </button>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-          <h2 className="text-lg font-bold border-b pb-2">🧪 Tillani tozalash (Affinaj)</h2>
-          <form onSubmit={saveAffinaj} className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs font-semibold text-slate-600">Lom / Qirindi (gr)</label><input type="number" value={sW} onChange={e => setSW(e.target.value)} className="w-full border rounded-xl p-2 font-bold mt-1" /></div>
-              <div><label className="text-xs font-semibold text-slate-600">Taxminiy probasi</label><input type="number" value={sP} onChange={e => setSP(e.target.value)} className="w-full border rounded-xl p-2 font-bold mt-1" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs font-semibold text-slate-600">Manbasi</label><input type="text" value={src} onChange={e => setSrc(e.target.value)} className="w-full border rounded-xl p-2 text-xs mt-1" /></div>
-              <div><label className="text-xs font-semibold text-slate-600">Reagentlar</label><input type="text" value={reag} onChange={e => setReag(e.target.value)} className="w-full border rounded-xl p-2 text-xs mt-1" /></div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div><label className="text-xs font-semibold text-slate-600">Chiqdi (gr)</label><input type="number" step="0.01" value={outW} onChange={e => setOutW(e.target.value)} placeholder={expPure.toFixed(2)} className="w-full border border-emerald-400 rounded-xl p-2 font-bold mt-1" /></div>
-              <div><label className="text-xs font-semibold text-slate-600">Proba</label><input type="number" value={outP} onChange={e => setOutP(e.target.value)} className="w-full border rounded-xl p-2 font-bold mt-1" /></div>
-              <div><label className="text-xs font-semibold text-slate-600">Mas'ul</label><input type="text" value={resp} onChange={e => setResp(e.target.value)} className="w-full border rounded-xl p-2 mt-1" /></div>
-            </div>
-            <div className="bg-blue-50 p-3 rounded-xl border border-blue-200 space-y-1 text-xs">
-              <div className="flex justify-between"><span>Olinadigan sof tilla (999):</span><b className="text-blue-800 text-sm">{expPure.toFixed(2)} gr</b></div>
-              <div className="flex justify-between"><span>Ajraladigan aralashma (mis, rux):</span><b className="text-red-600">{Math.max(0, swN - expPure).toFixed(2)} gr</b></div>
-              <div className="flex justify-between border-t border-blue-200 pt-1 text-amber-800"><span>Affinaj yo'qotishi (Pateriya):</span><b>{loss.toFixed(2)} gr</b></div>
-            </div>
-            <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow">🧪 Affinajni yakunlash va Omborga kirim qilish</button>
-          </form>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border space-y-4">
+          <h2 className="text-lg font-bold border-b pb-2">🧪 Tillani tozalash (Affinaj Transaction)</h2>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div><label className="text-xs font-semibold text-slate-500">Lom / Sprue / Qirindi (gr)</label><input type="number" value={scrapW} onChange={e => setScrapW(e.target.value)} className="w-full border rounded-xl p-2.5 mt-1 font-bold" /></div>
+            <div><label className="text-xs font-semibold text-slate-500">Taxminiy probasi</label><input type="number" value={estP} onChange={e => setEstP(e.target.value)} className="w-full border rounded-xl p-2.5 mt-1 font-bold" /></div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div><label className="text-xs font-semibold text-emerald-700">Chiqdi sof oltin (gr)</label><input type="number" step="0.01" value={outW} onChange={e => setOutW(e.target.value)} className="w-full border-2 border-emerald-500 rounded-xl p-2.5 mt-1 font-bold" /></div>
+            <div><label className="text-xs font-semibold text-slate-500">Chiqish probasi</label><input type="number" value={outP} onChange={e => setOutP(e.target.value)} className="w-full border rounded-xl p-2.5 mt-1 font-bold" /></div>
+            <div><label className="text-xs font-semibold text-slate-500">Mas'ul usta</label><input value={master} onChange={e => setMaster(e.target.value)} className="w-full border rounded-xl p-2.5 mt-1 font-bold" /></div>
+          </div>
+          <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 space-y-2 text-sm">
+            <div className="flex justify-between"><span>Kutilgan sof tilla (999):</span><b className="text-blue-900">{expectedFine.toFixed(2)} gr</b></div>
+            <div className="flex justify-between"><span>Haqiqiy olingan sof tilla:</span><b className="text-emerald-700">{actualFine.toFixed(2)} gr</b></div>
+            <div className="flex justify-between"><span>Ajralgan mis/shlak:</span><b className="text-slate-600">{copperRemoved.toFixed(2)} gr</b></div>
+            <div className="flex justify-between border-t pt-2"><span>Affinaj yo'qotishi (Pateriya):</span><b className="text-red-600">{refLoss.toFixed(2)} gr</b></div>
+          </div>
+          <button onClick={executeAffinajTransaction} disabled={busy} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow">
+            🧪 Affinajni yakunlash va SAFE Omborga kirim qilish
+          </button>
         </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <h3 className="font-bold mb-3">Affinaj amaliyotlari tarixi</h3>
-        <table className="w-full text-left text-sm">
-          <thead><tr className="text-xs text-slate-500 uppercase bg-slate-50 border-b"><th className="p-2">Sana</th><th className="p-2">Amaliyot</th><th className="p-2 text-right">Massa</th><th className="p-2">Tafsilotlar</th></tr></thead>
-          <tbody>
-            {list.map((it, i) => (
-              <tr key={i} className="border-b"><td className="p-2 text-xs">{new Date(it.created_at).toLocaleDateString("uz-UZ")}</td><td className="p-2 font-semibold">{it.material_name}</td><td className="p-2 text-right font-bold text-emerald-600">{Number(it.gross_weight).toFixed(2)} gr</td><td className="p-2 text-xs text-slate-600">{it.description}</td></tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );
