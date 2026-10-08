@@ -36,15 +36,42 @@ export default function DashboardPage() {
     loadAll();
   }, []);
 
+  const isDone = (st: string) => st === "Tugatildi" || (st || "").toLowerCase() === "completed";
+  const getSaleSum = (x: any) => Number(x.total_amount || x.amount || x.price || x.total || x.summa || 0);
+
   // Jonli KPI hisob-kitoblari
   const vaultGold = goldTx.filter(t => t.transaction_type === "kirim").reduce((s, t) => s + Number(t.gross_weight || 0), 0);
   const vaultPure = goldTx.filter(t => t.transaction_type === "kirim").reduce((s, t) => s + Number(t.pure_gold || 0), 0);
-  const activeBatches = batches.filter(b => b.status !== "Tugatildi");
-  const wipGold = activeBatches.reduce((s, b) => s + Number(b.actual_gram || b.planned_gram || 0), 0);
+  const activeBatches = batches.filter(b => !isDone(b.status));
+  const finishedBatches = batches.filter(b => isDone(b.status));
+  const wipGold = activeBatches.reduce((s, b) => s + Number(b.actual_gram || b.planned_gram || b.weight || 0), 0);
   const totalLoss = consumption.reduce((s, c) => s + Number(c.loss_weight ?? (Number(c.given_weight || 0) - Number(c.returned_weight || 0))), 0);
-  const kassaIn = sales.filter(s => s.tx_type !== "chiqim").reduce((s, x) => s + Number(x.total_amount || x.amount || 0), 0);
-  const kassaOut = sales.filter(s => s.tx_type === "chiqim").reduce((s, x) => s + Number(x.total_amount || x.amount || 0), 0);
+  const kassaIn = sales.filter(s => s.tx_type !== "chiqim").reduce((s, x) => s + getSaleSum(x), 0);
+  const kassaOut = sales.filter(s => s.tx_type === "chiqim").reduce((s, x) => s + getSaleSum(x), 0);
   const busyMachines = machines.filter(m => m.status === "band").length;
+
+  // Umumiy svodka hisobotini Excel (CSV) formatida yuklab olish
+  const exportFullReport = () => {
+    const rows = [
+      ["JEWELRYFLOW ERP - KORXONA UMUMIY SVODKA HISOBOTI", new Date().toLocaleDateString("uz-UZ")],
+      [],
+      ["KO'RSATKICHLAR", "QIYMATI"],
+      ["Ombordagi Xomashyo (Seyf)", `${vaultGold.toFixed(2)} gr`],
+      ["Sof Oltin (999.9) Ekvivalenti", `${vaultPure.toFixed(2)} gr`],
+      ["Ishlab chiqarishdagi oltin (WIP)", `${wipGold.toFixed(2)} gr (${activeBatches.length} ta partiya)`],
+      ["Tugatilgan partiyalar", `${finishedBatches.length} ta`],
+      ["Jami Pateriya (Yo'qotish)", `${totalLoss.toFixed(2)} gr`],
+      ["Sof Kassa Balansi", `${(kassaIn - kassaOut).toLocaleString()} so'm`],
+      ["Mijoz Buyurtmalari", `${orders.length} ta`]
+    ];
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(e => e.join(",")).join("\n");
+    const link = document.createElement("a");
+    link.setAttribute("href", encodeURI(csvContent));
+    link.setAttribute("download", `JewelryFlow_ERP_Hisobot_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="p-4 md:p-8 text-slate-800 space-y-6">
@@ -53,7 +80,10 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-slate-900">💎 JewelryFlow ERP — Boshqaruv Markazi</h1>
           <p className="text-xs text-slate-500 mt-1">Korxonaning barcha oltin qoldiqlari, partiyalar oqimi, yo'qotishlar va moliya ko'rsatkichlari</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button onClick={exportFullReport} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition">
+            📊 Excel Hisobot (Svodka)
+          </button>
           <Link href="/batches" className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm">+ Yangi Partiya</Link>
           <Link href="/inventory" className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm">+ Xomashyo Kirim</Link>
         </div>
@@ -69,8 +99,8 @@ export default function DashboardPage() {
 
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
           <span className="text-xs font-bold uppercase text-purple-600">⚙️ Ishlab chiqarishda (WIP)</span>
-          <div className="text-2xl font-black text-slate-900 mt-1">{wipGold.toFixed(2)} gr <span className="text-sm font-semibold text-purple-600">({activeBatches.length} ta partiya)</span></div>
-          <div className="text-xs text-slate-500 mt-1">Tugatilgan partiyalar: <b>{batches.length - activeBatches.length} ta</b></div>
+          <div className="text-2xl font-black text-slate-900 mt-1">{wipGold.toFixed(2)} gr <span className="text-sm font-semibold text-purple-600">({activeBatches.length} ta faol)</span></div>
+          <div className="text-xs text-slate-500 mt-1">Tugatilgan partiyalar: <b className="text-emerald-600">{finishedBatches.length} ta</b></div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
@@ -101,7 +131,7 @@ export default function DashboardPage() {
       {/* SO'NGGI PARTIYALAR HOLATI JADVALI */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-bold text-slate-800">🚀 Jarayondagi so'nggi partiyalar va texnologik bosqichlar</h2>
+          <h2 className="text-base font-bold text-slate-800">🚀 So'nggi partiyalar va texnologik bosqichlar</h2>
           <Link href="/batches" className="text-xs font-bold text-purple-600 hover:underline">Barchasini ko'rish →</Link>
         </div>
         <table className="w-full text-left text-sm">
@@ -116,20 +146,27 @@ export default function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {batches.slice(0, 6).map((b, i) => (
-              <tr key={i} className="border-b hover:bg-slate-50">
-                <td className="p-3 font-bold text-slate-900">{b.batch_no || b.number || `B-00${i + 1}`}</td>
-                <td className="p-3">{b.product_name || b.product || "Komplekt"}</td>
-                <td className="p-3 text-blue-600 font-medium">{b.master_name || b.master || "Valijon"}</td>
-                <td className="p-3"><span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded text-xs font-semibold">{b.current_step || "7. Quyish"}</span></td>
-                <td className="p-3 text-right font-bold">{Number(b.actual_gram || b.planned_gram || 0)} gr</td>
-                <td className="p-3 text-center">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${b.status === "Tugatildi" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                    {b.status || "Jarayonda"}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {batches.slice(0, 6).map((b, i) => {
+              const done = isDone(b.status);
+              return (
+                <tr key={i} className="border-b hover:bg-slate-50">
+                  <td className="p-3 font-bold text-slate-900">{b.batch_no || b.number || `B-00${i + 1}`}</td>
+                  <td className="p-3">{b.product_name || b.product || "Komplekt"}</td>
+                  <td className="p-3 text-blue-600 font-medium">{b.master_name || b.master || "Valijon"}</td>
+                  <td className="p-3">
+                    <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded text-xs font-semibold">
+                      {done ? "24. Tayyor mahsulot ombori" : (b.current_step || "7. Quyish")}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right font-bold">{Number(b.actual_gram || b.planned_gram || b.weight || 0)} gr</td>
+                  <td className="p-3 text-center">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${done ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                      {done ? "Tugatildi" : (b.status || "Jarayonda")}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
