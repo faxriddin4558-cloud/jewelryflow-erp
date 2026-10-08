@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -212,16 +212,16 @@ export default function BatchesPage() {
         </div>
         <div className="flex flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
           <button onClick={() => setActiveTab("list")} className={`px-3.5 py-2 rounded-lg text-xs font-bold transition ${activeTab === "list" ? "bg-purple-600 text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}>
-            ⚙️ Partiyalar ({batches.length})
+            вљ™пёЏ Partiyalar ({batches.length})
           </button>
           <button onClick={() => setActiveTab("queue")} className={`px-3.5 py-2 rounded-lg text-xs font-bold transition ${activeTab === "queue" ? "bg-purple-600 text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}>
-            🚦 Navbat & Bottleneck
+            рџљ¦ Navbat & Bottleneck
           </button>
           <button onClick={() => setActiveTab("machines")} className={`px-3.5 py-2 rounded-lg text-xs font-bold transition ${activeTab === "machines" ? "bg-purple-600 text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}>
-            🔬 Apparatlar ({machines.length})
+            рџ”¬ Apparatlar ({machines.length})
           </button>
           <button onClick={() => setActiveTab("tv")} className={`px-3.5 py-2 rounded-lg text-xs font-bold transition ${activeTab === "tv" ? "bg-purple-600 text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}>
-            📺 TV Monitor
+            рџ“є TV Monitor
           </button>
         </div>
       </div>
@@ -310,8 +310,8 @@ export default function BatchesPage() {
                   </thead>
                   <tbody>
                     {batches.map((b, idx) => {
-                      const bNo = b.batch_no || b.number || `B-00${idx + 1}`;
-                      const prod = b.product_name || b.product || b.item || "Komplekt";
+                      const bNo = b.batch_no || b.number || b.code || "B-00" + (i + 1) || `B-00${idx + 1}`;
+                      const prod = b.product_name || b.product || b.name || "Komplekt" || b.item || "Komplekt";
                       const isDone = b.status === "Tugatildi";
                       return (
                         <tr
@@ -350,7 +350,7 @@ export default function BatchesPage() {
                   <div>
                     <span className="text-xs uppercase tracking-wider text-purple-600 font-bold">Partiya Texnologik Pasporti</span>
                     <h3 className="text-xl font-bold text-slate-900 mt-0.5">
-                      {selectedBatch.batch_no || selectedBatch.number} — {selectedBatch.product_name || selectedBatch.product}
+                      {selectedBatch.batch_no || selectedBatch.number} вЂ” {selectedBatch.product_name || selectedBatch.product}
                     </h3>
                   </div>
                   <div className="text-right text-xs text-slate-500">
@@ -378,7 +378,7 @@ export default function BatchesPage() {
                               : "bg-slate-50 border-slate-200 text-slate-400"
                           }`}
                         >
-                          {isCompleted ? "✓ " : isCurrent ? "→ " : ""}{step}
+                          {isCompleted ? "вњ“ " : isCurrent ? "в†’ " : ""}{step}
                         </span>
                       );
                     })}
@@ -434,7 +434,7 @@ export default function BatchesPage() {
                     onClick={() => handleAdvanceStep(selectedBatch)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md shadow-emerald-600/20 transition"
                   >
-                    ✓ Bosqichni tugatish va Keyingi bo'limga yuborish →
+                    вњ“ Bosqichni tugatish va Keyingi bo'limga yuborish в†’
                   </button>
                 </div>
               </div>
@@ -449,8 +449,8 @@ export default function BatchesPage() {
           {bottleneck && bottleneck.totalGram > 0 && (
             <div className="bg-red-50 border border-red-200 p-4 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="text-xs font-bold uppercase text-red-600">⚠️ Diqqat: Bottleneck (Eng ko'p yuklama yig'ilgan bo'lim)</span>
-                <h3 className="text-lg font-bold text-slate-900 mt-1">{bottleneck.step} — {bottleneck.count} ta partiya ({bottleneck.totalGram} gr WIP)</h3>
+                <span className="text-xs font-bold uppercase text-red-600">вљ пёЏ Diqqat: Bottleneck (Eng ko'p yuklama yig'ilgan bo'lim)</span>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">{bottleneck.step} вЂ” {bottleneck.count} ta partiya ({bottleneck.totalGram} gr WIP)</h3>
               </div>
               <span className="bg-red-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl">Tezkor e'tibor kerak</span>
             </div>
@@ -472,7 +472,7 @@ export default function BatchesPage() {
                     {q.batches.map((b: any, i: number) => (
                       <div key={i} className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex justify-between items-center text-xs">
                         <div>
-                          <b className="text-slate-900">{b.batch_no || b.number}</b> — <span className="text-slate-600">{b.product_name || b.product}</span>
+                          <b className="text-slate-900">{b.batch_no || b.number || b.code || "B-00" + (i + 1)}</b> вЂ” <span className="text-slate-600">{b.product_name || b.product || b.name || "Komplekt"}</span>
                         </div>
                         <span className="text-emerald-700 font-bold">{b.actual_gram || b.planned_gram || 0} g</span>
                       </div>
@@ -519,11 +519,11 @@ export default function BatchesPage() {
       {activeTab === "tv" && (
         <div className="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 text-white">
           <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-            <h2 className="text-xl font-extrabold tracking-wide text-white">📺 FABRIKA PRODUCTION BOARD (JONLI EKRAN)</h2>
+            <h2 className="text-xl font-extrabold tracking-wide text-white">рџ“є FABRIKA PRODUCTION BOARD (JONLI EKRAN)</h2>
             <div className="flex gap-4 text-xs font-bold">
-              <span className="text-emerald-400">● YASHIL = Tayyor</span>
-              <span className="text-blue-400">● KO'K = Ishlanmoqda</span>
-              <span className="text-red-400">● QIZIL = Kechikkan / Muammo</span>
+              <span className="text-emerald-400">в—Џ YASHIL = Tayyor</span>
+              <span className="text-blue-400">в—Џ KO'K = Ishlanmoqda</span>
+              <span className="text-red-400">в—Џ QIZIL = Kechikkan / Muammo</span>
             </div>
           </div>
           <table className="w-full text-left border-collapse text-base">
@@ -542,12 +542,12 @@ export default function BatchesPage() {
                 const isDone = b.status === "Tugatildi";
                 return (
                   <tr key={i} className={`border-b border-slate-800 font-semibold ${isDelayed ? "bg-red-950/50 text-red-200" : isDone ? "bg-emerald-950/40 text-emerald-200" : "text-white"}`}>
-                    <td className="py-4 px-3 text-lg font-black">{b.batch_no || b.number}</td>
-                    <td className="py-4 px-3">{b.product_name || b.product}</td>
+                    <td className="py-4 px-3 text-lg font-black">{b.batch_no || b.number || b.code || "B-00" + (i + 1)}</td>
+                    <td className="py-4 px-3">{b.product_name || b.product || b.name || "Komplekt"}</td>
                     <td className="py-4 px-3 text-blue-400">{b.current_step || "7. Quyish"}</td>
                     <td className="py-4 px-3 text-right text-amber-400">{b.actual_gram || b.planned_gram || 0} g</td>
                     <td className="py-4 px-3 text-center">
-                      {isDelayed ? `⚠️ ${b.delay_reason}` : b.deadline || b.status}
+                      {isDelayed ? `вљ пёЏ ${b.delay_reason}` : b.deadline || b.status}
                     </td>
                   </tr>
                 );
