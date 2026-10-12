@@ -82,7 +82,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setCurrentUser(RBAC.getCurrentUser());
+    const unsubscribe = RBAC.subscribe((updatedUser) => {
+      setCurrentUser(updatedUser);
+    });
     void loadAll();
+    return () => {
+      unsubscribe();
+    };
   }, [loadAll]);
 
   const isDone = (st?: string | null) => st === "Tugatildi" || (st || "").toLowerCase() === "completed";

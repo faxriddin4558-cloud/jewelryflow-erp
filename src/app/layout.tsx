@@ -32,6 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       navigator.serviceWorker.register("/sw.js").catch(console.error);
     }
 
+    const unsubscribeRbac = RBAC.subscribe((updatedUser) => {
+      setSessionUser(updatedUser);
+    });
+
     const syncAuthSession = async () => {
       try {
         const {
@@ -39,30 +43,40 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         } = await supabase.auth.getUser();
         if (!user) {
           RBAC.resetUser();
-          setSessionUser(RBAC.getCurrentUser());
           return;
         }
 
-        const { data: empRows } = await supabase
+        let emp: EmployeeRow | null = null;
+        const { data: byUserIdRows, error: byUserIdErr } = await supabase
           .from("employees")
           .select("*")
-          .or(`id.eq.${user.id},user_id.eq.${user.id}`)
+          .eq("user_id", user.id)
           .limit(1);
 
-        const emp = (empRows && empRows[0] ? (empRows[0] as EmployeeRow) : null);
+        if (!byUserIdErr && byUserIdRows && byUserIdRows[0]) {
+          emp = byUserIdRows[0] as EmployeeRow;
+        } else {
+          const { data: byIdRows, error: byIdErr } = await supabase
+            .from("employees")
+            .select("*")
+            .eq("id", user.id)
+            .limit(1);
+          if (!byIdErr && byIdRows && byIdRows[0]) {
+            emp = byIdRows[0] as EmployeeRow;
+          }
+        }
+
         const resolvedRole = resolveEmployeeRole(emp);
         const resolvedUser = {
-          id: emp?.id || user.id,
+          id: emp?.id != null ? String(emp.id) : user.id,
           email: user.email,
           name: emp?.name || emp?.full_name || user.email || "Tasdiqlangan Xodim",
           role: resolvedRole,
           department: emp?.department || "Ishlab chiqarish",
         };
         RBAC.setCurrentUser(resolvedUser);
-        setSessionUser(resolvedUser);
       } catch {
         RBAC.resetUser();
-        setSessionUser(RBAC.getCurrentUser());
       }
     };
 
@@ -79,6 +93,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     return () => {
+      unsubscribeRbac();
       authListener.subscription.unsubscribe();
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     };

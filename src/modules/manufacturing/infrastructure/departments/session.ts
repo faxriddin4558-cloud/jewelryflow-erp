@@ -34,13 +34,25 @@ export async function requireCurrentEmployeeId(options?: {
     throw new UnauthorizedWorkflowActionError("You must be signed in to perform this action.");
   }
 
-  const { data: empRows } = await supabase
+  let empRow: Record<string, unknown> | null = null;
+  const { data: byUserIdRows, error: byUserIdErr } = await supabase
     .from("employees")
     .select("*")
-    .or(`id.eq.${user.id},user_id.eq.${user.id}`)
+    .eq("user_id", user.id)
     .limit(1);
 
-  const empRow = (empRows && empRows[0] ? (empRows[0] as Record<string, unknown>) : null);
+  if (!byUserIdErr && byUserIdRows && byUserIdRows[0]) {
+    empRow = byUserIdRows[0] as Record<string, unknown>;
+  } else {
+    const { data: byIdRows, error: byIdErr } = await supabase
+      .from("employees")
+      .select("*")
+      .eq("id", user.id)
+      .limit(1);
+    if (!byIdErr && byIdRows && byIdRows[0]) {
+      empRow = byIdRows[0] as Record<string, unknown>;
+    }
+  }
 
   const requireWrite = options?.requireWritePermission ?? true;
   if (requireWrite) {
@@ -59,7 +71,10 @@ export async function requireCurrentEmployeeId(options?: {
     }
 
     const rawRole = String(
-      empRow.role && String(empRow.role) !== "department_operator"
+      empRow.role &&
+        !["department_operator", "zargar", "operator", ""].includes(
+          String(empRow.role).trim().toLowerCase()
+        )
         ? empRow.role
         : empRow.role_type || empRow.position || empRow.role || "viewer"
     )
@@ -73,5 +88,5 @@ export async function requireCurrentEmployeeId(options?: {
     }
   }
 
-  return empRow && typeof empRow.id === "string" ? empRow.id : user.id;
+  return empRow && empRow.id != null ? String(empRow.id) : user.id;
 }

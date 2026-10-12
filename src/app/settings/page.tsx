@@ -46,7 +46,14 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    setCurrentUser(RBAC.getCurrentUser());
+    const unsubscribe = RBAC.subscribe((updatedUser) => {
+      setCurrentUser(updatedUser);
+    });
     void load();
+    return () => {
+      unsubscribe();
+    };
   }, [load]);
 
   const isDirector = currentUser.role === "Director" || currentUser.role === "admin";
@@ -257,7 +264,7 @@ export default function SettingsPage() {
                 ["edit_sales", "Sotuv, Kassa va Qarz to'lovi (edit_sales)"],
                 ["edit_salary_rate", "Ish haqi va Stavka boshqaruvi (edit_salary_rate)"],
               ].map(([perm, label]) => {
-                const allowed = RBAC.can(perm ?? "");
+                const allowed = RBAC.hasPermission(currentUser.role, perm ?? "");
                 return (
                   <div key={perm} className="flex justify-between bg-slate-50 p-2 rounded border">
                     <span>{label}</span>

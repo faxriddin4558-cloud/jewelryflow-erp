@@ -377,16 +377,18 @@ const RESTRICTED_WORKER_MODULES = new Set([
   "salary_admin",
 ]);
 
-export function resolveEmployeeRole(emp?: Partial<EmployeeRow> | null): ErpRole {
-  if (!emp) return "Worker";
-  if (emp.is_active === false) return "Worker";
-  const rawStatus = (emp.status || emp.employment_status || "").trim().toLowerCase();
-  if (rawStatus && rawStatus !== "active" && rawStatus !== "faol") {
-    return "Worker";
+function classifyRoleToken(token?: string | null): ErpRole | null {
+  const lower = (token || "").trim().toLowerCase();
+  if (!lower) return null;
+  if (
+    lower === "admin" ||
+    lower === "director" ||
+    lower === "owner" ||
+    lower === "direktor" ||
+    lower === "rahbar"
+  ) {
+    return "Director";
   }
-  const raw = (emp.role || emp.role_type || emp.position || "").trim();
-  const lower = raw.toLowerCase();
-  if (lower === "admin" || lower === "director" || lower === "owner") return "Director";
   if (
     lower === "manager" ||
     lower === "production manager" ||
@@ -412,6 +414,29 @@ export function resolveEmployeeRole(emp?: Partial<EmployeeRow> | null): ErpRole 
   if (lower === "accountant" || lower === "sales" || lower === "buxgalter" || lower === "hisobchi") {
     return "Accountant";
   }
+  if (lower === "worker") {
+    return "Worker";
+  }
+  return null;
+}
+
+export function resolveEmployeeRole(emp?: Partial<EmployeeRow> | null): ErpRole {
+  if (!emp) return "Worker";
+  if (emp.is_active === false) return "Worker";
+  const rawStatus = (emp.status || emp.employment_status || "").trim().toLowerCase();
+  if (rawStatus && rawStatus !== "active" && rawStatus !== "faol") {
+    return "Worker";
+  }
+  const candidates = [
+    emp.role && emp.role.trim().toLowerCase() !== "department_operator" ? emp.role : null,
+    emp.role_type,
+    emp.position,
+    emp.role,
+  ];
+  for (const candidate of candidates) {
+    const matched = classifyRoleToken(candidate);
+    if (matched) return matched;
+  }
   return "Worker";
 }
 
@@ -420,20 +445,41 @@ export function generateIdempotencyKey(prefix: string): string {
   return `${prefix}-${Date.now()}-${rand}`;
 }
 
+const rbacListeners = new Set<(user: ErpUser) => void>();
+
+function notifyRbacListeners(): void {
+  const snapshot = { ...currentSessionUser };
+  rbacListeners.forEach((listener) => {
+    try {
+      listener(snapshot);
+    } catch {
+      // ignore listener errors
+    }
+  });
+}
+
 export const RBAC = {
   getCurrentUser: (): ErpUser => ({ ...currentSessionUser }),
   setCurrentUser: (user: ErpUser): void => {
     if (!user || !user.role) return;
     currentSessionUser = {
-      id: user.id,
+      id: user.id != null ? String(user.id) : undefined,
       email: user.email,
       name: user.name || DEFAULT_USER.name,
       role: user.role,
       department: user.department || DEFAULT_USER.department,
     };
+    notifyRbacListeners();
   },
   resetUser: (): void => {
     currentSessionUser = { ...DEFAULT_USER };
+    notifyRbacListeners();
+  },
+  subscribe: (listener: (user: ErpUser) => void): (() => void) => {
+    rbacListeners.add(listener);
+    return () => {
+      rbacListeners.delete(listener);
+    };
   },
   hasPermission: (role: ErpRole, action: string): boolean => {
     const allowed = ROLE_PERMISSIONS[role];

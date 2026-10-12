@@ -169,12 +169,23 @@ export type Database = {
       employees: TableDef<
         {
           id: string;
+          user_id: string | null;
+          email: string | null;
+          name: string | null;
           employee_code: string;
           full_name: string;
           phone: string | null;
           role: AppRole;
+          role_type: string | null;
+          position: string | null;
+          department: string | null;
           primary_department_id: string | null;
+          status: string | null;
+          is_active: boolean;
           employment_status: EmploymentStatus;
+          salary_type: string | null;
+          rate: number;
+          balance: number;
           hired_at: string | null;
           photo_url: string | null;
           notes: string | null;
@@ -183,12 +194,23 @@ export type Database = {
         },
         {
           id: string;
+          user_id?: string | null;
+          email?: string | null;
+          name?: string | null;
           employee_code: string;
           full_name: string;
           phone?: string | null;
           role?: AppRole;
+          role_type?: string | null;
+          position?: string | null;
+          department?: string | null;
           primary_department_id?: string | null;
+          status?: string | null;
+          is_active?: boolean;
           employment_status?: EmploymentStatus;
+          salary_type?: string | null;
+          rate?: number;
+          balance?: number;
           hired_at?: string | null;
           photo_url?: string | null;
           notes?: string | null;

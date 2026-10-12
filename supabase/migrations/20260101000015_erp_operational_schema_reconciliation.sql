@@ -1,39 +1,99 @@
 -- ============================================================================
 -- Migration: 20260101000015_erp_operational_schema_reconciliation.sql
 -- Purpose:   Forward-only, non-destructive reconciliation between the
---            normalized manufacturing schema (001..014) and the operational
+--            normalized manufacturing schema (001..014), the live hybrid
+--            production schema (bigint & uuid PKs), and the operational
 --            ERP modules (inventory, alloying, refining, batches, partial WIP,
 --            consumption, products/BOM, orders, sales, debt repayments,
---            employees/salary_ledger, machines, quality_control, audit_logs).
--- Safety:    Zero DROP, TRUNCATE, or DELETE statements. Uses IF NOT EXISTS
---            and NOT VALID check constraints to preserve all existing records.
+--            employees/salary_ledger, machines, quality_control, audit_logs,
+--            system_settings, stage_loss_configs).
+-- Safety:    Zero DROP TABLE, TRUNCATE, or DELETE statements. Uses IF NOT EXISTS,
+--            column-existence guards, and NOT VALID check constraints to preserve
+--            all existing production records.
 -- ============================================================================
 
--- 0. Safely extend enums for operational status/priority/role labels (non-destructive)
-alter type public.app_role add value if not exists 'director';
-alter type public.app_role add value if not exists 'manager';
-alter type public.app_role add value if not exists 'master';
-alter type public.app_role add value if not exists 'supervisor';
-alter type public.app_role add value if not exists 'warehouse';
-alter type public.app_role add value if not exists 'accountant';
-alter type public.app_role add value if not exists 'worker';
+-- Helper: Safe text-to-UUID cast that returns NULL instead of throwing 22P02
+-- when a table uses bigint primary keys ("1", "2", etc.).
+create or replace function public.try_cast_uuid(p_val text)
+returns uuid
+language plpgsql
+immutable
+set search_path = public, pg_temp
+as $$
+begin
+  if p_val is null or trim(p_val) = '' then
+    return null;
+  end if;
+  return trim(p_val)::uuid;
+exception when others then
+  return null;
+end;
+$$;
 
-alter type public.order_status add value if not exists 'Kutilmoqda';
-alter type public.order_status add value if not exists 'Ishlab chiqarishda';
-alter type public.order_status add value if not exists 'Tugatildi';
-alter type public.order_status add value if not exists 'Bekor qilindi';
+-- 0. Safely ensure public.app_role exists and extend enums only if present
+do $$
+begin
+  if not exists (
+    select 1 from pg_type
+    where typnamespace = 'public'::regnamespace and typname = 'app_role'
+  ) then
+    create type public.app_role as enum (
+      'admin',
+      'production_manager',
+      'department_head',
+      'department_operator',
+      'inventory_manager',
+      'quality_inspector',
+      'sales',
+      'viewer',
+      'director',
+      'manager',
+      'master',
+      'supervisor',
+      'warehouse',
+      'accountant',
+      'worker'
+    );
+  end if;
+end $$;
 
-alter type public.order_priority add value if not exists 'Normal';
-alter type public.order_priority add value if not exists 'VIP';
-alter type public.order_priority add value if not exists 'URGENT';
+do $$
+begin
+  if exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'app_role') then
+    alter type public.app_role add value if not exists 'director';
+    alter type public.app_role add value if not exists 'manager';
+    alter type public.app_role add value if not exists 'master';
+    alter type public.app_role add value if not exists 'supervisor';
+    alter type public.app_role add value if not exists 'warehouse';
+    alter type public.app_role add value if not exists 'accountant';
+    alter type public.app_role add value if not exists 'worker';
+  end if;
 
-alter type public.batch_status add value if not exists 'Jarayonda';
-alter type public.batch_status add value if not exists 'Tugatildi';
-alter type public.batch_status add value if not exists 'Bekor qilindi';
+  if exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'order_status') then
+    alter type public.order_status add value if not exists 'Kutilmoqda';
+    alter type public.order_status add value if not exists 'Ishlab chiqarishda';
+    alter type public.order_status add value if not exists 'Tugatildi';
+    alter type public.order_status add value if not exists 'Bekor qilindi';
+  end if;
 
-alter type public.batch_priority add value if not exists 'Normal';
-alter type public.batch_priority add value if not exists 'VIP';
-alter type public.batch_priority add value if not exists 'URGENT';
+  if exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'order_priority') then
+    alter type public.order_priority add value if not exists 'Normal';
+    alter type public.order_priority add value if not exists 'VIP';
+    alter type public.order_priority add value if not exists 'URGENT';
+  end if;
+
+  if exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'batch_status') then
+    alter type public.batch_status add value if not exists 'Jarayonda';
+    alter type public.batch_status add value if not exists 'Tugatildi';
+    alter type public.batch_status add value if not exists 'Bekor qilindi';
+  end if;
+
+  if exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'batch_priority') then
+    alter type public.batch_priority add value if not exists 'Normal';
+    alter type public.batch_priority add value if not exists 'VIP';
+    alter type public.batch_priority add value if not exists 'URGENT';
+  end if;
+end $$;
 
 -- 1. Idempotency key registry to prevent duplicate posting on network retries
 create table if not exists public.idempotency_keys (
@@ -50,14 +110,41 @@ alter table public.inventory_items
   add column if not exists category text default 'Gold',
   add column if not exists proba numeric(6, 2) default 0,
   add column if not exists on_hand numeric(14, 4) default 0,
+  add column if not exists quantity_on_hand numeric(14, 4) default 0,
   add column if not exists reserved numeric(14, 4) default 0;
 
 -- Allow legacy/operational rows where category_id, sku, or unit were not populated
-alter table public.inventory_items
-  alter column sku drop not null,
-  alter column category_id drop not null,
-  alter column unit set default 'gram'::public.inventory_unit,
-  alter column unit drop not null;
+do $$
+declare
+  v_unit_udt text;
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'inventory_items' and column_name = 'sku'
+  ) then
+    alter table public.inventory_items alter column sku drop not null;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'inventory_items' and column_name = 'category_id'
+  ) then
+    alter table public.inventory_items alter column category_id drop not null;
+  end if;
+
+  select udt_name into v_unit_udt
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'inventory_items' and column_name = 'unit';
+
+  if v_unit_udt is not null then
+    alter table public.inventory_items alter column unit drop not null;
+    if v_unit_udt = 'inventory_unit' then
+      alter table public.inventory_items alter column unit set default 'gram'::public.inventory_unit;
+    else
+      alter table public.inventory_items alter column unit set default 'gram';
+    end if;
+  end if;
+end $$;
 
 do $$
 begin
@@ -76,11 +163,11 @@ begin
   end if;
 end $$;
 
--- Order-specific inventory reservations table
+-- Order-specific inventory reservations table (order_id is text to support both bigint and uuid order PKs)
 create table if not exists public.inventory_reservations (
   id                uuid primary key default gen_random_uuid(),
   inventory_item_id uuid not null references public.inventory_items(id) on delete restrict,
-  order_id          uuid,
+  order_id          text,
   order_no          text,
   batch_no          text,
   reserved_grams    numeric(14, 4) not null check (reserved_grams > 0),
@@ -107,10 +194,29 @@ alter table public.gold_transactions
   add column if not exists description text,
   add column if not exists idempotency_key text unique;
 
-alter table public.gold_transactions
-  alter column lot_id drop not null,
-  alter column type drop not null,
-  alter column weight_grams drop not null;
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'gold_transactions' and column_name = 'lot_id'
+  ) then
+    alter table public.gold_transactions alter column lot_id drop not null;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'gold_transactions' and column_name = 'type'
+  ) then
+    alter table public.gold_transactions alter column type drop not null;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'gold_transactions' and column_name = 'weight_grams'
+  ) then
+    alter table public.gold_transactions alter column weight_grams drop not null;
+  end if;
+end $$;
 
 -- Authoritative melting loss helper (loss = initial - output; rejects negative loss)
 create or replace function public.calculate_melting_loss(
@@ -164,9 +270,6 @@ begin
     when 'issued_to_batch', 'issue_to_batch', 'adjustment_minus' then
       v_delta := -v_w;
     when 'melting_loss' then
-      -- If melting_loss is logged against a batch whose gold was already deducted
-      -- from the vault lot via issued_to_batch, do not add or double-deduct the vault lot.
-      -- If logged directly against an un-issued vault lot (batch_id is null), deduct the loss.
       if new.batch_id is null then
         v_delta := -v_w;
       else
@@ -226,16 +329,29 @@ alter table public.orders
   add column if not exists reserved_item_id uuid references public.inventory_items(id) on delete set null,
   add column if not exists reserved_gold_gram numeric(14, 4) not null default 0;
 
-alter table public.orders
-  alter column order_number drop not null,
-  alter column customer_id drop not null;
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'order_number'
+  ) then
+    alter table public.orders alter column order_number drop not null;
+  end if;
 
--- 6. Extend batches non-destructively
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'customer_id'
+  ) then
+    alter table public.orders alter column customer_id drop not null;
+  end if;
+end $$;
+
+-- 6. Extend batches non-destructively (product_id is text to support both bigint and uuid product PKs)
 alter table public.batches
   add column if not exists batch_no text unique,
   add column if not exists parent_batch_no text,
   add column if not exists number text,
-  add column if not exists product_id uuid,
+  add column if not exists product_id text,
   add column if not exists product_name text,
   add column if not exists product text,
   add column if not exists client_name text,
@@ -257,13 +373,27 @@ alter table public.batches
   add column if not exists credited_finished_qty integer not null default 0,
   add column if not exists current_step text default '8. Quyish',
   add column if not exists priority_label text default 'Normal',
-  add column if not exists deadline date;
+  add column if not exists deadline date,
+  add column if not exists due_date date;
 
-alter table public.batches
-  alter column batch_number drop not null,
-  alter column order_id drop not null;
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'batches' and column_name = 'batch_number'
+  ) then
+    alter table public.batches alter column batch_number drop not null;
+  end if;
 
--- Fix log_batch_status_change() from migration 007 so empty app.current_employee_id never fails UUID cast
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'batches' and column_name = 'order_id'
+  ) then
+    alter table public.batches alter column order_id drop not null;
+  end if;
+end $$;
+
+-- Fix log_batch_status_change() so it never compares bigint employee/batch IDs with uuid directly
 create or replace function public.log_batch_status_change()
 returns trigger
 language plpgsql
@@ -271,25 +401,31 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_emp_id uuid;
+  v_emp_uuid   uuid;
+  v_batch_uuid uuid;
+  v_setting    text := nullif(current_setting('app.current_employee_id', true), '');
 begin
   if (old.status is distinct from new.status) or (old.priority is distinct from new.priority) then
-    select e.id into v_emp_id
-      from public.employees e
-     where e.id = coalesce(nullif(current_setting('app.current_employee_id', true), '')::uuid, auth.uid())
-     limit 1;
+    v_batch_uuid := public.try_cast_uuid(new.id::text);
+    if v_batch_uuid is not null then
+      select coalesce(e.user_id, public.try_cast_uuid(e.id::text))
+        into v_emp_uuid
+        from public.employees e
+       where (e.user_id = auth.uid() or e.id::text = coalesce(v_setting, auth.uid()::text))
+       limit 1;
 
-    insert into public.batch_status_history (
-      batch_id, previous_status, new_status, previous_priority, new_priority, changed_by
-    ) values (
-      new.id, old.status, new.status, old.priority, new.priority, v_emp_id
-    );
+      insert into public.batch_status_history (
+        batch_id, previous_status, new_status, previous_priority, new_priority, changed_by
+      ) values (
+        v_batch_uuid, old.status, new.status, old.priority, new.priority, v_emp_uuid
+      );
+    end if;
   end if;
   return new;
 end;
 $$;
 
--- Fix record_audit_event() from migration 012 so changed_by safely resolves existing employee or null
+-- Fix record_audit_event() so changed_by and record_id safely handle both bigint and uuid primary keys
 create or replace function public.record_audit_event()
 returns trigger
 language plpgsql
@@ -297,22 +433,29 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_emp_id uuid;
+  v_emp_uuid uuid;
+  v_rec_text text := coalesce(new.id::text, old.id::text);
+  v_rec_uuid uuid := public.try_cast_uuid(v_rec_text);
+  v_setting  text := nullif(current_setting('app.current_employee_id', true), '');
 begin
-  select e.id into v_emp_id
+  select coalesce(e.user_id, public.try_cast_uuid(e.id::text))
+    into v_emp_uuid
     from public.employees e
-   where e.id = coalesce(nullif(current_setting('app.current_employee_id', true), '')::uuid, auth.uid())
+   where (e.user_id = auth.uid() or e.id::text = coalesce(v_setting, auth.uid()::text))
    limit 1;
 
-  insert into public.audit_log (table_name, record_id, action, old_data, new_data, changed_by)
-  values (
-    tg_table_name,
-    coalesce(new.id, old.id),
-    lower(tg_op),
-    case when tg_op in ('update', 'delete') then to_jsonb(old) else null end,
-    case when tg_op in ('insert', 'update') then to_jsonb(new) else null end,
-    v_emp_id
-  );
+  if v_rec_uuid is not null and to_regclass('public.audit_log') is not null then
+    insert into public.audit_log (table_name, record_id, action, old_data, new_data, changed_by)
+    values (
+      tg_table_name,
+      v_rec_uuid,
+      lower(tg_op),
+      case when tg_op in ('update', 'delete') then to_jsonb(old) else null end,
+      case when tg_op in ('insert', 'update') then to_jsonb(new) else null end,
+      v_emp_uuid
+    );
+  end if;
+
   return coalesce(new, old);
 end;
 $$;
@@ -327,28 +470,28 @@ create table if not exists public.production_stages (
 );
 
 create table if not exists public.batch_stage_wip (
-  id              uuid primary key default gen_random_uuid(),
-  batch_id        uuid references public.batches(id) on delete cascade,
-  batch_no        text not null,
-  stage_order     integer not null,
-  stage_name      text not null,
-  department      text not null default 'Quyish',
-  available_qty   integer not null default 0 check (available_qty >= 0),
-  completed_qty   integer not null default 0 check (completed_qty >= 0),
-  rework_qty      integer not null default 0 check (rework_qty >= 0),
-  input_weight    numeric(14, 4) not null default 0 check (input_weight >= 0),
-  output_weight   numeric(14, 4) not null default 0 check (output_weight >= 0),
-  loss_weight     numeric(14, 4) not null default 0 check (loss_weight >= 0),
-  queue_status    text not null default 'NOW',
-  assigned_worker text,
-  assigned_employee_id uuid references public.employees(id) on delete set null,
-  created_at      timestamptz not null default now(),
-  updated_at      timestamptz not null default now(),
+  id                   uuid primary key default gen_random_uuid(),
+  batch_id             uuid,
+  batch_no             text not null,
+  stage_order          integer not null,
+  stage_name           text not null,
+  department           text not null default 'Quyish',
+  available_qty        integer not null default 0 check (available_qty >= 0),
+  completed_qty        integer not null default 0 check (completed_qty >= 0),
+  rework_qty           integer not null default 0 check (rework_qty >= 0),
+  input_weight         numeric(14, 4) not null default 0 check (input_weight >= 0),
+  output_weight        numeric(14, 4) not null default 0 check (output_weight >= 0),
+  loss_weight          numeric(14, 4) not null default 0 check (loss_weight >= 0),
+  queue_status         text not null default 'NOW',
+  assigned_worker      text,
+  assigned_employee_id text,
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now(),
   unique (batch_no, stage_order)
 );
 
 alter table public.batch_stage_wip
-  add column if not exists batch_id uuid references public.batches(id) on delete cascade,
+  add column if not exists batch_id uuid,
   add column if not exists department text default 'Quyish',
   add column if not exists available_qty integer default 0,
   add column if not exists completed_qty integer default 0,
@@ -358,16 +501,26 @@ alter table public.batch_stage_wip
   add column if not exists loss_weight numeric(14, 4) default 0,
   add column if not exists queue_status text default 'NOW',
   add column if not exists assigned_worker text,
-  add column if not exists assigned_employee_id uuid references public.employees(id) on delete set null,
+  add column if not exists assigned_employee_id text,
   add column if not exists updated_at timestamptz default now();
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'batch_stage_wip' and column_name = 'batch_id'
+  ) then
+    alter table public.batch_stage_wip alter column batch_id drop not null;
+  end if;
+end $$;
 
 create table if not exists public.consumption (
   id                 uuid primary key default gen_random_uuid(),
-  batch_id           uuid references public.batches(id) on delete set null,
+  batch_id           text,
   batch_no           text not null,
   stage_order        integer,
   master_name        text,
-  master_employee_id uuid references public.employees(id) on delete set null,
+  master_employee_id text,
   department         text not null,
   proba              numeric(6, 2) not null default 585,
   given_weight       numeric(14, 4) not null check (given_weight > 0),
@@ -384,10 +537,11 @@ create table if not exists public.consumption (
 );
 
 alter table public.consumption
-  add column if not exists batch_id uuid references public.batches(id) on delete set null,
+  add column if not exists batch_id text,
+  add column if not exists batch_no text,
   add column if not exists stage_order integer,
   add column if not exists master_name text,
-  add column if not exists master_employee_id uuid references public.employees(id) on delete set null,
+  add column if not exists master_employee_id text,
   add column if not exists proba numeric(6, 2) default 585,
   add column if not exists given_weight numeric(14, 4) default 0,
   add column if not exists returned_weight numeric(14, 4) default 0,
@@ -446,7 +600,7 @@ alter table public.products
 
 create table if not exists public.bom_items (
   id                uuid primary key default gen_random_uuid(),
-  product_id        uuid not null references public.products(id) on delete cascade,
+  product_id        uuid,
   product_name      text not null,
   bom_version       integer not null default 1,
   component_name    text not null,
@@ -457,7 +611,7 @@ create table if not exists public.bom_items (
 );
 
 alter table public.bom_items
-  add column if not exists product_id uuid references public.products(id) on delete cascade,
+  add column if not exists product_id uuid,
   add column if not exists product_name text,
   add column if not exists bom_version integer default 1,
   add column if not exists component_name text,
@@ -465,12 +619,22 @@ alter table public.bom_items
   add column if not exists weight_per_set numeric(14, 4) default 0,
   add column if not exists proba numeric(6, 2) default 0;
 
--- 9. Sales & Customer Debt Repayments
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'bom_items' and column_name = 'product_id'
+  ) then
+    alter table public.bom_items alter column product_id drop not null;
+  end if;
+end $$;
+
+-- 9. Sales & Customer Debt Repayments (order_id, product_id, sale_id use text for bigint/uuid compatibility)
 create table if not exists public.sales (
   id                 uuid primary key default gen_random_uuid(),
-  order_id           uuid references public.orders(id) on delete set null,
-  product_id         uuid references public.products(id) on delete set null,
-  parent_sale_id     uuid references public.sales(id) on delete set null,
+  order_id           text,
+  product_id         text,
+  parent_sale_id     text,
   client_name        text not null,
   product_name       text not null,
   quantity           integer not null default 1 check (quantity >= 0),
@@ -486,16 +650,16 @@ create table if not exists public.sales (
 );
 
 alter table public.sales
-  add column if not exists order_id uuid references public.orders(id) on delete set null,
-  add column if not exists product_id uuid references public.products(id) on delete set null,
-  add column if not exists parent_sale_id uuid references public.sales(id) on delete set null,
+  add column if not exists order_id text,
+  add column if not exists product_id text,
+  add column if not exists parent_sale_id text,
   add column if not exists sale_total_amount numeric(18, 2) default 0,
   add column if not exists idempotency_key text unique;
 
 create table if not exists public.debt_repayments (
   id              uuid primary key default gen_random_uuid(),
-  sale_id         uuid references public.sales(id) on delete restrict,
-  order_id        uuid references public.orders(id) on delete restrict,
+  sale_id         text,
+  order_id        text,
   client_name     text not null,
   amount          numeric(18, 2) not null check (amount > 0),
   payment_type    text not null default 'Naqd pul',
@@ -513,20 +677,49 @@ alter table public.employees
   add column if not exists user_id uuid,
   add column if not exists email text,
   add column if not exists status text default 'active',
+  add column if not exists employment_status text default 'active',
   add column if not exists is_active boolean not null default true,
   add column if not exists name text,
   add column if not exists department text,
+  add column if not exists primary_department_id uuid,
   add column if not exists role_type text,
   add column if not exists position text,
   add column if not exists salary_type text default 'Grammabay',
   add column if not exists rate numeric(18, 2) not null default 0,
   add column if not exists balance numeric(18, 2) not null default 0;
 
-alter table public.employees
-  alter column id set default gen_random_uuid(),
-  alter column employee_code set default ('EMP-' || substr(gen_random_uuid()::text, 1, 8)),
-  alter column employee_code drop not null,
-  alter column full_name drop not null;
+create unique index if not exists idx_employees_user_id_unique
+  on public.employees (user_id)
+  where user_id is not null;
+
+do $$
+declare
+  v_emp_id_type text;
+begin
+  select data_type into v_emp_id_type
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'employees' and column_name = 'id';
+
+  if v_emp_id_type = 'uuid' then
+    alter table public.employees alter column id set default gen_random_uuid();
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'employees' and column_name = 'employee_code'
+  ) then
+    alter table public.employees
+      alter column employee_code set default ('EMP-' || substr(gen_random_uuid()::text, 1, 8)),
+      alter column employee_code drop not null;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'employees' and column_name = 'full_name'
+  ) then
+    alter table public.employees alter column full_name drop not null;
+  end if;
+end $$;
 
 -- Allow operational workshop staff rows that do not yet have an auth.users login
 alter table public.employees
@@ -534,7 +727,7 @@ alter table public.employees
 
 create table if not exists public.salary_ledger (
   id              uuid primary key default gen_random_uuid(),
-  employee_id     uuid references public.employees(id) on delete restrict,
+  employee_id     text,
   worker_name     text not null,
   batch_no        text not null,
   stage_name      text not null,
@@ -549,7 +742,7 @@ create table if not exists public.salary_ledger (
 );
 
 alter table public.salary_ledger
-  add column if not exists employee_id uuid references public.employees(id) on delete restrict,
+  add column if not exists employee_id text,
   add column if not exists idempotency_key text unique;
 
 -- Database-enforced duplicate guard for EARNED salary entries per worker + batch + stage
@@ -561,7 +754,7 @@ create unique index if not exists idx_salary_ledger_unique_earned
   )
   where tx_type = 'EARNED';
 
--- 11. Operational Quality Control & Audit Logs compatibility tables
+-- 11. Operational Quality Control, Audit Logs, System Settings & Stage Loss Configs
 create table if not exists public.quality_control (
   id             uuid primary key default gen_random_uuid(),
   batch_no       text not null,
@@ -603,3 +796,18 @@ alter table public.audit_logs
   add column if not exists old_data jsonb,
   add column if not exists new_data jsonb,
   add column if not exists reason text;
+
+create table if not exists public.system_settings (
+  key        text primary key,
+  value      text not null,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.stage_loss_configs (
+  stage_order   integer primary key,
+  stage_name    text not null,
+  department    text not null,
+  max_loss_pct  numeric(6, 3) not null default 1.0 check (max_loss_pct >= 0),
+  max_loss_gram numeric(14, 4) not null default 0.5 check (max_loss_gram >= 0),
+  updated_at    timestamptz not null default now()
+);

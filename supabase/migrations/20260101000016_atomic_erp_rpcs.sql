@@ -22,7 +22,7 @@ as $$
   end;
 $$;
 
--- Helper: Resolve active caller's employee.id (returns NULL if unauthenticated or no active employee row)
+-- Helper: Resolve active caller's UUID identity for uuid audit/ledger columns (performed_by)
 create or replace function public.current_employee_id()
 returns uuid
 language sql
@@ -30,15 +30,31 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select e.id
+  select coalesce(e.user_id, public.try_cast_uuid(e.id::text), auth.uid())
     from public.employees e
-   where (e.id = auth.uid() or e.user_id = auth.uid())
+   where (e.user_id = auth.uid() or e.id::text = auth.uid()::text)
      and coalesce(e.is_active, true) = true
      and lower(coalesce(e.status, e.employment_status::text, 'active')) in ('active', 'faol')
    limit 1;
 $$;
 
--- Helper: Resolve active caller's normalized role text across both enum (`role`) and operational (`role_type`) schemas
+-- Helper: Resolve active caller's employee.id as text (supports both bigint and uuid employee primary keys)
+create or replace function public.current_employee_id_text()
+returns text
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select e.id::text
+    from public.employees e
+   where (e.user_id = auth.uid() or e.id::text = auth.uid()::text)
+     and coalesce(e.is_active, true) = true
+     and lower(coalesce(e.status, e.employment_status::text, 'active')) in ('active', 'faol')
+   limit 1;
+$$;
+
+-- Helper: Resolve active caller's normalized role text across both enum/text (`role`) and operational (`role_type`) schemas
 create or replace function public.current_employee_role_text()
 returns text
 language plpgsql
@@ -58,7 +74,7 @@ begin
   select *
     into v_emp
     from public.employees e
-   where (e.id = v_uid or e.user_id = v_uid)
+   where (e.user_id = v_uid or e.id::text = v_uid::text)
      and coalesce(e.is_active, true) = true
      and lower(coalesce(e.status, e.employment_status::text, 'active')) in ('active', 'faol')
    limit 1;
@@ -67,8 +83,8 @@ begin
     return 'viewer';
   end if;
 
-  -- Prefer specific operational role_type when enum role is left at default 'department_operator'
-  if v_emp.role is not null and v_emp.role::text <> 'department_operator' then
+  -- Prefer specific operational role_type when role is left at generic default ('department_operator', 'zargar', 'operator')
+  if v_emp.role is not null and lower(trim(v_emp.role::text)) not in ('department_operator', 'zargar', 'operator', '') then
     v_role := lower(trim(v_emp.role::text));
   elsif coalesce(trim(v_emp.role_type), '') <> '' then
     v_role := lower(trim(v_emp.role_type));
@@ -104,7 +120,7 @@ begin
     select *
       into v_emp
       from public.employees e
-     where (e.id = v_uid or e.user_id = v_uid)
+     where (e.user_id = v_uid or e.id::text = v_uid::text)
        and coalesce(e.is_active, true) = true
        and lower(coalesce(e.status, e.employment_status::text, 'active')) in ('active', 'faol')
      limit 1;
@@ -137,6 +153,7 @@ $$;
 -- ============================================================================
 -- 1. RPC: Atomic Inventory & Reservation Transaction
 -- ============================================================================
+drop function if exists public.rpc_inventory_transaction(uuid, text, numeric, numeric, numeric, text, text, text, uuid, text, text);
 create or replace function public.rpc_inventory_transaction(
   p_item_id         uuid,
   p_tx_type         text,
@@ -146,7 +163,7 @@ create or replace function public.rpc_inventory_transaction(
   p_from_location   text default 'SAFE',
   p_to_location     text default 'WIP',
   p_description     text default '',
-  p_order_id        uuid default null,
+  p_order_id        text default null,
   p_order_no        text default null,
   p_idempotency_key text default null
 )
@@ -216,11 +233,11 @@ begin
       p_item_id, p_order_id, p_order_no, v_weight, 'ACTIVE', p_idempotency_key, auth.uid()
     );
 
-    if p_order_id is not null then
+    if p_order_id is not null and trim(p_order_id) <> '' then
       update public.orders
          set reserved_item_id = p_item_id,
              reserved_gold_gram = coalesce(reserved_gold_gram, 0) + v_weight
-       where id = p_order_id;
+       where id::text = trim(p_order_id);
     end if;
   elsif p_tx_type = 'unreserve' then
     if v_weight > v_reserved then
@@ -228,11 +245,11 @@ begin
     end if;
     v_reserved := v_reserved - v_weight;
 
-    if p_order_id is not null then
+    if p_order_id is not null and trim(p_order_id) <> '' then
       select * into v_res_row
         from public.inventory_reservations
        where inventory_item_id = p_item_id
-         and order_id = p_order_id
+         and order_id::text = trim(p_order_id)
          and status = 'ACTIVE'
        order by created_at asc
        limit 1
@@ -251,7 +268,7 @@ begin
 
       update public.orders
          set reserved_gold_gram = greatest(0, coalesce(reserved_gold_gram, 0) - v_weight)
-       where id = p_order_id;
+       where id::text = trim(p_order_id);
     end if;
   else
     raise exception 'Unsupported inventory transaction type: %', p_tx_type;
@@ -606,7 +623,7 @@ set search_path = public, pg_temp
 as $$
 declare
   v_src       public.inventory_items%rowtype;
-  v_batch_id  uuid;
+  v_batch_id  text;
   v_issued    numeric(14, 4) := round(coalesce(p_issued_gold_gram, 0)::numeric, 4);
   v_fine      numeric(18, 6);
   v_existing  jsonb;
@@ -656,14 +673,14 @@ begin
     p_proba, p_planned_qty, v_issued, v_issued, v_issued,
     0, 0, 0, 0, 0,
     0, 0, '8. Quyish', 'Jarayonda', p_priority, p_deadline, p_deadline
-  ) returning id into v_batch_id;
+  ) returning id::text into v_batch_id;
 
   insert into public.batch_stage_wip (
     batch_id, batch_no, stage_order, stage_name, department,
     available_qty, completed_qty, rework_qty, input_weight, output_weight, loss_weight,
     queue_status, assigned_worker
   ) values (
-    v_batch_id, trim(p_batch_no), 8, '8. Quyish', 'Quyish',
+    public.try_cast_uuid(v_batch_id), trim(p_batch_no), 8, '8. Quyish', 'Quyish',
     p_planned_qty, 0, 0, v_issued, 0, 0,
     'NOW', trim(p_master_name)
   );
@@ -698,8 +715,9 @@ $$;
 -- ============================================================================
 -- 5. RPC: Launch Order Production Chain (Supports Order-Reserved Gold)
 -- ============================================================================
+drop function if exists public.rpc_launch_order_production_chain(uuid, uuid, text, text, text, text, numeric, integer, numeric, numeric, text, date, text);
 create or replace function public.rpc_launch_order_production_chain(
-  p_order_id         uuid,
+  p_order_id         text,
   p_source_item_id   uuid,
   p_batch_no         text,
   p_product_name     text,
@@ -725,7 +743,7 @@ declare
   v_from_res     numeric(14, 4) := 0;
   v_from_avail   numeric(14, 4) := 0;
   v_avail        numeric(14, 4);
-  v_batch_id     uuid;
+  v_batch_id     text;
   v_fine         numeric(18, 6);
   v_existing     jsonb;
 begin
@@ -743,13 +761,13 @@ begin
     end if;
   end if;
 
-  select * into v_ord from public.orders where id = p_order_id for update;
+  select * into v_ord from public.orders where id::text = trim(p_order_id) for update;
   if not found then
     raise exception 'Order (%) not found', p_order_id;
   end if;
 
   if coalesce(v_ord.batch_created, false) then
-    raise exception 'Production batch has already been created for order %', coalesce(v_ord.order_no, p_order_id::text);
+    raise exception 'Production batch has already been created for order %', coalesce(v_ord.order_no, p_order_id);
   end if;
 
   select * into v_src from public.inventory_items where id = p_source_item_id for update;
@@ -784,7 +802,7 @@ begin
            end,
            batch_no = trim(p_batch_no),
            updated_at = now()
-     where order_id = p_order_id
+     where order_id::text = trim(p_order_id)
        and inventory_item_id = p_source_item_id
        and status = 'ACTIVE';
   end if;
@@ -793,7 +811,7 @@ begin
      set batch_created = true,
          status_label = 'Ishlab chiqarishda',
          reserved_gold_gram = greatest(0, coalesce(reserved_gold_gram, 0) - v_from_res)
-   where id = p_order_id;
+   where id::text = trim(p_order_id);
 
   v_fine := public.calc_fine_gold_exact(v_issued, p_proba);
 
@@ -804,19 +822,19 @@ begin
     rework_gram, loss_gram, finished_qty, credited_finished_qty,
     current_step, status_label, priority_label, deadline, due_date
   ) values (
-    p_order_id, trim(p_batch_no), trim(p_batch_no), trim(p_batch_no), trim(p_product_name), trim(p_product_name),
+    public.try_cast_uuid(p_order_id), trim(p_batch_no), trim(p_batch_no), trim(p_batch_no), trim(p_product_name), trim(p_product_name),
     trim(p_client_name), trim(p_master_name), p_proba, p_planned_qty, v_issued,
     v_issued, v_issued, 0, 0, 0,
     0, 0, 0, 0,
     '8. Quyish', 'Jarayonda', p_priority, p_deadline, p_deadline
-  ) returning id into v_batch_id;
+  ) returning id::text into v_batch_id;
 
   insert into public.batch_stage_wip (
     batch_id, batch_no, stage_order, stage_name, department,
     available_qty, completed_qty, rework_qty, input_weight, output_weight, loss_weight,
     queue_status, assigned_worker
   ) values (
-    v_batch_id, trim(p_batch_no), 8, '8. Quyish', 'Quyish',
+    public.try_cast_uuid(v_batch_id), trim(p_batch_no), 8, '8. Quyish', 'Quyish',
     p_planned_qty, 0, 0, v_issued, 0, 0,
     'NOW', trim(p_master_name)
   );
@@ -828,7 +846,7 @@ begin
     'chiqim', 'SAFE', 'CASTING', v_src.name,
     v_issued, v_issued, p_proba, v_fine, trim(p_batch_no),
     format('Order %s -> Batch %s (%s pcs / %sg, reserved_used=%sg)',
-      coalesce(v_ord.order_no, p_order_id::text), trim(p_batch_no), p_planned_qty, v_issued, v_from_res),
+      coalesce(v_ord.order_no, p_order_id), trim(p_batch_no), p_planned_qty, v_issued, v_from_res),
     p_idempotency_key, public.current_employee_id()
   );
 
@@ -853,8 +871,9 @@ $$;
 -- ============================================================================
 -- 6. RPC: Atomic Partial WIP Movement & Final Stage Finished-Goods Stock Credit
 -- ============================================================================
+drop function if exists public.rpc_move_partial_wip(uuid, integer, integer, text, text, integer, numeric, numeric, integer, numeric, numeric, numeric, text, uuid, text);
 create or replace function public.rpc_move_partial_wip(
-  p_batch_id          uuid,
+  p_batch_id          text,
   p_from_stage_order  integer,
   p_to_stage_order    integer,
   p_to_stage_name     text,
@@ -867,7 +886,7 @@ create or replace function public.rpc_move_partial_wip(
   p_scrap_gram        numeric default 0,
   p_loss_gram         numeric default 0,
   p_worker_name       text default '',
-  p_worker_id         uuid default null,
+  p_worker_id         text default null,
   p_idempotency_key   text default null
 )
 returns jsonb
@@ -920,7 +939,7 @@ begin
     raise exception 'Either moved quantity or rework quantity must be greater than 0';
   end if;
 
-  select * into v_batch from public.batches where id = p_batch_id for update;
+  select * into v_batch from public.batches where id::text = trim(p_batch_id) for update;
   if not found then
     raise exception 'Batch (%) not found', p_batch_id;
   end if;
@@ -999,7 +1018,7 @@ begin
         available_qty, completed_qty, rework_qty, input_weight, output_weight, loss_weight,
         queue_status, assigned_worker, assigned_employee_id
       ) values (
-        p_batch_id, v_batch_code, p_to_stage_order, p_to_stage_name, p_to_department,
+        public.try_cast_uuid(p_batch_id), v_batch_code, p_to_stage_order, p_to_stage_name, p_to_department,
         p_move_qty, 0, 0, v_move_g, 0, 0,
         'NOW', p_worker_name, p_worker_id
       );
@@ -1012,7 +1031,7 @@ begin
     if v_credit_qty > 0 then
       select * into v_prod
         from public.products
-       where (v_batch.product_id is not null and id = v_batch.product_id)
+       where (v_batch.product_id is not null and id::text = v_batch.product_id::text)
           or lower(trim(name)) = lower(trim(coalesce(v_batch.product_name, v_batch.product, '')))
        limit 1
          for update;
@@ -1050,9 +1069,9 @@ begin
          wip_gram              = case when v_done_all then 0 else v_new_wip_g end,
          finished_qty          = v_new_fin_qty,
          credited_finished_qty = coalesce(credited_finished_qty, 0) + v_credit_qty,
-         status                = case when v_done_all then 'completed'::public.batch_status else 'in_progress'::public.batch_status end,
+         status                = case when v_done_all then 'Tugatildi' else 'Jarayonda' end,
          status_label          = case when v_done_all then 'Tugatildi' else 'Jarayonda' end
-   where id = p_batch_id;
+   where id::text = trim(p_batch_id);
 
   v_existing := jsonb_build_object(
     'status', 'ok',
@@ -1077,8 +1096,9 @@ $$;
 -- ============================================================================
 -- 7. RPC: Atomic Batch Split (Splits Parent Batch AND Stage WIP Records)
 -- ============================================================================
+drop function if exists public.rpc_split_batch(uuid, integer, text, integer, text);
 create or replace function public.rpc_split_batch(
-  p_parent_batch_id uuid,
+  p_parent_batch_id text,
   p_split_qty       integer,
   p_child_batch_no  text default null,
   p_stage_order     integer default null,
@@ -1094,7 +1114,7 @@ declare
   v_wip         public.batch_stage_wip%rowtype;
   v_parent_no   text;
   v_child_no    text;
-  v_child_id    uuid;
+  v_child_id    text;
   v_tot_qty     integer;
   v_rem_qty     integer;
   v_tot_gold    numeric(14, 4);
@@ -1123,7 +1143,7 @@ begin
     end if;
   end if;
 
-  select * into v_parent from public.batches where id = p_parent_batch_id for update;
+  select * into v_parent from public.batches where id::text = trim(p_parent_batch_id) for update;
   if not found then
     raise exception 'Parent batch (%) not found', p_parent_batch_id;
   end if;
@@ -1186,7 +1206,7 @@ begin
          planned_gram     = v_parent_gold,
          issued_gold_gram = v_parent_gold,
          wip_gram         = v_parent_wip_g
-   where id = p_parent_batch_id;
+   where id::text = trim(p_parent_batch_id);
 
   -- 2. Create child batch
   insert into public.batches (
@@ -1201,7 +1221,7 @@ begin
     v_parent.proba, p_split_qty, v_child_gold, v_child_gold, v_child_wip_g,
     0, 0, 0, 0, 0,
     0, 0, v_wip.stage_name, 'Jarayonda', v_parent.priority_label, v_parent.deadline, v_parent.due_date
-  ) returning id into v_child_id;
+  ) returning id::text into v_child_id;
 
   -- 3. Update parent stage WIP & insert child stage WIP
   update public.batch_stage_wip
@@ -1216,7 +1236,7 @@ begin
     available_qty, completed_qty, rework_qty, input_weight, output_weight, loss_weight,
     queue_status, assigned_worker, assigned_employee_id
   ) values (
-    v_child_id, v_child_no, v_wip.stage_order, v_wip.stage_name, v_wip.department,
+    public.try_cast_uuid(v_child_id), v_child_no, v_wip.stage_order, v_wip.stage_name, v_wip.department,
     p_split_qty, 0, 0, v_wip_in_child, 0, 0,
     'NOW', v_wip.assigned_worker, v_wip.assigned_employee_id
   );
@@ -1246,6 +1266,7 @@ $$;
 -- ============================================================================
 -- 8. RPC: Record Stage Consumption & Return Sprue to Scrap Inventory
 -- ============================================================================
+drop function if exists public.rpc_record_stage_consumption(text, text, text, numeric, numeric, numeric, numeric, numeric, uuid, boolean, text);
 create or replace function public.rpc_record_stage_consumption(
   p_batch_no        text,
   p_department      text,
@@ -1255,7 +1276,7 @@ create or replace function public.rpc_record_stage_consumption(
   p_returned_weight numeric,
   p_sprue_gram      numeric default 0,
   p_scrap_gram      numeric default 0,
-  p_master_id       uuid default null,
+  p_master_id       text default null,
   p_sync_batch      boolean default true,
   p_idempotency_key text default null
 )
@@ -1271,7 +1292,7 @@ declare
   v_sprue     numeric(14, 4) := round(coalesce(p_sprue_gram, 0)::numeric, 4);
   v_scrap     numeric(14, 4) := round(coalesce(p_scrap_gram, 0)::numeric, 4);
   v_loss      numeric(14, 4);
-  v_cons_id   uuid;
+  v_cons_id   text;
   v_existing  jsonb;
 begin
   perform public.assert_erp_permission(array[
@@ -1309,10 +1330,10 @@ begin
     given_weight, returned_weight, sprue_gram, scrap_gram, loss_weight,
     sent_to_refinery, idempotency_key
   ) values (
-    v_batch.id, trim(p_batch_no), trim(p_master_name), p_master_id, trim(p_department), p_proba,
+    v_batch.id::text, trim(p_batch_no), trim(p_master_name), p_master_id, trim(p_department), p_proba,
     v_given, v_ret, v_sprue, v_scrap, v_loss,
     false, p_idempotency_key
-  ) returning id into v_cons_id;
+  ) returning id::text into v_cons_id;
 
   if found and p_sync_batch then
     update public.batches
@@ -1354,8 +1375,9 @@ begin
 end;
 $$;
 
+drop function if exists public.rpc_return_sprue_to_scrap_inventory(uuid, uuid, text, numeric, numeric, numeric, text);
 create or replace function public.rpc_return_sprue_to_scrap_inventory(
-  p_consumption_id  uuid,
+  p_consumption_id  text,
   p_scrap_item_id   uuid,
   p_batch_no        text,
   p_sprue_weight    numeric,
@@ -1389,7 +1411,7 @@ begin
     end if;
   end if;
 
-  select * into v_cons from public.consumption where id = p_consumption_id for update;
+  select * into v_cons from public.consumption where id::text = trim(p_consumption_id) for update;
   if not found then
     raise exception 'Consumption record (%) not found', p_consumption_id;
   end if;
@@ -1410,7 +1432,7 @@ begin
 
   update public.consumption
      set sent_to_refinery = true
-   where id = p_consumption_id;
+   where id::text = trim(p_consumption_id);
 
   update public.inventory_items
      set on_hand = coalesce(on_hand, quantity_on_hand, 0) + v_weight,
@@ -1450,8 +1472,9 @@ $$;
 -- ============================================================================
 -- 9. RPC: Record Sale With Stock Deduction & Dedicated Atomic Debt Repayment
 -- ============================================================================
+drop function if exists public.rpc_record_sale_with_stock_deduction(uuid, text, text, integer, numeric, numeric, text, numeric, numeric, uuid, text);
 create or replace function public.rpc_record_sale_with_stock_deduction(
-  p_product_id      uuid,
+  p_product_id      text,
   p_client_name     text,
   p_product_name    text,
   p_quantity        integer,
@@ -1460,7 +1483,7 @@ create or replace function public.rpc_record_sale_with_stock_deduction(
   p_payment_type    text,
   p_paid_amount     numeric,
   p_debt_amount     numeric,
-  p_order_id        uuid default null,
+  p_order_id        text default null,
   p_idempotency_key text default null
 )
 returns jsonb
@@ -1474,7 +1497,7 @@ declare
   v_paid       numeric(18, 2) := round(coalesce(p_paid_amount, 0)::numeric, 2);
   v_debt       numeric(18, 2) := round(coalesce(p_debt_amount, 0)::numeric, 2);
   v_sale_total numeric(18, 2) := round(v_paid + v_debt, 2);
-  v_sale_id    uuid;
+  v_sale_id    text;
   v_existing   jsonb;
 begin
   perform public.assert_erp_permission(array[
@@ -1494,7 +1517,7 @@ begin
     raise exception 'Invalid sale quantity or amounts';
   end if;
 
-  select * into v_prod from public.products where id = p_product_id for update;
+  select * into v_prod from public.products where id::text = trim(p_product_id) for update;
   if not found then
     raise exception 'Product (%) not found in finished goods inventory', p_product_id;
   end if;
@@ -1509,7 +1532,7 @@ begin
      set stock      = v_cur_stock - p_quantity,
          quantity   = v_cur_stock - p_quantity,
          updated_at = now()
-   where id = p_product_id;
+   where id::text = trim(p_product_id);
 
   insert into public.sales (
     order_id, product_id, client_name, product_name, quantity,
@@ -1521,7 +1544,7 @@ begin
     coalesce(p_proba, v_prod.proba, 585),
     p_payment_type, v_sale_total, v_paid,
     v_debt, 'kirim', p_idempotency_key
-  ) returning id into v_sale_id;
+  ) returning id::text into v_sale_id;
 
   v_existing := jsonb_build_object(
     'status', 'ok',
@@ -1542,9 +1565,10 @@ end;
 $$;
 
 -- Dedicated Atomic Customer Debt Repayment (NEVER deducts product stock!)
+drop function if exists public.rpc_record_debt_repayment(uuid, uuid, numeric, numeric, text, text, text);
 create or replace function public.rpc_record_debt_repayment(
-  p_sale_id         uuid default null,
-  p_order_id        uuid default null,
+  p_sale_id         text default null,
+  p_order_id        text default null,
   p_amount          numeric default 0,
   p_repaid_amount   numeric default null,
   p_payment_type    text default 'Naqd pul',
@@ -1584,12 +1608,13 @@ begin
     raise exception 'Debt repayment amount must be greater than 0';
   end if;
 
-  if (p_sale_id is null and p_order_id is null) or (p_sale_id is not null and p_order_id is not null) then
+  if (coalesce(trim(p_sale_id), '') = '' and coalesce(trim(p_order_id), '') = '')
+     or (coalesce(trim(p_sale_id), '') <> '' and coalesce(trim(p_order_id), '') <> '') then
     raise exception 'Specify exactly one of p_sale_id or p_order_id for debt repayment';
   end if;
 
-  if p_sale_id is not null then
-    select * into v_sale from public.sales where id = p_sale_id for update;
+  if coalesce(trim(p_sale_id), '') <> '' then
+    select * into v_sale from public.sales where id::text = trim(p_sale_id) for update;
     if not found then
       raise exception 'Original sale (%) not found', p_sale_id;
     end if;
@@ -1610,21 +1635,21 @@ begin
     update public.sales
        set total_amount = round(coalesce(total_amount, 0) + v_pay_amount, 2),
            debt_amount  = v_new_debt
-     where id = p_sale_id;
+     where id::text = trim(p_sale_id);
   else
-    select * into v_order from public.orders where id = p_order_id for update;
+    select * into v_order from public.orders where id::text = trim(p_order_id) for update;
     if not found then
       raise exception 'Order (%) not found', p_order_id;
     end if;
 
     if lower(coalesce(v_order.status::text, '')) in ('cancelled', 'bekor qilindi')
        or lower(coalesce(v_order.status_label, '')) = 'bekor qilindi' then
-      raise exception 'Cannot record debt repayment on a cancelled order (%)', coalesce(v_order.order_no, p_order_id::text);
+      raise exception 'Cannot record debt repayment on a cancelled order (%)', coalesce(v_order.order_no, p_order_id);
     end if;
 
     v_prev_debt := round(greatest(0, coalesce(v_order.total_price, 0) - coalesce(v_order.advance, 0))::numeric, 2);
     if v_prev_debt <= 0 then
-      raise exception 'Order (%) has no outstanding debt', coalesce(v_order.order_no, p_order_id::text);
+      raise exception 'Order (%) has no outstanding debt', coalesce(v_order.order_no, p_order_id);
     end if;
     if v_pay_amount > v_prev_debt then
       raise exception 'Repayment (%s) exceeds outstanding order debt (%s)', v_pay_amount, v_prev_debt;
@@ -1632,28 +1657,28 @@ begin
 
     v_new_debt := round(v_prev_debt - v_pay_amount, 2);
     v_client   := coalesce(v_order.client_name, v_order.customer_name, 'Mijoz');
-    v_label    := format('Buyurtma Qarz To''lovi (%s)', coalesce(v_order.order_no, p_order_id::text));
+    v_label    := format('Buyurtma Qarz To''lovi (%s)', coalesce(v_order.order_no, p_order_id));
 
     update public.orders
        set advance     = round(coalesce(advance, 0) + v_pay_amount, 2),
            paid_amount = round(coalesce(advance, 0) + v_pay_amount, 2),
            debt_amount = v_new_debt
-     where id = p_order_id;
+     where id::text = trim(p_order_id);
   end if;
 
   insert into public.debt_repayments (
     sale_id, order_id, client_name, amount, payment_type,
     previous_debt, remaining_debt, note, idempotency_key, recorded_by
   ) values (
-    p_sale_id, p_order_id, v_client, v_pay_amount, p_payment_type,
+    nullif(trim(p_sale_id), ''), nullif(trim(p_order_id), ''), v_client, v_pay_amount, p_payment_type,
     v_prev_debt, v_new_debt, p_note, p_idempotency_key, auth.uid()
   ) returning id into v_repayment_id;
 
   v_existing := jsonb_build_object(
     'status', 'ok',
     'repayment_id', v_repayment_id,
-    'sale_id', p_sale_id,
-    'order_id', p_order_id,
+    'sale_id', nullif(trim(p_sale_id), ''),
+    'order_id', nullif(trim(p_order_id), ''),
     'paid_amount', v_pay_amount,
     'previous_debt', v_prev_debt,
     'remaining_debt', v_new_debt
@@ -1671,8 +1696,9 @@ $$;
 -- ============================================================================
 -- 10. RPC: Atomic Salary Ledger & Employee Balance Update
 -- ============================================================================
+drop function if exists public.rpc_record_salary_transaction(uuid, text, text, text, text, numeric, numeric, numeric, text, text);
 create or replace function public.rpc_record_salary_transaction(
-  p_employee_id     uuid default null,
+  p_employee_id     text default null,
   p_worker_name     text default '',
   p_batch_no        text default '',
   p_stage_name      text default '',
@@ -1715,8 +1741,8 @@ begin
     raise exception 'Invalid salary transaction parameters';
   end if;
 
-  if p_employee_id is not null then
-    select * into v_emp from public.employees where id = p_employee_id for update;
+  if p_employee_id is not null and trim(p_employee_id) <> '' then
+    select * into v_emp from public.employees where id::text = trim(p_employee_id) for update;
   else
     select * into v_emp
       from public.employees
@@ -1726,7 +1752,7 @@ begin
   end if;
 
   if not found then
-    raise exception 'Employee (%) not found', coalesce(p_employee_id::text, p_worker_name);
+    raise exception 'Employee (%) not found', coalesce(nullif(trim(p_employee_id), ''), p_worker_name);
   end if;
 
   v_worker_nm := coalesce(v_emp.name, v_emp.full_name, trim(p_worker_name));
@@ -1734,7 +1760,7 @@ begin
   -- Explicit duplicate check before insert (backed by idx_salary_ledger_unique_earned)
   if p_tx_type = 'EARNED' and exists (
     select 1 from public.salary_ledger s
-     where (s.employee_id = v_emp.id or lower(trim(s.worker_name)) = lower(trim(v_worker_nm)))
+     where (s.employee_id::text = v_emp.id::text or lower(trim(s.worker_name)) = lower(trim(v_worker_nm)))
        and upper(trim(s.batch_no)) = upper(trim(p_batch_no))
        and lower(trim(s.stage_name)) = lower(trim(p_stage_name))
        and s.tx_type = 'EARNED'
@@ -1748,7 +1774,7 @@ begin
     employee_id, worker_name, batch_no, stage_name, tx_type,
     weight_done, rate, amount, payment_status, note, idempotency_key
   ) values (
-    v_emp.id, v_worker_nm, trim(p_batch_no), trim(p_stage_name), p_tx_type,
+    v_emp.id::text, v_worker_nm, trim(p_batch_no), trim(p_stage_name), p_tx_type,
     v_weight, v_rate, v_amount,
     case when p_tx_type = 'PAID' then 'PAID' else 'UNPAID' end,
     coalesce(nullif(p_note, ''), format('%s - %s', trim(p_batch_no), trim(p_stage_name))),
@@ -1770,7 +1796,7 @@ begin
   v_existing := jsonb_build_object(
     'status', 'ok',
     'ledger_id', v_ledger_id,
-    'employee_id', v_emp.id,
+    'employee_id', v_emp.id::text,
     'worker_name', v_worker_nm,
     'new_balance', v_new_bal
   );
@@ -1816,7 +1842,8 @@ declare
   v_stone_w    numeric(14, 4) := round(greatest(0, coalesce(p_stone_weight, 0))::numeric, 4);
   v_tot_w      numeric(14, 4);
   v_summary    text;
-  v_prod_id    uuid;
+  v_prod_id    text;
+  v_prod_uuid  uuid;
   v_bom_elem   jsonb;
   v_existing   jsonb;
 begin
@@ -1858,7 +1885,9 @@ begin
     v_tot_w, coalesce(p_proba, 585), 0, 0,
     v_stone_w, coalesce(p_bom_version, 1), v_summary,
     coalesce(p_image_url, 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=600&q=80')
-  ) returning id into v_prod_id;
+  ) returning id::text into v_prod_id;
+
+  v_prod_uuid := public.try_cast_uuid(v_prod_id);
 
   if p_bom_items is not null and jsonb_typeof(p_bom_items) = 'array' and jsonb_array_length(p_bom_items) > 0 then
     for v_bom_elem in select * from jsonb_array_elements(p_bom_items)
@@ -1866,7 +1895,7 @@ begin
       insert into public.bom_items (
         product_id, product_name, bom_version, component_name, material_category, weight_per_set, proba
       ) values (
-        v_prod_id,
+        v_prod_uuid,
         trim(p_name),
         coalesce(p_bom_version, 1),
         coalesce(v_bom_elem ->> 'component_name', 'Component'),
@@ -1879,11 +1908,11 @@ begin
     insert into public.bom_items (
       product_id, product_name, bom_version, component_name, material_category, weight_per_set, proba
     ) values
-      (v_prod_id, trim(p_name), coalesce(p_bom_version, 1), 'Ring (Uzuk)', 'Gold', v_ring_w, coalesce(p_proba, 585)),
-      (v_prod_id, trim(p_name), coalesce(p_bom_version, 1), 'Earring (Zirak)', 'Gold', v_ear_w, coalesce(p_proba, 585)),
-      (v_prod_id, trim(p_name), coalesce(p_bom_version, 1), 'Chain/Wire (Zanjir/Sim)', 'Wire', v_chain_w, coalesce(p_proba, 585)),
-      (v_prod_id, trim(p_name), coalesce(p_bom_version, 1), 'Dorika', 'Wire', v_dorika_w, coalesce(p_proba, 585)),
-      (v_prod_id, trim(p_name), coalesce(p_bom_version, 1), 'Zircon Stone (Tosh)', 'Stone', v_stone_w, 0);
+      (v_prod_uuid, trim(p_name), coalesce(p_bom_version, 1), 'Ring (Uzuk)', 'Gold', v_ring_w, coalesce(p_proba, 585)),
+      (v_prod_uuid, trim(p_name), coalesce(p_bom_version, 1), 'Earring (Zirak)', 'Gold', v_ear_w, coalesce(p_proba, 585)),
+      (v_prod_uuid, trim(p_name), coalesce(p_bom_version, 1), 'Chain/Wire (Zanjir/Sim)', 'Wire', v_chain_w, coalesce(p_proba, 585)),
+      (v_prod_uuid, trim(p_name), coalesce(p_bom_version, 1), 'Dorika', 'Wire', v_dorika_w, coalesce(p_proba, 585)),
+      (v_prod_uuid, trim(p_name), coalesce(p_bom_version, 1), 'Zircon Stone (Tosh)', 'Stone', v_stone_w, 0);
   end if;
 
   v_existing := jsonb_build_object(

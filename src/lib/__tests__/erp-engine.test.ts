@@ -247,6 +247,36 @@ describe("RBAC & Security Guards — Least Privilege & Role Escalation Preventio
     );
     expect(resolveEmployeeRole({ role: "admin" })).toBe("Director");
     expect(resolveEmployeeRole({ role: "worker" })).toBe("Worker");
+    expect(resolveEmployeeRole({ role: "department_operator", role_type: "Supervisor" })).toBe(
+      "Supervisor"
+    );
+    expect(resolveEmployeeRole({ role: "Zargar", role_type: "Director" })).toBe("Director");
+    expect(resolveEmployeeRole({ role: "Zargar", role_type: "Operator", position: "Zargar" })).toBe(
+      "Worker"
+    );
+  });
+
+  it("notifies RBAC subscribers when async auth session sync updates or resets user role", () => {
+    const observedRoles: string[] = [];
+    const unsubscribe = RBAC.subscribe((user) => {
+      observedRoles.push(`${user.role}:${user.id ?? "none"}`);
+    });
+
+    RBAC.setCurrentUser({
+      id: "2",
+      email: "admin@goldia.uz",
+      name: "Bosh Direktor",
+      role: "Director",
+      department: "Boshqaruv",
+    });
+    expect(RBAC.getCurrentUser().role).toBe("Director");
+    expect(RBAC.can("edit_inventory")).toBe(true);
+    expect(RBAC.can("edit_sales")).toBe(true);
+
+    RBAC.resetUser();
+    unsubscribe();
+
+    expect(observedRoles).toEqual(["Director:2", "Worker:none"]);
   });
 });
 
