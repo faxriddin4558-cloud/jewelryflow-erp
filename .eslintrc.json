@@ -1,5 +1,6 @@
 {
   "root": true,
+  "ignorePatterns": ["next-env.d.ts", ".next/**", "out/**", "node_modules/**"],
   "extends": ["next/core-web-vitals", "plugin:@typescript-eslint/recommended", "prettier"],
   "parser": "@typescript-eslint/parser",
   "plugins": ["@typescript-eslint"],

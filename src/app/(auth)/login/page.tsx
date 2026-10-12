@@ -27,8 +27,9 @@ export default function LoginPage() {
       setError("Email yoki parol noto'g'ri!");
       setLoading(false);
     } else {
-      // Muvaffaqiyatli kirilsa, dashboard (boshqaruv paneli) ga o'tkazish
-      router.push("/dashboard");
+      // Muvaffaqiyatli kirilsa, asosiy boshqaruv paneliga o'tkazish
+      router.push("/");
+      router.refresh();
     }
   };
 
@@ -37,7 +38,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-gray-900">JewelryFlow ERP</h1>
-          <p className="mt-2 text-sm text-gray-600">Tizimga kirish uchun ma'lumotlaringizni kiriting</p>
+          <p className="mt-2 text-sm text-gray-600">Tizimga kirish uchun ma&apos;lumotlaringizni kiriting</p>
         </div>
         
         <form onSubmit={handleLogin} className="space-y-5">

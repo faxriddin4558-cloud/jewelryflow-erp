@@ -1,5 +1,5 @@
 /**
- * Hand-authored to exactly match `supabase/migrations/*.sql`.
+ * Hand-authored to match `supabase/migrations/*.sql`.
  *
  * In CI/local dev this file should be regenerated from the live schema via:
  *   supabase gen types typescript --local > src/shared/types/database.types.ts
@@ -96,14 +96,30 @@ export type GoldTransactionType =
 
 export type EmploymentStatus = "active" | "on_leave" | "terminated";
 
+type TableDef<
+  Row extends Record<string, unknown>,
+  Insert extends Record<string, unknown>,
+  Update extends Record<string, unknown> = Partial<Insert>,
+> = {
+  Row: Row;
+  Insert: Insert;
+  Update: Update;
+  Relationships: [];
+};
+
+type ViewDef<Row extends Record<string, unknown>> = {
+  Row: Row;
+  Relationships: [];
+};
+
 // ---------------------------------------------------------------------------
-// Database interface
+// Database type (must be a `type`, not `interface`, for postgrest-js GenericSchema)
 // ---------------------------------------------------------------------------
-export interface Database {
+export type Database = {
   public: {
     Tables: {
-      departments: {
-        Row: {
+      departments: TableDef<
+        {
           id: string;
           code: string;
           name: string;
@@ -111,8 +127,8 @@ export interface Database {
           is_active: boolean;
           created_at: string;
           updated_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           code: string;
           name: string;
@@ -120,12 +136,11 @@ export interface Database {
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["departments"]["Insert"]>;
-      };
+        }
+      >;
 
-      workflow_stages: {
-        Row: {
+      workflow_stages: TableDef<
+        {
           id: string;
           code: string;
           name: string;
@@ -136,8 +151,8 @@ export interface Database {
           default_sla_minutes: number | null;
           created_at: string;
           updated_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           code: string;
           name: string;
@@ -148,12 +163,11 @@ export interface Database {
           default_sla_minutes?: number | null;
           created_at?: string;
           updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["workflow_stages"]["Insert"]>;
-      };
+        }
+      >;
 
-      employees: {
-        Row: {
+      employees: TableDef<
+        {
           id: string;
           employee_code: string;
           full_name: string;
@@ -166,9 +180,9 @@ export interface Database {
           notes: string | null;
           created_at: string;
           updated_at: string;
-        };
-        Insert: {
-          id: string; // must match auth.users.id
+        },
+        {
+          id: string;
           employee_code: string;
           full_name: string;
           phone?: string | null;
@@ -180,12 +194,11 @@ export interface Database {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["employees"]["Insert"]>;
-      };
+        }
+      >;
 
-      customers: {
-        Row: {
+      customers: TableDef<
+        {
           id: string;
           customer_code: string;
           company_name: string | null;
@@ -200,8 +213,8 @@ export interface Database {
           created_at: string;
           updated_at: string;
           created_by: string | null;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           customer_code: string;
           company_name?: string | null;
@@ -216,12 +229,11 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
-        };
-        Update: Partial<Database["public"]["Tables"]["customers"]["Insert"]>;
-      };
+        }
+      >;
 
-      jewelry_models: {
-        Row: {
+      jewelry_models: TableDef<
+        {
           id: string;
           model_code: string;
           name: string;
@@ -238,8 +250,8 @@ export interface Database {
           created_at: string;
           updated_at: string;
           created_by: string | null;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           model_code: string;
           name: string;
@@ -256,32 +268,30 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
-        };
-        Update: Partial<Database["public"]["Tables"]["jewelry_models"]["Insert"]>;
-      };
+        }
+      >;
 
-      jewelry_model_images: {
-        Row: {
+      jewelry_model_images: TableDef<
+        {
           id: string;
           model_id: string;
           storage_path: string;
           caption: string | null;
           sort_order: number;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           model_id: string;
           storage_path: string;
           caption?: string | null;
           sort_order?: number;
           created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["jewelry_model_images"]["Insert"]>;
-      };
+        }
+      >;
 
-      orders: {
-        Row: {
+      orders: TableDef<
+        {
           id: string;
           order_number: string;
           customer_id: string;
@@ -293,8 +303,8 @@ export interface Database {
           created_at: string;
           updated_at: string;
           created_by: string | null;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           order_number: string;
           customer_id: string;
@@ -306,12 +316,11 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
-        };
-        Update: Partial<Database["public"]["Tables"]["orders"]["Insert"]>;
-      };
+        }
+      >;
 
-      order_items: {
-        Row: {
+      order_items: TableDef<
+        {
           id: string;
           order_id: string;
           model_id: string;
@@ -319,8 +328,8 @@ export interface Database {
           ring_size: string | null;
           unit_notes: string | null;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           order_id: string;
           model_id: string;
@@ -328,12 +337,11 @@ export interface Database {
           ring_size?: string | null;
           unit_notes?: string | null;
           created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["order_items"]["Insert"]>;
-      };
+        }
+      >;
 
-      batches: {
-        Row: {
+      batches: TableDef<
+        {
           id: string;
           batch_number: string;
           order_id: string;
@@ -349,8 +357,8 @@ export interface Database {
           created_at: string;
           updated_at: string;
           created_by: string | null;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           batch_number: string;
           order_id: string;
@@ -366,12 +374,11 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
-        };
-        Update: Partial<Database["public"]["Tables"]["batches"]["Insert"]>;
-      };
+        }
+      >;
 
-      batch_models: {
-        Row: {
+      batch_models: TableDef<
+        {
           id: string;
           batch_id: string;
           model_id: string;
@@ -380,8 +387,8 @@ export interface Database {
           weight_grams: number | null;
           notes: string | null;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           batch_id: string;
           model_id: string;
@@ -390,12 +397,11 @@ export interface Database {
           weight_grams?: number | null;
           notes?: string | null;
           created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["batch_models"]["Insert"]>;
-      };
+        }
+      >;
 
-      batch_images: {
-        Row: {
+      batch_images: TableDef<
+        {
           id: string;
           batch_id: string;
           stage_id: string | null;
@@ -403,8 +409,8 @@ export interface Database {
           caption: string | null;
           uploaded_by: string | null;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           batch_id: string;
           stage_id?: string | null;
@@ -412,12 +418,11 @@ export interface Database {
           caption?: string | null;
           uploaded_by?: string | null;
           created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["batch_images"]["Insert"]>;
-      };
+        }
+      >;
 
-      batch_status_history: {
-        Row: {
+      batch_status_history: TableDef<
+        {
           id: string;
           batch_id: string;
           previous_status: BatchStatus | null;
@@ -427,8 +432,8 @@ export interface Database {
           changed_by: string | null;
           reason: string | null;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           batch_id: string;
           previous_status?: BatchStatus | null;
@@ -438,12 +443,11 @@ export interface Database {
           changed_by?: string | null;
           reason?: string | null;
           created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["batch_status_history"]["Insert"]>;
-      };
+        }
+      >;
 
-      batch_operations: {
-        Row: {
+      batch_operations: TableDef<
+        {
           id: string;
           batch_id: string;
           stage_id: string;
@@ -455,7 +459,7 @@ export interface Database {
           queued_at: string;
           started_at: string | null;
           finished_at: string | null;
-          duration_seconds: number | null; // generated column, read-only
+          duration_seconds: number | null;
           delay_reason_category: DelayReasonCategory | null;
           delay_reason_notes: string | null;
           delayed_minutes: number | null;
@@ -464,8 +468,8 @@ export interface Database {
           notes: string | null;
           created_at: string;
           updated_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           batch_id: string;
           stage_id: string;
@@ -485,34 +489,32 @@ export interface Database {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["batch_operations"]["Insert"]>;
-      };
+        }
+      >;
 
-      inventory_categories: {
-        Row: {
+      inventory_categories: TableDef<
+        {
           id: string;
           name: string;
           parent_id: string | null;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           name: string;
           parent_id?: string | null;
           created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["inventory_categories"]["Insert"]>;
-      };
+        }
+      >;
 
-      inventory_items: {
-        Row: {
+      inventory_items: TableDef<
+        {
           id: string;
           sku: string;
           name: string;
           category_id: string | null;
           unit: InventoryUnit;
-          quantity_on_hand: number; // maintained by trigger; do not write directly
+          quantity_on_hand: number;
           reorder_threshold: number | null;
           unit_cost: number | null;
           supplier_name: string | null;
@@ -521,8 +523,8 @@ export interface Database {
           is_active: boolean;
           created_at: string;
           updated_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           sku: string;
           name: string;
@@ -536,14 +538,11 @@ export interface Database {
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
-        };
-        Update: Partial<
-          Omit<Database["public"]["Tables"]["inventory_items"]["Insert"], "quantity_on_hand">
-        >;
-      };
+        }
+      >;
 
-      inventory_transactions: {
-        Row: {
+      inventory_transactions: TableDef<
+        {
           id: string;
           item_id: string;
           type: InventoryTransactionType;
@@ -553,8 +552,8 @@ export interface Database {
           reference_note: string | null;
           performed_by: string | null;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           item_id: string;
           type: InventoryTransactionType;
@@ -564,26 +563,26 @@ export interface Database {
           reference_note?: string | null;
           performed_by?: string | null;
           created_at?: string;
-        };
-        Update: never; // ledger rows are immutable
-      };
+        },
+        Record<string, never>
+      >;
 
-      gold_lots: {
-        Row: {
+      gold_lots: TableDef<
+        {
           id: string;
           lot_number: string;
           purity: GoldPurity;
           source: string;
           received_weight_grams: number;
-          remaining_weight_grams: number; // maintained by trigger
+          remaining_weight_grams: number;
           cost_per_gram: number | null;
           received_at: string;
           received_by: string | null;
           notes: string | null;
           created_at: string;
           updated_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           lot_number: string;
           purity: GoldPurity;
@@ -596,14 +595,24 @@ export interface Database {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
-        };
-        Update: Partial<
-          Omit<Database["public"]["Tables"]["gold_lots"]["Insert"], "remaining_weight_grams">
-        >;
-      };
+        },
+        {
+          id?: string;
+          lot_number?: string;
+          purity?: GoldPurity;
+          source?: string;
+          received_weight_grams?: number;
+          cost_per_gram?: number | null;
+          received_at?: string;
+          received_by?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
 
-      gold_transactions: {
-        Row: {
+      gold_transactions: TableDef<
+        {
           id: string;
           lot_id: string;
           type: GoldTransactionType;
@@ -613,8 +622,8 @@ export interface Database {
           performed_by: string | null;
           reference_note: string | null;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           lot_id: string;
           type: GoldTransactionType;
@@ -624,50 +633,48 @@ export interface Database {
           performed_by?: string | null;
           reference_note?: string | null;
           created_at?: string;
-        };
-        Update: never; // ledger rows are immutable
-      };
+        },
+        Record<string, never>
+      >;
 
-      qc_checklists: {
-        Row: {
+      qc_checklists: TableDef<
+        {
           id: string;
           stage_id: string | null;
           name: string;
           description: string | null;
           is_active: boolean;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           stage_id?: string | null;
           name: string;
           description?: string | null;
           is_active?: boolean;
           created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["qc_checklists"]["Insert"]>;
-      };
+        }
+      >;
 
-      qc_checklist_items: {
-        Row: {
+      qc_checklist_items: TableDef<
+        {
           id: string;
           checklist_id: string;
           label: string;
           sort_order: number;
           is_required: boolean;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           checklist_id: string;
           label: string;
           sort_order?: number;
           is_required?: boolean;
-        };
-        Update: Partial<Database["public"]["Tables"]["qc_checklist_items"]["Insert"]>;
-      };
+        }
+      >;
 
-      qc_inspections: {
-        Row: {
+      qc_inspections: TableDef<
+        {
           id: string;
           batch_id: string;
           batch_operation_id: string | null;
@@ -677,8 +684,8 @@ export interface Database {
           defect_notes: string | null;
           inspected_at: string;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           batch_id: string;
           batch_operation_id?: string | null;
@@ -688,30 +695,30 @@ export interface Database {
           defect_notes?: string | null;
           inspected_at?: string;
           created_at?: string;
-        };
-        Update: never; // inspections are immutable records
-      };
+        },
+        Record<string, never>
+      >;
 
-      qc_inspection_results: {
-        Row: {
+      qc_inspection_results: TableDef<
+        {
           id: string;
           inspection_id: string;
           checklist_item_id: string;
           passed: boolean;
           comment: string | null;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           inspection_id: string;
           checklist_item_id: string;
           passed: boolean;
           comment?: string | null;
-        };
-        Update: never;
-      };
+        },
+        Record<string, never>
+      >;
 
-      audit_log: {
-        Row: {
+      audit_log: TableDef<
+        {
           id: string;
           table_name: string;
           record_id: string;
@@ -720,68 +727,60 @@ export interface Database {
           new_data: Json | null;
           changed_by: string | null;
           changed_at: string;
-        };
-        Insert: never; // system-inserted only, via trigger
-        Update: never;
-      };
+        },
+        Record<string, never>,
+        Record<string, never>
+      >;
     };
 
     Views: {
-      department_board: {
-        Row: {
-          department_id: string;
-          department_code: string;
-          department_name: string;
-          operation_id: string;
-          operation_status: OperationStatus;
-          batch_id: string;
-          batch_number: string;
-          batch_priority: BatchPriority;
-          stage_id: string;
-          stage_name: string;
-          assigned_employee_id: string | null;
-          assigned_employee_name: string | null;
-          queued_at: string;
-          started_at: string | null;
-          delay_reason_category: DelayReasonCategory | null;
-          delayed_minutes: number | null;
-        };
-      };
-      factory_dashboard_summary: {
-        Row: {
-          batches_in_progress: number;
-          batches_delayed: number;
-          batches_on_hold: number;
-          batches_pending: number;
-          batches_completed_today: number;
-          active_orders: number;
-          qc_failures_today: number;
-          gold_on_hand_grams: number;
-        };
-      };
-      stage_duration_stats: {
-        Row: {
-          stage_id: string;
-          stage_name: string;
-          sequence_order: number;
-          default_sla_minutes: number | null;
-          completed_count: number;
-          avg_duration_seconds: number | null;
-          median_duration_seconds: number | null;
-          delayed_count: number;
-        };
-      };
-      batch_gold_summary: {
-        Row: {
-          batch_id: string;
-          batch_number: string;
-          issued_grams: number;
-          returned_grams: number;
-          melting_loss_grams: number;
-          scrap_recovered_grams: number;
-          net_consumed_grams: number;
-        };
-      };
+      department_board: ViewDef<{
+        department_id: string;
+        department_code: string;
+        department_name: string;
+        operation_id: string;
+        operation_status: OperationStatus;
+        batch_id: string;
+        batch_number: string;
+        batch_priority: BatchPriority;
+        stage_id: string;
+        stage_name: string;
+        assigned_employee_id: string | null;
+        assigned_employee_name: string | null;
+        queued_at: string;
+        started_at: string | null;
+        delay_reason_category: DelayReasonCategory | null;
+        delayed_minutes: number | null;
+      }>;
+      factory_dashboard_summary: ViewDef<{
+        batches_in_progress: number;
+        batches_delayed: number;
+        batches_on_hold: number;
+        batches_pending: number;
+        batches_completed_today: number;
+        active_orders: number;
+        qc_failures_today: number;
+        gold_on_hand_grams: number;
+      }>;
+      stage_duration_stats: ViewDef<{
+        stage_id: string;
+        stage_name: string;
+        sequence_order: number;
+        default_sla_minutes: number | null;
+        completed_count: number;
+        avg_duration_seconds: number | null;
+        median_duration_seconds: number | null;
+        delayed_count: number;
+      }>;
+      batch_gold_summary: ViewDef<{
+        batch_id: string;
+        batch_number: string;
+        issued_grams: number;
+        returned_grams: number;
+        melting_loss_grams: number;
+        scrap_recovered_grams: number;
+        net_consumed_grams: number;
+      }>;
     };
 
     Functions: {
@@ -810,5 +809,9 @@ export interface Database {
       gold_transaction_type: GoldTransactionType;
       employment_status: EmploymentStatus;
     };
+
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
-}
+};

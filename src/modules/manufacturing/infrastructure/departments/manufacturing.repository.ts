@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/shared/types/database.types";
+import type { TypedSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   BatchOperation,
   BatchOperationInsert,
@@ -38,7 +37,7 @@ import {
  * those `Raw*` interfaces — verify both together when editing either.
  */
 export class SupabaseManufacturingRepository implements ManufacturingRepository {
-  constructor(private readonly client: SupabaseClient<Database>) {}
+  constructor(private readonly client: TypedSupabaseServerClient) {}
 
   async findDepartmentByCode(code: string) {
     const { data, error } = await this.client

@@ -1,12 +1,11 @@
-self.addEventListener('install', (event) => {
-  console.log('JewelryFlow Service Worker oʻrnatildi');
+self.addEventListener("install", (_event) => {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  console.log('JewelryFlow Service Worker faollashdi');
+self.addEventListener("activate", (_event) => {
+  // Service worker activated
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (_event) => {
   // PWA talabiga javob berish uchun oddiy fetch ushlagich
 });

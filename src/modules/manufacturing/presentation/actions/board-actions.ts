@@ -3,6 +3,7 @@
 import type { ApiResult } from "@/shared/types/api";
 import type { BatchOperationWithRelations, FactoryDashboardSummary, StageDurationStats } from "@/shared/types/domain";
 import { getManufacturingRepository } from "../../infrastructure/departments/factory";
+import { requireCurrentEmployeeId } from "../../infrastructure/departments/session";
 import { runAction } from "../../application/error-mapping";
 import * as workflow from "../../application";
 import type { DepartmentBoardColumns } from "../../domain/workflow/types";
@@ -15,6 +16,7 @@ export async function getDepartmentBoardAction(
   input: DepartmentBoardQueryInput
 ): Promise<ApiResult<DepartmentBoardColumns>> {
   return runAction(async () => {
+    await requireCurrentEmployeeId();
     const repo = await getManufacturingRepository();
     return workflow.getDepartmentBoard(repo, input);
   });
@@ -22,6 +24,7 @@ export async function getDepartmentBoardAction(
 
 export async function getFactoryDashboardSummaryAction(): Promise<ApiResult<FactoryDashboardSummary>> {
   return runAction(async () => {
+    await requireCurrentEmployeeId();
     const repo = await getManufacturingRepository();
     return workflow.getFactoryDashboardSummary(repo);
   });
@@ -31,6 +34,7 @@ export async function getBatchOperationHistoryAction(
   input: BatchOperationHistoryQueryInput
 ): Promise<ApiResult<BatchOperationWithRelations[]>> {
   return runAction(async () => {
+    await requireCurrentEmployeeId();
     const repo = await getManufacturingRepository();
     return workflow.getBatchOperationHistory(repo, input);
   });
@@ -38,6 +42,7 @@ export async function getBatchOperationHistoryAction(
 
 export async function getStageDurationStatsAction(): Promise<ApiResult<StageDurationStats[]>> {
   return runAction(async () => {
+    await requireCurrentEmployeeId();
     const repo = await getManufacturingRepository();
     return workflow.getStageDurationStats(repo);
   });

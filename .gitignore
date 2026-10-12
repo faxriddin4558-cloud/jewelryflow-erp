@@ -1,1 +1,17 @@
 node_modules
+.next
+out
+dist
+build
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.vercel
+supabase/.temp
+supabase/.branches
+supabase.temp-*
+errors*.txt
+*.dump
+*.bak
+_backup_*

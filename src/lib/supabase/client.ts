@@ -1,20 +1,19 @@
+import { createClient } from "@supabase/supabase-js";
 import { createBrowserClient } from "@supabase/ssr";
-import type { Database } from "@/shared/types/database.types";
 
-/**
- * Supabase client for use inside Client Components ("use client").
- * Respects RLS using the end user's session — never use the service
- * role key here.
- */
-export function createSupabaseBrowserClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl =
+  (process.env.NEXT_PUBLIC_SUPABASE_URL as string) || "https://placeholder.supabase.co";
+const supabaseKey =
+  (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string) || "placeholder-key";
 
-  if (!url || !anonKey) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables."
-    );
+export const createSupabaseBrowserClient = () => {
+  if (typeof window !== "undefined") {
+    return createBrowserClient(supabaseUrl, supabaseKey);
   }
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+};
 
-  return createBrowserClient<Database>(url, anonKey);
-}
+// Shared Supabase client instance (uses @supabase/ssr cookie synchronization in browser)
+export const supabase = createSupabaseBrowserClient();

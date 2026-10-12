@@ -1,6 +1,9 @@
-import { createServerClient } from "@supabase/ssr";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/shared/types/database.types";
+
+type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 /**
  * Supabase client for use inside Server Components, Route Handlers, and
@@ -10,7 +13,7 @@ import type { Database } from "@/shared/types/database.types";
  * Must be called fresh per-request (do not module-cache the instance)
  * because it captures the request's cookie store.
  */
-export async function createSupabaseServerClient() {
+export async function createSupabaseServerClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -27,7 +30,7 @@ export async function createSupabaseServerClient() {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: CookieToSet[]) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
             cookieStore.set(name, value, options);
@@ -39,7 +42,7 @@ export async function createSupabaseServerClient() {
         }
       },
     },
-  });
+  }) as unknown as SupabaseClient<Database>;
 }
 
 /**
@@ -49,7 +52,7 @@ export async function createSupabaseServerClient() {
  * from a "use client" component or expose it to a user-triggered request
  * path without an explicit authorization check first.
  */
-export function createSupabaseServiceRoleClient() {
+export function createSupabaseServiceRoleClient(): SupabaseClient<Database> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -59,10 +62,9 @@ export function createSupabaseServiceRoleClient() {
     );
   }
 
-  // Lazily imported to guarantee this code path never ships in a client bundle.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createClient } = require("@supabase/supabase-js");
   return createClient<Database>(url, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
+
+export type TypedSupabaseServerClient = SupabaseClient<Database>;
