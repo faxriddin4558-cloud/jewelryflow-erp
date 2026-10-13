@@ -77,7 +77,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }
         }
 
-        const resolvedRole = resolveEmployeeRole(emp);
+        let resolvedRole = resolveEmployeeRole(emp);
+        // Security guard: Director role is strictly reserved for verified, linked user_id accounts
+        if (resolvedRole === "Director" && emp?.user_id !== user.id) {
+          resolvedRole = "Worker";
+        }
         const resolvedUser = {
           id: emp?.id != null ? String(emp.id) : user.id,
           email: user.email,

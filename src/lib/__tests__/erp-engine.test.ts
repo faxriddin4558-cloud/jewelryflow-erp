@@ -1274,4 +1274,31 @@ describe("ErpTransactionalEngine — Order Creation with Advance & Idempotency C
     expect(resolveEmployeeRole({ role: "unknown_hack", role_type: "malformed" })).toBe("Worker");
     expect(resolveEmployeeRole(null)).toBe("Worker");
   });
+
+  it("verifies hybrid bigint/uuid schema reconciliation and transactional integrity in migrations", () => {
+    const m15 = fs.readFileSync(
+      path.resolve(process.cwd(), "supabase/migrations/20260101000015_erp_operational_schema_reconciliation.sql"),
+      "utf8"
+    );
+    const m16 = fs.readFileSync(
+      path.resolve(process.cwd(), "supabase/migrations/20260101000016_atomic_erp_rpcs.sql"),
+      "utf8"
+    );
+    const standalone = fs.readFileSync(
+      path.resolve(process.cwd(), "supabase/scripts/00_complete_production_rollout_standalone.sql"),
+      "utf8"
+    );
+
+    // 1. Reconciles batches.order_id to match orders.id type and preserves legacy UUIDs
+    expect(m15).toContain("order_id_legacy_uuid");
+    expect(m15).toContain("batches_order_id_fkey foreign key (order_id) references public.orders(id)");
+
+    // 2. batch_stage_wip.batch_id is text so bigint batch IDs are not forced to NULL
+    expect(m15).toContain("alter table public.batch_stage_wip alter column batch_id type text using batch_id::text");
+    expect(m16).not.toContain("public.try_cast_uuid(v_batch_id), btrim(p_batch_no), 8, '8. Quyish'");
+
+    // 3. Standalone rollout script is wrapped in single atomic transaction
+    expect(standalone).toMatch(/^BEGIN;/m);
+    expect(standalone).toMatch(/^COMMIT;/m);
+  });
 });
