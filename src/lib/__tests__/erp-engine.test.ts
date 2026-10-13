@@ -876,14 +876,26 @@ describe("Database Migrations — Forward-Only Schema, Atomic RPCs & RLS Hardeni
     // Migration 015 checks
     expect(m15).toContain("chk_inventory_items_non_negative_and_reserved");
     expect(m15).toContain("idx_salary_ledger_unique_earned");
-    expect(m15.toLowerCase()).toContain("create table if not exists public.inventory_reservations");
+    expect(m15.toLowerCase()).toContain("create table public.inventory_reservations");
     expect(m15.toLowerCase()).toContain("create table if not exists public.debt_repayments");
-    expect(m15.toLowerCase()).toContain("create table if not exists public.affinaj_records");
+    expect(m15.toLowerCase()).toContain("create table public.affinaj_records");
     expect(m15).not.toContain("extensions.uuid_generate_v4()");
     expect(m15).toContain("public.calculate_melting_loss(");
     expect(m15).toContain("p_initial_weight_grams numeric");
+    expect(m15).toContain("public.handle_new_auth_user()");
+    expect(m15).toContain("idx_orders_order_no_unique");
+    expect(m15).toContain("idx_batches_batch_no_unique");
+    expect(m15).toContain("idx_batch_stage_wip_batch_stage_unique");
+    expect(m15).toContain("idx_employees_email_lower_unique");
 
-    // Migration 016 checks (all 13 RPCs + exact fine gold helper + permission guard + salary trigger bypass flag)
+    // Verify no ALTER TYPE ... ADD VALUE occurs inside a DO $$ block in 015
+    const doBlocks015 = m15.match(/^\s*do\s+\$\$[\s\S]*?^\s*end\s+\$\$;/gim) ?? [];
+    expect(doBlocks015.length).toBeGreaterThanOrEqual(4);
+    for (const block of doBlocks015) {
+      expect(block.toLowerCase()).not.toContain("alter type");
+    }
+
+    // Migration 016 checks (all 14 RPCs + exact fine gold helper + fail-closed permission guard + salary trigger bypass flag)
     const requiredRpcs = [
       "rpc_inventory_transaction",
       "rpc_execute_alloy_transaction",
@@ -898,21 +910,32 @@ describe("Database Migrations — Forward-Only Schema, Atomic RPCs & RLS Hardeni
       "rpc_record_debt_repayment",
       "rpc_record_salary_transaction",
       "rpc_create_product_with_bom",
+      "rpc_create_order_with_advance",
     ];
     for (const rpcName of requiredRpcs) {
       expect(m16).toContain(rpcName);
     }
     expect(m16.toLowerCase()).toContain("set search_path = public, pg_temp");
     expect(m16).toContain("set_config('app.in_salary_rpc', 'true', true)");
+    expect(m16).toContain("Permission denied: authentication required");
+    expect(m16.toLowerCase()).toContain(
+      "revoke execute on all functions in schema public from public, anon"
+    );
+    expect(m16).toContain("pg_advisory_xact_lock");
 
     // Migration 017 checks (RLS, privilege escalation trigger, immutable ledger trigger, REVOKE anon/PUBLIC)
     expect(m17).toContain("prevent_employee_privilege_escalation");
     expect(m17).toContain("prevent_ledger_delete_or_tamper");
     expect(m17).toContain("current_employee_role_text()");
+    expect(m17).toContain("employees_select_own_or_authorized");
+    expect(m17).toContain("inventory_items_insert_zero_balance_card");
+    expect(m17).toContain("sales_insert_expense_or_admin");
+    expect(m17).toContain("enforce_audit_logs_actor");
     expect(m17.toLowerCase()).toContain('drop policy if exists "self update own profile" on public.employees');
     expect(m17.toLowerCase()).toContain(
       "revoke execute on all functions in schema public from public, anon"
     );
+    expect(m17).not.toContain("grant execute on all functions in schema public to authenticated;");
   });
 
   it("verifies every frontend supabase.rpc(...) call across src/app matches the exact SQL parameter names in migration 016", () => {
@@ -975,6 +998,280 @@ describe("Database Migrations — Forward-Only Schema, Atomic RPCs & RLS Hardeni
       }
     }
 
-    expect(totalRpcCallsChecked).toBeGreaterThanOrEqual(13);
+    expect(totalRpcCallsChecked).toBeGreaterThanOrEqual(14);
+  });
+
+  it("verifies production preflight script is 100% read-only and admin link script is transaction-safe", () => {
+    const scriptsDir = path.resolve(process.cwd(), "supabase", "scripts");
+    const preflight = fs.readFileSync(
+      path.join(scriptsDir, "01_production_preflight_readonly.sql"),
+      "utf8"
+    );
+    const linkScript = fs.readFileSync(
+      path.join(scriptsDir, "02_manual_link_director_admin.sql"),
+      "utf8"
+    );
+
+    // Preflight must contain only SELECT, NO mutating statements
+    const mutatingStatements = ["insert into", "update ", "delete from", "drop table", "alter table", "create table"];
+    for (const stmt of mutatingStatements) {
+      expect(preflight.toLowerCase()).not.toContain(stmt);
+    }
+    expect(preflight.toLowerCase()).toContain("admin@goldia.uz");
+    expect(preflight.toLowerCase()).toContain("chk_inventory_items");
+
+    // Link script must have begin/commit transaction block and reference admin@goldia.uz
+    expect(linkScript.toLowerCase()).toContain("begin;");
+    expect(linkScript.toLowerCase()).toContain("commit;");
+    expect(linkScript).toContain("admin@goldia.uz");
+    expect(linkScript).toContain("Director");
+    expect(linkScript).toContain("admin");
+  });
+});
+
+describe("ErpTransactionalEngine — Order Creation with Advance & Idempotency Conflict Guards", () => {
+  let engine: ErpTransactionalEngine;
+
+  beforeEach(() => {
+    RBAC.setCurrentUser({ name: "Director User", role: "Director", department: "Boshqaruv" });
+    engine = new ErpTransactionalEngine();
+  });
+
+  it("records order and initial advance atomically without double-counting kassa or debt", async () => {
+    const res = await engine.createOrderWithAdvance({
+      orderNo: "Z-888001",
+      clientName: "Nodirbek",
+      productModel: "Shohona Komplekt",
+      proba: 585,
+      qty: 5,
+      weightGram: 75,
+      totalPrice: 60000000,
+      advance: 15000000,
+      idempotencyKey: "ord-adv-1",
+    });
+
+    expect(res.status).toBe("OK");
+    expect(res.orderNo).toBe("Z-888001");
+    expect(res.advance).toBe(15000000);
+    expect(res.remainingDebt).toBe(45000000);
+    expect(engine.orders).toHaveLength(1);
+    expect(engine.sales).toHaveLength(1);
+
+    const fin = GoldEngine.calculateFinancialSummary(engine.sales, engine.orders);
+    expect(fin.kassaIn).toBe(15000000);
+    expect(fin.kassaOut).toBe(0);
+    expect(fin.customerDebt).toBe(45000000);
+
+    // Deduplication test with exact same payload
+    const retry = await engine.createOrderWithAdvance({
+      orderNo: "Z-888001",
+      clientName: "Nodirbek",
+      productModel: "Shohona Komplekt",
+      proba: 585,
+      qty: 5,
+      weightGram: 75,
+      totalPrice: 60000000,
+      advance: 15000000,
+      idempotencyKey: "ord-adv-1",
+    });
+    expect(retry.deduplicated).toBe(true);
+    expect(engine.orders).toHaveLength(1);
+    expect(engine.sales).toHaveLength(1);
+
+    // Reusing the same idempotency key with conflicting payload throws IDEMPOTENCY_KEY_CONFLICT
+    await expect(
+      engine.createOrderWithAdvance({
+        orderNo: "Z-888002",
+        clientName: "Boshqa Mijoz",
+        productModel: "Uzuk",
+        proba: 585,
+        qty: 1,
+        weightGram: 10,
+        totalPrice: 10000000,
+        advance: 2000000,
+        idempotencyKey: "ord-adv-1",
+      })
+    ).rejects.toThrow(/IDEMPOTENCY_KEY_CONFLICT/);
+  });
+
+  it("handles zero advance gracefully without creating synthetic sale row", async () => {
+    const res = await engine.createOrderWithAdvance({
+      orderNo: "Z-888003",
+      clientName: "Jamshid",
+      productModel: "Braslet",
+      proba: 585,
+      qty: 2,
+      weightGram: 30,
+      totalPrice: 24000000,
+      advance: 0,
+    });
+
+    expect(res.status).toBe("OK");
+    expect(res.advanceSaleId).toBeNull();
+    expect(res.remainingDebt).toBe(24000000);
+    expect(engine.sales).toHaveLength(0);
+
+    const fin = GoldEngine.calculateFinancialSummary(engine.sales, engine.orders);
+    expect(fin.kassaIn).toBe(0);
+    expect(fin.customerDebt).toBe(24000000);
+  });
+
+  it("rejects advance greater than total price and negative amounts", async () => {
+    await expect(
+      engine.createOrderWithAdvance({
+        orderNo: "Z-888004",
+        clientName: "Test",
+        productModel: "Model",
+        proba: 585,
+        qty: 1,
+        weightGram: 10,
+        totalPrice: 10000000,
+        advance: 12000000,
+      })
+    ).rejects.toThrow(/ADVANCE_EXCEEDS_TOTAL_PRICE/);
+
+    await expect(
+      engine.createOrderWithAdvance({
+        orderNo: "Z-888005",
+        clientName: "Test",
+        productModel: "Model",
+        proba: 585,
+        qty: 1,
+        weightGram: 10,
+        totalPrice: -1000,
+        advance: 0,
+      })
+    ).rejects.toThrow(/INVALID_ORDER_PRICE_OR_ADVANCE/);
+  });
+
+  it("verifies transaction rollback and zero partial orders on database error or duplicate order number", async () => {
+    // 1. First order creation succeeds
+    await engine.createOrderWithAdvance({
+      orderNo: "Z-ROLLBACK-1",
+      clientName: "Vali",
+      productModel: "Uzuk",
+      proba: 585,
+      qty: 1,
+      weightGram: 5,
+      totalPrice: 4000000,
+      advance: 1000000,
+    });
+    expect(engine.orders).toHaveLength(1);
+    expect(engine.sales).toHaveLength(1);
+
+    // 2. Duplicate order number fails with DUPLICATE_ORDER_NO and rolls back completely
+    const prevOrdersCount = engine.orders.length;
+    const prevSalesCount = engine.sales.length;
+
+    await expect(
+      engine.createOrderWithAdvance({
+        orderNo: "Z-ROLLBACK-1", // duplicate!
+        clientName: "Boshqa Mijoz",
+        productModel: "Sirg'a",
+        proba: 585,
+        qty: 2,
+        weightGram: 10,
+        totalPrice: 8000000,
+        advance: 3000000,
+      })
+    ).rejects.toThrow(/DUPLICATE_ORDER_NO/);
+
+    // Rollback verification: counts must remain unchanged
+    expect(engine.orders).toHaveLength(prevOrdersCount);
+    expect(engine.sales).toHaveLength(prevSalesCount);
+
+    // 3. Invalid fractional quantity fails and rolls back completely
+    await expect(
+      engine.createOrderWithAdvance({
+        orderNo: "Z-ROLLBACK-2",
+        clientName: "Sobir",
+        productModel: "Zanjir",
+        proba: 585,
+        qty: 1.5, // non-integer quantity!
+        weightGram: 10,
+        totalPrice: 8000000,
+        advance: 2000000,
+      })
+    ).rejects.toThrow(/INVALID_ORDER_QTY_OR_WEIGHT/);
+
+    expect(engine.orders).toHaveLength(prevOrdersCount);
+    expect(engine.sales).toHaveLength(prevSalesCount);
+
+    // 4. Zero or negative weight fails and rolls back completely
+    await expect(
+      engine.createOrderWithAdvance({
+        orderNo: "Z-ROLLBACK-3",
+        clientName: "Sobir",
+        productModel: "Zanjir",
+        proba: 585,
+        qty: 1,
+        weightGram: 0,
+        totalPrice: 8000000,
+        advance: 2000000,
+      })
+    ).rejects.toThrow(/INVALID_ORDER_QTY_OR_WEIGHT/);
+
+    expect(engine.orders).toHaveLength(prevOrdersCount);
+    expect(engine.sales).toHaveLength(prevSalesCount);
+
+    // 5. Negative advance fails and rolls back completely
+    await expect(
+      engine.createOrderWithAdvance({
+        orderNo: "Z-ROLLBACK-4",
+        clientName: "Sobir",
+        productModel: "Zanjir",
+        proba: 585,
+        qty: 1,
+        weightGram: 5,
+        totalPrice: 8000000,
+        advance: -500000,
+      })
+    ).rejects.toThrow(/INVALID_ORDER_PRICE_OR_ADVANCE/);
+
+    expect(engine.orders).toHaveLength(prevOrdersCount);
+    expect(engine.sales).toHaveLength(prevSalesCount);
+  });
+
+  it("verifies src/app/orders/page.tsx strictly uses atomic RPC and has NO non-atomic fallback inserts", () => {
+    const ordersPagePath = path.resolve(process.cwd(), "src", "app", "orders", "page.tsx");
+    const content = fs.readFileSync(ordersPagePath, "utf8");
+
+    // 1. Must call rpc_create_order_with_advance
+    expect(content).toContain('supabase.rpc(\n        "rpc_create_order_with_advance"');
+
+    // 2. Must NOT contain direct fallback inserts into orders or sales tables
+    expect(content).not.toContain('supabase.from("orders").insert(');
+    expect(content).not.toContain('supabase.from("sales").insert(');
+    expect(content).not.toContain('.from("orders")\n        .insert(');
+    expect(content).not.toContain('.from("sales")\n        .insert(');
+
+    // 3. Must alert explaining required migration is not applied
+    expect(content).toContain("016_atomic_erp_rpcs.sql migratsiyasi qo'llanmagan");
+    expect(content).toContain("chala buyurtma yaratish taqiqlangan");
+  });
+
+  it("enforces deterministic role precedence and prevents director lockout from legacy worker role column", () => {
+    // When role_type is 'Director' but legacy role column is default 'worker', role_type wins:
+    expect(resolveEmployeeRole({ role: "worker", role_type: "Director" })).toBe("Director");
+    expect(resolveEmployeeRole({ role: "viewer", role_type: "Director" })).toBe("Director");
+    expect(resolveEmployeeRole({ role: "department_operator", role_type: "Director" })).toBe("Director");
+
+    // When role column is 'admin' but role_type is generic 'Worker', role takes precedence:
+    expect(resolveEmployeeRole({ role: "admin", role_type: "Worker" })).toBe("Director");
+
+    // Specific role_type takes precedence over generic worker in role:
+    expect(resolveEmployeeRole({ role: "worker", role_type: "Production Manager" })).toBe("Production Manager");
+    expect(resolveEmployeeRole({ role: "worker", role_type: "Supervisor" })).toBe("Supervisor");
+    expect(resolveEmployeeRole({ role: "worker", role_type: "Warehouse" })).toBe("Warehouse");
+    expect(resolveEmployeeRole({ role: "worker", role_type: "Accountant" })).toBe("Accountant");
+
+    // Inactive employee always downgrades to Worker:
+    expect(resolveEmployeeRole({ role: "admin", role_type: "Director", is_active: false })).toBe("Worker");
+    expect(resolveEmployeeRole({ role: "admin", role_type: "Director", status: "inactive" })).toBe("Worker");
+    expect(resolveEmployeeRole({ role: "admin", role_type: "Director", employment_status: "terminated" })).toBe("Worker");
+
+    // Unknown or malformed tokens fail closed to Worker:
+    expect(resolveEmployeeRole({ role: "unknown_hack", role_type: "malformed" })).toBe("Worker");
+    expect(resolveEmployeeRole(null)).toBe("Worker");
   });
 });

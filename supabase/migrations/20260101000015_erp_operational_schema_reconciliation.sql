@@ -30,7 +30,7 @@ exception when others then
 end;
 $$;
 
--- 0. Safely ensure public.app_role exists and extend enums only if present
+-- 0. Safely ensure public.app_role exists, then extend values at top-level (never inside DO $$)
 do $$
 begin
   if not exists (
@@ -55,45 +55,108 @@ begin
       'worker'
     );
   end if;
+
+  if not exists (
+    select 1 from pg_type
+    where typnamespace = 'public'::regnamespace and typname = 'order_status'
+  ) then
+    create type public.order_status as enum (
+      'draft',
+      'confirmed',
+      'in_production',
+      'ready_for_qc',
+      'completed',
+      'delivered',
+      'cancelled',
+      'Kutilmoqda',
+      'Ishlab chiqarishda',
+      'Tugatildi',
+      'Bekor qilindi'
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_type
+    where typnamespace = 'public'::regnamespace and typname = 'order_priority'
+  ) then
+    create type public.order_priority as enum (
+      'low',
+      'normal',
+      'high',
+      'urgent',
+      'Normal',
+      'VIP',
+      'URGENT'
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_type
+    where typnamespace = 'public'::regnamespace and typname = 'batch_status'
+  ) then
+    create type public.batch_status as enum (
+      'pending',
+      'in_progress',
+      'on_hold',
+      'rework',
+      'completed',
+      'cancelled',
+      'Jarayonda',
+      'Tugatildi',
+      'Bekor qilindi'
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_type
+    where typnamespace = 'public'::regnamespace and typname = 'batch_priority'
+  ) then
+    create type public.batch_priority as enum (
+      'low',
+      'normal',
+      'high',
+      'urgent',
+      'Normal',
+      'VIP',
+      'URGENT'
+    );
+  end if;
 end $$;
 
-do $$
-begin
-  if exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'app_role') then
-    alter type public.app_role add value if not exists 'director';
-    alter type public.app_role add value if not exists 'manager';
-    alter type public.app_role add value if not exists 'master';
-    alter type public.app_role add value if not exists 'supervisor';
-    alter type public.app_role add value if not exists 'warehouse';
-    alter type public.app_role add value if not exists 'accountant';
-    alter type public.app_role add value if not exists 'worker';
-  end if;
+-- Top-level ALTER TYPE ... ADD VALUE IF NOT EXISTS (PostgreSQL-safe outside DO $$ blocks)
+alter type public.app_role add value if not exists 'admin';
+alter type public.app_role add value if not exists 'production_manager';
+alter type public.app_role add value if not exists 'department_head';
+alter type public.app_role add value if not exists 'department_operator';
+alter type public.app_role add value if not exists 'inventory_manager';
+alter type public.app_role add value if not exists 'quality_inspector';
+alter type public.app_role add value if not exists 'sales';
+alter type public.app_role add value if not exists 'viewer';
+alter type public.app_role add value if not exists 'director';
+alter type public.app_role add value if not exists 'manager';
+alter type public.app_role add value if not exists 'master';
+alter type public.app_role add value if not exists 'supervisor';
+alter type public.app_role add value if not exists 'warehouse';
+alter type public.app_role add value if not exists 'accountant';
+alter type public.app_role add value if not exists 'worker';
 
-  if exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'order_status') then
-    alter type public.order_status add value if not exists 'Kutilmoqda';
-    alter type public.order_status add value if not exists 'Ishlab chiqarishda';
-    alter type public.order_status add value if not exists 'Tugatildi';
-    alter type public.order_status add value if not exists 'Bekor qilindi';
-  end if;
+alter type public.order_status add value if not exists 'Kutilmoqda';
+alter type public.order_status add value if not exists 'Ishlab chiqarishda';
+alter type public.order_status add value if not exists 'Tugatildi';
+alter type public.order_status add value if not exists 'Bekor qilindi';
 
-  if exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'order_priority') then
-    alter type public.order_priority add value if not exists 'Normal';
-    alter type public.order_priority add value if not exists 'VIP';
-    alter type public.order_priority add value if not exists 'URGENT';
-  end if;
+alter type public.order_priority add value if not exists 'Normal';
+alter type public.order_priority add value if not exists 'VIP';
+alter type public.order_priority add value if not exists 'URGENT';
 
-  if exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'batch_status') then
-    alter type public.batch_status add value if not exists 'Jarayonda';
-    alter type public.batch_status add value if not exists 'Tugatildi';
-    alter type public.batch_status add value if not exists 'Bekor qilindi';
-  end if;
+alter type public.batch_status add value if not exists 'Jarayonda';
+alter type public.batch_status add value if not exists 'Tugatildi';
+alter type public.batch_status add value if not exists 'Bekor qilindi';
 
-  if exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'batch_priority') then
-    alter type public.batch_priority add value if not exists 'Normal';
-    alter type public.batch_priority add value if not exists 'VIP';
-    alter type public.batch_priority add value if not exists 'URGENT';
-  end if;
-end $$;
+alter type public.batch_priority add value if not exists 'Normal';
+alter type public.batch_priority add value if not exists 'VIP';
+alter type public.batch_priority add value if not exists 'URGENT';
+
 
 -- 1. Idempotency key registry to prevent duplicate posting on network retries
 create table if not exists public.idempotency_keys (
@@ -163,23 +226,45 @@ begin
   end if;
 end $$;
 
--- Order-specific inventory reservations table (order_id is text to support both bigint and uuid order PKs)
-create table if not exists public.inventory_reservations (
-  id                uuid primary key default gen_random_uuid(),
-  inventory_item_id uuid not null references public.inventory_items(id) on delete restrict,
-  order_id          text,
-  order_no          text,
-  batch_no          text,
-  reserved_grams    numeric(14, 4) not null check (reserved_grams > 0),
-  consumed_grams    numeric(14, 4) not null default 0 check (consumed_grams >= 0),
-  released_grams    numeric(14, 4) not null default 0 check (released_grams >= 0),
-  status            text not null default 'ACTIVE' check (status in ('ACTIVE', 'CONSUMED', 'RELEASED')),
-  idempotency_key   text unique,
-  created_by        uuid,
-  created_at        timestamptz not null default now(),
-  updated_at        timestamptz not null default now(),
-  constraint chk_reservation_balance check (consumed_grams + released_grams <= reserved_grams)
-);
+-- Order-specific inventory reservations table (dynamically matches inventory_items.id type: uuid or bigint)
+do $$
+declare
+  v_inv_id_udt text;
+  v_inv_id_col_type text := 'uuid';
+begin
+  select udt_name into v_inv_id_udt
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'inventory_items' and column_name = 'id';
+
+  if v_inv_id_udt in ('int8', 'bigint') then
+    v_inv_id_col_type := 'bigint';
+  elsif v_inv_id_udt in ('int4', 'integer') then
+    v_inv_id_col_type := 'integer';
+  else
+    v_inv_id_col_type := 'uuid';
+  end if;
+
+  if to_regclass('public.inventory_reservations') is null then
+    execute format($sql$
+      create table public.inventory_reservations (
+        id                uuid primary key default gen_random_uuid(),
+        inventory_item_id %s not null references public.inventory_items(id) on delete restrict,
+        order_id          text,
+        order_no          text,
+        batch_no          text,
+        reserved_grams    numeric(14, 4) not null check (reserved_grams > 0),
+        consumed_grams    numeric(14, 4) not null default 0 check (consumed_grams >= 0),
+        released_grams    numeric(14, 4) not null default 0 check (released_grams >= 0),
+        status            text not null default 'ACTIVE' check (status in ('ACTIVE', 'CONSUMED', 'RELEASED')),
+        idempotency_key   text unique,
+        created_by        uuid,
+        created_at        timestamptz not null default now(),
+        updated_at        timestamptz not null default now(),
+        constraint chk_reservation_balance check (consumed_grams + released_grams <= reserved_grams)
+      )
+    $sql$, v_inv_id_col_type);
+  end if;
+end $$;
 
 -- 3. Extend gold_transactions non-destructively for operational ledger compatibility
 alter table public.gold_transactions
@@ -279,7 +364,7 @@ begin
       v_delta := 0;
   end case;
 
-  if v_delta <> 0 then
+  if v_delta <> 0 and to_regclass('public.gold_lots') is not null then
     update public.gold_lots
        set remaining_weight_grams = remaining_weight_grams + v_delta
      where id = new.lot_id;
@@ -289,27 +374,50 @@ begin
 end;
 $$;
 
--- 4. Refining (Affinaj) records table
-create table if not exists public.affinaj_records (
-  id                  uuid primary key default gen_random_uuid(),
-  scrap_item_id       uuid references public.inventory_items(id) on delete restrict,
-  target_gold_item_id uuid references public.inventory_items(id) on delete restrict,
-  scrap_weight        numeric(14, 4) not null check (scrap_weight > 0),
-  estimated_proba     numeric(6, 2) not null check (estimated_proba > 0 and estimated_proba <= 1000),
-  output_weight       numeric(14, 4) not null check (output_weight > 0 and output_weight <= scrap_weight),
-  output_proba        numeric(6, 2) not null default 999 check (output_proba > 0 and output_proba <= 1000),
-  expected_fine       numeric(18, 6) not null check (expected_fine >= 0),
-  actual_fine         numeric(18, 6) not null check (actual_fine >= 0),
-  refining_loss       numeric(14, 4) not null default 0 check (refining_loss >= 0),
-  master_name         text,
-  idempotency_key     text unique,
-  performed_by        uuid,
-  created_at          timestamptz not null default now()
-);
+-- 4. Refining (Affinaj) records table (dynamically matches inventory_items.id type: uuid or bigint)
+do $$
+declare
+  v_inv_id_udt text;
+  v_inv_id_col_type text := 'uuid';
+begin
+  select udt_name into v_inv_id_udt
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'inventory_items' and column_name = 'id';
+
+  if v_inv_id_udt in ('int8', 'bigint') then
+    v_inv_id_col_type := 'bigint';
+  elsif v_inv_id_udt in ('int4', 'integer') then
+    v_inv_id_col_type := 'integer';
+  else
+    v_inv_id_col_type := 'uuid';
+  end if;
+
+  if to_regclass('public.affinaj_records') is null then
+    execute format($sql$
+      create table public.affinaj_records (
+        id                  uuid primary key default gen_random_uuid(),
+        scrap_item_id       %s references public.inventory_items(id) on delete restrict,
+        target_gold_item_id %s references public.inventory_items(id) on delete restrict,
+        scrap_weight        numeric(14, 4) not null check (scrap_weight > 0),
+        estimated_proba     numeric(6, 2) not null check (estimated_proba > 0 and estimated_proba <= 1000),
+        output_weight       numeric(14, 4) not null check (output_weight > 0 and output_weight <= scrap_weight),
+        output_proba        numeric(6, 2) not null default 999 check (output_proba > 0 and output_proba <= 1000),
+        expected_fine       numeric(18, 6) not null check (expected_fine >= 0),
+        actual_fine         numeric(18, 6) not null check (actual_fine >= 0),
+        refining_loss       numeric(14, 4) not null default 0 check (refining_loss >= 0),
+        master_name         text,
+        idempotency_key     text unique,
+        performed_by        uuid,
+        created_at          timestamptz not null default now()
+      )
+    $sql$, v_inv_id_col_type, v_inv_id_col_type);
+  end if;
+end $$;
 
 -- 5. Extend orders non-destructively
 alter table public.orders
   add column if not exists order_no text unique,
+  add column if not exists order_number text,
   add column if not exists client_name text,
   add column if not exists customer_name text,
   add column if not exists phone text,
@@ -323,14 +431,41 @@ alter table public.orders
   add column if not exists paid_amount numeric(18, 2) default 0,
   add column if not exists debt_amount numeric(18, 2) default 0,
   add column if not exists deadline date,
+  add column if not exists priority text default 'Normal',
+  add column if not exists status text default 'Kutilmoqda',
   add column if not exists priority_label text default 'Normal',
   add column if not exists status_label text default 'Kutilmoqda',
   add column if not exists batch_created boolean not null default false,
-  add column if not exists reserved_item_id uuid references public.inventory_items(id) on delete set null,
-  add column if not exists reserved_gold_gram numeric(14, 4) not null default 0;
+  add column if not exists reserved_gold_gram numeric(14, 4) not null default 0,
+  add column if not exists updated_at timestamptz not null default now();
 
 do $$
+declare
+  v_inv_id_udt text;
+  v_inv_id_col_type text := 'uuid';
 begin
+  select udt_name into v_inv_id_udt
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'inventory_items' and column_name = 'id';
+
+  if v_inv_id_udt in ('int8', 'bigint') then
+    v_inv_id_col_type := 'bigint';
+  elsif v_inv_id_udt in ('int4', 'integer') then
+    v_inv_id_col_type := 'integer';
+  else
+    v_inv_id_col_type := 'uuid';
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'reserved_item_id'
+  ) then
+    execute format(
+      'alter table public.orders add column reserved_item_id %s references public.inventory_items(id) on delete set null',
+      v_inv_id_col_type
+    );
+  end if;
+
   if exists (
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'orders' and column_name = 'order_number'
@@ -349,6 +484,7 @@ end $$;
 -- 6. Extend batches non-destructively (product_id is text to support both bigint and uuid product PKs)
 alter table public.batches
   add column if not exists batch_no text unique,
+  add column if not exists batch_number text,
   add column if not exists parent_batch_no text,
   add column if not exists number text,
   add column if not exists product_id text,
@@ -356,6 +492,8 @@ alter table public.batches
   add column if not exists product text,
   add column if not exists client_name text,
   add column if not exists master_name text,
+  add column if not exists status text default 'Jarayonda',
+  add column if not exists priority text default 'Normal',
   add column if not exists status_label text default 'Jarayonda',
   add column if not exists proba numeric(6, 2) default 585,
   add column if not exists planned_qty integer default 0,
@@ -374,10 +512,36 @@ alter table public.batches
   add column if not exists current_step text default '8. Quyish',
   add column if not exists priority_label text default 'Normal',
   add column if not exists deadline date,
-  add column if not exists due_date date;
+  add column if not exists due_date date,
+  add column if not exists updated_at timestamptz not null default now();
 
 do $$
+declare
+  v_ord_id_udt text;
+  v_ord_id_col_type text := 'uuid';
 begin
+  select udt_name into v_ord_id_udt
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'orders' and column_name = 'id';
+
+  if v_ord_id_udt in ('int8', 'bigint') then
+    v_ord_id_col_type := 'bigint';
+  elsif v_ord_id_udt in ('int4', 'integer') then
+    v_ord_id_col_type := 'integer';
+  else
+    v_ord_id_col_type := 'uuid';
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'batches' and column_name = 'order_id'
+  ) then
+    execute format(
+      'alter table public.batches add column order_id %s references public.orders(id) on delete set null',
+      v_ord_id_col_type
+    );
+  end if;
+
   if exists (
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'batches' and column_name = 'batch_number'
@@ -407,8 +571,8 @@ declare
 begin
   if (old.status is distinct from new.status) or (old.priority is distinct from new.priority) then
     v_batch_uuid := public.try_cast_uuid(new.id::text);
-    if v_batch_uuid is not null then
-      select coalesce(e.user_id, public.try_cast_uuid(e.id::text))
+    if v_batch_uuid is not null and to_regclass('public.batch_status_history') is not null then
+      select coalesce(public.try_cast_uuid(e.id::text), e.user_id)
         into v_emp_uuid
         from public.employees e
        where (e.user_id = auth.uid() or e.id::text = coalesce(v_setting, auth.uid()::text))
@@ -422,41 +586,6 @@ begin
     end if;
   end if;
   return new;
-end;
-$$;
-
--- Fix record_audit_event() so changed_by and record_id safely handle both bigint and uuid primary keys
-create or replace function public.record_audit_event()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_emp_uuid uuid;
-  v_rec_text text := coalesce(new.id::text, old.id::text);
-  v_rec_uuid uuid := public.try_cast_uuid(v_rec_text);
-  v_setting  text := nullif(current_setting('app.current_employee_id', true), '');
-begin
-  select coalesce(e.user_id, public.try_cast_uuid(e.id::text))
-    into v_emp_uuid
-    from public.employees e
-   where (e.user_id = auth.uid() or e.id::text = coalesce(v_setting, auth.uid()::text))
-   limit 1;
-
-  if v_rec_uuid is not null and to_regclass('public.audit_log') is not null then
-    insert into public.audit_log (table_name, record_id, action, old_data, new_data, changed_by)
-    values (
-      tg_table_name,
-      v_rec_uuid,
-      lower(tg_op),
-      case when tg_op in ('update', 'delete') then to_jsonb(old) else null end,
-      case when tg_op in ('insert', 'update') then to_jsonb(new) else null end,
-      v_emp_uuid
-    );
-  end if;
-
-  return coalesce(new, old);
 end;
 $$;
 
@@ -531,6 +660,7 @@ create table if not exists public.consumption (
   sent_to_refinery   boolean not null default false,
   idempotency_key    text unique,
   created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now(),
   constraint chk_consumption_mass_balance check (
     returned_weight + sprue_gram + scrap_gram + loss_weight <= given_weight + 0.0005
   )
@@ -549,7 +679,8 @@ alter table public.consumption
   add column if not exists scrap_gram numeric(14, 4) default 0,
   add column if not exists loss_weight numeric(14, 4) default 0,
   add column if not exists sent_to_refinery boolean default false,
-  add column if not exists idempotency_key text unique;
+  add column if not exists idempotency_key text unique,
+  add column if not exists updated_at timestamptz not null default now();
 
 create table if not exists public.machines (
   id             uuid primary key default gen_random_uuid(),
@@ -558,14 +689,16 @@ create table if not exists public.machines (
   daily_capacity integer not null default 0,
   current_batch  text,
   status         text not null default 'ACTIVE',
-  created_at     timestamptz not null default now()
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
 );
 
 alter table public.machines
   add column if not exists department text default 'Quyish',
   add column if not exists daily_capacity integer default 0,
   add column if not exists current_batch text,
-  add column if not exists status text default 'ACTIVE';
+  add column if not exists status text default 'ACTIVE',
+  add column if not exists updated_at timestamptz not null default now();
 
 -- 8. Products (Finished Goods) & BOM Items
 create table if not exists public.products (
@@ -646,7 +779,8 @@ create table if not exists public.sales (
   debt_amount        numeric(18, 2) not null default 0 check (debt_amount >= 0),
   tx_type            text not null default 'kirim' check (tx_type in ('kirim', 'chiqim', 'qarz_tolovi', 'debt_repayment')),
   idempotency_key    text unique,
-  created_at         timestamptz not null default now()
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
 );
 
 alter table public.sales
@@ -654,7 +788,8 @@ alter table public.sales
   add column if not exists product_id text,
   add column if not exists parent_sale_id text,
   add column if not exists sale_total_amount numeric(18, 2) default 0,
-  add column if not exists idempotency_key text unique;
+  add column if not exists idempotency_key text unique,
+  add column if not exists updated_at timestamptz not null default now();
 
 create table if not exists public.debt_repayments (
   id              uuid primary key default gen_random_uuid(),
@@ -675,6 +810,8 @@ create table if not exists public.debt_repayments (
 -- 10. Extend employees & create salary_ledger with duplicate-earned constraint
 alter table public.employees
   add column if not exists user_id uuid,
+  add column if not exists employee_code text default ('EMP-' || substr(gen_random_uuid()::text, 1, 8)),
+  add column if not exists full_name text,
   add column if not exists email text,
   add column if not exists status text default 'active',
   add column if not exists employment_status text default 'active',
@@ -682,11 +819,19 @@ alter table public.employees
   add column if not exists name text,
   add column if not exists department text,
   add column if not exists primary_department_id uuid,
+  add column if not exists role text default 'worker',
   add column if not exists role_type text,
   add column if not exists position text,
   add column if not exists salary_type text default 'Grammabay',
   add column if not exists rate numeric(18, 2) not null default 0,
-  add column if not exists balance numeric(18, 2) not null default 0;
+  add column if not exists balance numeric(18, 2) not null default 0,
+  add column if not exists updated_at timestamptz not null default now();
+
+-- Backfill is_active from legacy status / employment_status where rows are explicitly inactive/terminated
+update public.employees
+   set is_active = false
+ where is_active = true
+   and lower(coalesce(status, employment_status::text, 'active')) not in ('active', 'faol');
 
 create unique index if not exists idx_employees_user_id_unique
   on public.employees (user_id)
@@ -724,6 +869,165 @@ end $$;
 -- Allow operational workshop staff rows that do not yet have an auth.users login
 alter table public.employees
   drop constraint if exists employees_id_fkey;
+
+-- Safe authentication-to-employee linking:
+-- 1. Never trusts client-supplied raw_user_meta_data ->> 'role'
+-- 2. Never inserts a UUID into bigint employees.id
+-- 3. Links an unambiguous unlinked employees row by case-insensitive email match
+create or replace function public.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_match_count integer;
+begin
+  if new.email is not null and btrim(new.email) <> '' then
+    select count(*)
+      into v_match_count
+      from public.employees e
+     where e.user_id is null
+       and e.email is not null
+       and lower(btrim(e.email)) = lower(btrim(new.email));
+
+    if v_match_count = 1 then
+      perform set_config('app.in_auth_link_trigger', 'true', true);
+      update public.employees e
+         set user_id = new.id
+       where e.user_id is null
+         and e.email is not null
+         and lower(btrim(e.email)) = lower(btrim(new.email));
+      perform set_config('app.in_auth_link_trigger', 'false', true);
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+-- Self-contained employee identity and role helpers (also re-declared in 016)
+create or replace function public.normalize_erp_role_token(p_token text)
+returns text
+language plpgsql
+immutable
+set search_path = public, pg_temp
+as $$
+declare
+  v_clean text := lower(btrim(coalesce(p_token, '')));
+begin
+  if v_clean = '' then
+    return null;
+  end if;
+
+  case v_clean
+    when 'admin', 'director', 'owner', 'direktor', 'rahbar' then
+      return 'admin';
+    when 'production_manager', 'production manager', 'manager', 'ishlab chiqarish boshlig''i' then
+      return 'production_manager';
+    when 'department_head', 'supervisor', 'master', 'bosh usta', 'usta' then
+      return 'supervisor';
+    when 'quality_inspector', 'quality_control', 'qc', 'otk' then
+      return 'quality_inspector';
+    when 'inventory_manager', 'warehouse', 'omborchi' then
+      return 'inventory_manager';
+    when 'sales', 'accountant', 'buxgalter', 'hisobchi' then
+      return 'accountant';
+    when 'department_operator', 'worker', 'zargar', 'operator' then
+      return 'worker';
+    when 'viewer' then
+      return 'viewer';
+    else
+      return null;
+  end case;
+end;
+$$;
+
+create or replace function public.current_employee_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce(public.try_cast_uuid(e.id::text), e.user_id, auth.uid())
+    from public.employees e
+   where (e.user_id = auth.uid() or e.id::text = auth.uid()::text)
+     and coalesce(e.is_active, true) = true
+     and lower(coalesce(e.status, e.employment_status::text, 'active')) in ('active', 'faol')
+   limit 1;
+$$;
+
+create or replace function public.current_employee_id_text()
+returns text
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select e.id::text
+    from public.employees e
+   where (e.user_id = auth.uid() or e.id::text = auth.uid()::text)
+     and coalesce(e.is_active, true) = true
+     and lower(coalesce(e.status, e.employment_status::text, 'active')) in ('active', 'faol')
+   limit 1;
+$$;
+
+create or replace function public.current_employee_role_text()
+returns text
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_uid       uuid := auth.uid();
+  v_emp       public.employees%rowtype;
+  v_role_type text;
+  v_role_col  text;
+  v_pos_role  text;
+begin
+  if v_uid is null then
+    return null;
+  end if;
+
+  select *
+    into v_emp
+    from public.employees e
+   where (e.user_id = v_uid or e.id::text = v_uid::text)
+     and coalesce(e.is_active, true) = true
+     and lower(coalesce(e.status, e.employment_status::text, 'active')) in ('active', 'faol')
+   limit 1;
+
+  if not found then
+    return 'viewer';
+  end if;
+
+  v_role_type := public.normalize_erp_role_token(v_emp.role_type);
+  v_role_col  := public.normalize_erp_role_token(v_emp.role::text);
+  v_pos_role  := public.normalize_erp_role_token(v_emp.position);
+
+  -- Explicit role precedence rule:
+  -- 1. Specific non-generic role_type (e.g. Director, Manager, Accountant, Warehouse, Supervisor)
+  --    takes precedence over legacy/default role column ('worker'/'viewer'/'department_operator').
+  -- 2. Specific non-generic role column takes next precedence.
+  -- 3. Validated generic role_type / role column / position fallback.
+  -- 4. Unknown or malformed role values fail closed to 'viewer'.
+  if v_role_type is not null and v_role_type not in ('worker', 'viewer') then
+    return v_role_type;
+  elsif v_role_col is not null and v_role_col not in ('worker', 'viewer') then
+    return v_role_col;
+  elsif v_role_type is not null then
+    return v_role_type;
+  elsif v_role_col is not null then
+    return v_role_col;
+  elsif v_pos_role is not null then
+    return v_pos_role;
+  else
+    return 'viewer';
+  end if;
+end;
+$$;
 
 create table if not exists public.salary_ledger (
   id              uuid primary key default gen_random_uuid(),
@@ -779,7 +1083,7 @@ create table if not exists public.audit_logs (
   table_name  text not null,
   record_id   text,
   action      text not null,
-  actor_id    uuid,
+  actor_id    uuid default auth.uid(),
   actor_name  text,
   actor_role  text,
   old_data    jsonb,
@@ -790,12 +1094,122 @@ create table if not exists public.audit_logs (
 
 alter table public.audit_logs
   add column if not exists record_id text,
-  add column if not exists actor_id uuid,
+  add column if not exists actor_id uuid default auth.uid(),
   add column if not exists actor_name text,
   add column if not exists actor_role text,
   add column if not exists old_data jsonb,
   add column if not exists new_data jsonb,
   add column if not exists reason text;
+
+alter table public.audit_logs
+  alter column actor_id set default auth.uid();
+
+-- Fix record_audit_event() so BOTH bigint and uuid primary keys are audited in public.audit_logs
+-- while also writing to legacy public.audit_log when record_id is a valid UUID
+create or replace function public.record_audit_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_emp_uuid uuid;
+  v_emp_name text;
+  v_emp_role text;
+  v_rec_text text := coalesce(new.id::text, old.id::text);
+  v_rec_uuid uuid := public.try_cast_uuid(v_rec_text);
+  v_setting  text := nullif(current_setting('app.current_employee_id', true), '');
+begin
+  select
+    coalesce(public.try_cast_uuid(e.id::text), e.user_id),
+    coalesce(nullif(trim(e.name), ''), nullif(trim(e.full_name), ''), e.email),
+    coalesce(nullif(trim(e.role_type), ''), nullif(trim(e.role::text), ''), nullif(trim(e.position), ''))
+    into v_emp_uuid, v_emp_name, v_emp_role
+    from public.employees e
+   where (e.user_id = auth.uid() or e.id::text = coalesce(v_setting, auth.uid()::text))
+   limit 1;
+
+  if to_regclass('public.audit_logs') is not null then
+    insert into public.audit_logs (
+      table_name, record_id, action, actor_id, actor_name, actor_role, old_data, new_data
+    ) values (
+      tg_table_name,
+      v_rec_text,
+      upper(tg_op),
+      coalesce(auth.uid(), v_emp_uuid),
+      coalesce(v_emp_name, 'System / Trigger'),
+      coalesce(v_emp_role, public.current_employee_role_text(), 'system'),
+      case when tg_op in ('UPDATE', 'DELETE') then to_jsonb(old) else null end,
+      case when tg_op in ('INSERT', 'UPDATE') then to_jsonb(new) else null end
+    );
+  end if;
+
+  if v_rec_uuid is not null and to_regclass('public.audit_log') is not null then
+    insert into public.audit_log (table_name, record_id, action, old_data, new_data, changed_by)
+    values (
+      tg_table_name,
+      v_rec_uuid,
+      lower(tg_op),
+      case when tg_op in ('UPDATE', 'DELETE') then to_jsonb(old) else null end,
+      case when tg_op in ('INSERT', 'UPDATE') then to_jsonb(new) else null end,
+      v_emp_uuid
+    );
+  end if;
+
+  return coalesce(new, old);
+end;
+$$;
+
+-- Ensure database-level audit triggers exist across core operational tables (both bigint and uuid PKs)
+drop trigger if exists audit_orders on public.orders;
+create trigger audit_orders
+  after insert or update or delete on public.orders
+  for each row execute function public.record_audit_event();
+
+drop trigger if exists audit_batches on public.batches;
+create trigger audit_batches
+  after insert or update or delete on public.batches
+  for each row execute function public.record_audit_event();
+
+drop trigger if exists audit_employees on public.employees;
+create trigger audit_employees
+  after insert or update or delete on public.employees
+  for each row execute function public.record_audit_event();
+
+drop trigger if exists audit_inventory_items on public.inventory_items;
+create trigger audit_inventory_items
+  after insert or update or delete on public.inventory_items
+  for each row execute function public.record_audit_event();
+
+drop trigger if exists audit_gold_transactions on public.gold_transactions;
+create trigger audit_gold_transactions
+  after insert or update or delete on public.gold_transactions
+  for each row execute function public.record_audit_event();
+
+drop trigger if exists audit_sales on public.sales;
+create trigger audit_sales
+  after insert or update or delete on public.sales
+  for each row execute function public.record_audit_event();
+
+drop trigger if exists audit_debt_repayments on public.debt_repayments;
+create trigger audit_debt_repayments
+  after insert or update or delete on public.debt_repayments
+  for each row execute function public.record_audit_event();
+
+drop trigger if exists audit_salary_ledger on public.salary_ledger;
+create trigger audit_salary_ledger
+  after insert or update or delete on public.salary_ledger
+  for each row execute function public.record_audit_event();
+
+drop trigger if exists audit_affinaj_records on public.affinaj_records;
+create trigger audit_affinaj_records
+  after insert or update or delete on public.affinaj_records
+  for each row execute function public.record_audit_event();
+
+drop trigger if exists audit_consumption on public.consumption;
+create trigger audit_consumption
+  after insert or update or delete on public.consumption
+  for each row execute function public.record_audit_event();
 
 create table if not exists public.system_settings (
   key        text primary key,
@@ -811,3 +1225,78 @@ create table if not exists public.stage_loss_configs (
   max_loss_gram numeric(14, 4) not null default 0.5 check (max_loss_gram >= 0),
   updated_at    timestamptz not null default now()
 );
+
+-- 12. Guarded Unique Indexes on Pre-Existing Tables (orders.order_no, batches.batch_no,
+--     batch_stage_wip (batch_no, stage_order), products.name, employees email)
+--     Creates UNIQUE index when no duplicate rows exist; otherwise creates a lookup index
+--     and emits a WARNING so pre-existing production data never aborts the migration.
+do $$
+begin
+  -- orders.order_no
+  if not exists (
+    select 1 from public.orders
+     where order_no is not null and btrim(order_no) <> ''
+     group by order_no having count(*) > 1
+  ) then
+    create unique index if not exists idx_orders_order_no_unique
+      on public.orders (order_no)
+      where order_no is not null and btrim(order_no) <> '';
+  else
+    raise warning 'Duplicate order_no values detected in public.orders; creating non-unique lookup index';
+    create index if not exists idx_orders_order_no_lookup on public.orders (order_no);
+  end if;
+
+  -- batches.batch_no
+  if not exists (
+    select 1 from public.batches
+     where batch_no is not null and btrim(batch_no) <> ''
+     group by batch_no having count(*) > 1
+  ) then
+    create unique index if not exists idx_batches_batch_no_unique
+      on public.batches (batch_no)
+      where batch_no is not null and btrim(batch_no) <> '';
+  else
+    raise warning 'Duplicate batch_no values detected in public.batches; creating non-unique lookup index';
+    create index if not exists idx_batches_batch_no_lookup on public.batches (batch_no);
+  end if;
+
+  -- batch_stage_wip (batch_no, stage_order)
+  if not exists (
+    select 1 from public.batch_stage_wip
+     group by batch_no, stage_order having count(*) > 1
+  ) then
+    create unique index if not exists idx_batch_stage_wip_batch_stage_unique
+      on public.batch_stage_wip (batch_no, stage_order);
+  else
+    raise warning 'Duplicate (batch_no, stage_order) values detected in public.batch_stage_wip; creating non-unique lookup index';
+    create index if not exists idx_batch_stage_wip_batch_stage_lookup on public.batch_stage_wip (batch_no, stage_order);
+  end if;
+
+  -- products.name
+  if not exists (
+    select 1 from public.products
+     where name is not null and btrim(name) <> ''
+     group by name having count(*) > 1
+  ) then
+    create unique index if not exists idx_products_name_unique
+      on public.products (name)
+      where name is not null and btrim(name) <> '';
+  else
+    raise warning 'Duplicate name values detected in public.products; creating non-unique lookup index';
+    create index if not exists idx_products_name_lookup on public.products (name);
+  end if;
+
+  -- employees case-insensitive email
+  if not exists (
+    select 1 from public.employees
+     where email is not null and btrim(email) <> ''
+     group by lower(btrim(email)) having count(*) > 1
+  ) then
+    create unique index if not exists idx_employees_email_lower_unique
+      on public.employees (lower(btrim(email)))
+      where email is not null and btrim(email) <> '';
+  else
+    raise warning 'Duplicate email values detected in public.employees; creating non-unique lookup index';
+    create index if not exists idx_employees_email_lower_lookup on public.employees (lower(btrim(email)));
+  end if;
+end $$;

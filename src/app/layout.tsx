@@ -55,7 +55,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         if (!byUserIdErr && byUserIdRows && byUserIdRows[0]) {
           emp = byUserIdRows[0] as EmployeeRow;
-        } else {
+        } else if (user.email) {
+          const { data: byEmailRows, error: byEmailErr } = await supabase
+            .from("employees")
+            .select("*")
+            .ilike("email", user.email.trim())
+            .limit(1);
+          if (!byEmailErr && byEmailRows && byEmailRows[0]) {
+            emp = byEmailRows[0] as EmployeeRow;
+          }
+        }
+
+        if (!emp) {
           const { data: byIdRows, error: byIdErr } = await supabase
             .from("employees")
             .select("*")

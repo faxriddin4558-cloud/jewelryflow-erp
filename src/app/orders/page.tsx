@@ -79,42 +79,53 @@ export default function OrdersPage() {
     setBusy(true);
     try {
       const ordNo = `Z-${Date.now().toString().slice(-6)}`;
-      const { data: newOrd, error } = await supabase
-        .from("orders")
-        .insert([
-          {
-            order_no: ordNo,
-            order_number: ordNo,
-            client_name: cleanClient,
-            customer_name: cleanClient,
-            phone: phone.trim(),
-            product_model: cleanModel,
-            details: `${cleanModel} (${probaNum} proba, ${gramNum}g)`,
-            proba: probaNum,
-            qty: qtyNum,
-            weight_gram: gramNum,
-            total_price: priceNum,
-            advance: advNum,
-            deadline: deadline || null,
-            priority,
-            priority_label: priority,
-            status: "Kutilmoqda",
-            status_label: "Kutilmoqda",
-          },
-        ])
-        .select()
-        .single();
+      const idempKey = generateIdempotencyKey("order-create");
+      const detailsText = `${cleanModel} (${probaNum} proba, ${gramNum}g)`;
+      const isoDeadline = deadline ? new Date(deadline).toISOString() : null;
 
-      if (error) {
-        alert(`Buyurtmani saqlashda xatolik: ${error.message}`);
+      // 1. Try atomic PostgreSQL RPC first
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "rpc_create_order_with_advance",
+        {
+          p_order_no: ordNo,
+          p_client_name: cleanClient,
+          p_phone: phone.trim() || null,
+          p_product_model: cleanModel,
+          p_details: detailsText,
+          p_proba: probaNum,
+          p_qty: qtyNum,
+          p_weight_gram: gramNum,
+          p_total_price: priceNum,
+          p_advance: advNum,
+          p_deadline: isoDeadline,
+          p_priority: priority,
+          p_payment_type: "Avans (Naqd / Karta)",
+          p_idempotency_key: idempKey,
+        }
+      );
+
+      if (rpcError) {
+        const isRpcMissing =
+          rpcError.code === "PGRST202" ||
+          (rpcError.message &&
+            rpcError.message.includes("rpc_create_order_with_advance") &&
+            rpcError.message.toLowerCase().includes("not find"));
+
+        if (isRpcMissing) {
+          alert(
+            "XATOLIK: Bazada 'rpc_create_order_with_advance' funksiyasi mavjud emas! 016_atomic_erp_rpcs.sql migratsiyasi qo'llanmagan. Ma'lumotlar yaxlitligi va xavfsizligini ta'minlash uchun chala buyurtma yaratish taqiqlangan."
+          );
+        } else {
+          alert(`Buyurtmani saqlashda xatolik: ${rpcError.message}`);
+        }
         return;
       }
 
       await logErpAudit({
         table: "orders",
         recordId: ordNo,
-        action: "CREATE_ORDER",
-        newData: newOrd as Record<string, unknown>,
+        action: "CREATE_ORDER_WITH_ADVANCE",
+        newData: (rpcData as Record<string, unknown>) ?? { order_no: ordNo, advance: advNum },
       });
       setClient("");
       setPhone("");

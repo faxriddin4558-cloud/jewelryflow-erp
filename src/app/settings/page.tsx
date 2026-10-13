@@ -82,7 +82,7 @@ export default function SettingsPage() {
           : empRole === "Production Manager"
             ? "production_manager"
             : empRole === "Supervisor"
-              ? "department_operator"
+              ? "quality_control"
               : empRole === "Warehouse"
                 ? "inventory_manager"
                 : empRole === "Accountant"
@@ -97,7 +97,7 @@ export default function SettingsPage() {
             employee_code: empCode,
             name: cleanName,
             full_name: cleanName,
-            email: empEmail.trim() || null,
+            email: empEmail.trim().toLowerCase() || null,
             department: empDept,
             role: normalizedRole,
             role_type: empRole,
@@ -106,6 +106,7 @@ export default function SettingsPage() {
             rate: rateNum,
             balance: 0,
             status: "active",
+            employment_status: "active",
             is_active: true,
           },
         ])

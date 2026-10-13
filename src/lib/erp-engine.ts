@@ -403,6 +403,8 @@ function classifyRoleToken(token?: string | null): ErpRole | null {
     lower === "department_head" ||
     lower === "quality_inspector" ||
     lower === "quality_control" ||
+    lower === "qc" ||
+    lower === "otk" ||
     lower === "bosh usta" ||
     lower === "usta"
   ) {
@@ -414,7 +416,13 @@ function classifyRoleToken(token?: string | null): ErpRole | null {
   if (lower === "accountant" || lower === "sales" || lower === "buxgalter" || lower === "hisobchi") {
     return "Accountant";
   }
-  if (lower === "worker") {
+  if (
+    lower === "worker" ||
+    lower === "department_operator" ||
+    lower === "zargar" ||
+    lower === "operator" ||
+    lower === "viewer"
+  ) {
     return "Worker";
   }
   return null;
@@ -427,15 +435,31 @@ export function resolveEmployeeRole(emp?: Partial<EmployeeRow> | null): ErpRole 
   if (rawStatus && rawStatus !== "active" && rawStatus !== "faol") {
     return "Worker";
   }
-  const candidates = [
-    emp.role && emp.role.trim().toLowerCase() !== "department_operator" ? emp.role : null,
-    emp.role_type,
-    emp.position,
-    emp.role,
-  ];
-  for (const candidate of candidates) {
-    const matched = classifyRoleToken(candidate);
-    if (matched) return matched;
+
+  const roleTypeMatch = classifyRoleToken(emp.role_type);
+  const roleColMatch = classifyRoleToken(emp.role);
+  const posMatch = classifyRoleToken(emp.position);
+
+  // Explicit role precedence rule (aligned with PostgreSQL current_employee_role_text()):
+  // 1. Specific non-generic role_type (Director, Production Manager, Accountant, Warehouse, Supervisor)
+  //    takes precedence over generic default role column ('worker'/'viewer'/'department_operator').
+  // 2. Specific non-generic role column takes next precedence.
+  // 3. Validated generic role_type / role column / position fallback.
+  // 4. Unknown or malformed role values fail closed to 'Worker'.
+  if (roleTypeMatch && roleTypeMatch !== "Worker") {
+    return roleTypeMatch;
+  }
+  if (roleColMatch && roleColMatch !== "Worker") {
+    return roleColMatch;
+  }
+  if (roleTypeMatch) {
+    return roleTypeMatch;
+  }
+  if (roleColMatch) {
+    return roleColMatch;
+  }
+  if (posMatch) {
+    return posMatch;
   }
   return "Worker";
 }
@@ -946,12 +970,13 @@ export class ErpTransactionalEngine {
   public employees: EmployeeRow[] = [];
   public salaryLedger: SalaryLedgerRow[] = [];
   public auditLogs: AuditLogRow[] = [];
-  private idempotencyStore = new Map<string, unknown>();
+  private idempotencyStore = new Map<string, { signature?: string; response: unknown }>();
   private lockQueue: Promise<void> = Promise.resolve();
 
   private async withRowLock<T>(
     fn: () => T | Promise<T>,
-    idempotencyKey?: string
+    idempotencyKey?: string,
+    requestSignature?: string
   ): Promise<T> {
     let release!: () => void;
     const nextLock = new Promise<void>((resolve) => {
@@ -961,14 +986,28 @@ export class ErpTransactionalEngine {
     this.lockQueue = prevLock.then(() => nextLock);
     await prevLock;
     try {
-      if (idempotencyKey && this.idempotencyStore.has(idempotencyKey)) {
-        return this.idempotencyStore.get(idempotencyKey) as T;
+      const cleanKey = idempotencyKey?.trim();
+      if (cleanKey && this.idempotencyStore.has(cleanKey)) {
+        const cached = this.idempotencyStore.get(cleanKey)!;
+        if (
+          requestSignature &&
+          cached.signature &&
+          cached.signature !== requestSignature
+        ) {
+          throw new Error(
+            `IDEMPOTENCY_KEY_CONFLICT: Key '${cleanKey}' was already used with a different request payload`
+          );
+        }
+        return cached.response as T;
       }
       const res = await fn();
-      if (idempotencyKey && res && typeof res === "object") {
-        this.idempotencyStore.set(idempotencyKey, {
-          ...(res as Record<string, unknown>),
-          deduplicated: true,
+      if (cleanKey && res && typeof res === "object") {
+        this.idempotencyStore.set(cleanKey, {
+          signature: requestSignature,
+          response: {
+            ...(res as Record<string, unknown>),
+            deduplicated: true,
+          },
         });
       }
       return res;
@@ -2015,6 +2054,134 @@ export class ErpTransactionalEngine {
   }
 
   /**
+   * 10b. Atomic Order Creation with Initial Advance Recording in Sales/Cash Ledger
+   */
+  public async createOrderWithAdvance(params: {
+    orderNo: string;
+    clientName: string;
+    phone?: string;
+    productModel: string;
+    details?: string;
+    proba: number;
+    qty: number;
+    weightGram: number;
+    totalPrice: number;
+    advance: number;
+    deadline?: string | null;
+    priority?: string;
+    paymentType?: string;
+    idempotencyKey?: string;
+    actorRole?: ErpRole;
+  }) {
+    const cleanOrdNo = (params.orderNo || "").trim();
+    const cleanClient = (params.clientName || "").trim();
+    const cleanModel = (params.productModel || "").trim() || "Komplekt";
+    const proba = Number(params.proba || 585);
+    const qty = Math.trunc(Number(params.qty || 0));
+    const weightGram = Number(Number(params.weightGram || 0).toFixed(4));
+    const totalPrice = Number(Number(params.totalPrice || 0).toFixed(2));
+    const advance = Number(Number(params.advance || 0).toFixed(2));
+    const requestSig = JSON.stringify({
+      orderNo: cleanOrdNo,
+      clientName: cleanClient,
+      productModel: cleanModel,
+      proba,
+      qty,
+      weightGram,
+      totalPrice,
+      advance,
+    });
+
+    return this.withRowLock(
+      () => {
+        this.assertPermission("edit_sales", params.actorRole);
+        if (!cleanOrdNo || !cleanClient) {
+          throw new Error("INVALID_ORDER_INPUT: orderNo and clientName are required");
+        }
+        if (qty <= 0 || Number(params.qty) !== qty || weightGram <= 0) {
+          throw new Error("INVALID_ORDER_QTY_OR_WEIGHT: qty must be a positive integer and weightGram > 0");
+        }
+        if (totalPrice < 0 || advance < 0) {
+          throw new Error("INVALID_ORDER_PRICE_OR_ADVANCE: price and advance cannot be negative");
+        }
+        if (advance > totalPrice) {
+          throw new Error(
+            `ADVANCE_EXCEEDS_TOTAL_PRICE: Advance (${advance}) cannot exceed total price (${totalPrice})`
+          );
+        }
+        if (this.orders.some((o) => (o.order_no || "").trim() === cleanOrdNo)) {
+          throw new Error(`DUPLICATE_ORDER_NO: ${cleanOrdNo}`);
+        }
+
+        const nowIso = new Date().toISOString();
+        const ordRow: OrderRow = {
+          id: `ord-${this.orders.length + 1}`,
+          order_no: cleanOrdNo,
+          client_name: cleanClient,
+          customer_name: cleanClient,
+          phone: params.phone?.trim() || "",
+          product_model: cleanModel,
+          details: params.details?.trim() || `${cleanModel} (${proba} proba, ${weightGram}g)`,
+          proba,
+          qty,
+          weight_gram: weightGram,
+          reserved_gold_gram: 0,
+          reserved_item_id: null,
+          total_price: totalPrice,
+          advance,
+          deadline: params.deadline ?? null,
+          priority: params.priority || "Normal",
+          status: "Kutilmoqda",
+          batch_created: false,
+          created_at: nowIso,
+        };
+        const prevOrdersLen = this.orders.length;
+        const prevSalesLen = this.sales.length;
+        let advanceSaleRow: SaleRow | null = null;
+
+        try {
+          this.orders.push(ordRow);
+
+          if (advance > 0) {
+            advanceSaleRow = {
+              id: `sale-${this.sales.length + 1}`,
+              order_id: ordRow.id,
+              client_name: cleanClient,
+              product_name: `Buyurtma Avansi (${cleanOrdNo} - ${cleanModel})`,
+              quantity: qty,
+              weight: weightGram,
+              proba,
+              payment_type: params.paymentType || "Avans (Naqd / Karta)",
+              total_amount: advance,
+              debt_amount: Number(Math.max(0, totalPrice - advance).toFixed(2)),
+              tx_type: "kirim",
+              created_at: nowIso,
+            };
+            this.sales.push(advanceSaleRow);
+          }
+        } catch (err) {
+          this.orders.length = prevOrdersLen;
+          this.sales.length = prevSalesLen;
+          throw err;
+        }
+
+        return {
+          status: "OK",
+          deduplicated: false,
+          orderId: ordRow.id,
+          orderNo: cleanOrdNo,
+          advanceSaleId: advanceSaleRow?.id ?? null,
+          totalPrice,
+          advance,
+          remainingDebt: Number(Math.max(0, totalPrice - advance).toFixed(2)),
+        };
+      },
+      params.idempotencyKey,
+      requestSig
+    );
+  }
+
+  /**
    * 11. Security Guards: Block Employee Self-Role Escalation & Immutable Ledger Mutation
    */
   public updateEmployeeProfile(params: {
@@ -2498,8 +2665,18 @@ export function buildErpReportRows(
     ];
   }
 
+  const isSyntheticOrderAdvanceRow = (s: SaleRow): boolean => {
+    const pName = (s.product_name || "").trim();
+    return pName.startsWith("Buyurtma Avansi (") || pName.startsWith("Buyurtma Avansi");
+  };
+
   if (idx === 15) {
-    const directSales = ctx.sales.filter((s) => s.tx_type !== "chiqim" && s.tx_type !== "debt_repayment");
+    const directSales = ctx.sales.filter(
+      (s) =>
+        s.tx_type !== "chiqim" &&
+        s.tx_type !== "debt_repayment" &&
+        !isSyntheticOrderAdvanceRow(s)
+    );
     return [
       ["SANA", "MIJOZ", "MAHSULOT", "SONI", "VAZN (GR)", "PROBA", "TO'LOV USULI", "TO'LANDI (SO'M)", "QOLDIQ QARZ (SO'M)"],
       ...directSales.map((s) => [
@@ -2521,6 +2698,15 @@ export function buildErpReportRows(
       ctx.sales,
       ctx.orders
     );
+    const filteredSalesForCash = ctx.sales.filter(
+      (s) =>
+        s.tx_type === "chiqim" ||
+        !(
+          ctx.orders.length > 0 &&
+          (isSyntheticOrderAdvanceRow(s) ||
+            (s.tx_type === "debt_repayment" && Boolean(s.order_id)))
+        )
+    );
     return [
       ["SANA", "YO'NALISH", "MIJOZ / SABAB", "TAFSILOT", "TO'LOV TURI", "SUMMA (SO'M)"],
       ...ctx.orders
@@ -2533,13 +2719,15 @@ export function buildErpReportRows(
           "Avans",
           Number(o.advance ?? 0),
         ]),
-      ...ctx.sales.map((s) => [
+      ...filteredSalesForCash.map((s) => [
         s.created_at ? new Date(s.created_at).toLocaleDateString("uz-UZ") : "-",
         s.tx_type === "chiqim"
           ? "CHIQIM (XARAJAT)"
           : s.tx_type === "debt_repayment"
             ? "KIRIM (QARZ TO'LOVI)"
-            : "KIRIM (SOTUV)",
+            : isSyntheticOrderAdvanceRow(s)
+              ? "KIRIM (BUYURTMA AVANSI)"
+              : "KIRIM (SOTUV)",
         s.client_name || "-",
         s.product_name || "-",
         s.payment_type || "-",
@@ -2566,7 +2754,13 @@ export function buildErpReportRows(
         Math.max(0, Number(o.total_price ?? 0) - Number(o.advance ?? 0)),
       ]);
     const activeSaleDebts = ctx.sales
-      .filter((s) => Number(s.debt_amount ?? 0) > 0 && s.tx_type !== "chiqim")
+      .filter(
+        (s) =>
+          Number(s.debt_amount ?? 0) > 0 &&
+          s.tx_type !== "chiqim" &&
+          s.tx_type !== "debt_repayment" &&
+          !(ctx.orders.length > 0 && isSyntheticOrderAdvanceRow(s))
+      )
       .map((s) => [
         s.created_at ? new Date(s.created_at).toLocaleDateString("uz-UZ") : "-",
         "SOTUV QARZI",

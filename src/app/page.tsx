@@ -112,6 +112,18 @@ export default function DashboardPage() {
     0
   );
 
+  const canViewFinance =
+    currentUser.role === "Director" ||
+    currentUser.role === "admin" ||
+    currentUser.role === "Accountant" ||
+    currentUser.role === "accountant";
+
+  const canViewAudit =
+    currentUser.role === "Director" ||
+    currentUser.role === "admin" ||
+    currentUser.role === "Supervisor" ||
+    currentUser.role === "Production Manager";
+
   const { kassaIn, kassaOut, customerDebt } = GoldEngine.calculateFinancialSummary(sales, orders);
 
   const getReportRows = (repName: string): (string | number)[][] =>
@@ -242,7 +254,19 @@ export default function DashboardPage() {
             <div className="bg-white p-5 rounded-2xl shadow-sm border"><span className="text-xs font-bold text-amber-600">📦 XOMASHYO OLTIN (SAFE)</span><div className="text-2xl font-black mt-1">{rawGoldOnHand.toFixed(2)} gr</div><div className="text-xs text-slate-500 mt-1">Sof (999.9): <b className="text-amber-700">{fineGoldTotal.toFixed(2)} gr</b></div></div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border"><span className="text-xs font-bold text-purple-600">⚙️ SEXDAGI WIP OLTIN</span><div className="text-2xl font-black mt-1">{wipGold.toFixed(2)} gr <span className="text-xs text-purple-600">({activeBatches.length} faol)</span></div><div className="text-xs text-slate-500 mt-1">Tugatilgan: <b className="text-emerald-600">{finishedBatches.length} ta</b></div></div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border"><span className="text-xs font-bold text-indigo-600">💎 TAYYOR MAHSULOT (VITRINA)</span><div className="text-2xl font-black mt-1">{finishedGoodsGram.toFixed(2)} gr</div><div className="text-xs text-slate-500 mt-1">Jami pateriya (Loss): <b className="text-red-600">{totalLoss.toFixed(2)} gr</b></div></div>
-            <div className="bg-white p-5 rounded-2xl shadow-sm border"><span className="text-xs font-bold text-emerald-600">💰 SOF KASSA &amp; QARZLAR</span><div className="text-xl font-black text-emerald-600 mt-1">{(kassaIn - kassaOut).toLocaleString()} so&apos;m</div><div className="text-xs text-red-600 font-semibold mt-1">Mijozlar qarzi: {customerDebt.toLocaleString()} so&apos;m</div></div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border">
+              <span className="text-xs font-bold text-emerald-600">💰 SOF KASSA &amp; QARZLAR</span>
+              {canViewFinance ? (
+                <>
+                  <div className="text-xl font-black text-emerald-600 mt-1">{(kassaIn - kassaOut).toLocaleString()} so&apos;m</div>
+                  <div className="text-xs text-red-600 font-semibold mt-1">Mijozlar qarzi: {customerDebt.toLocaleString()} so&apos;m</div>
+                </>
+              ) : (
+                <div className="mt-2 text-xs font-semibold text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                  🔒 Ruxsat cheklangan (Boshqaruv / Buxgalteriya)
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
@@ -321,10 +345,18 @@ export default function DashboardPage() {
       {mainTab === "audit" && (
         <div className="bg-white p-6 rounded-2xl shadow-sm border space-y-3">
           <h2 className="font-bold">🛡️ O&apos;zgarmas Audit Log</h2>
-          <table className="w-full text-left text-xs">
-            <thead><tr className="bg-slate-50 border-b"><th className="p-2">Vaqt</th><th className="p-2">Kim (Rol)</th><th className="p-2">Jadval / Amal</th><th className="p-2">Ma&apos;lumot</th></tr></thead>
-            <tbody>{auditLogs.map((a, i) => <tr key={i} className="border-b"><td className="p-2">{a.created_at ? new Date(a.created_at).toLocaleString("uz-UZ") : "-"}</td><td className="p-2 font-bold">{a.actor_name} ({a.actor_role})</td><td className="p-2 text-blue-700 font-semibold">{a.table_name} - {a.action}</td><td className="p-2 font-mono text-[11px] truncate max-w-md">{JSON.stringify(a.new_data)}</td></tr>)}</tbody>
-          </table>
+          {canViewAudit ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead><tr className="bg-slate-50 border-b"><th className="p-2">Vaqt</th><th className="p-2">Kim (Rol)</th><th className="p-2">Jadval / Amal</th><th className="p-2">Ma&apos;lumot</th></tr></thead>
+                <tbody>{auditLogs.map((a, i) => <tr key={i} className="border-b"><td className="p-2">{a.created_at ? new Date(a.created_at).toLocaleString("uz-UZ") : "-"}</td><td className="p-2 font-bold">{a.actor_name} ({a.actor_role})</td><td className="p-2 text-blue-700 font-semibold">{a.table_name} - {a.action}</td><td className="p-2 font-mono text-[11px] truncate max-w-md">{JSON.stringify(a.new_data)}</td></tr>)}</tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+              🔒 Ushbu xavfsizlik jurnalini ko&apos;rish uchun Director yoki Supervisor ruxsati talab qilinadi.
+            </div>
+          )}
         </div>
       )}
 
