@@ -81,7 +81,7 @@ export default function OrdersPage() {
       const ordNo = `Z-${Date.now().toString().slice(-6)}`;
       const idempKey = generateIdempotencyKey("order-create");
       const detailsText = `${cleanModel} (${probaNum} proba, ${gramNum}g)`;
-      const isoDeadline = deadline ? new Date(deadline).toISOString() : null;
+      const isoDeadline = deadline ? (deadline.includes("T") ? deadline.split("T")[0] : deadline) : null;
 
       // 1. Try atomic PostgreSQL RPC first
       const { data: rpcData, error: rpcError } = await supabase.rpc(
@@ -188,7 +188,7 @@ export default function OrdersPage() {
       }`;
       const idempotencyKey = generateIdempotencyKey(`order-chain-${ord.id || bNo}`);
       const { error } = await supabase.rpc("rpc_launch_order_production_chain", {
-        p_order_id: ord.id,
+        p_order_id: ord.id != null ? String(ord.id) : null,
         p_source_item_id: sourceGold.id,
         p_batch_no: bNo,
         p_product_name: ord.product_model || ord.details || "Komplekt",
@@ -247,7 +247,7 @@ export default function OrdersPage() {
           p_from_location: "RESERVED",
           p_to_location: "SAFE",
           p_description: `Buyurtma bekor qilindi (${ord.order_no || ""})`,
-          p_order_id: ord.id,
+          p_order_id: ord.id != null ? String(ord.id) : null,
           p_order_no: ord.order_no,
           p_idempotency_key: generateIdempotencyKey(`cancel-ord-${ord.id || ""}`),
         });

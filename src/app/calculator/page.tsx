@@ -138,8 +138,8 @@ export default function CalculatorPage() {
     try {
       const idempotencyKey = generateIdempotencyKey("alloy");
       const { error } = await supabase.rpc("rpc_execute_alloy_transaction", {
-        p_source_item_id: sourceItem.id,
-        p_target_item_id: targetItem.id,
+        p_source_item_id: String(sourceItem.id),
+        p_target_item_id: String(targetItem.id),
         p_input_weight: inWNum,
         p_source_proba: curPNum,
         p_target_proba: tarPNum,
@@ -147,10 +147,10 @@ export default function CalculatorPage() {
         p_fine_gold_added: alloy.fineGoldToAdd,
         p_output_weight: alloy.totalWeight,
         p_pure_gold: alloy.pureGold,
-        p_fine_gold_item_id: fineGoldItem?.id ?? null,
-        p_silver_item_id: silverItem?.id ?? null,
+        p_fine_gold_item_id: fineGoldItem?.id != null ? String(fineGoldItem.id) : null,
+        p_silver_item_id: silverItem?.id != null ? String(silverItem.id) : null,
         p_silver_weight: alloy.silverDeducted,
-        p_copper_item_id: copperItem?.id ?? null,
+        p_copper_item_id: copperItem?.id != null ? String(copperItem.id) : null,
         p_copper_weight: alloy.copperDeducted,
         p_idempotency_key: idempotencyKey,
       });
@@ -232,8 +232,8 @@ export default function CalculatorPage() {
     try {
       const idempotencyKey = generateIdempotencyKey("affinaj");
       const { error } = await supabase.rpc("rpc_execute_affinaj_transaction", {
-        p_scrap_item_id: scrapSource.id,
-        p_target_gold_item_id: targetGoldItem.id,
+        p_scrap_item_id: String(scrapSource.id),
+        p_target_gold_item_id: String(targetGoldItem.id),
         p_scrap_weight: scNum,
         p_estimated_proba: ePNum,
         p_output_weight: oWNum,

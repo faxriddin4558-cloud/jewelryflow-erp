@@ -194,7 +194,7 @@ export default function InventoryPage() {
         p_description:
           reason ||
           `${txType}: ${fromLoc}->${toLoc}${ordObj ? ` (Order ${ordObj.order_no || ""})` : ""}`,
-        p_order_id: ordObj?.id ?? null,
+        p_order_id: ordObj?.id != null ? String(ordObj.id) : null,
         p_order_no: ordObj?.order_no ?? null,
         p_idempotency_key: idempotencyKey,
       });

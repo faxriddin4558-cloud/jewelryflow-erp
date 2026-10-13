@@ -115,7 +115,7 @@ export default function EmployeesPage() {
     try {
       const idempotencyKey = generateIdempotencyKey("salary");
       const { error } = await supabase.rpc("rpc_record_salary_transaction", {
-        p_employee_id: empObj.id,
+        p_employee_id: empObj.id != null ? String(empObj.id) : null,
         p_worker_name: empName,
         p_batch_no: cleanBatchNo,
         p_stage_name: stageName,

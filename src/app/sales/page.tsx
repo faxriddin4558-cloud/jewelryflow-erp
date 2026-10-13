@@ -185,7 +185,7 @@ export default function SalesPage() {
       try {
         const idempotencyKey = generateIdempotencyKey("sale-kirim");
         const { error } = await supabase.rpc("rpc_record_sale_with_stock_deduction", {
-          p_product_id: prodObj.id,
+          p_product_id: prodObj.id != null ? String(prodObj.id) : null,
           p_client_name: cleanClient,
           p_product_name: prodObj.name,
           p_quantity: qNum,

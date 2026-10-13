@@ -102,7 +102,7 @@ export default function ConsumptionPage() {
         p_given_weight: gNum,
         p_returned_weight: rNum,
         p_sprue_gram: sNum,
-        p_master_id: empObj?.id ?? null,
+        p_master_id: empObj?.id != null ? String(empObj.id) : null,
         p_idempotency_key: idempotencyKey,
       });
 

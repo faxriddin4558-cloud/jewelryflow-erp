@@ -225,7 +225,7 @@ export default function BatchesPage() {
     try {
       const idempotencyKey = generateIdempotencyKey("wip-move");
       const { error } = await supabase.rpc("rpc_move_partial_wip", {
-        p_batch_id: b.id,
+        p_batch_id: b.id != null ? String(b.id) : null,
         p_from_stage_order: fromSt,
         p_to_stage_order: nextSt.stage_order,
         p_to_stage_name: nextSt.name,
@@ -238,7 +238,7 @@ export default function BatchesPage() {
         p_scrap_gram: gScrap,
         p_loss_gram: gLoss,
         p_worker_name: worker,
-        p_worker_id: empObj?.id ?? null,
+        p_worker_id: empObj?.id != null ? String(empObj.id) : null,
         p_idempotency_key: idempotencyKey,
       });
 
@@ -291,7 +291,7 @@ export default function BatchesPage() {
     try {
       const idempotencyKey = generateIdempotencyKey("split-batch");
       const { error } = await supabase.rpc("rpc_split_batch", {
-        p_parent_batch_id: b.id,
+        p_parent_batch_id: b.id != null ? String(b.id) : null,
         p_split_qty: sQ,
         p_child_batch_no: child,
         p_stage_order: fromSt,
