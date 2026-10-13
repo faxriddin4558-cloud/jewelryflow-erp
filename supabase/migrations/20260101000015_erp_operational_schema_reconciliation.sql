@@ -483,7 +483,7 @@ end $$;
 
 -- 6. Extend batches non-destructively (product_id is text to support both bigint and uuid product PKs)
 alter table public.batches
-  add column if not exists batch_no text unique,
+  add column if not exists batch_no text,
   add column if not exists batch_number text,
   add column if not exists parent_batch_no text,
   add column if not exists number text,
@@ -519,6 +519,8 @@ do $$
 declare
   v_ord_id_udt text;
   v_ord_id_col_type text := 'uuid';
+  v_batch_order_id_udt text;
+  v_r record;
 begin
   select udt_name into v_ord_id_udt
     from information_schema.columns
@@ -532,14 +534,75 @@ begin
     v_ord_id_col_type := 'uuid';
   end if;
 
-  if not exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'batches' and column_name = 'order_id'
-  ) then
+  select udt_name into v_batch_order_id_udt
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'batches' and column_name = 'order_id';
+
+  -- Case A: batches.order_id does NOT exist yet -> add it with matching orders.id type
+  if v_batch_order_id_udt is null then
     execute format(
       'alter table public.batches add column order_id %s references public.orders(id) on delete set null',
       v_ord_id_col_type
     );
+  -- Case B: batches.order_id is uuid while orders.id is bigint/integer -> safely reconcile
+  elsif v_batch_order_id_udt = 'uuid' and v_ord_id_col_type in ('bigint', 'integer') then
+    -- 1. Preserve any legacy non-null UUID data in order_id_legacy_uuid so zero data is lost
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'batches' and column_name = 'order_id_legacy_uuid'
+    ) then
+      alter table public.batches add column order_id_legacy_uuid uuid;
+      update public.batches set order_id_legacy_uuid = order_id where order_id is not null;
+    end if;
+
+    -- 2. Drop any foreign key constraints on batches(order_id)
+    for v_r in (
+      select conname
+        from pg_constraint
+       where conrelid = 'public.batches'::regclass
+         and contype = 'f'
+         and conkey = array[(
+           select attnum from pg_attribute
+            where attrelid = 'public.batches'::regclass and attname = 'order_id'
+         )]
+    ) loop
+      execute format('alter table public.batches drop constraint %I', v_r.conname);
+    end loop;
+
+    -- 3. Drop NOT NULL
+    alter table public.batches alter column order_id drop not null;
+
+    -- 4. Alter column type to bigint with safe numeric regex conversion
+    execute format(
+      'alter table public.batches alter column order_id type %s using (case when order_id::text ~ ''^[0-9]+$'' then order_id::text::%s else null end)',
+      v_ord_id_col_type,
+      v_ord_id_col_type
+    );
+
+    -- 5. Add matching foreign key to public.orders(id)
+    execute format(
+      'alter table public.batches add constraint batches_order_id_fkey foreign key (order_id) references public.orders(id) on delete set null'
+    );
+  else
+    -- Case C: batches.order_id already matches orders.id type
+    alter table public.batches alter column order_id drop not null;
+    if not exists (
+      select 1 from pg_constraint
+       where conrelid = 'public.batches'::regclass
+         and contype = 'f'
+         and conkey = array[(
+           select attnum from pg_attribute
+            where attrelid = 'public.batches'::regclass and attname = 'order_id'
+         )]
+    ) then
+      begin
+        execute format(
+          'alter table public.batches add constraint batches_order_id_fkey foreign key (order_id) references public.orders(id) on delete set null'
+        );
+      exception when others then
+        raise notice 'Notice: FK constraint batches_order_id_fkey skipped: %', sqlerrm;
+      end;
+    end if;
   end if;
 
   if exists (
@@ -547,13 +610,6 @@ begin
     where table_schema = 'public' and table_name = 'batches' and column_name = 'batch_number'
   ) then
     alter table public.batches alter column batch_number drop not null;
-  end if;
-
-  if exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'batches' and column_name = 'order_id'
-  ) then
-    alter table public.batches alter column order_id drop not null;
   end if;
 end $$;
 
@@ -600,7 +656,7 @@ create table if not exists public.production_stages (
 
 create table if not exists public.batch_stage_wip (
   id                   uuid primary key default gen_random_uuid(),
-  batch_id             uuid,
+  batch_id             text,
   batch_no             text not null,
   stage_order          integer not null,
   stage_name           text not null,
@@ -620,7 +676,7 @@ create table if not exists public.batch_stage_wip (
 );
 
 alter table public.batch_stage_wip
-  add column if not exists batch_id uuid,
+  add column if not exists batch_id text,
   add column if not exists department text default 'Quyish',
   add column if not exists available_qty integer default 0,
   add column if not exists completed_qty integer default 0,
@@ -640,6 +696,7 @@ begin
     where table_schema = 'public' and table_name = 'batch_stage_wip' and column_name = 'batch_id'
   ) then
     alter table public.batch_stage_wip alter column batch_id drop not null;
+    alter table public.batch_stage_wip alter column batch_id type text using batch_id::text;
   end if;
 end $$;
 

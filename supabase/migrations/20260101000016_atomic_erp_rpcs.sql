@@ -830,7 +830,7 @@ begin
     available_qty, completed_qty, rework_qty, input_weight, output_weight, loss_weight,
     queue_status, assigned_worker
   ) values (
-    public.try_cast_uuid(v_batch_id), btrim(p_batch_no), 8, '8. Quyish', 'Quyish',
+    v_batch_id, btrim(p_batch_no), 8, '8. Quyish', 'Quyish',
     p_planned_qty, 0, 0, v_issued, 0, 0,
     'NOW', btrim(p_master_name)
   );
@@ -990,7 +990,7 @@ begin
     available_qty, completed_qty, rework_qty, input_weight, output_weight, loss_weight,
     queue_status, assigned_worker
   ) values (
-    public.try_cast_uuid(v_batch_id), btrim(p_batch_no), 8, '8. Quyish', 'Quyish',
+    v_batch_id, btrim(p_batch_no), 8, '8. Quyish', 'Quyish',
     p_planned_qty, 0, 0, v_issued, 0, 0,
     'NOW', btrim(p_master_name)
   );

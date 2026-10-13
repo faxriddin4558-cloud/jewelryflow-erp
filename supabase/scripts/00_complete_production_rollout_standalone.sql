@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+-- ============================================================================
 -- JEWELRYFLOW ERP — COMPLETE PRODUCTION ROLLOUT STANDALONE SCRIPT
 -- ============================================================================
 -- File: supabase/scripts/00_complete_production_rollout_standalone.sql
@@ -10,8 +10,16 @@
 --   5. Director/Admin account linking for admin@goldia.uz (02_manual_link)
 --   6. Post-migration verification report
 --
+-- Safety & Transaction Semantics:
+--   - Wrapped in a single top-level BEGIN ... COMMIT transaction.
+--   - Fails atomically on any error: zero partial database migration.
+--   - Non-destructive: zero DROP TABLE, zero TRUNCATE, zero data deletion.
+--   - Reconciles bigint/uuid hybrid ID types safely.
+--
 -- Execution: Run this entire script in Supabase SQL Editor as 'postgres' role.
 -- ============================================================================
+
+BEGIN;
 
 -- PRECONDITION CHECK: Ensure we are in public schema and database is accessible
 do $do$
@@ -23,6 +31,9 @@ begin
 end $do$;
 
 
+-- ============================================================================
+-- Migration: 20260101000015_erp_operational_schema_reconciliation.sql
+-- ============================================================================
 -- ============================================================================
 -- Migration: 20260101000015_erp_operational_schema_reconciliation.sql
 -- Purpose:   Forward-only, non-destructive reconciliation between the
@@ -508,7 +519,7 @@ end $$;
 
 -- 6. Extend batches non-destructively (product_id is text to support both bigint and uuid product PKs)
 alter table public.batches
-  add column if not exists batch_no text unique,
+  add column if not exists batch_no text,
   add column if not exists batch_number text,
   add column if not exists parent_batch_no text,
   add column if not exists number text,
@@ -544,6 +555,8 @@ do $$
 declare
   v_ord_id_udt text;
   v_ord_id_col_type text := 'uuid';
+  v_batch_order_id_udt text;
+  v_r record;
 begin
   select udt_name into v_ord_id_udt
     from information_schema.columns
@@ -557,14 +570,75 @@ begin
     v_ord_id_col_type := 'uuid';
   end if;
 
-  if not exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'batches' and column_name = 'order_id'
-  ) then
+  select udt_name into v_batch_order_id_udt
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'batches' and column_name = 'order_id';
+
+  -- Case A: batches.order_id does NOT exist yet -> add it with matching orders.id type
+  if v_batch_order_id_udt is null then
     execute format(
       'alter table public.batches add column order_id %s references public.orders(id) on delete set null',
       v_ord_id_col_type
     );
+  -- Case B: batches.order_id is uuid while orders.id is bigint/integer -> safely reconcile
+  elsif v_batch_order_id_udt = 'uuid' and v_ord_id_col_type in ('bigint', 'integer') then
+    -- 1. Preserve any legacy non-null UUID data in order_id_legacy_uuid so zero data is lost
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'batches' and column_name = 'order_id_legacy_uuid'
+    ) then
+      alter table public.batches add column order_id_legacy_uuid uuid;
+      update public.batches set order_id_legacy_uuid = order_id where order_id is not null;
+    end if;
+
+    -- 2. Drop any foreign key constraints on batches(order_id)
+    for v_r in (
+      select conname
+        from pg_constraint
+       where conrelid = 'public.batches'::regclass
+         and contype = 'f'
+         and conkey = array[(
+           select attnum from pg_attribute
+            where attrelid = 'public.batches'::regclass and attname = 'order_id'
+         )]
+    ) loop
+      execute format('alter table public.batches drop constraint %I', v_r.conname);
+    end loop;
+
+    -- 3. Drop NOT NULL
+    alter table public.batches alter column order_id drop not null;
+
+    -- 4. Alter column type to bigint with safe numeric regex conversion
+    execute format(
+      'alter table public.batches alter column order_id type %s using (case when order_id::text ~ ''^[0-9]+$'' then order_id::text::%s else null end)',
+      v_ord_id_col_type,
+      v_ord_id_col_type
+    );
+
+    -- 5. Add matching foreign key to public.orders(id)
+    execute format(
+      'alter table public.batches add constraint batches_order_id_fkey foreign key (order_id) references public.orders(id) on delete set null'
+    );
+  else
+    -- Case C: batches.order_id already matches orders.id type
+    alter table public.batches alter column order_id drop not null;
+    if not exists (
+      select 1 from pg_constraint
+       where conrelid = 'public.batches'::regclass
+         and contype = 'f'
+         and conkey = array[(
+           select attnum from pg_attribute
+            where attrelid = 'public.batches'::regclass and attname = 'order_id'
+         )]
+    ) then
+      begin
+        execute format(
+          'alter table public.batches add constraint batches_order_id_fkey foreign key (order_id) references public.orders(id) on delete set null'
+        );
+      exception when others then
+        raise notice 'Notice: FK constraint batches_order_id_fkey skipped: %', sqlerrm;
+      end;
+    end if;
   end if;
 
   if exists (
@@ -572,13 +646,6 @@ begin
     where table_schema = 'public' and table_name = 'batches' and column_name = 'batch_number'
   ) then
     alter table public.batches alter column batch_number drop not null;
-  end if;
-
-  if exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'batches' and column_name = 'order_id'
-  ) then
-    alter table public.batches alter column order_id drop not null;
   end if;
 end $$;
 
@@ -625,7 +692,7 @@ create table if not exists public.production_stages (
 
 create table if not exists public.batch_stage_wip (
   id                   uuid primary key default gen_random_uuid(),
-  batch_id             uuid,
+  batch_id             text,
   batch_no             text not null,
   stage_order          integer not null,
   stage_name           text not null,
@@ -645,7 +712,7 @@ create table if not exists public.batch_stage_wip (
 );
 
 alter table public.batch_stage_wip
-  add column if not exists batch_id uuid,
+  add column if not exists batch_id text,
   add column if not exists department text default 'Quyish',
   add column if not exists available_qty integer default 0,
   add column if not exists completed_qty integer default 0,
@@ -665,6 +732,7 @@ begin
     where table_schema = 'public' and table_name = 'batch_stage_wip' and column_name = 'batch_id'
   ) then
     alter table public.batch_stage_wip alter column batch_id drop not null;
+    alter table public.batch_stage_wip alter column batch_id type text using batch_id::text;
   end if;
 end $$;
 
@@ -1327,6 +1395,9 @@ begin
 end $$;
 
 
+-- ============================================================================
+-- Migration: 20260101000016_atomic_erp_rpcs.sql
+-- ============================================================================
 -- ============================================================================
 -- Migration: 20260101000016_atomic_erp_rpcs.sql
 -- Purpose:   Authoritative atomic PostgreSQL RPC functions for all JewelryFlow
@@ -2159,7 +2230,7 @@ begin
     available_qty, completed_qty, rework_qty, input_weight, output_weight, loss_weight,
     queue_status, assigned_worker
   ) values (
-    public.try_cast_uuid(v_batch_id), btrim(p_batch_no), 8, '8. Quyish', 'Quyish',
+    v_batch_id, btrim(p_batch_no), 8, '8. Quyish', 'Quyish',
     p_planned_qty, 0, 0, v_issued, 0, 0,
     'NOW', btrim(p_master_name)
   );
@@ -2319,7 +2390,7 @@ begin
     available_qty, completed_qty, rework_qty, input_weight, output_weight, loss_weight,
     queue_status, assigned_worker
   ) values (
-    public.try_cast_uuid(v_batch_id), btrim(p_batch_no), 8, '8. Quyish', 'Quyish',
+    v_batch_id, btrim(p_batch_no), 8, '8. Quyish', 'Quyish',
     p_planned_qty, 0, 0, v_issued, 0, 0,
     'NOW', btrim(p_master_name)
   );
@@ -3588,6 +3659,9 @@ grant execute on function public.rpc_create_order_with_advance(text, text, text,
 
 -- ============================================================================
 -- Migration: 20260101000017_security_rls_and_privilege_hardening.sql
+-- ============================================================================
+-- ============================================================================
+-- Migration: 20260101000017_security_rls_and_privilege_hardening.sql
 -- Purpose:   Phase 9 Security Hardening (Hybrid bigint/uuid Schema Compatible):
 --            1. Prevent employee self-promotion to admin (RLS + Trigger)
 --            2. Enable RLS on all operational & legacy tables (incl. orfers/payroll)
@@ -4488,7 +4562,10 @@ grant execute on function public.rpc_create_order_with_advance(text, text, text,
 
 
 -- ============================================================================
--- JEWELRYFLOW ERP вЂ” OPERATOR SCRIPT: SAFE DIRECTOR/ADMIN ACCOUNT LINKING
+-- Director/Admin account linking for admin@goldia.uz
+-- ============================================================================
+-- ============================================================================
+-- JEWELRYFLOW ERP — OPERATOR SCRIPT: SAFE DIRECTOR/ADMIN ACCOUNT LINKING
 -- ============================================================================
 -- File: supabase/scripts/02_manual_link_director_admin.sql
 -- Purpose: Safely link the verified Supabase Auth user 'admin@goldia.uz' to an
@@ -4501,8 +4578,7 @@ grant execute on function public.rpc_create_order_with_advance(text, text, text,
 --    with email 'admin@goldia.uz', it raises an informative notice and does not fail.
 -- ============================================================================
 
-begin;
-
+-- [begin deferred to outer transaction]
 do $$
 declare
   v_user_id uuid;
@@ -4612,8 +4688,7 @@ begin
   end if;
 end $$;
 
-commit;
-
+-- [commit deferred to outer transaction]
 -- Verification Query: Inspect the updated employee and auth user linkage
 select
   e.id as employee_id,
@@ -4634,9 +4709,10 @@ join auth.users u on u.id = e.user_id
 where lower(u.email) = 'admin@goldia.uz';
 
 
+COMMIT;
 
 -- ============================================================================
--- POST-MIGRATION VERIFICATION AUDIT
+-- POST-MIGRATION VERIFICATION AUDIT (Runs after successful COMMIT)
 -- ============================================================================
 select
   'VERIFICATION SUMMARY' as check_category,
@@ -4656,3 +4732,19 @@ select
   e.is_active
 from public.employees e
 where lower(coalesce(e.email, '')) = 'admin@goldia.uz';
+
+-- Verify batches.order_id and batch_stage_wip.batch_id data types
+select
+  table_name,
+  column_name,
+  data_type,
+  udt_name
+from information_schema.columns
+where table_schema = 'public'
+  and (
+    (table_name = 'batches' and column_name in ('id', 'order_id', 'order_id_legacy_uuid', 'batch_no')) or
+    (table_name = 'orders' and column_name in ('id', 'order_no', 'reserved_item_id')) or
+    (table_name = 'batch_stage_wip' and column_name in ('id', 'batch_id', 'batch_no')) or
+    (table_name = 'employees' and column_name in ('id', 'user_id', 'role', 'role_type'))
+  )
+order by table_name, column_name;
