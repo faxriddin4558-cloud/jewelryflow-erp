@@ -942,6 +942,7 @@ describe("Database Migrations — Forward-Only Schema, Atomic RPCs & RLS Hardeni
     const migrationFiles = [
       "20260101000016_atomic_erp_rpcs.sql",
       "20260101000019_tenant_isolation_and_handover_rpcs.sql",
+      "20260101000020_strict_multi_tenant_isolation.sql",
     ];
 
     // Extract SQL RPC parameter sets from atomic RPC migrations (016 & 019)

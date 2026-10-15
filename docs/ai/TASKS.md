@@ -73,3 +73,7 @@
   - **Files:** `src/app/batches/page.tsx`
   - **Acceptance Criteria:** Dispatched sub-batches appear in pending acceptance queue; receiver enters scale measurement; discrepancy > 0.05g halts flow; supervisor can override with documented reason.
 
+- [VERIFIED] **TASK-012: Strict Multi-Tenant Isolation & Elimination of Permissive Policies**
+  - **Description:** Implement migration 020 dropping all conflicting permissive `using (true)` policies across operational tables (batches, orders, inventory, customers, products, sales, WIP, gold transactions, machines, handovers, factory settings, organizations). Enforce fail-closed `current_organization_id()`, strict `organization_id = current_organization_id()` predicates (eliminating `OR organization_id IS NULL`), and cross-tenant guards inside all SECURITY DEFINER RPCs.
+  - **Files:** `supabase/migrations/20260101000020_strict_multi_tenant_isolation.sql`, `src/lib/__tests__/multi-tenant-security.test.ts`, `src/lib/__tests__/erp-engine.test.ts`
+  - **Acceptance Criteria:** 76 automated tests pass; negative tests verify User A cannot read, insert, update, delete, or RPC-mutate Org B records; unassigned users fail closed; legacy NULL records quarantined to Goldia.

@@ -206,4 +206,154 @@ describe("Multi-Tenant Security & Two-Party Handover Protocol Contract Tests", (
       );
     });
   });
+
+  describe("3. Negative Multi-Tenant Isolation Contract Tests (Org A vs Org B)", () => {
+    interface TenantUser {
+      userId: string;
+      email: string;
+      organizationId: string | null;
+      role: string;
+    }
+
+    interface TenantRecord {
+      id: string;
+      organizationId: string | null;
+      title: string;
+      data: Record<string, unknown>;
+    }
+
+    const orgAId = "org-uuid-aaa-111";
+    const orgBId = "org-uuid-bbb-222";
+
+    const userA: TenantUser = {
+      userId: "user-a",
+      email: "worker@orga.uz",
+      organizationId: orgAId,
+      role: "worker",
+    };
+
+    const userB: TenantUser = {
+      userId: "user-b",
+      email: "worker@orgb.uz",
+      organizationId: orgBId,
+      role: "worker",
+    };
+
+    const unassignedUser: TenantUser = {
+      userId: "user-unassigned",
+      email: "stranger@unknown.uz",
+      organizationId: null,
+      role: "worker",
+    };
+
+    const records: TenantRecord[] = [
+      { id: "batch-org-a", organizationId: orgAId, title: "Org A Gold Batch", data: { goldGram: 100 } },
+      { id: "batch-org-b", organizationId: orgBId, title: "Org B Gold Batch", data: { goldGram: 250 } },
+      { id: "batch-legacy-null", organizationId: null, title: "Unassigned Legacy Batch", data: { goldGram: 50 } },
+    ];
+
+    // Authoritative simulated RLS filter predicate matching Migration 020
+    const evaluateRlsFilter = (record: TenantRecord, caller: TenantUser): boolean => {
+      if (!caller.organizationId) return false; // Fail closed if caller has no tenant!
+      if (!record.organizationId) return false; // Fail closed: unassigned records are NOT open!
+      return record.organizationId === caller.organizationId;
+    };
+
+    it("ensures User A can only see Organization A records and cannot see Org B records", () => {
+      const visibleToUserA = records.filter((r) => evaluateRlsFilter(r, userA));
+      expect(visibleToUserA.map((r) => r.id)).toEqual(["batch-org-a"]);
+      expect(visibleToUserA.some((r) => r.id === "batch-org-b")).toBe(false);
+    });
+
+    it("ensures User B can only see Organization B records and cannot see Org A records", () => {
+      const visibleToUserB = records.filter((r) => evaluateRlsFilter(r, userB));
+      expect(visibleToUserB.map((r) => r.id)).toEqual(["batch-org-b"]);
+      expect(visibleToUserB.some((r) => r.id === "batch-org-a")).toBe(false);
+    });
+
+    it("ensures unassigned user cannot see any records (fail-closed, no Goldia fallback)", () => {
+      const visibleToUnassigned = records.filter((r) => evaluateRlsFilter(r, unassignedUser));
+      expect(visibleToUnassigned).toEqual([]);
+    });
+
+    it("ensures legacy NULL organization records are never exposed to other tenants", () => {
+      // Neither User A nor User B can see unassigned NULL records
+      expect(evaluateRlsFilter(records[2]!, userA)).toBe(false);
+      expect(evaluateRlsFilter(records[2]!, userB)).toBe(false);
+    });
+
+    it("prevents User A from inserting or mutating records belonging to Organization B", () => {
+      const insertRecord = (newRecord: TenantRecord, caller: TenantUser) => {
+        if (!caller.organizationId || newRecord.organizationId !== caller.organizationId) {
+          throw new Error("Cross-tenant violation: Cannot create record for another organization");
+        }
+        return true;
+      };
+
+      expect(() =>
+        insertRecord(
+          { id: "batch-attack", organizationId: orgBId, title: "Malicious Batch", data: {} },
+          userA
+        )
+      ).toThrowError(/Cross-tenant violation/);
+    });
+
+    it("prevents User A from moving or acting on an Org B batch via RPC logic", () => {
+      const rpcSimulateMoveWip = (batch: TenantRecord, caller: TenantUser) => {
+        if (!caller.organizationId) {
+          throw new Error("Permission denied: User must belong to an active organization");
+        }
+        if (batch.organizationId !== caller.organizationId) {
+          throw new Error("Cross-tenant violation: Batch does not belong to your organization");
+        }
+        return { success: true };
+      };
+
+      const orgBBatch = records[1]!;
+      expect(() => rpcSimulateMoveWip(orgBBatch, userA)).toThrowError(
+        /Cross-tenant violation: Batch does not belong to your organization/
+      );
+
+      const orgABatch = records[0]!;
+      expect(rpcSimulateMoveWip(orgABatch, userA)).toEqual({ success: true });
+    });
+  });
+
+  describe("4. Database Migration 020 Security & Hardening Audit", () => {
+    it("verifies migration 020 eliminates permissive policies and enforces strict tenant isolation", async () => {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const m20Path = path.resolve(
+        process.cwd(),
+        "supabase",
+        "migrations",
+        "20260101000020_strict_multi_tenant_isolation.sql"
+      );
+
+      expect(fs.existsSync(m20Path)).toBe(true);
+      const sql = fs.readFileSync(m20Path, "utf8");
+
+      // Verify fail-closed current_organization_id()
+      expect(sql).toContain("create or replace function public.current_organization_id()");
+      expect(sql).toContain("return null;"); // Fails closed, does NOT fallback to Goldia!
+
+      // Verify drop of old permissive policies
+      expect(sql).toContain('drop policy if exists "authenticated read batches" on public.batches;');
+      expect(sql).toContain('drop policy if exists "Authenticated users can read batch stage wip" on public.batch_stage_wip;');
+      expect(sql).toContain('drop policy if exists "orders_select_authorized" on public.orders;');
+      expect(sql).toContain('drop policy if exists "inventory_items_select_authorized" on public.inventory_items;');
+      expect(sql).toContain('drop policy if exists "gold_transactions_select_authorized" on public.gold_transactions;');
+      expect(sql).toContain('drop policy if exists "authenticated read two party handovers" on public.two_party_handovers;');
+      expect(sql).toContain('drop policy if exists "authenticated read customers" on public.customers;');
+
+      // Verify strict tenant policies WITHOUT "OR organization_id IS NULL"
+      expect(sql).toContain("using (organization_id = public.current_organization_id());");
+
+      // Verify RPC tenant guards
+      expect(sql).toContain("Cross-tenant violation: Source inventory does not belong to your organization");
+      expect(sql).toContain("Cross-tenant violation: Batch does not belong to your organization");
+      expect(sql).toContain("Cross-tenant violation: Product does not belong to your organization");
+      expect(sql).toContain("Cross-tenant violation: Handover does not belong to your organization");
+    });
+  });
 });

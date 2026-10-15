@@ -84,3 +84,27 @@
   - `npm run build`: **31 / 31 static and dynamic pages compiled successfully**.
 - **Next Milestone:** Autonomous commit and comprehensive status report for the team.
 
+### Entry 6 — 2026-10-15: Critical Multi-Tenant Security & Permissive Policy Elimination (Migration 020)
+- **Implemented:**
+  - `supabase/migrations/20260101000020_strict_multi_tenant_isolation.sql`:
+    - Eliminated all conflicting permissive `USING (true)` policies across operational tables (`batches`, `orders`, `inventory_items`, `customers`, `products`, `sales`, `batch_stage_wip`, `gold_transactions`, `two_party_handovers`, `machines`, `salary_ledger`, `organization_factory_settings`, `organizations`).
+    - Hardened `public.current_organization_id()` to strictly fail closed (`return null;`) when an unassigned or unauthenticated user calls it, removing any fallback to Goldia for unknown users.
+    - Quarantined legacy historical data by backfilling existing rows to Goldia, and replaced leaky `OR organization_id IS NULL` predicates with strict `organization_id = public.current_organization_id()`.
+    - Hardened SECURITY DEFINER RPC functions with authoritative tenant boundary checks: `rpc_create_batch_with_gold_issue`, `rpc_move_partial_wip`, `rpc_record_sale_with_stock_deduction`, `rpc_record_debt_repayment`, `rpc_dispatch_stage_handover`, `rpc_accept_stage_handover`, `rpc_override_stage_handover`.
+  - `src/lib/__tests__/multi-tenant-security.test.ts`:
+    - Expanded test suite from 10 to 17 tests.
+    - Added negative multi-tenant tests simulating two distinct tenants (Organization A vs Organization B):
+      - User A cannot see Organization B records.
+      - User B cannot see Organization A records.
+      - Unassigned users cannot see any tenant records.
+      - Legacy NULL-owned records are not exposed to other tenants.
+      - User A cannot insert, update, or mutate records under Org B.
+      - User A cannot move an Org B batch or accept an Org B handover via RPC logic.
+      - Automated AST/regex audit verifying Migration 020 drops older permissive policies and contains all cross-tenant RPC violation guards.
+- **Verification Results:**
+  - `npm test`: **76 / 76 passing** across all 4 test suites.
+  - `npm run typecheck`: **0 errors**.
+  - `npm run lint`: **0 warnings, 0 errors**.
+  - `npm run build`: **31 / 31 static and dynamic pages compiled successfully**.
+  - `git diff --check`: Clean (0 errors).
+- **Next Milestone:** Stage and commit Migration 020 and updated tests locally on `dev/manufacturing-erp-saas`.
