@@ -13,6 +13,10 @@ import {
   type InventoryItemRow,
   type EmployeeRow,
 } from "@/lib/erp-engine";
+import {
+  getNextActiveStage,
+  isStageActive,
+} from "@/lib/factory-config";
 
 export default function BatchesPage() {
   const [tab, setTab] = useState<"wip" | "queue" | "machines" | "tv">("wip");
@@ -193,11 +197,7 @@ export default function BatchesPage() {
       return;
     }
 
-    const nextSt = stages.find((s) => s.stage_order === fromSt + 1) || {
-      stage_order: 25,
-      name: "25. Tayyor mahsulot ombori",
-      department: "Ombor",
-    };
+    const nextSt = getNextActiveStage(fromSt, stages);
     const rem = avail - qMove - qRew;
 
     const nSprue = Number((Number(b.sprue_gram ?? 0) + gSprue).toFixed(4));
@@ -329,12 +329,14 @@ export default function BatchesPage() {
     "Lazer",
     "Moyka",
     "QC",
-  ].map((d) => {
-    const list = wipRows.filter((w) => w.department === d && Number(w.available_qty ?? 0) > 0);
-    const pcs = list.reduce((s, w) => s + Number(w.available_qty ?? 0), 0);
-    const cap = d === "Lazer" || d === "Tosh qo'yish" ? 200 : 300;
-    return { dept: d, pcs, cap, backlog: Math.max(0, pcs - cap), list };
-  });
+  ]
+    .filter((d) => isStageActive({ department: d, name: d }))
+    .map((d) => {
+      const list = wipRows.filter((w) => w.department === d && Number(w.available_qty ?? 0) > 0);
+      const pcs = list.reduce((s, w) => s + Number(w.available_qty ?? 0), 0);
+      const cap = d === "Lazer" || d === "Tosh qo'yish" ? 200 : 300;
+      return { dept: d, pcs, cap, backlog: Math.max(0, pcs - cap), list };
+    });
 
   return (
     <div className="p-4 md:p-8 text-slate-800 space-y-6">
@@ -591,11 +593,14 @@ export default function BatchesPage() {
                       onChange={(e) => setFromSt(Number(e.target.value))}
                       className="w-full border rounded p-1.5 bg-white mt-1"
                     >
-                      {stages.map((s) => (
-                        <option key={s.stage_order} value={s.stage_order}>
-                          {s.name}
-                        </option>
-                      ))}
+                      {stages.map((s) => {
+                        const active = isStageActive(s);
+                        return (
+                          <option key={s.stage_order} value={s.stage_order}>
+                            {s.name} {!active ? "(O'chirilgan / Bypassed)" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                   <div>
@@ -656,9 +661,9 @@ export default function BatchesPage() {
                     <button
                       onClick={() => void movePartialWip(sel)}
                       disabled={busy}
-                      className="w-full bg-emerald-600 text-white font-bold py-2 rounded-lg"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-2 rounded-lg text-xs transition-colors"
                     >
-                      ✓ {mQty} donani o&apos;tkazish →
+                      ✓ {mQty} dona → {getNextActiveStage(fromSt, stages).name}
                     </button>
                   </div>
                 </div>
