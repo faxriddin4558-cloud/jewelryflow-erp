@@ -37,18 +37,27 @@ create index if not exists idx_stage_loss_configs_tenant_stage
 
 -- Seed authoritative factory stage loss tolerances for Goldia
 insert into public.stage_loss_configs (stage_order, stage_name, department, max_loss_pct, max_loss_gram, organization_id)
-values
-  (8,  '8. Quyish',            'Quyish',   1.000, 0.8000, '00000000-0000-0000-0000-000000000001'::uuid),
-  (10, '10. Yig''uv',          'Yig''uv',  0.500, 0.3000, '00000000-0000-0000-0000-000000000001'::uuid),
-  (11, '11. Shlifovka',        'Shlifovka',1.500, 0.8000, '00000000-0000-0000-0000-000000000001'::uuid),
-  (12, '12. Fiksaj',           'Fiksaj',   0.500, 0.3000, '00000000-0000-0000-0000-000000000001'::uuid),
-  (14, '14. Zakrepka',         'Zakrepka', 0.800, 0.5000, '00000000-0000-0000-0000-000000000001'::uuid),
-  (15, '15. Magnit',           'Magnit',   0.300, 0.2000, '00000000-0000-0000-0000-000000000001'::uuid),
-  (16, '16. Jilolash',         'Jilolash', 2.500, 1.5000, '00000000-0000-0000-0000-000000000001'::uuid),
-  (17, '17. Yuvish',           'Yuvish',   0.200, 0.1000, '00000000-0000-0000-0000-000000000001'::uuid),
-  (18, '18. Rodiy',            'Rodiy',    0.200, 0.1000, '00000000-0000-0000-0000-000000000001'::uuid),
-  (20, '20. Lazer markalash',  'Lazer',    0.100, 0.0500, '00000000-0000-0000-0000-000000000001'::uuid),
-  (22, '22. Sifat nazorati',   'Sifat',    0.000, 0.0000, '00000000-0000-0000-0000-000000000001'::uuid)
+select
+  s.stage_order, s.stage_name, s.department, s.max_loss_pct, s.max_loss_gram, o.id
+from (values
+  (8,  '8. Quyish',            'Quyish',   1.000, 0.8000),
+  (10, '10. Yig''uv',          'Yig''uv',  0.500, 0.3000),
+  (11, '11. Shlifovka',        'Shlifovka',1.500, 0.8000),
+  (12, '12. Fiksaj',           'Fiksaj',   0.500, 0.3000),
+  (14, '14. Zakrepka',         'Zakrepka', 0.800, 0.5000),
+  (15, '15. Magnit',           'Magnit',   0.300, 0.2000),
+  (16, '16. Jilolash',         'Jilolash', 2.500, 1.5000),
+  (17, '17. Yuvish',           'Yuvish',   0.200, 0.1000),
+  (18, '18. Rodiy',            'Rodiy',    0.200, 0.1000),
+  (20, '20. Lazer markalash',  'Lazer',    0.100, 0.0500),
+  (22, '22. Sifat nazorati',   'Sifat',    0.000, 0.0000)
+) as s(stage_order, stage_name, department, max_loss_pct, max_loss_gram)
+cross join (
+  select coalesce(
+    (select id from public.organizations where code = 'goldia' limit 1),
+    '00000000-0000-0000-0000-000000000001'::uuid
+  ) as id
+) o
 on conflict (stage_order) do update set
   stage_name    = excluded.stage_name,
   department    = excluded.department,
@@ -144,6 +153,8 @@ declare
   v_limit_by_pct      numeric(14, 4);
   v_effective_limit   numeric(14, 4);
   v_excess_loss_g     numeric(14, 4);
+  v_avail_stage_g     numeric(14, 4);
+  v_rem_stage_g       numeric(14, 4);
   v_caller_role       text := public.current_employee_role_text();
 begin
   if v_caller_org is null then
@@ -309,12 +320,25 @@ begin
     raise exception 'Mass balance violation: total outputs (%g) exceeds issued gold (%g)', v_tot_out, v_in_gold;
   end if;
 
-  v_new_wip_g := round(greatest(0, v_in_gold - v_tot_out)::numeric, 4);
+  -- Stage-level WIP mass balance check
+  if coalesce(v_cur_wip.input_weight, 0) > 0 then
+    v_avail_stage_g := round(greatest(0, coalesce(v_cur_wip.input_weight, 0) - coalesce(v_cur_wip.output_weight, 0) - coalesce(v_cur_wip.loss_weight, 0))::numeric, 4);
+    if (v_move_g + v_sprue_g + v_scrap_g + v_loss_g) > (v_avail_stage_g + 0.05) then
+      raise exception 'Mass balance violation: total outputs (%g) exceeds available stage WIP (%g)',
+        (v_move_g + v_sprue_g + v_scrap_g + v_loss_g), v_avail_stage_g;
+    end if;
+    v_rem_stage_g := round(greatest(0, v_avail_stage_g - (v_move_g + v_sprue_g + v_scrap_g + v_loss_g))::numeric, 4);
+  else
+    v_rem_stage_g := round(greatest(0, v_in_gold - v_tot_out)::numeric, 4);
+  end if;
+
+  v_new_wip_g := v_rem_stage_g;
 
   update public.batch_stage_wip
      set available_qty = v_rem_qty,
          completed_qty = coalesce(completed_qty, 0) + p_move_qty,
          rework_qty    = coalesce(rework_qty, 0) + p_rework_qty,
+         output_weight = coalesce(output_weight, 0) + v_move_g + v_sprue_g + v_scrap_g,
          loss_weight   = coalesce(loss_weight, 0) + v_loss_g,
          updated_at    = now()
    where id = v_cur_wip.id;
@@ -395,6 +419,7 @@ begin
     'rework_qty', p_rework_qty,
     'loss_gram', v_loss_g,
     'wip_remaining_gram', v_new_wip_g,
+    'remaining_wip_gram', v_new_wip_g,
     'finished_qty', v_new_fin_qty,
     'is_completed', v_done_all,
     'organization_id', v_caller_org

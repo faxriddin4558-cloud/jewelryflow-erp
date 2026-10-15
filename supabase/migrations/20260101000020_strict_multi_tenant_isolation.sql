@@ -61,16 +61,13 @@ begin
     return v_org_id;
   end if;
 
-  -- 2. Check profile organization assignment
-  select organization_id
-    into v_org_id
-    from public.profiles p
-   where p.user_id = v_uid
-     and p.organization_id is not null
-   limit 1;
-
-  if v_org_id is not null then
-    return v_org_id;
+  -- 2. Check profile organization assignment (if legacy profiles table exists)
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'profiles') then
+    execute 'select organization_id from public.profiles where user_id = $1 and organization_id is not null limit 1'
+      into v_org_id using v_uid;
+    if v_org_id is not null then
+      return v_org_id;
+    end if;
   end if;
 
   -- 3. Fail closed: Unassigned users have NO organization (NULL).
@@ -94,7 +91,9 @@ begin
   select id into v_goldia_id from public.organizations where code = 'goldia' limit 1;
   if v_goldia_id is not null then
     update public.employees set organization_id = v_goldia_id where organization_id is null;
-    update public.profiles set organization_id = v_goldia_id where organization_id is null;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'profiles') then
+      execute 'update public.profiles set organization_id = ' || quote_literal(v_goldia_id) || ' where organization_id is null';
+    end if;
     update public.batches set organization_id = v_goldia_id where organization_id is null;
     update public.orders set organization_id = v_goldia_id where organization_id is null;
     update public.inventory_items set organization_id = v_goldia_id where organization_id is null;
@@ -106,6 +105,7 @@ begin
     update public.sales set organization_id = v_goldia_id where organization_id is null;
     update public.salary_ledger set organization_id = v_goldia_id where organization_id is null;
     update public.machines set organization_id = v_goldia_id where organization_id is null;
+    update public.debt_repayments set organization_id = v_goldia_id where organization_id is null;
   end if;
 end $$;
 
@@ -372,11 +372,11 @@ create policy "products_tenant_manage"
   on public.products for all to authenticated
   using (
     organization_id = public.current_organization_id()
-    and public.current_employee_role_text() in ('admin', 'director', 'owner', 'direktor', 'rahbar', 'manager')
+    and public.current_employee_role_text() in ('admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'inventory_manager')
   )
   with check (
     organization_id = public.current_organization_id()
-    and public.current_employee_role_text() in ('admin', 'director', 'owner', 'direktor', 'rahbar', 'manager')
+    and public.current_employee_role_text() in ('admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'inventory_manager')
   );
 
 -- K. Sales
@@ -403,6 +403,32 @@ create policy "sales_tenant_manage"
   with check (
     organization_id = public.current_organization_id()
     and public.current_employee_role_text() in ('admin', 'director', 'owner', 'direktor', 'rahbar')
+  );
+
+-- K2. Debt Repayments
+drop policy if exists "debt_repayments_admin_insert" on public.debt_repayments;
+drop policy if exists "debt_repayments_tenant_select" on public.debt_repayments;
+drop policy if exists "debt_repayments_tenant_manage" on public.debt_repayments;
+
+create policy "debt_repayments_tenant_select"
+  on public.debt_repayments for select to authenticated
+  using (
+    organization_id = public.current_organization_id()
+    and public.current_employee_role_text() in (
+      'admin', 'director', 'owner', 'direktor', 'rahbar',
+      'sales', 'accountant', 'buxgalter', 'hisobchi', 'manager', 'production_manager'
+    )
+  );
+
+create policy "debt_repayments_tenant_manage"
+  on public.debt_repayments for all to authenticated
+  using (
+    organization_id = public.current_organization_id()
+    and public.current_employee_role_text() in ('admin', 'director', 'owner', 'direktor', 'rahbar', 'accountant', 'buxgalter', 'hisobchi', 'sales', 'manager', 'production_manager')
+  )
+  with check (
+    organization_id = public.current_organization_id()
+    and public.current_employee_role_text() in ('admin', 'director', 'owner', 'direktor', 'rahbar', 'accountant', 'buxgalter', 'hisobchi', 'sales', 'manager', 'production_manager')
   );
 
 -- L. Machines

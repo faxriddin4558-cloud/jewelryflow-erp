@@ -50,16 +50,13 @@ begin
     return v_org_id;
   end if;
 
-  -- 2. Check profile organization assignment
-  select organization_id
-    into v_org_id
-    from public.profiles p
-   where p.user_id = v_uid
-     and p.organization_id is not null
-   limit 1;
-
-  if v_org_id is not null then
-    return v_org_id;
+  -- 2. Check profile organization assignment (if legacy profiles table exists)
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'profiles') then
+    execute 'select organization_id from public.profiles where user_id = $1 and organization_id is not null limit 1'
+      into v_org_id using v_uid;
+    if v_org_id is not null then
+      return v_org_id;
+    end if;
   end if;
 
   -- 3. Fallback to primary tenant (Goldia) for backward compatibility
@@ -92,6 +89,9 @@ alter table public.salary_ledger
 alter table public.audit_logs
   add column if not exists organization_id uuid references public.organizations(id) on delete set null;
 
+alter table public.debt_repayments
+  add column if not exists organization_id uuid references public.organizations(id) on delete set null;
+
 -- 3. Seed / Backfill existing records to Goldia tenant
 do $$
 declare
@@ -100,23 +100,28 @@ begin
   select id into v_goldia_id from public.organizations where code = 'goldia' limit 1;
 
   if v_goldia_id is not null then
-    -- Set defaults
-    alter table public.batches alter column organization_id set default v_goldia_id;
-    alter table public.orders alter column organization_id set default v_goldia_id;
-    alter table public.inventory_items alter column organization_id set default v_goldia_id;
-    alter table public.batch_stage_wip alter column organization_id set default v_goldia_id;
-    alter table public.two_party_handovers alter column organization_id set default v_goldia_id;
-    alter table public.gold_transactions alter column organization_id set default v_goldia_id;
-    alter table public.employees alter column organization_id set default v_goldia_id;
-    alter table public.profiles alter column organization_id set default v_goldia_id;
-    alter table public.products alter column organization_id set default v_goldia_id;
-    alter table public.customers alter column organization_id set default v_goldia_id;
-    alter table public.sales alter column organization_id set default v_goldia_id;
-    alter table public.salary_ledger alter column organization_id set default v_goldia_id;
+    -- Set defaults via dynamic execute
+    execute 'alter table public.batches alter column organization_id set default ' || quote_literal(v_goldia_id);
+    execute 'alter table public.orders alter column organization_id set default ' || quote_literal(v_goldia_id);
+    execute 'alter table public.inventory_items alter column organization_id set default ' || quote_literal(v_goldia_id);
+    execute 'alter table public.batch_stage_wip alter column organization_id set default ' || quote_literal(v_goldia_id);
+    execute 'alter table public.two_party_handovers alter column organization_id set default ' || quote_literal(v_goldia_id);
+    execute 'alter table public.gold_transactions alter column organization_id set default ' || quote_literal(v_goldia_id);
+    execute 'alter table public.employees alter column organization_id set default ' || quote_literal(v_goldia_id);
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'profiles') then
+      execute 'alter table public.profiles alter column organization_id set default ' || quote_literal(v_goldia_id);
+    end if;
+    execute 'alter table public.products alter column organization_id set default ' || quote_literal(v_goldia_id);
+    execute 'alter table public.customers alter column organization_id set default ' || quote_literal(v_goldia_id);
+    execute 'alter table public.sales alter column organization_id set default ' || quote_literal(v_goldia_id);
+    execute 'alter table public.salary_ledger alter column organization_id set default ' || quote_literal(v_goldia_id);
+    execute 'alter table public.debt_repayments alter column organization_id set default ' || quote_literal(v_goldia_id);
 
     -- Backfill nulls safely
     update public.employees set organization_id = v_goldia_id where organization_id is null;
-    update public.profiles set organization_id = v_goldia_id where organization_id is null;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'profiles') then
+      execute 'update public.profiles set organization_id = ' || quote_literal(v_goldia_id) || ' where organization_id is null';
+    end if;
     update public.batches set organization_id = v_goldia_id where organization_id is null;
     update public.orders set organization_id = v_goldia_id where organization_id is null;
     update public.inventory_items set organization_id = v_goldia_id where organization_id is null;
@@ -127,6 +132,7 @@ begin
     update public.customers set organization_id = v_goldia_id where organization_id is null;
     update public.sales set organization_id = v_goldia_id where organization_id is null;
     update public.salary_ledger set organization_id = v_goldia_id where organization_id is null;
+    update public.debt_repayments set organization_id = v_goldia_id where organization_id is null;
   end if;
 end $$;
 

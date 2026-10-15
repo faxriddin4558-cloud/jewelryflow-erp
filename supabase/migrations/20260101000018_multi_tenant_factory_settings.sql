@@ -19,8 +19,8 @@ create table if not exists public.organizations (
 );
 
 -- Seed initial Goldia factory tenant
-insert into public.organizations (code, name, status)
-values ('goldia', 'Goldia Jewelry Factory', 'ACTIVE')
+insert into public.organizations (id, code, name, status)
+values ('00000000-0000-0000-0000-000000000001'::uuid, 'goldia', 'Goldia Jewelry Factory', 'ACTIVE')
 on conflict (code) do nothing;
 
 -- 2. Organization Factory Settings (Tenant-specific pipeline & machinery)
@@ -115,8 +115,13 @@ alter table public.inventory_items
 alter table public.employees
   add column if not exists organization_id uuid references public.organizations(id) on delete set null;
 
-alter table public.profiles
-  add column if not exists organization_id uuid references public.organizations(id) on delete set null;
+do $$
+begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'profiles') then
+    alter table public.profiles
+      add column if not exists organization_id uuid references public.organizations(id) on delete set null;
+  end if;
+end $$;
 
 -- 5. Row Level Security & Access Hardening
 alter table public.organizations enable row level security;
@@ -133,9 +138,9 @@ create policy "director write organizations"
   on public.organizations for all to authenticated
   using (
     exists (
-      select 1 from public.profiles
-       where profiles.user_id = auth.uid()
-         and lower(profiles.role) in ('director', 'admin', 'owner')
+      select 1 from public.employees
+       where (employees.user_id = auth.uid() or employees.id::text = auth.uid()::text)
+         and lower(coalesce(employees.role_type, employees.role::text, '')) in ('director', 'admin', 'owner')
     )
   );
 
@@ -149,9 +154,9 @@ create policy "director write factory settings"
   on public.organization_factory_settings for all to authenticated
   using (
     exists (
-      select 1 from public.profiles
-       where profiles.user_id = auth.uid()
-         and lower(profiles.role) in ('director', 'admin', 'owner')
+      select 1 from public.employees
+       where (employees.user_id = auth.uid() or employees.id::text = auth.uid()::text)
+         and lower(coalesce(employees.role_type, employees.role::text, '')) in ('director', 'admin', 'owner')
     )
   );
 

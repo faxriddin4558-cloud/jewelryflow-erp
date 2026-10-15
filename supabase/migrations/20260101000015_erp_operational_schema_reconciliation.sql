@@ -482,6 +482,108 @@ begin
 end $$;
 
 -- 6. Extend batches non-destructively (product_id is text to support both bigint and uuid product PKs)
+do $$
+begin
+  -- Safely drop views that depend on batches.status / batches.priority column types
+  drop view if exists public.department_board cascade;
+  drop view if exists public.factory_dashboard_summary cascade;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'batches' and column_name = 'status'
+      and udt_name != 'text'
+  ) then
+    alter table public.batches alter column status drop default;
+    alter table public.batches alter column status type text using status::text;
+    alter table public.batches alter column status set default 'Jarayonda';
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'batches' and column_name = 'priority'
+      and udt_name != 'text'
+  ) then
+    alter table public.batches alter column priority drop default;
+    alter table public.batches alter column priority type text using priority::text;
+    alter table public.batches alter column priority set default 'Normal';
+  end if;
+
+  if exists (
+    select 1 from information_schema.tables
+    where table_schema = 'public' and table_name = 'batch_status_history'
+  ) then
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'batch_status_history' and column_name = 'previous_status' and udt_name != 'text'
+    ) then
+      alter table public.batch_status_history alter column previous_status type text using previous_status::text;
+    end if;
+
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'batch_status_history' and column_name = 'new_status' and udt_name != 'text'
+    ) then
+      alter table public.batch_status_history alter column new_status type text using new_status::text;
+    end if;
+
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'batch_status_history' and column_name = 'previous_priority' and udt_name != 'text'
+    ) then
+      alter table public.batch_status_history alter column previous_priority type text using previous_priority::text;
+    end if;
+
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'batch_status_history' and column_name = 'new_priority' and udt_name != 'text'
+    ) then
+      alter table public.batch_status_history alter column new_priority type text using new_priority::text;
+    end if;
+  end if;
+
+  -- Recreate department_board view
+  execute $vw$
+    create view public.department_board as
+    select
+      d.id as department_id,
+      d.code as department_code,
+      d.name as department_name,
+      bo.id as operation_id,
+      bo.status as operation_status,
+      bo.batch_id,
+      b.batch_number,
+      b.priority as batch_priority,
+      ws.id as stage_id,
+      ws.name as stage_name,
+      bo.assigned_employee_id,
+      e.full_name as assigned_employee_name,
+      bo.queued_at,
+      bo.started_at,
+      bo.delay_reason_category,
+      bo.delayed_minutes
+    from public.batch_operations bo
+    join public.departments d on d.id = bo.department_id
+    join public.workflow_stages ws on ws.id = bo.stage_id
+    join public.batches b on b.id = bo.batch_id
+    left join public.employees e on e.id = bo.assigned_employee_id
+    where bo.status::text in ('queued', 'in_progress', 'paused', 'delayed', 'rejected');
+  $vw$;
+
+  -- Recreate factory_dashboard_summary view
+  execute $vw$
+    create view public.factory_dashboard_summary as
+    select
+      (select count(*) from public.batches where status = 'in_progress') as batches_in_progress,
+      (select count(*) from public.batches where status = 'delayed') as batches_delayed,
+      (select count(*) from public.batches where status = 'on_hold') as batches_on_hold,
+      (select count(*) from public.batches where status = 'pending') as batches_pending,
+      (select count(*) from public.batches where status = 'completed' and completed_at >= date_trunc('day', now())) as batches_completed_today,
+      (select count(*) from public.orders where status::text in ('confirmed', 'in_production')) as active_orders,
+      (select count(*) from public.qc_inspections where result::text = 'fail' and inspected_at >= date_trunc('day', now())) as qc_failures_today,
+      (select coalesce(sum(remaining_weight_grams), 0) from public.gold_lots) as gold_on_hand_grams;
+  $vw$;
+end $$;
+
 alter table public.batches
   add column if not exists batch_no text,
   add column if not exists batch_number text,
