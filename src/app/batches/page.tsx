@@ -218,6 +218,27 @@ export default function BatchesPage() {
       return;
     }
 
+    if (gLoss > 0) {
+      const curStageObj = stages.find((s) => s.stage_order === fromSt);
+      const lossCheck = GoldEngine.validateStageLoss({
+        inputWeightGram: gMove + gLoss + gSprue + gScrap,
+        lossWeightGram: gLoss,
+        stageName: curStageObj?.name,
+      });
+      if (!lossCheck.isAcceptable) {
+        const confirmLoss = window.confirm(
+          `DIQQAT: Ushbu bosqichda yo'qotish me'yordan oshdi!\n` +
+          `Kiritilgan pateriya: ${gLoss.toFixed(2)}g (${lossCheck.lossPct.toFixed(2)}%)\n` +
+          `Ruxsat etilgan me'yor: ${lossCheck.maxLossPct}% (maks ${lossCheck.maxLossGram}g)\n` +
+          `Ortiqcha yo'qotish: +${lossCheck.excessLossGram.toFixed(2)}g.\n\n` +
+          `Ushbu holat audit jurnalida qayd etiladi. Davom ettirishni tasdiqlaysizmi?`
+        );
+        if (!confirmLoss) {
+          return;
+        }
+      }
+    }
+
     const empObj = employees.find((e) => (e.name || e.full_name) === worker);
 
     busyRef.current = true;

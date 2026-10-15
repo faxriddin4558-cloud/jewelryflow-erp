@@ -127,6 +127,17 @@ export function assignTaskToStation(
   station: MachineStation,
   operatorName?: string
 ): { updatedTask: MachineQueueTask; updatedStation: MachineStation } {
+  if (station.status === "BUSY") {
+    throw new Error(
+      `Cannot assign task '${task.taskId}' to station '${station.code}': Station is already BUSY with batch '${station.currentBatchNo}'`
+    );
+  }
+  if (station.status === "MAINTENANCE" || station.status === "OFFLINE") {
+    throw new Error(
+      `Cannot assign task to station '${station.code}': Station is currently ${station.status}`
+    );
+  }
+
   const updatedTask: MachineQueueTask = {
     ...task,
     assignedMachineId: station.id,

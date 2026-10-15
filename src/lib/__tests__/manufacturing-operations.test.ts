@@ -290,6 +290,37 @@ describe("Manufacturing Operations — High Density Batches, Two-Party Handover 
       expect(completed.updatedStation.status).toBe("IDLE");
       expect(completed.updatedStation.currentBatchNo).toBeNull();
     });
+
+    it("strictly prevents assigning a second concurrent job to an occupied (BUSY) or MAINTENANCE station", () => {
+      const stations = getStandardGoldiaStations();
+      const busyStation = {
+        ...stations[0]!,
+        status: "BUSY" as const,
+        currentBatchNo: "B-EXISTING",
+      };
+
+      const task: MachineQueueTask = {
+        taskId: "task-laser-02",
+        batchNo: "B-NEW",
+        qtyPcs: 20,
+        weightGram: 100.0,
+        priority: "NORMAL",
+        status: "QUEUED",
+        queuedAt: new Date().toISOString(),
+      };
+
+      expect(() => assignTaskToStation(task, busyStation)).toThrowError(
+        /Station is already BUSY/
+      );
+
+      const maintenanceStation = {
+        ...stations[1]!,
+        status: "MAINTENANCE" as const,
+      };
+      expect(() => assignTaskToStation(task, maintenanceStation)).toThrowError(
+        /Station is currently MAINTENANCE/
+      );
+    });
   });
 
   describe("4. Precision Mass Balance & Stage Loss Hardening", () => {
