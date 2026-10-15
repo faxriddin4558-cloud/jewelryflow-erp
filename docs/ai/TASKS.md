@@ -77,3 +77,9 @@
   - **Description:** Implement migration 020 dropping all conflicting permissive `using (true)` policies across operational tables (batches, orders, inventory, customers, products, sales, WIP, gold transactions, machines, handovers, factory settings, organizations). Enforce fail-closed `current_organization_id()`, strict `organization_id = current_organization_id()` predicates (eliminating `OR organization_id IS NULL`), and cross-tenant guards inside all SECURITY DEFINER RPCs.
   - **Files:** `supabase/migrations/20260101000020_strict_multi_tenant_isolation.sql`, `src/lib/__tests__/multi-tenant-security.test.ts`, `src/lib/__tests__/erp-engine.test.ts`
   - **Acceptance Criteria:** 76 automated tests pass; negative tests verify User A cannot read, insert, update, delete, or RPC-mutate Org B records; unassigned users fail closed; legacy NULL records quarantined to Goldia.
+
+- [VERIFIED] **TASK-013: Server-Side Loss Validation & Machine Concurrency Locking**
+  - **Description:** Implement migration 021 adding server-side loss validation gates to `rpc_move_partial_wip`, multi-tenant `stage_loss_configs` with Goldia stage defaults, requiring manager/director authority and `p_allow_excess_loss` override with immutable `EXCESSIVE_LOSS_ALERT` audit logs. Add atomic `rpc_assign_machine_station` and `rpc_release_machine_station` preventing machine race conditions.
+  - **Files:** `supabase/migrations/20260101000021_server_side_loss_validation_and_machine_lock.sql`, `src/app/batches/page.tsx`, `src/lib/__tests__/multi-tenant-security.test.ts`, `src/lib/__tests__/erp-engine.test.ts`
+  - **Acceptance Criteria:** 78 automated tests pass; unapproved excess loss rejected at DB level; manager override audited; machine race conditions prevented.
+

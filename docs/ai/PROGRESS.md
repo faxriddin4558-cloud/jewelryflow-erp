@@ -108,3 +108,27 @@
   - `npm run build`: **31 / 31 static and dynamic pages compiled successfully**.
   - `git diff --check`: Clean (0 errors).
 - **Next Milestone:** Stage and commit Migration 020 and updated tests locally on `dev/manufacturing-erp-saas`.
+
+### Milestone 6: Server-Side Loss Validation & Machine Concurrency Locking (Migration 021)
+- **Completed Work:**
+  - `supabase/migrations/20260101000021_server_side_loss_validation_and_machine_lock.sql`:
+    - Implemented `public.current_employee_name()` stable security definer helper.
+    - Added multi-tenant support to `stage_loss_configs` with RLS and seeded Goldia standard stage loss thresholds (e.g. Quyish 1.0% / 0.8g, Jilolash 2.5% / 1.5g).
+    - Enforced database-level stage loss gates in `rpc_move_partial_wip`:
+      - Evaluates actual loss against stage tolerances.
+      - Rejects unconfirmed excessive loss at database level with `EXCESSIVE_LOSS_DETECTED`.
+      - Requires manager/director authority to confirm overrides (`p_allow_excess_loss`).
+      - Emits immutable `EXCESSIVE_LOSS_ALERT` in `public.audit_logs` detailing excess grams and percentages.
+    - Added atomic station concurrency lock RPCs: `rpc_assign_machine_station` and `rpc_release_machine_station` preventing machine race conditions.
+  - `src/app/batches/page.tsx`:
+    - Wired `p_allow_excess_loss` and `p_excess_loss_reason` to `rpc_move_partial_wip` on manager override.
+  - `src/lib/__tests__/multi-tenant-security.test.ts` & `src/lib/__tests__/erp-engine.test.ts`:
+    - Expanded test suite from 76 to 78 tests.
+    - Added tests for Migration 021 contract and simulated server-side loss validation gates.
+- **Verification Results:**
+  - `npm test`: **78 / 78 passing** across all 4 test suites.
+  - `npm run typecheck`: **0 errors**.
+  - `npm run lint`: **0 warnings, 0 errors**.
+  - `npm run build`: **31 / 31 pages compiled successfully**.
+  - `git diff --check`: Clean (0 errors).
+
