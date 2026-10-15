@@ -60,4 +60,27 @@
   - `npm run typecheck`: **0 errors**.
   - `npm run lint`: **0 warnings, 0 errors**.
   - `npm run build`: **31 / 31 static and dynamic pages compiled successfully**.
-- **Next Milestone:** Final Git Commit on `dev/manufacturing-erp-saas` and Comprehensive Executive Summary.
+- **Next Milestone:** Complete multi-tenant SaaS security hardening, two-party handover UI integration, and regression suites.
+
+### Entry 5 — 2026-10-15: Phase 1 & 3 Deepening: Tenant Isolation & Handover UI
+- **Implemented:**
+  - `supabase/migrations/20260101000019_tenant_isolation_and_handover_rpcs.sql`:
+    - `public.current_organization_id()`: Determines tenant UUID from session override, employee record, profile record, or default Goldia tenant.
+    - Tenant columns (`organization_id`) safely added with foreign keys to `batch_stage_wip`, `gold_transactions`, `products`, `sales`, `customers`, `salary_ledger`, and `audit_logs`.
+    - Safe Goldia backfill and column defaults.
+    - Performance filter indices: `idx_batches_org`, `idx_orders_org`, `idx_inventory_items_org`, `idx_batch_stage_wip_org`, `idx_two_party_handovers_org`, etc.
+    - Multi-tenant RLS isolation policies on operational tables (`organization_id = current_organization_id() OR organization_id IS NULL`).
+    - Atomic Two-Party Handover RPCs: `rpc_dispatch_stage_handover`, `rpc_accept_stage_handover`, `rpc_override_stage_handover` with idempotency locks, tolerance verification, discrepancy flagging, and supervisor escalation.
+  - `src/lib/__tests__/multi-tenant-security.test.ts`: Created 10 comprehensive unit tests for multi-tenant configuration isolation, Goldia default invariants, custom pipeline overrides, two-party chain-of-custody tolerance (0.05g), discrepancy flagging, and supervisor override validation.
+  - `src/app/batches/page.tsx`:
+    - Dispatches chain-of-custody record via `rpc_dispatch_stage_handover` automatically upon moving partial WIP.
+    - Added dedicated **🤝 Qabul/Topshirish (Two-Party Handover)** tab with real-time pending count badge.
+    - Allows receiver to enter independent scale measurement and pieces count.
+    - Live tolerance checking (±0.05g) with instant flagging and supervisor override reason prompt.
+- **Verification Results:**
+  - `npm test`: **69 / 69 passing** across 4 test suites.
+  - `npm run typecheck`: **0 errors**.
+  - `npm run lint`: **0 warnings, 0 errors**.
+  - `npm run build`: **31 / 31 static and dynamic pages compiled successfully**.
+- **Next Milestone:** Autonomous commit and comprehensive status report for the team.
+

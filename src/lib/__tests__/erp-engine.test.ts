@@ -939,28 +939,32 @@ describe("Database Migrations — Forward-Only Schema, Atomic RPCs & RLS Hardeni
   });
 
   it("verifies every frontend supabase.rpc(...) call across src/app matches the exact SQL parameter names in migration 016", () => {
-    const m16 = fs.readFileSync(
-      path.join(migrationsDir, "20260101000016_atomic_erp_rpcs.sql"),
-      "utf8"
-    );
+    const migrationFiles = [
+      "20260101000016_atomic_erp_rpcs.sql",
+      "20260101000019_tenant_isolation_and_handover_rpcs.sql",
+    ];
 
-    // Extract SQL RPC parameter sets from migration 016
+    // Extract SQL RPC parameter sets from atomic RPC migrations (016 & 019)
     const rpcParamMap = new Map<string, Set<string>>();
     const fnRegex =
       /create\s+or\s+replace\s+function\s+public\.(rpc_[a-z0-9_]+)\s*\(([\s\S]*?)\)\s*returns/gi;
-    let match: RegExpExecArray | null;
-    while ((match = fnRegex.exec(m16)) !== null) {
-      const fnName = match[1] ?? "";
-      const rawParams = match[2] ?? "";
-      const paramNames = new Set<string>();
-      for (const line of rawParams.split(",")) {
-        const trimmed = line.trim();
-        const pMatch = /^(p_[a-z0-9_]+)\s+/i.exec(trimmed);
-        if (pMatch && pMatch[1]) {
-          paramNames.add(pMatch[1]);
+
+    for (const mFile of migrationFiles) {
+      const sqlContent = fs.readFileSync(path.join(migrationsDir, mFile), "utf8");
+      let match: RegExpExecArray | null;
+      while ((match = fnRegex.exec(sqlContent)) !== null) {
+        const fnName = match[1] ?? "";
+        const rawParams = match[2] ?? "";
+        const paramNames = new Set<string>();
+        for (const line of rawParams.split(",")) {
+          const trimmed = line.trim();
+          const pMatch = /^(p_[a-z0-9_]+)\s+/i.exec(trimmed);
+          if (pMatch && pMatch[1]) {
+            paramNames.add(pMatch[1]);
+          }
         }
+        rpcParamMap.set(fnName, paramNames);
       }
-      rpcParamMap.set(fnName, paramNames);
     }
 
     const pageFiles = [

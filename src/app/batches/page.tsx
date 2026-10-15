@@ -18,14 +18,46 @@ import {
   isStageActive,
 } from "@/lib/factory-config";
 
+interface HandoverRow {
+  id: string;
+  batch_id: string;
+  batch_no: string;
+  from_stage_order: number;
+  from_stage_name: string;
+  from_department: string;
+  to_stage_order: number;
+  to_stage_name: string;
+  to_department: string;
+  sender_worker_id: string;
+  sender_worker_name: string;
+  receiver_worker_id: string | null;
+  receiver_worker_name: string | null;
+  dispatched_qty: number;
+  dispatched_weight_gram: number;
+  received_qty: number | null;
+  received_weight_gram: number | null;
+  weight_discrepancy_gram: number | null;
+  status: string;
+  tolerance_gram: number;
+  flag_reason: string | null;
+  supervisor_override_id: string | null;
+  supervisor_override_reason: string | null;
+  dispatched_at: string;
+  resolved_at: string | null;
+}
+
 export default function BatchesPage() {
-  const [tab, setTab] = useState<"wip" | "queue" | "machines" | "tv">("wip");
+  const [tab, setTab] = useState<"wip" | "queue" | "machines" | "tv" | "handovers">("wip");
   const [batches, setBatches] = useState<BatchRow[]>([]);
   const [stages, setStages] = useState<ProductionStageRow[]>([]);
   const [wipRows, setWipRows] = useState<BatchStageWipRow[]>([]);
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [inv, setInv] = useState<InventoryItemRow[]>([]);
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
+  const [handovers, setHandovers] = useState<HandoverRow[]>([]);
+  const [recvQtyMap, setRecvQtyMap] = useState<Record<string, string>>({});
+  const [recvGramMap, setRecvGramMap] = useState<Record<string, string>>({});
+  const [overrideReasonMap, setOverrideReasonMap] = useState<Record<string, string>>({});
   const [sel, setSel] = useState<BatchRow | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -49,19 +81,21 @@ export default function BatchesPage() {
   const [splitQ, setSplitQ] = useState("3");
 
   const load = useCallback(async () => {
-    const [b, s, w, m, i, e] = await Promise.all([
+    const [b, s, w, m, i, e, h] = await Promise.all([
       supabase.from("batches").select("*").order("created_at", { ascending: false }),
       supabase.from("production_stages").select("*").order("stage_order"),
       supabase.from("batch_stage_wip").select("*").order("stage_order"),
       supabase.from("machines").select("*").order("name"),
       supabase.from("inventory_items").select("*"),
       supabase.from("employees").select("*"),
+      supabase.from("two_party_handovers").select("*").order("dispatched_at", { ascending: false }).limit(50),
     ]);
     if (b.data) setBatches(b.data as BatchRow[]);
     if (s.data) setStages(s.data as ProductionStageRow[]);
     if (w.data) setWipRows(w.data as BatchStageWipRow[]);
     if (m.data) setMachines(m.data as MachineRow[]);
     if (i.data) setInv(i.data as InventoryItemRow[]);
+    if (h.data) setHandovers(h.data as HandoverRow[]);
     if (e.data) {
       const empList = e.data as EmployeeRow[];
       setEmployees(empList);
@@ -276,9 +310,111 @@ export default function BatchesPage() {
         action: "PARTIAL_MOVE",
         newData: { fromSt, to: nextSt.name, qMove, gMove, worker },
       });
+
+      try {
+        const curStageObj = stages.find((s) => s.stage_order === fromSt);
+        await supabase.rpc("rpc_dispatch_stage_handover", {
+          p_batch_id: b.id != null ? String(b.id) : bCode,
+          p_batch_no: bCode,
+          p_from_stage_order: fromSt,
+          p_from_stage_name: curStageObj?.name || `Bosqich ${fromSt}`,
+          p_from_department: curStageObj?.department || "Sex",
+          p_to_stage_order: nextSt.stage_order,
+          p_to_stage_name: nextSt.name,
+          p_to_department: nextSt.department || "Sex",
+          p_sender_worker_id: empObj?.id != null ? String(empObj.id) : "emp-current",
+          p_sender_worker_name: worker,
+          p_dispatched_qty: qMove,
+          p_dispatched_weight_gram: gMove,
+          p_tolerance_gram: 0.05,
+          p_idempotency_key: generateIdempotencyKey("handover-disp"),
+        });
+      } catch (hErr) {
+        console.warn("Handover dispatch registration notice:", hErr);
+      }
+
       alert(
-        `${qMove} komplekt (${gMove}g) "${nextSt.name}" ga atomik o'tkazildi! Joriy bo'limda ${rem} komplekt qoldi.`
+        `${qMove} komplekt (${gMove}g) "${nextSt.name}" ga atomik o'tkazildi! Qabul qiluvchi bo'lim tasdiqlashi uchun navbatga qo'yildi. Joriy bo'limda ${rem} dona qoldi.`
       );
+      await load();
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
+  const acceptHandover = async (h: HandoverRow) => {
+    if (busyRef.current || busy) return;
+    const rQty = parseInt(recvQtyMap[h.id] ?? String(h.dispatched_qty), 10);
+    const rWeight = parseFloat(recvGramMap[h.id] ?? String(h.dispatched_weight_gram));
+    if (isNaN(rQty) || rQty <= 0 || isNaN(rWeight) || rWeight <= 0) {
+      alert("Qabul qilingan dona soni va og'irligini to'g'ri kiriting!");
+      return;
+    }
+
+    const empObj = employees.find((e) => (e.name || e.full_name) === worker);
+
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("rpc_accept_stage_handover", {
+        p_handover_id: h.id,
+        p_receiver_worker_id: empObj?.id != null ? String(empObj.id) : "rec-worker",
+        p_receiver_worker_name: worker,
+        p_received_qty: rQty,
+        p_received_weight_gram: rWeight,
+        p_idempotency_key: generateIdempotencyKey("accept-ho"),
+      });
+
+      if (error) {
+        alert(`Qabul qilishda xatolik: ${error.message}`);
+        return;
+      }
+
+      const res = data as { status?: string; discrepancy_gram?: number };
+      if (res?.status === "DISCREPANCY_FLAGGED") {
+        alert(
+          `DIQQAT: Vazn yoki son nomuvofiqligi aniqlandi!\n` +
+          `Vazn farqi: ${res.discrepancy_gram ?? 0}g (ruxsat etilgan me'yor: ${h.tolerance_gram}g).\n` +
+          `Holat: Qabul qilinmadi, tekshiruv uchun muzlatildi (DISCREPANCY_FLAGGED). Supervayzer tasdiqlashi lozim.`
+        );
+      } else {
+        alert(`Partiya qabul qilindi va tasdiqlandi (Holat: ${res?.status ?? "ACCEPTED"})`);
+      }
+      await load();
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
+  const overrideHandover = async (h: HandoverRow) => {
+    if (busyRef.current || busy) return;
+    const reason = (overrideReasonMap[h.id] ?? "").trim();
+    if (reason.length < 5) {
+      alert("Supervayzer tasdiqlashi uchun kamida 5 ta belgidan iborat tekshiruv sababini yozing!");
+      return;
+    }
+
+    const empObj = employees.find((e) => (e.name || e.full_name) === worker);
+
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("rpc_override_stage_handover", {
+        p_handover_id: h.id,
+        p_supervisor_worker_id: empObj?.id != null ? String(empObj.id) : "supervisor",
+        p_supervisor_worker_name: worker,
+        p_override_reason: reason,
+        p_idempotency_key: generateIdempotencyKey("override-ho"),
+      });
+
+      if (error) {
+        alert(`Supervayzer tasdiqlashida xatolik: ${error.message}`);
+        return;
+      }
+
+      alert(`Nomuvofiqlik supervayzer tomonidan tasdiqlandi: ${reason}`);
       await load();
     } finally {
       busyRef.current = false;
@@ -389,6 +525,14 @@ export default function BatchesPage() {
             }`}
           >
             🔬 Apparatlar ({machines.length})
+          </button>
+          <button
+            onClick={() => setTab("handovers")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+              tab === "handovers" ? "bg-purple-600 text-white" : "text-slate-600"
+            }`}
+          >
+            🤝 Qabul/Topshirish ({handovers.filter((h) => h.status === "PENDING_ACCEPTANCE").length})
           </button>
           <button
             onClick={() => setTab("tv")}
@@ -777,6 +921,185 @@ export default function BatchesPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {tab === "handovers" && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl border">
+            <h2 className="text-lg font-bold text-slate-900 mb-1">
+              🤝 Ikki Tomonlama Qabul/Topshirish (Two-Party Chain-of-Custody Handover)
+            </h2>
+            <p className="text-xs text-slate-500 mb-4">
+              Har bir bosqichdan ikkinchisiga o&apos;tganda qabul qiluvchi usta buyumlarni mustaqil tarozida tortadi.
+              Ruxsat etilgan farq: ±0.05g. Farq oshsa, partiya avtomatik muzlatiladi (DISCREPANCY_FLAGGED) va supervayzer tekshiruvini talab qiladi.
+            </p>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b text-slate-600 font-bold uppercase">
+                    <th className="p-3">ID / Partiya</th>
+                    <th className="p-3">Yo&apos;nalish (Bosqichlar)</th>
+                    <th className="p-3">Yuboruvchi usta</th>
+                    <th className="p-3">Yuborilgan (Reja)</th>
+                    <th className="p-3">Qabul qilingan (Haqiqiy)</th>
+                    <th className="p-3">Farq (Vazn)</th>
+                    <th className="p-3">Holat</th>
+                    <th className="p-3 text-right">Amal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {handovers.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-4 text-center text-slate-400">
+                        Hozircha topshirish/qabul qilish yozuvlari yo&apos;q
+                      </td>
+                    </tr>
+                  ) : (
+                    handovers.map((h) => {
+                      const isPending = h.status === "PENDING_ACCEPTANCE";
+                      const isFlagged = h.status === "DISCREPANCY_FLAGGED";
+                      const isOverridden = h.status === "SUPERVISOR_OVERRIDDEN";
+                      const isAccepted = h.status === "ACCEPTED";
+
+                      return (
+                        <tr key={h.id} className="hover:bg-slate-50">
+                          <td className="p-3 font-mono font-bold text-purple-700">
+                            <div>{h.batch_no}</div>
+                            <div className="text-[10px] text-slate-400">{h.id}</div>
+                          </td>
+                          <td className="p-3">
+                            <span className="font-medium text-slate-700">{h.from_stage_name}</span>
+                            <span className="mx-1 text-slate-400">→</span>
+                            <span className="font-bold text-blue-700">{h.to_stage_name}</span>
+                          </td>
+                          <td className="p-3">
+                            <div className="font-medium">{h.sender_worker_name}</div>
+                            <div className="text-[10px] text-slate-400">
+                              {new Date(h.dispatched_at).toLocaleTimeString()}
+                            </div>
+                          </td>
+                          <td className="p-3 font-bold text-slate-800">
+                            {h.dispatched_qty} dona / {Number(h.dispatched_weight_gram).toFixed(2)}g
+                          </td>
+                          <td className="p-3">
+                            {isPending ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  placeholder="Dona"
+                                  className="w-16 border rounded p-1 text-xs"
+                                  value={recvQtyMap[h.id] ?? h.dispatched_qty}
+                                  onChange={(e) =>
+                                    setRecvQtyMap({ ...recvQtyMap, [h.id]: e.target.value })
+                                  }
+                                />
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="Vazn (g)"
+                                  className="w-20 border rounded p-1 text-xs font-bold"
+                                  value={recvGramMap[h.id] ?? h.dispatched_weight_gram}
+                                  onChange={(e) =>
+                                    setRecvGramMap({ ...recvGramMap, [h.id]: e.target.value })
+                                  }
+                                />
+                              </div>
+                            ) : (
+                              <div className="font-bold">
+                                {h.received_qty != null
+                                  ? `${h.received_qty} dona / ${Number(h.received_weight_gram).toFixed(2)}g`
+                                  : "—"}
+                                <div className="text-[10px] text-slate-400">
+                                  {h.receiver_worker_name || ""}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            {h.weight_discrepancy_gram != null ? (
+                              <span
+                                className={`font-mono font-bold ${
+                                  h.weight_discrepancy_gram > h.tolerance_gram
+                                    ? "text-rose-600"
+                                    : "text-emerald-600"
+                                }`}
+                              >
+                                {h.weight_discrepancy_gram > 0 ? `+${h.weight_discrepancy_gram}g` : "0.00g"}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="p-3">
+                            {isPending && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                                Kutilmoqda
+                              </span>
+                            )}
+                            {isAccepted && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                Qabul qilindi
+                              </span>
+                            )}
+                            {isFlagged && (
+                              <span
+                                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800"
+                                title={h.flag_reason || ""}
+                              >
+                                ⚠️ Nomuvofiq
+                              </span>
+                            )}
+                            {isOverridden && (
+                              <span
+                                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800"
+                                title={h.supervisor_override_reason || ""}
+                              >
+                                Supervayzer Tasdiqlagan
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            {isPending && (
+                              <button
+                                onClick={() => void acceptHandover(h)}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs"
+                              >
+                                Qabul qilish
+                              </button>
+                            )}
+                            {isFlagged && (
+                              <div className="flex flex-col items-end gap-1">
+                                <input
+                                  type="text"
+                                  placeholder="Tekshiruv sababi..."
+                                  className="border rounded p-1 text-[11px] w-36"
+                                  value={overrideReasonMap[h.id] ?? ""}
+                                  onChange={(e) =>
+                                    setOverrideReasonMap({
+                                      ...overrideReasonMap,
+                                      [h.id]: e.target.value,
+                                    })
+                                  }
+                                />
+                                <button
+                                  onClick={() => void overrideHandover(h)}
+                                  className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-[10px]"
+                                >
+                                  Supervayzer Override
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -62,3 +62,14 @@
   - **Description:** Abstract factory configuration and operational data behind tenant ID (`organization_id`), preparing for SaaS rollout with RLS policies and initial Goldia tenant seed.
   - **Files:** `supabase/migrations/20260101000018_multi_tenant_factory_settings.sql`, `src/lib/__tests__/factory-config.test.ts`
   - **Acceptance Criteria:** Forward-only migration 018 creates organizations, organization_factory_settings, two_party_handovers, links nullable organization_id across batches/orders/inventory, enforces RLS, verified in test suite.
+
+- [VERIFIED] **TASK-010: Multi-Tenant Tenant Isolation & Handover Atomic RPCs**
+  - **Description:** Implement `public.current_organization_id()` helper, tenant-level RLS policies on batches, orders, inventory, batch_stage_wip, and two_party_handovers. Implement atomic database RPCs `rpc_dispatch_stage_handover`, `rpc_accept_stage_handover`, `rpc_override_stage_handover`.
+  - **Files:** `supabase/migrations/20260101000019_tenant_isolation_and_handover_rpcs.sql`, `src/lib/__tests__/multi-tenant-security.test.ts`
+  - **Acceptance Criteria:** Clean tenant isolation, multi-tenant contract tests pass, RPC signatures match client invocations.
+
+- [VERIFIED] **TASK-011: Shopfloor Two-Party Handover Tab & Real-Time Verification UI**
+  - **Description:** Integrate chain-of-custody dispatch into `rpc_move_partial_wip` workflow, create dedicated 🤝 Qabul/Topshirish tab in `BatchesPage` for physical weighing verification with 0.05g tolerance enforcement, flagging, and supervisor override.
+  - **Files:** `src/app/batches/page.tsx`
+  - **Acceptance Criteria:** Dispatched sub-batches appear in pending acceptance queue; receiver enters scale measurement; discrepancy > 0.05g halts flow; supervisor can override with documented reason.
+
