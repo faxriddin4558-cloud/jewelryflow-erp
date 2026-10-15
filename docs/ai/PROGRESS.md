@@ -49,3 +49,15 @@
   - `npm run lint`: **0 warnings, 0 errors**.
   - `npm run build`: **31 / 31 static and dynamic pages compiled successfully**.
 - **Next Milestone:** Phase 2 (Precision Gold Mass-Balance & Multi-Tenant SaaS DB Foundation).
+
+### Entry 4 — 2026-10-15: Phase 2 & 3 Completed & Verified
+- **Implemented:**
+  - `src/lib/erp-engine.ts`: Added `validateStageLoss` to `GoldEngine` with stage-level percentage and gram loss threshold checking (`ACCEPTABLE` vs `EXCESSIVE_LOSS_ALERT`), calculating excess loss without data fabrication.
+  - `supabase/migrations/20260101000018_multi_tenant_factory_settings.sql`: Created forward-only migration adding `organizations` (with initial `goldia` seed), `organization_factory_settings` (with bypassed pumice & zircon codes, 8 lasers, 2 casting stations, 35 workers), `two_party_handovers` ledger table, and safe nullable `organization_id` foreign keys on `batches`, `orders`, `inventory_items`, `employees`, and `profiles`. Complete RLS policies and privileges granted to `authenticated`.
+  - `src/lib/__tests__/factory-config.test.ts` & `src/lib/__tests__/manufacturing-operations.test.ts`: Added automated schema checks for migration 018 and unit tests for stage loss validation.
+- **Verification Results:**
+  - `npm test`: **58 / 58 passing** across all 3 test suites.
+  - `npm run typecheck`: **0 errors**.
+  - `npm run lint`: **0 warnings, 0 errors**.
+  - `npm run build`: **31 / 31 static and dynamic pages compiled successfully**.
+- **Next Milestone:** Final Git Commit on `dev/manufacturing-erp-saas` and Comprehensive Executive Summary.

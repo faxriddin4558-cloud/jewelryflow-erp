@@ -53,12 +53,12 @@
 
 ## Phase 2 & 3: Gold Accounting & Multi-Tenant SaaS (P1 & P2)
 
-- [TODO] **TASK-008: Precision Mass Balance & Gold Loss Hardening**
-  - **Description:** Implement stage-by-stage mass balance validation across 585, 750, and 999 gold purities.
-  - **Files:** `src/lib/erp-engine.ts`, `src/lib/gold-accounting.ts`
-  - **Acceptance Criteria:** Loss calculation checks input vs output + filings + dust, alerts on out-of-spec loss.
+- [VERIFIED] **TASK-008: Precision Mass Balance & Gold Loss Hardening**
+  - **Description:** Implement stage-by-stage mass balance validation across 585, 750, and 999 gold purities with stage-level tolerance alerting.
+  - **Files:** `src/lib/erp-engine.ts`, `src/lib/__tests__/manufacturing-operations.test.ts`
+  - **Acceptance Criteria:** Loss calculation checks input vs output + filings + dust, alerts EXCESSIVE_LOSS_ALERT on out-of-spec loss, verifies mass balance within 0.01g tolerance.
 
-- [TODO] **TASK-009: Multi-Tenant Architecture Foundation (`organization_id`)**
-  - **Description:** Abstract factory configuration and operational data behind tenant ID (`organization_id`), preparing for SaaS rollout.
-  - **Files:** `supabase/migrations/20260101000018_multi_tenant_factory_settings.sql`
-  - **Acceptance Criteria:** Schema supports tenant-specific stage configuration and machine counts.
+- [VERIFIED] **TASK-009: Multi-Tenant Architecture Foundation (`organization_id`)**
+  - **Description:** Abstract factory configuration and operational data behind tenant ID (`organization_id`), preparing for SaaS rollout with RLS policies and initial Goldia tenant seed.
+  - **Files:** `supabase/migrations/20260101000018_multi_tenant_factory_settings.sql`, `src/lib/__tests__/factory-config.test.ts`
+  - **Acceptance Criteria:** Forward-only migration 018 creates organizations, organization_factory_settings, two_party_handovers, links nullable organization_id across batches/orders/inventory, enforces RLS, verified in test suite.

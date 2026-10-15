@@ -198,4 +198,38 @@ describe("FactoryConfig & Dynamic Route Advancer (Multi-Tenant & Goldia Profile)
       expect(activeRoutes.some((r) => r.slug === "zircon")).toBe(true);
     });
   });
+
+  describe("5. Database Schema & Migration 018 Verification", () => {
+    it("verifies forward-only migration 018 creates multi-tenant tables with RLS and Goldia seed", async () => {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const migrationPath = path.resolve(
+        process.cwd(),
+        "supabase",
+        "migrations",
+        "20260101000018_multi_tenant_factory_settings.sql"
+      );
+
+      expect(fs.existsSync(migrationPath)).toBe(true);
+      const sql = fs.readFileSync(migrationPath, "utf8");
+
+      // Verify table creation
+      expect(sql).toContain("create table if not exists public.organizations");
+      expect(sql).toContain("create table if not exists public.organization_factory_settings");
+      expect(sql).toContain("create table if not exists public.two_party_handovers");
+
+      // Verify Goldia tenant seed
+      expect(sql).toContain("'goldia'");
+      expect(sql).toContain("'Goldia Jewelry Factory'");
+      expect(sql).toContain("array['PUMICE', 'PUMICE_MACHINE', 'PONZA', 'ZIRCON', 'ZIRCON_MACHINE']");
+
+      // Verify RLS enforcement
+      expect(sql).toContain("alter table public.organizations enable row level security;");
+      expect(sql).toContain("alter table public.organization_factory_settings enable row level security;");
+      expect(sql).toContain("alter table public.two_party_handovers enable row level security;");
+
+      // Verify no deprecated uuid generator
+      expect(sql).not.toContain("uuid_generate_v4()");
+    });
+  });
 });

@@ -17,6 +17,7 @@ import {
   completeStationTask,
   type MachineQueueTask,
 } from "@/lib/machine-queue";
+import { GoldEngine } from "@/lib/erp-engine";
 
 describe("Manufacturing Operations — High Density Batches, Two-Party Handover & Machine Queues", () => {
   describe("1. High-Density Multi-Model Batch Management (15-20 Models, 10 Sets Each)", () => {
@@ -288,6 +289,48 @@ describe("Manufacturing Operations — High Density Batches, Two-Party Handover 
       expect(completed.updatedTask.status).toBe("COMPLETED");
       expect(completed.updatedStation.status).toBe("IDLE");
       expect(completed.updatedStation.currentBatchNo).toBeNull();
+    });
+  });
+
+  describe("4. Precision Mass Balance & Stage Loss Hardening", () => {
+    it("validates that normal operational stage loss within tolerance is ACCEPTABLE", () => {
+      // 100g input, 0.40g loss (0.4% <= 1.0% limit, 0.40g <= 0.50g limit)
+      const res = GoldEngine.validateStageLoss({
+        inputWeightGram: 100.0,
+        lossWeightGram: 0.4,
+        maxLossPct: 1.0,
+        maxLossGram: 0.5,
+      });
+
+      expect(res.isAcceptable).toBe(true);
+      expect(res.status).toBe("ACCEPTABLE");
+      expect(res.excessLossGram).toBe(0);
+      expect(res.lossPct).toBe(0.4);
+    });
+
+    it("flags EXCESSIVE_LOSS_ALERT when loss exceeds allowed stage percentage or gram limit", () => {
+      // 100g input, 1.20g loss (1.2% > 1.0% limit, 1.20g > 0.50g limit)
+      const res = GoldEngine.validateStageLoss({
+        inputWeightGram: 100.0,
+        lossWeightGram: 1.2,
+        maxLossPct: 1.0,
+        maxLossGram: 0.5,
+      });
+
+      expect(res.isAcceptable).toBe(false);
+      expect(res.status).toBe("EXCESSIVE_LOSS_ALERT");
+      expect(res.excessLossGram).toBe(0.7); // 1.20 - 0.50 = 0.70g excess
+      expect(res.statusText).toContain("XATO: Yo'qotish me'yordan oshdi");
+    });
+
+    it("handles zero loss and edge cases without fabrication", () => {
+      const resZero = GoldEngine.validateStageLoss({
+        inputWeightGram: 50.0,
+        lossWeightGram: 0,
+      });
+      expect(resZero.isAcceptable).toBe(true);
+      expect(resZero.lossPct).toBe(0);
+      expect(resZero.excessLossGram).toBe(0);
     });
   });
 });

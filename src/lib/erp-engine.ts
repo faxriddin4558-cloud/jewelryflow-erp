@@ -564,6 +564,25 @@ export interface MassBalanceResult {
   statusText: string;
 }
 
+export interface StageLossValidationInput {
+  inputWeightGram: number;
+  lossWeightGram: number;
+  maxLossPct?: number;
+  maxLossGram?: number;
+  stageName?: string;
+}
+
+export interface StageLossValidationResult {
+  isAcceptable: boolean;
+  lossPct: number;
+  lossWeightGram: number;
+  maxLossPct: number;
+  maxLossGram: number;
+  excessLossGram: number;
+  status: "ACCEPTABLE" | "EXCESSIVE_LOSS_ALERT";
+  statusText: string;
+}
+
 export interface FineGoldAccumulationEntry {
   grossWeight: number | string;
   proba: number | string;
@@ -806,6 +825,33 @@ export const GoldEngine = {
       statusText: isBalanced
         ? "BALANCED (0.00g)"
         : `ANOMALY (${discrepancy > 0 ? "-" : "+"}${Math.abs(discrepancy).toFixed(2)}g)`,
+    };
+  },
+
+  validateStageLoss: (input: StageLossValidationInput): StageLossValidationResult => {
+    const inW = Math.max(0, Number(input.inputWeightGram) || 0);
+    const lossW = Math.max(0, Number(input.lossWeightGram) || 0);
+    const maxPct = Number(input.maxLossPct ?? 1.0);
+    const maxGram = Number(input.maxLossGram ?? 0.5);
+
+    const lossPct = inW > 0 ? Number(((lossW / inW) * 100).toFixed(3)) : 0;
+    const maxAllowedByPct = Number(((inW * maxPct) / 100).toFixed(4));
+    const effectiveLimitGram = Math.min(maxGram, maxAllowedByPct > 0 ? maxAllowedByPct : maxGram);
+
+    const isAcceptable = lossW <= effectiveLimitGram && (inW === 0 || lossPct <= maxPct);
+    const excessLossGram = Number(Math.max(0, lossW - effectiveLimitGram).toFixed(4));
+
+    return {
+      isAcceptable,
+      lossPct,
+      lossWeightGram: lossW,
+      maxLossPct: maxPct,
+      maxLossGram: maxGram,
+      excessLossGram,
+      status: isAcceptable ? "ACCEPTABLE" : "EXCESSIVE_LOSS_ALERT",
+      statusText: isAcceptable
+        ? `Ruxsat etilgan me'yor doirasida (${lossW.toFixed(2)}g / ${lossPct.toFixed(2)}%)`
+        : `XATO: Yo'qotish me'yordan oshdi (+${excessLossGram.toFixed(2)}g ortiqcha pateriya)!`,
     };
   },
 
