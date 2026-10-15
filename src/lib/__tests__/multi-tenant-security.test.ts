@@ -356,4 +356,136 @@ describe("Multi-Tenant Security & Two-Party Handover Protocol Contract Tests", (
       expect(sql).toContain("Cross-tenant violation: Handover does not belong to your organization");
     });
   });
+
+  describe("5. Database Migration 021 Server-Side Loss Validation & Machine Concurrency", () => {
+    it("verifies migration 021 enforces database-level loss gates and atomic machine locking", async () => {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const m21Path = path.resolve(
+        process.cwd(),
+        "supabase",
+        "migrations",
+        "20260101000021_server_side_loss_validation_and_machine_lock.sql"
+      );
+
+      expect(fs.existsSync(m21Path)).toBe(true);
+      const sql = fs.readFileSync(m21Path, "utf8");
+
+      // Verify current_employee_name()
+      expect(sql).toContain("create or replace function public.current_employee_name()");
+
+      // Verify stage_loss_configs multi-tenant isolation and Goldia defaults
+      expect(sql).toContain("alter table public.stage_loss_configs");
+      expect(sql).toContain("add column if not exists organization_id uuid references public.organizations(id);");
+      expect(sql).toContain("00000000-0000-0000-0000-000000000001");
+      expect(sql).toContain("stage_loss_configs_tenant_select");
+      expect(sql).toContain("stage_loss_configs_tenant_manage");
+
+      // Verify server-side loss gate in rpc_move_partial_wip
+      expect(sql).toContain("EXCESSIVE_LOSS_DETECTED: Stage % loss");
+      expect(sql).toContain("EXCESSIVE_LOSS_ALERT");
+      expect(sql).toContain("Permission denied: Operator role");
+      expect(sql).toContain("p_allow_excess_loss  boolean default false");
+      expect(sql).toContain("p_excess_loss_reason text default null");
+
+      // Verify machine concurrency lock RPCs
+      expect(sql).toContain("create or replace function public.rpc_assign_machine_station");
+      expect(sql).toContain("create or replace function public.rpc_release_machine_station");
+      expect(sql).toContain("status in ('ACTIVE', 'IDLE')");
+      expect(sql).toContain("current_batch = btrim(p_batch_no)");
+      expect(sql).toContain("Cross-tenant violation: Machine station does not belong to your organization");
+    });
+
+    it("simulates server-side loss validation contract: blocks unapproved loss and requires manager override", () => {
+      interface LossGateInput {
+        stageOrder: number;
+        inputWeightG: number;
+        lossG: number;
+        maxLossPct: number;
+        maxLossGram: number;
+        allowExcessLoss: boolean;
+        callerRole: string;
+      }
+
+      const evaluateServerLossGate = (input: LossGateInput) => {
+        if (input.lossG <= 0) return { passed: true };
+
+        const lossPct = input.inputWeightG > 0 ? (input.lossG / input.inputWeightG) * 100 : 0;
+        const limitByPct = (input.inputWeightG * input.maxLossPct) / 100;
+        const effectiveLimit = Math.min(input.maxLossGram, Math.max(0.01, limitByPct));
+
+        if (input.lossG > effectiveLimit && lossPct > input.maxLossPct) {
+          if (!input.allowExcessLoss) {
+            throw new Error(`EXCESSIVE_LOSS_DETECTED: Stage ${input.stageOrder} loss exceeds threshold`);
+          }
+
+          const managerRoles = ["admin", "director", "owner", "manager", "production_manager", "master"];
+          if (!managerRoles.includes(input.callerRole)) {
+            throw new Error(`Permission denied: Role ${input.callerRole} cannot authorize excessive loss override`);
+          }
+
+          return {
+            passed: true,
+            alertLogged: true,
+            excessLossGram: Number((input.lossG - effectiveLimit).toFixed(4)),
+          };
+        }
+
+        return { passed: true, alertLogged: false };
+      };
+
+      // Case 1: Normal loss within threshold passes silently
+      const normalResult = evaluateServerLossGate({
+        stageOrder: 8,
+        inputWeightG: 100,
+        lossG: 0.4,
+        maxLossPct: 1.0,
+        maxLossGram: 0.8,
+        allowExcessLoss: false,
+        callerRole: "operator",
+      });
+      expect(normalResult.passed).toBe(true);
+      expect(normalResult.alertLogged).toBe(false);
+
+      // Case 2: Excessive loss without override is rejected at the gate
+      expect(() =>
+        evaluateServerLossGate({
+          stageOrder: 8,
+          inputWeightG: 100,
+          lossG: 2.5, // 2.5% > 1.0%
+          maxLossPct: 1.0,
+          maxLossGram: 0.8,
+          allowExcessLoss: false,
+          callerRole: "operator",
+        })
+      ).toThrowError(/EXCESSIVE_LOSS_DETECTED/);
+
+      // Case 3: Excessive loss with operator trying to override is rejected (unauthorized)
+      expect(() =>
+        evaluateServerLossGate({
+          stageOrder: 8,
+          inputWeightG: 100,
+          lossG: 2.5,
+          maxLossPct: 1.0,
+          maxLossGram: 0.8,
+          allowExcessLoss: true,
+          callerRole: "operator", // Not a manager!
+        })
+      ).toThrowError(/Permission denied: Role operator cannot authorize excessive loss override/);
+
+      // Case 4: Excessive loss with manager override succeeds and logs alert
+      const managerOverrideResult = evaluateServerLossGate({
+        stageOrder: 8,
+        inputWeightG: 100,
+        lossG: 2.5,
+        maxLossPct: 1.0,
+        maxLossGram: 0.8,
+        allowExcessLoss: true,
+        callerRole: "production_manager",
+      });
+      expect(managerOverrideResult.passed).toBe(true);
+      expect(managerOverrideResult.alertLogged).toBe(true);
+      expect(managerOverrideResult.excessLossGram).toBe(1.7); // 2.5 - 0.8
+    });
+  });
 });

@@ -252,6 +252,9 @@ export default function BatchesPage() {
       return;
     }
 
+    let isExcessLossConfirmed = false;
+    let excessLossReason: string | null = null;
+
     if (gLoss > 0) {
       const curStageObj = stages.find((s) => s.stage_order === fromSt);
       const lossCheck = GoldEngine.validateStageLoss({
@@ -270,6 +273,8 @@ export default function BatchesPage() {
         if (!confirmLoss) {
           return;
         }
+        isExcessLossConfirmed = true;
+        excessLossReason = `Operator/Rahbar tomonidan tasdiqlandi: ${gLoss.toFixed(2)}g pateriya (+${lossCheck.excessLossGram.toFixed(2)}g me'yordan ortiq)`;
       }
     }
 
@@ -295,6 +300,8 @@ export default function BatchesPage() {
         p_worker_name: worker,
         p_worker_id: empObj?.id != null ? String(empObj.id) : null,
         p_idempotency_key: idempotencyKey,
+        p_allow_excess_loss: isExcessLossConfirmed,
+        p_excess_loss_reason: excessLossReason,
       });
 
       if (error) {
