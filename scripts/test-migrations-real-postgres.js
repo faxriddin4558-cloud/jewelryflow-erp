@@ -172,7 +172,7 @@ async function main() {
   }
 
   console.log('\n======================================================');
-  console.log('ALL MIGRATIONS 001-021 PASSED REPRODUCIBLY (2/2 RUNS)');
+  console.log('ALL MIGRATIONS (INCLUDING 022) PASSED REPRODUCIBLY (2/2 RUNS)');
   console.log('======================================================\n');
 }
 
