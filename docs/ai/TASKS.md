@@ -34,20 +34,20 @@
 
 ## Phase 1: High-Density Batch Execution & Two-Party Handover (P0)
 
-- [TODO] **TASK-005: High-Density Multi-Model Batch Support**
+- [VERIFIED] **TASK-005: High-Density Multi-Model Batch Support**
   - **Description:** Enhance batch data models to handle 15–20 models per batch, 10 sets per model (up to 200 items per batch) with item-level tracking and status.
-  - **Files:** `src/types/batch.ts`, `src/modules/manufacturing/domain/entities/batch.entity.ts`
-  - **Acceptance Criteria:** Batch representation tracks model breakdown, set counts, and individual weights.
+  - **Files:** `src/lib/batch-density.ts`, `src/lib/__tests__/manufacturing-operations.test.ts`
+  - **Acceptance Criteria:** Batch representation tracks model breakdown, set counts, individual weights, and distributes casting weight proportionally.
 
-- [TODO] **TASK-006: Partial Batch Handover & Two-Party Verification**
-  - **Description:** Implement partial batch transfer logic allowing sets to advance independently between departments (e.g., casting to bench work, bench work to laser). Include sender weight dispatch and receiver weight confirmation.
-  - **Files:** `src/modules/manufacturing/domain/services/handover-service.ts`, `src/types/handover.ts`
-  - **Acceptance Criteria:** Workers can send part of a batch. Receiver must confirm before WIP transitions. Discrepancies > 0.05g trigger warning.
+- [VERIFIED] **TASK-006: Partial Batch Handover & Two-Party Verification**
+  - **Description:** Implement partial batch transfer logic allowing sets to advance independently between departments (e.g., casting to bench work, bench work to laser). Include sender weight dispatch and receiver weight confirmation with strict 0.05g tolerance and supervisor override.
+  - **Files:** `src/lib/two-party-handover.ts`, `src/lib/__tests__/manufacturing-operations.test.ts`
+  - **Acceptance Criteria:** Workers can send part of a batch. Receiver must confirm before WIP transitions. Discrepancies > 0.05g trigger DISCREPANCY_FLAGGED with supervisor override requirement.
 
-- [TODO] **TASK-007: Machine Queue & Allocation (8 Lasers, 2 Casting)**
+- [VERIFIED] **TASK-007: Machine Queue & Allocation (8 Lasers, 2 Casting)**
   - **Description:** Implement station allocation for the 8 laser welders and 2 casting operators to optimize machine throughput and prevent bottlenecks.
-  - **Files:** `src/lib/machine-queue.ts`
-  - **Acceptance Criteria:** Batches and sub-batches can be assigned to specific machines and operators with queue tracking.
+  - **Files:** `src/lib/machine-queue.ts`, `src/lib/__tests__/manufacturing-operations.test.ts`
+  - **Acceptance Criteria:** Batches and sub-batches can be assigned to specific machines (LASER-01 to LASER-08, CAST-01, CAST-02) with queue tracking and IDLE load balancing.
 
 ---
 
