@@ -14,7 +14,7 @@ import {
   type DepartmentRouteSlug,
 } from "@/modules/manufacturing/presentation/config/departments.config";
 import { getActiveFactoryConfig } from "@/lib/factory-config";
-import { ShopfloorOperatorWorkspace } from "@/components/manufacturing";
+import { ShopfloorOperatorWorkspace, OwnerDashboard } from "@/components/manufacturing";
 import {
   Layers,
   Scale,
@@ -25,10 +25,11 @@ import {
   CheckCircle2,
   AlertOctagon,
   Clock,
+  BarChart3,
 } from "lucide-react";
 
 export default function ManufacturingHubPage() {
-  const [activeTab, setActiveTab] = React.useState<"departments" | "touch">("departments");
+  const [activeTab, setActiveTab] = React.useState<"departments" | "touch" | "owner">("departments");
   const [batches, setBatches] = React.useState<BatchRow[]>([]);
   const [wipRows, setWipRows] = React.useState<BatchStageWipRow[]>([]);
   const [machines, setMachines] = React.useState<MachineRow[]>([]);
@@ -109,6 +110,17 @@ export default function ManufacturingHubPage() {
           >
             <Tablet className="w-4 h-4" />
             <span>📱 Operator Sensor Paneli</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("owner")}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+              activeTab === "owner"
+                ? "bg-purple-600 text-white shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>📊 Rahbariyat Dashboardi</span>
           </button>
         </div>
       </div>
@@ -236,6 +248,56 @@ export default function ManufacturingHubPage() {
       {activeTab === "touch" && (
         <div className="space-y-4">
           <ShopfloorOperatorWorkspace />
+        </div>
+      )}
+
+      {activeTab === "owner" && (
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-xl border flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                🏭 Zavod Rahbariyati Monitoring Dashboardi
+              </h2>
+              <p className="text-xs text-slate-500">
+                Real vaqtdagi ishlab chiqarish yuklamasi, partiyalar oqimi va tarozi tekshiruvlari
+              </p>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg border border-purple-200">
+              Goldia Factory Live
+            </span>
+          </div>
+
+          <OwnerDashboard
+            stats={{
+              activeBatches: activeBatchesCount,
+              overdueStages: wipRows.filter(
+                (w) => w.queue_status === "NOW" && Number(w.available_qty || 0) > 0
+              ).length,
+              machineLoadPercent:
+                machines.length > 0
+                  ? Math.round(
+                      (machines.filter((m) => String(m.status || "").toUpperCase() === "BUSY").length /
+                        machines.length) *
+                        100
+                    )
+                  : 0,
+              wipQuantityGrams: Number(totalWipGold.toFixed(2)),
+              unresolvedGoldDiscrepancies: pendingHandoversCount,
+              productionPerformanceScore: Number(
+                Math.max(
+                  1.0,
+                  Math.min(
+                    10.0,
+                    10.0 -
+                      wipRows.filter(
+                        (w) => w.queue_status === "NOW" && Number(w.available_qty || 0) > 0
+                      ).length *
+                        0.4
+                  )
+                ).toFixed(1)
+              ),
+            }}
+          />
         </div>
       )}
     </div>

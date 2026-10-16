@@ -11,9 +11,11 @@ import {
   type BatchRow,
   type ProductionStageRow,
 } from "@/lib/erp-engine";
+import { PieceworkDashboard } from "@/components/manufacturing";
+import { usePiecework } from "@/hooks/manufacturing";
 
 export default function EmployeesPage() {
-  const [tab, setTab] = useState<"salary" | "supervisor">("salary");
+  const [tab, setTab] = useState<"salary" | "piecework" | "supervisor">("salary");
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [ledger, setLedger] = useState<SalaryLedgerRow[]>([]);
   const [wipTasks, setWipTasks] = useState<BatchStageWipRow[]>([]);
@@ -28,6 +30,8 @@ export default function EmployeesPage() {
   const [amount, setAmount] = useState("750000");
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+
+  const { data: pieceworkData, isLoading: isLoadingPiecework } = usePiecework(selEmpId);
 
   const load = useCallback(async () => {
     const [e, l, w, b, st] = await Promise.all([
@@ -162,6 +166,14 @@ export default function EmployeesPage() {
             }`}
           >
             💰 Ish haqi &amp; Jamoa
+          </button>
+          <button
+            onClick={() => setTab("piecework")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+              tab === "piecework" ? "bg-blue-600 text-white" : ""
+            }`}
+          >
+            🏷️ Ishbay Oylik (Piecework)
           </button>
           <button
             onClick={() => setTab("supervisor")}
@@ -355,6 +367,44 @@ export default function EmployeesPage() {
               </table>
             </div>
           </div>
+        </div>
+      ) : tab === "piecework" ? (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-bold text-slate-700">Xodimni tanlang:</label>
+              <select
+                value={selEmpId}
+                onChange={(e) => setSelEmpId(e.target.value)}
+                className="border rounded-xl p-2 bg-white font-bold text-sm min-w-[220px]"
+              >
+                <option value="">-- Joriy / Birinchi xodim --</option>
+                {employees.map((em, i) => (
+                  <option key={em.id || i} value={String(em.id || em.name || em.full_name)}>
+                    {em.name || em.full_name} ({em.department || "Sex"})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="text-xs text-slate-500 font-medium">
+              ℹ️ Real vaqtda topshirilgan bosqichlar va maosh daftari hisob-kitobi
+            </div>
+          </div>
+
+          <PieceworkDashboard
+            employeeName={pieceworkData?.employeeName || "Xodim"}
+            employmentStatus={pieceworkData?.employmentStatus || "active"}
+            stats={
+              pieceworkData?.stats || {
+                acceptedPieces: 0,
+                pendingPieces: 0,
+                earnedAmount: 0,
+                currency: "UZS",
+              }
+            }
+            adjustments={pieceworkData?.adjustments || []}
+            isLoading={isLoadingPiecework}
+          />
         </div>
       ) : (
         <div className="bg-white p-6 rounded-2xl border space-y-4">

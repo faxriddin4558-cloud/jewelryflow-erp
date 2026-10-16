@@ -197,12 +197,17 @@ export function QcInspectionForm({
                 </div>
 
                 {photo && (
-                  <div className="flex items-center gap-3 bg-muted/50 p-2 rounded-lg border text-sm">
-                    <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                    <span className="truncate flex-1 font-medium">{photo.name}</span>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setPhoto(null)}>
-                      <XCircle className="w-4 h-4" />
-                    </Button>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3 bg-muted/50 p-2 rounded-lg border text-sm">
+                      <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                      <span className="truncate flex-1 font-medium">{photo.name}</span>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setPhoto(null)}>
+                        <XCircle className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 italic">
+                      ⚠️ Eslatma: Xavfsiz rasm saqlash (Supabase Storage) hozirda ulanmagan. Tekshiruv dalolatnomasi matnli maʼlumotlar bilan saqlanadi.
+                    </p>
                   </div>
                 )}
 

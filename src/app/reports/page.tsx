@@ -22,6 +22,7 @@ import {
   type QualityControlRow,
   type HandoverAuditRow,
 } from "@/lib/erp-engine";
+import { ReportFilterBar } from "@/components/manufacturing";
 
 export default function ReportsPage() {
   const [selectedReport, setSelectedReport] = useState<ErpReportType>(ERP_REPORT_TYPES[0]);
@@ -202,6 +203,16 @@ export default function ReportsPage() {
               className="border rounded-xl px-3 py-1.5 text-xs w-64"
             />
           </div>
+
+          <ReportFilterBar
+            onExportClick={() => downloadExcelCsv(selectedReport, [headerRow, ...dataRows])}
+            onPrintClick={() => window.print()}
+            activeFilterCount={searchQuery ? 1 : 0}
+          >
+            <span className="text-xs font-semibold text-slate-600 self-center">
+              Filtr holati: <b>{searchQuery ? `"${searchQuery}" bo'yicha saralandi` : "Barcha qatorlar"}</b>
+            </span>
+          </ReportFilterBar>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">

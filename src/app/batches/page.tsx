@@ -17,7 +17,8 @@ import {
   getNextActiveStage,
   isStageActive,
 } from "@/lib/factory-config";
-import { ShopfloorOperatorWorkspace } from "@/components/manufacturing";
+import { ShopfloorOperatorWorkspace, QcInspectionForm } from "@/components/manufacturing";
+import { useQcInspection } from "@/hooks/manufacturing";
 import { triggerBrowserPrint } from "@/lib/qr-generator";
 
 interface HandoverRow {
@@ -49,7 +50,9 @@ interface HandoverRow {
 }
 
 export default function BatchesPage() {
-  const [tab, setTab] = useState<"wip" | "queue" | "machines" | "tv" | "handovers" | "operator">("wip");
+  const [tab, setTab] = useState<"wip" | "queue" | "machines" | "tv" | "handovers" | "qc" | "operator">("wip");
+  const [qcBatchNo, setQcBatchNo] = useState("");
+  const { submitInspection, completeRework, isSubmitting: isQcSubmitting } = useQcInspection();
   const [batches, setBatches] = useState<BatchRow[]>([]);
   const [stages, setStages] = useState<ProductionStageRow[]>([]);
   const [wipRows, setWipRows] = useState<BatchStageWipRow[]>([]);
@@ -542,6 +545,14 @@ export default function BatchesPage() {
             }`}
           >
             🤝 Qabul/Topshirish ({handovers.filter((h) => h.status === "PENDING_ACCEPTANCE").length})
+          </button>
+          <button
+            onClick={() => setTab("qc")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+              tab === "qc" ? "bg-purple-600 text-white" : "text-slate-600"
+            }`}
+          >
+            🔬 Sifat Nazorati (QC)
           </button>
           <button
             onClick={() => setTab("operator")}
@@ -1131,6 +1142,134 @@ export default function BatchesPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "qc" && (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-bold text-slate-700">Tekshiriladigan Partiya:</label>
+              <select
+                value={qcBatchNo}
+                onChange={(e) => setQcBatchNo(e.target.value)}
+                className="border rounded-xl p-2 bg-white font-bold text-sm min-w-[240px]"
+              >
+                <option value="">-- Partiyani tanlang --</option>
+                {batches
+                  .filter((b) => (b.status || "").toLowerCase() !== "completed")
+                  .map((b) => {
+                    const code = b.batch_no || b.number || String(b.id);
+                    return (
+                      <option key={b.id} value={code}>
+                        {code} — {b.product_name || b.product || "Zargarlik buyumi"} ({b.actual_qty ?? b.planned_qty ?? 0} dona)
+                      </option>
+                    );
+                  })}
+              </select>
+            </div>
+            <div className="text-xs text-slate-500 font-medium">
+              🔬 20-bosqich: OTM Sifat Nazorati va Defekt Marshrutlash
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <QcInspectionForm
+                batchNumber={qcBatchNo || (batches[0]?.batch_no || batches[0]?.number || "BATCH-2026-001")}
+                stageName="20. OTM Sifat Nazorati"
+                isSubmitting={isQcSubmitting}
+                onSubmit={async (formData) => {
+                  const targetBatch = batches.find(
+                    (b) => (b.batch_no || b.number) === qcBatchNo
+                  ) || batches[0];
+                  if (!targetBatch) {
+                    alert("Iltimos, tekshiriladigan partiyani tanlang!");
+                    return;
+                  }
+                  const batchCode = targetBatch.batch_no || targetBatch.number || qcBatchNo;
+                  const qty = Number(targetBatch.actual_qty || targetBatch.planned_qty || 1);
+                  const res = await submitInspection({
+                    batchId: String(targetBatch.id),
+                    batchNo: batchCode,
+                    stageName: "20. OTM Sifat Nazorati",
+                    currentStageOrder: 20,
+                    checkedQty: qty,
+                    passedQty: formData.result === "pass" ? qty : 0,
+                    reworkQty: formData.result === "fail" ? qty : 0,
+                    result: formData.result,
+                    defectCategory: formData.defectCategory,
+                    reworkDestination: formData.reworkDestination,
+                    notes: formData.notes,
+                    photoFile: formData.photoFile,
+                  });
+
+                  if (res.success) {
+                    alert(`QC Tekshiruvi muvaffaqiyatli qayd etildi! ${res.storageWarning ? "\n\n" + res.storageWarning : ""}`);
+                    await load();
+                  } else {
+                    alert(`Xatolik: ${res.error}`);
+                  }
+                }}
+              />
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border space-y-4 h-fit">
+              <h3 className="font-bold text-slate-900 border-b pb-2 flex items-center justify-between">
+                <span>🔄 Qayta Ishlashdagi Partiyalar</span>
+                <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                  {wipRows.filter((w) => Number(w.rework_qty || 0) > 0).length} ta
+                </span>
+              </h3>
+
+              {wipRows.filter((w) => Number(w.rework_qty || 0) > 0).length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-4 text-center">
+                  Hozirda rework (nuqsonli) holatdagi partiyalar yo&apos;q.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {wipRows
+                    .filter((w) => Number(w.rework_qty || 0) > 0)
+                    .map((w, idx) => (
+                      <div key={w.id || idx} className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-xs space-y-2">
+                        <div className="flex justify-between items-center font-bold">
+                          <span className="text-amber-900">{w.batch_no}</span>
+                          <span className="text-red-700 bg-red-100 px-2 py-0.5 rounded">
+                            {w.rework_qty} dona defekt
+                          </span>
+                        </div>
+                        <div className="text-slate-600">
+                          Bosqich: <b>{w.stage_name}</b> ({w.stage_order})
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const res = await completeRework({
+                              batchNo: w.batch_no,
+                              batchId: String(w.batch_id || ""),
+                              reworkStageOrder: w.stage_order || 8,
+                              inspectStageOrder: 20,
+                              completedQty: Number(w.rework_qty || 1),
+                              masterName: RBAC.getCurrentUser().name,
+                              resolutionNotes: "Usta tomonidan nuqson to'liq tuzatildi va OTMga qaytarildi",
+                            });
+                            if (res.success) {
+                              alert(`Rework muvaffaqiyatli yakunlandi! Partiya ${w.batch_no} qayta tekshiruvga qaytarildi.`);
+                              await load();
+                            } else {
+                              alert(`Xatolik: ${res.error}`);
+                            }
+                          }}
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition"
+                        >
+                          ✅ Reworkni Yakunlash (OTMga Qaytarish)
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

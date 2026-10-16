@@ -18,3 +18,5 @@ _backup_*
 test-results/
 e2e-report*/
 e2e-report.json
+*.db
+memory/*.db

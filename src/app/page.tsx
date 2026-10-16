@@ -24,6 +24,7 @@ import {
   type QualityControlRow,
   type AuditLogRow,
 } from "@/lib/erp-engine";
+import { OwnerDashboard } from "@/components/manufacturing";
 
 const DEFAULT_REPORT: ErpReportType = "1. Daily production";
 
@@ -267,6 +268,39 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
+              🏭 Zavod Boshqaruv Monitoringi (Owner &amp; Director Live Dashboard)
+            </h2>
+            <OwnerDashboard
+              stats={{
+                activeBatches: activeBatches.length,
+                overdueStages: wipRows.filter((w) => w.queue_status === "NOW" && Number(w.available_qty || 0) > 0).length,
+                machineLoadPercent:
+                  machines.length > 0
+                    ? Math.round(
+                        (machines.filter((m) => String(m.status || "").toUpperCase() === "BUSY").length /
+                          machines.length) *
+                          100
+                      )
+                    : 0,
+                wipQuantityGrams: Number(wipGold.toFixed(2)),
+                unresolvedGoldDiscrepancies: 0,
+                productionPerformanceScore: Number(
+                  Math.max(
+                    1.0,
+                    Math.min(
+                      10.0,
+                      10.0 -
+                        wipRows.filter((w) => w.queue_status === "NOW" && Number(w.available_qty || 0) > 0).length *
+                          0.4
+                    )
+                  ).toFixed(1)
+                ),
+              }}
+            />
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
