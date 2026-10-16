@@ -46,6 +46,14 @@ const TEST_USERS = [
     full_name: 'Dilshod Nazoratchi (Goldia)'
   },
   {
+    id: '11111111-1111-4001-8001-000000000005',
+    email: 'accountant@goldia.uz',
+    password: 'GoldiaPassword2026!',
+    role: 'accountant',
+    organization_id: ORG_GOLDIA_ID,
+    full_name: 'Ziyoda Hisobchi (Goldia)'
+  },
+  {
     id: '22222222-2222-4002-8002-000000000001',
     email: 'director@samarkand.uz',
     password: 'SamarkandPassword2026!',

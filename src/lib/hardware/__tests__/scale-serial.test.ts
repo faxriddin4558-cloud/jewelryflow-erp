@@ -56,10 +56,32 @@ describe("ScaleSerialDriver & Scale Protocol Parsers", () => {
       expect(res?.isNegative).toBe(true);
     });
 
+    it("validates grams unit and flags non-grams as invalid for gold weighing", () => {
+      const gramRes = parseScaleReading("ST,GS,+  10.500 g\r\n");
+      expect(gramRes?.isUnitValid).toBe(true);
+
+      const caratRes = parseScaleReading("ST,+  5.250 ct\r\n");
+      expect(caratRes?.isUnitValid).toBe(false);
+
+      const ozRes = parseScaleReading("ST,+  1.000 oz\r\n");
+      expect(ozRes?.isUnitValid).toBe(false);
+    });
+
+    it("rejects out-of-bounds and physically implausible scale readings", () => {
+      expect(parseScaleReading("ST,+  9999999.000 g\r\n")).toBeNull();
+      expect(parseScaleReading("ST,-  5000.000 g\r\n")).toBeNull();
+    });
+
+    it("rounds weights to milligram precision (0.001g)", () => {
+      const res = parseScaleReading("ST,+  12.34567 g\r\n");
+      expect(res?.weight).toBe(12.346);
+    });
+
     it("returns null for empty or non-numeric noise lines", () => {
       expect(parseScaleReading("")).toBeNull();
       expect(parseScaleReading("   \r\n")).toBeNull();
       expect(parseScaleReading("ERROR_COMM_TIMEOUT")).toBeNull();
+      expect(parseScaleReading("x")).toBeNull();
     });
   });
 

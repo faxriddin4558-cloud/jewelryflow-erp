@@ -14,6 +14,8 @@ export interface ScaleReading {
   isStable: boolean;
   isNegative: boolean;
   timestamp: number;
+  isUnitValid: boolean;
+  mode: "AUTO_SCALE" | "MANUAL_ENTRY";
 }
 
 export interface SerialScaleOptions {
@@ -47,6 +49,7 @@ interface NavigatorWithSerial {
   serial: {
     requestPort: () => Promise<SerialPortLike>;
     getPorts: () => Promise<SerialPortLike[]>;
+    addEventListener?: (type: string, listener: (ev: unknown) => void) => void;
   };
 }
 
@@ -62,23 +65,24 @@ export function isWebSerialSupported(): boolean {
 
 /**
  * Parses raw ASCII output from standard electronic jewelry scales.
+ * Rejects malformed chunks, non-numeric noise, and out-of-range readings.
  *
  * Examples:
- *  - "ST,GS,+   12.345 g\r\n" -> 12.345 g, stable
- *  - "US,GS,+   12.340 g\r\n" -> 12.340 g, unstable
- *  - "N +  12.3450 g\r\n"     -> 12.345 g, stable
- *  - "+  12.345 g\r\n"        -> 12.345 g, stable
- *  - "  12.345\r\n"          -> 12.345 g, stable
+ *  - "ST,GS,+   12.345 g\r\n" -> 12.345 g, stable, valid
+ *  - "US,GS,+   12.340 g\r\n" -> 12.340 g, unstable, valid
+ *  - "N +  12.3450 g\r\n"     -> 12.345 g, stable, valid
+ *  - "+  12.345 g\r\n"        -> 12.345 g, stable, valid
+ *  - "  12.345\r\n"          -> 12.345 g, stable, valid
  */
 export function parseScaleReading(rawLine: string): ScaleReading | null {
   const line = rawLine.trim();
-  if (!line) return null;
+  if (!line || line.length < 2) return null;
 
   // 1. Detect stability flags
   let isStable = true;
-  if (line.includes("US") || line.includes("?") || line.includes("~")) {
+  if (line.includes("US") || line.includes("?") || line.includes("~") || line.includes("UNSTABLE")) {
     isStable = false;
-  } else if (line.includes("ST") || line.includes("S ") || line.includes("OK")) {
+  } else if (line.includes("ST") || line.includes("S ") || line.includes("OK") || line.includes("STABLE")) {
     isStable = true;
   }
 
@@ -95,6 +99,8 @@ export function parseScaleReading(rawLine: string): ScaleReading | null {
     unit = "g";
   }
 
+  const isUnitValid = unit === "g";
+
   // 3. Extract numeric weight
   const match = line.match(/[-+]?\s*(\d+[.,]\d+|\d+)/);
   if (!match) return null;
@@ -103,8 +109,14 @@ export function parseScaleReading(rawLine: string): ScaleReading | null {
   const numericVal = parseFloat(rawNumStr);
   if (Number.isNaN(numericVal)) return null;
 
+  // Reject physically implausible or malformed laboratory readings (0 to 50,000.000g)
+  if (numericVal < -1000 || numericVal > 50000) {
+    return null;
+  }
+
   const isNegative = numericVal < 0;
-  const absWeight = Math.abs(numericVal);
+  // Milligram precision rounding: 3 decimal places (0.001g)
+  const absWeight = Math.round(Math.abs(numericVal) * 1000) / 1000;
 
   return {
     raw: line,
@@ -112,6 +124,8 @@ export function parseScaleReading(rawLine: string): ScaleReading | null {
     unit,
     isStable,
     isNegative,
+    isUnitValid,
+    mode: "AUTO_SCALE",
     timestamp: Date.now(),
   };
 }
@@ -181,10 +195,33 @@ export class ScaleSerialDriver {
     try {
       const nav = navigator as unknown as NavigatorWithSerial;
       this.port = await nav.serial.requestPort();
+
+      // Listen to disconnect events if supported
+      if (typeof nav.serial.addEventListener === "function") {
+        nav.serial.addEventListener("disconnect", (event: unknown) => {
+          const ev = event as { port?: SerialPortLike };
+          if (ev.port && ev.port === this.port) {
+            void this.disconnect();
+            this.notifyStatus(false, "Tarozi porti uzildi (kabel ajratildi).");
+          }
+        });
+      }
+
       await this.openPort(options);
       return true;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Tarozi portiga ulanishda xatolik";
+      let msg = "Tarozi portiga ulanishda xatolik";
+      if (err instanceof Error) {
+        if (err.name === "NotFoundError") {
+          msg = "Tarozi porti tanlanmadi (foydalanuvchi tomonidan bekor qilindi).";
+        } else if (err.name === "SecurityError" || err.name === "NotAllowedError") {
+          msg = "Tarozi portiga ruxsat berilmadi (ruxsat rad etildi). Brauzer sozlamalarida Serial portga ruxsat bering.";
+        } else if (err.name === "InvalidStateError" || err.message.toLowerCase().includes("already open")) {
+          msg = "Port allaqachon boshqa dastur yoki oyna tomonidan band qilingan.";
+        } else {
+          msg = `Tarozi ulanish xatosi: ${err.message}`;
+        }
+      }
       this.notifyStatus(false, msg);
       return false;
     }
@@ -335,6 +372,8 @@ export class MockScaleDriver {
       unit: "g",
       isStable: true,
       isNegative: false,
+      isUnitValid: true,
+      mode: "AUTO_SCALE",
       timestamp: Date.now(),
     };
     for (const l of this.readingListeners) l(reading);

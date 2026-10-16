@@ -1309,6 +1309,319 @@ async function runAllVerificationPhases() {
     }
   });
 
+  // ==========================================================================
+  // PHASE N: PRODUCTION-CRITICAL NEGATIVE TESTS & BALANCE INTEGRITY
+  // ==========================================================================
+  console.log(cyan('\n--- PHASE N: Production-Critical Negative Tests & Balance Integrity ---'));
+
+  await testAssert('Insufficient Gold Guard: Requesting more gold than available in SAFE is rejected and balance is unchanged', async () => {
+    await setContext(db, MGR_A_UID);
+    const goldBeforeRes = await db.query(`
+      SELECT on_hand FROM public.inventory_items WHERE name = 'Oltin 585 SAFE Org A';
+    `);
+    const initialOnHand = parseFloat(goldBeforeRes.rows[0].on_hand);
+
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_inventory_transaction(
+          p_item_id := (SELECT id::text FROM public.inventory_items WHERE name = 'Oltin 585 SAFE Org A' LIMIT 1),
+          p_tx_type := 'chiqim',
+          p_weight := 999999.0000,
+          p_proba := 585,
+          p_pure_gold := 584999.4150,
+          p_from_location := 'SAFE',
+          p_to_location := 'EXTERNAL',
+          p_description := 'Illegal over-withdrawal attempt'
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+    }
+    if (!rejected) throw new Error('Over-withdrawal was not rejected!');
+
+    const goldAfterRes = await db.query(`
+      SELECT on_hand FROM public.inventory_items WHERE name = 'Oltin 585 SAFE Org A';
+    `);
+    const afterOnHand = parseFloat(goldAfterRes.rows[0].on_hand);
+    if (afterOnHand !== initialOnHand) {
+      throw new Error(`SAFE gold balance changed! Initial: ${initialOnHand}, After: ${afterOnHand}`);
+    }
+  });
+
+  await testAssert('Invalid Fineness & Negative Weight Guard: Negative weight is rejected', async () => {
+    await setContext(db, MGR_A_UID);
+    let rejectedNegative = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_inventory_transaction(
+          p_item_id := (SELECT id::text FROM public.inventory_items WHERE name = 'Oltin 585 SAFE Org A' LIMIT 1),
+          p_tx_type := 'kirim',
+          p_weight := -15.5000,
+          p_proba := 585,
+          p_pure_gold := -9.0675,
+          p_from_location := 'SUPPLIER',
+          p_to_location := 'SAFE',
+          p_description := 'Negative deposit attempt'
+        );
+      `);
+    } catch (err) {
+      rejectedNegative = true;
+    }
+    if (!rejectedNegative) throw new Error('Negative weight transaction was not rejected!');
+  });
+
+  await testAssert('Duplicate Batch Guard: Duplicate batch_no within tenant is rejected by unique constraint', async () => {
+    await setContext(db, MGR_A_UID);
+    let rejectedDup = false;
+    try {
+      await db.query(`
+        INSERT INTO public.batches (
+          id, batch_no, product_name, proba, planned_qty, planned_gram, issued_gold_gram, current_step, organization_id
+        ) VALUES (
+          gen_random_uuid(), 'BATCH-A-001', 'Uzuk Klassika 585', 585, 10, 50.0, 50.0, '01. Mum / Wax', '${ORG_A_ID}'::uuid
+        );
+      `);
+    } catch (err) {
+      rejectedDup = true;
+    }
+    if (!rejectedDup) throw new Error('Duplicate batch_no was not rejected!');
+  });
+
+  await testAssert('Repeated Handover Submission Guard: Duplicate open handover for same stage transition is rejected', async () => {
+    await setContext(db, OP_A_UID);
+    // Dispatch first handover
+    await db.query(`
+      SELECT public.rpc_dispatch_stage_handover(
+        p_batch_id := '${batchAId}',
+        p_batch_no := 'BATCH-A-001',
+        p_from_stage_order := 1,
+        p_from_stage_name := '01. Mum',
+        p_from_department := 'Mum',
+        p_to_stage_order := 2,
+        p_to_stage_name := '02. Archa',
+        p_to_department := 'Mum',
+        p_sender_worker_id := '${OP_A_UID}',
+        p_sender_worker_name := 'Ali Operator A',
+        p_dispatched_qty := 10,
+        p_dispatched_weight_gram := 45.5000,
+        p_measurement_mode := 'AUTO_SCALE',
+        p_is_scale_stable := true,
+        p_scale_model := 'CAS XE-300'
+      );
+    `);
+
+    // Dispatch second duplicate handover while first is still pending
+    let rejectedDupHo = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_dispatch_stage_handover(
+          p_batch_id := '${batchAId}',
+          p_batch_no := 'BATCH-A-001',
+          p_from_stage_order := 1,
+          p_from_stage_name := '01. Mum',
+          p_from_department := 'Mum',
+          p_to_stage_order := 2,
+          p_to_stage_name := '02. Archa',
+          p_to_department := 'Mum',
+          p_sender_worker_id := '${OP_A_UID}',
+          p_sender_worker_name := 'Ali Operator A',
+          p_dispatched_qty := 10,
+          p_dispatched_weight_gram := 45.5000,
+          p_measurement_mode := 'AUTO_SCALE'
+        );
+      `);
+    } catch (err) {
+      if (err.message.includes('allaqachon mavjud')) {
+        rejectedDupHo = true;
+      }
+    }
+    if (!rejectedDupHo) throw new Error('Duplicate pending handover was not rejected!');
+  });
+
+  await testAssert('Unauthorized Weight Override Guard: Operator cannot override discrepancy without supervisor role', async () => {
+    await setContext(db, OP_A_UID);
+    const hoRes = await db.query(`
+      SELECT id FROM public.two_party_handovers WHERE batch_no = 'BATCH-A-001' AND status = 'PENDING_ACCEPTANCE' LIMIT 1;
+    `);
+    const hoId = hoRes.rows[0].id;
+
+    let rejectedOverride = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_accept_stage_handover(
+          p_handover_id := '${hoId}',
+          p_receiver_worker_id := '${OP_A_UID}',
+          p_receiver_worker_name := 'Ali Operator A',
+          p_received_qty := 9,
+          p_received_weight_gram := 40.0000,
+          p_supervisor_override_reason := 'Unauthorized override attempt by operator'
+        );
+      `);
+    } catch (err) {
+      if (err.message.includes('Only supervisor or manager can override')) {
+        rejectedOverride = true;
+      }
+    }
+    if (!rejectedOverride) throw new Error('Operator was able to override discrepancy without supervisor role!');
+  });
+
+  await testAssert('Tenant Crossover Guard: Org B manager cannot override or accept Org A handover', async () => {
+    await setContext(db, MGR_A_UID);
+    const hoRes = await db.query(`
+      SELECT id FROM public.two_party_handovers WHERE batch_no = 'BATCH-A-001' AND status = 'PENDING_ACCEPTANCE' LIMIT 1;
+    `);
+    const hoId = hoRes.rows[0].id;
+
+    await setContext(db, MGR_B_UID);
+    let rejectedCrossover = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_accept_stage_handover(
+          p_handover_id := '${hoId}',
+          p_receiver_worker_id := '${MGR_B_UID}',
+          p_receiver_worker_name := 'Sardor Rahbar B',
+          p_received_qty := 10,
+          p_received_weight_gram := 45.5000
+        );
+      `);
+    } catch (err) {
+      if (err.message.includes('Cross-tenant violation')) {
+        rejectedCrossover = true;
+      }
+    }
+    if (!rejectedCrossover) throw new Error('Org B manager was able to tamper with Org A handover!');
+  });
+
+  await testAssert('QC Re-inspection Lifecycle: Reinspecting reworked QC defects updates QC record to APPROVED', async () => {
+    await setContext(db, MGR_A_UID);
+    const reinspectRes = await db.query(`
+      SELECT public.rpc_reinspect_qc(
+        p_qc_id := '${createdQcId}',
+        p_passed := true,
+        p_notes := 'Tekshirildi: nuqson to''liq bartaraf etilgan'
+      ) as res;
+    `);
+    const res = reinspectRes.rows[0].res;
+    if (!res.success || res.status !== 'APPROVED') {
+      throw new Error(`QC Reinspection failed: ${JSON.stringify(res)}`);
+    }
+
+    const qcRow = await db.query(`
+      SELECT status, notes FROM public.quality_control WHERE id::text = '${createdQcId}';
+    `);
+    if (qcRow.rows[0].status !== 'APPROVED' || !qcRow.rows[0].notes.includes("O'TDI")) {
+      throw new Error(`QC record status was not updated to APPROVED: ${JSON.stringify(qcRow.rows[0])}`);
+    }
+  });
+
+  await testAssert('Repeated QC Rework Completion Guard: Calling rpc_complete_qc_rework when no rework units remain is rejected', async () => {
+    await setContext(db, MASTER_A_UID);
+    let rejectedNoRework = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_complete_qc_rework(
+          p_qc_id := '${createdQcId}',
+          p_batch_id := '${batchAId}',
+          p_batch_no := 'BATCH-A-001',
+          p_rework_stage_order := 8,
+          p_inspect_stage_order := 14,
+          p_completed_qty := 1,
+          p_master_name := 'Hasan Master A',
+          p_resolution_notes := 'Should fail because available rework_qty is 0',
+          p_idempotency_key := 'comp-rw-extra-fail'
+        );
+      `);
+    } catch (err) {
+      if (err.message.includes('Insufficient') || err.message.includes('not in rework') || err.message.includes('status')) {
+        rejectedNoRework = true;
+      }
+    }
+    if (!rejectedNoRework) throw new Error('Rework completion succeeded when rework_qty was 0!');
+  });
+
+  await testAssert('Over-Repayment Guard: Repaying more than the existing customer debt is rejected', async () => {
+    await setContext(db, MGR_A_UID);
+    const saleRes = await db.query(`
+      SELECT id, debt_amount FROM public.sales WHERE debt_amount > 0 AND organization_id = '${ORG_A_ID}'::uuid LIMIT 1;
+    `);
+    if (saleRes.rows.length > 0) {
+      const saleId = saleRes.rows[0].id;
+      const debt = parseFloat(saleRes.rows[0].debt_amount);
+
+      let rejectedOverRepay = false;
+      try {
+        await db.query(`
+          SELECT public.rpc_record_debt_repayment(
+            p_sale_id := '${saleId}',
+            p_order_id := null,
+            p_payment_type := 'Naqd pul',
+            p_repaid_amount := ${debt + 500000},
+            p_amount := ${debt + 500000},
+            p_note := 'Excess repayment attempt'
+          );
+        `);
+      } catch (err) {
+        if (err.message.includes('exceeds current debt')) {
+          rejectedOverRepay = true;
+        }
+      }
+      if (!rejectedOverRepay) throw new Error('Over-repayment was not rejected!');
+    }
+  });
+
+  await testAssert('Repeated Sale Submission Guard: Duplicate idempotency key returns cached result without double deducting stock', async () => {
+    await setContext(db, MGR_A_UID);
+    const prodResBefore = await db.query(`
+      SELECT id, stock FROM public.products WHERE organization_id = '${ORG_A_ID}'::uuid AND stock >= 2 LIMIT 1;
+    `);
+    if (prodResBefore.rows.length > 0) {
+      const prodId = prodResBefore.rows[0].id;
+      const stockBefore = parseInt(prodResBefore.rows[0].stock, 10);
+      const saleKey = 'idemp-sale-dedup-test-' + Date.now();
+
+      // First sale
+      await db.query(`
+        SELECT public.rpc_record_sale_with_stock_deduction(
+          p_product_id := '${prodId}',
+          p_client_name := 'Test Client Dedup',
+          p_product_name := 'Dedup Product',
+          p_quantity := 1,
+          p_weight := 5.0,
+          p_proba := 585,
+          p_payment_type := 'Naqd',
+          p_paid_amount := 5000000,
+          p_debt_amount := 0,
+          p_idempotency_key := '${saleKey}'
+        );
+      `);
+
+      // Second sale call with duplicate key
+      await db.query(`
+        SELECT public.rpc_record_sale_with_stock_deduction(
+          p_product_id := '${prodId}',
+          p_client_name := 'Test Client Dedup',
+          p_product_name := 'Dedup Product',
+          p_quantity := 1,
+          p_weight := 5.0,
+          p_proba := 585,
+          p_payment_type := 'Naqd',
+          p_paid_amount := 5000000,
+          p_debt_amount := 0,
+          p_idempotency_key := '${saleKey}'
+        );
+      `);
+
+      const prodResAfter = await db.query(`
+        SELECT stock FROM public.products WHERE id = '${prodId}';
+      `);
+      const stockAfter = parseInt(prodResAfter.rows[0].stock, 10);
+      if (stockAfter !== stockBefore - 1) {
+        throw new Error(`Stock was double deducted! Before: ${stockBefore}, After: ${stockAfter}`);
+      }
+    }
+  });
+
   await db.close();
 
   // Final Summary

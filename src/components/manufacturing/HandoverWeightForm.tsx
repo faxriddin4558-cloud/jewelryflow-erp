@@ -7,11 +7,20 @@ import { StageLossWarning } from "./StageLossWarning";
 import { useHandoverWeight } from "@/hooks/manufacturing/use-handover-weight";
 import { useScaleReader } from "@/hooks/manufacturing/use-scale-reader";
 
+export interface HandoverSubmitData {
+  inputWeight: number;
+  outputWeight: number;
+  notes: string;
+  inputMeasurementMode?: "AUTO_SCALE" | "MANUAL_ENTRY";
+  outputMeasurementMode?: "AUTO_SCALE" | "MANUAL_ENTRY";
+  isScaleStable?: boolean;
+}
+
 export interface HandoverWeightFormProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "onSubmit"> {
   batchNumber: string;
   expectedInputWeight?: number;
   maxLossThreshold?: number;
-  onSubmit: (data: { inputWeight: number; outputWeight: number; notes: string }) => void;
+  onSubmit: (data: HandoverSubmitData) => void;
   isSubmitting?: boolean;
 }
 
@@ -25,15 +34,50 @@ export function HandoverWeightForm({
   ...props
 }: HandoverWeightFormProps) {
   const { inputWeight, setInputWeight, outputWeight, setOutputWeight, isValid } = useHandoverWeight({ expectedInputWeight, maxLossThreshold });
-  const { isSupported, isConnected, liveWeight, isStable, connect, disconnect, connectMockScale } = useScaleReader();
+  const { isSupported, isConnected, reading, liveWeight, isStable, connect, disconnect, connectMockScale } = useScaleReader();
   const [notes, setNotes] = React.useState<string>("");
+  const [inputMode, setInputMode] = React.useState<"AUTO_SCALE" | "MANUAL_ENTRY">("MANUAL_ENTRY");
+  const [outputMode, setOutputMode] = React.useState<"AUTO_SCALE" | "MANUAL_ENTRY">("MANUAL_ENTRY");
+  const [warningMsg, setWarningMsg] = React.useState<string | null>(null);
+
+  const handleCaptureInput = () => {
+    if (reading && !reading.isUnitValid) {
+      setWarningMsg("⚠️ Tarozi birligi gramm ('g') emas. Iltimos, tarozini gramm rejimiga o'tkazing.");
+      return;
+    }
+    if (!isStable) {
+      setWarningMsg("⚠️ Tarozi tebranmoqda. Barqaror og'irlik kutilmoqda (o'lchov barqarorlashgach qayta bosing).");
+    } else {
+      setWarningMsg(null);
+    }
+    setInputWeight(liveWeight);
+    setInputMode("AUTO_SCALE");
+  };
+
+  const handleCaptureOutput = () => {
+    if (reading && !reading.isUnitValid) {
+      setWarningMsg("⚠️ Tarozi birligi gramm ('g') emas. Iltimos, tarozini gramm rejimiga o'tkazing.");
+      return;
+    }
+    if (!isStable) {
+      setWarningMsg("⚠️ Tarozi tebranmoqda. Barqaror og'irlik kutilmoqda (o'lchov barqarorlashgach qayta bosing).");
+    } else {
+      setWarningMsg(null);
+    }
+    setOutputWeight(liveWeight);
+    setOutputMode("AUTO_SCALE");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     onSubmit({
       inputWeight,
       outputWeight,
       notes,
+      inputMeasurementMode: inputMode,
+      outputMeasurementMode: outputMode,
+      isScaleStable: isStable,
     });
   };
 
@@ -46,7 +90,7 @@ export function HandoverWeightForm({
         <div className="flex items-center gap-2">
           {isConnected ? (
             <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-mono font-medium border border-emerald-200 dark:border-emerald-800">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className={`w-2 h-2 rounded-full ${isStable ? "bg-emerald-500" : "bg-amber-500 animate-ping"}`} />
               <span>{liveWeight.toFixed(3)} g {isStable ? "(Barqaror)" : "(Harakatda)"}</span>
               <button
                 type="button"
@@ -79,17 +123,29 @@ export function HandoverWeightForm({
       </CardHeader>
 
       <CardContent className="p-4 md:p-6">
+        {warningMsg && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-xs font-medium flex items-center justify-between">
+            <span>{warningMsg}</span>
+            <button type="button" onClick={() => setWarningMsg(null)} className="text-amber-700 font-bold ml-2">✕</button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label htmlFor="inputWeight" className="text-sm md:text-base font-semibold text-muted-foreground uppercase tracking-wider">
-                  Input Weight (g)
-                </Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="inputWeight" className="text-sm md:text-base font-semibold text-muted-foreground uppercase tracking-wider">
+                    Input Weight (g)
+                  </Label>
+                  <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${inputMode === "AUTO_SCALE" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                    {inputMode === "AUTO_SCALE" ? "⚖️ Tarozidan (0.001g)" : "✍️ Qo'lda"}
+                  </span>
+                </div>
                 {isConnected && (
                   <button
                     type="button"
-                    onClick={() => setInputWeight(liveWeight)}
+                    onClick={handleCaptureInput}
                     className="text-xs text-primary font-medium hover:underline flex items-center gap-1"
                   >
                     ⚖️ Tarozidan olish ({liveWeight.toFixed(3)}g)
@@ -101,7 +157,10 @@ export function HandoverWeightForm({
                 type="number"
                 step="0.001"
                 value={inputWeight || ""}
-                onChange={(e) => setInputWeight(parseFloat(e.target.value) || 0)}
+                onChange={(e) => {
+                  setInputWeight(parseFloat(e.target.value) || 0);
+                  setInputMode("MANUAL_ENTRY");
+                }}
                 className="flex h-14 md:h-16 w-full rounded-lg border border-input bg-background px-4 py-2 text-2xl font-mono ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="0.000"
                 required
@@ -110,13 +169,18 @@ export function HandoverWeightForm({
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label htmlFor="outputWeight" className="text-sm md:text-base font-semibold text-muted-foreground uppercase tracking-wider">
-                  Output Weight (g)
-                </Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="outputWeight" className="text-sm md:text-base font-semibold text-muted-foreground uppercase tracking-wider">
+                    Output Weight (g)
+                  </Label>
+                  <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${outputMode === "AUTO_SCALE" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                    {outputMode === "AUTO_SCALE" ? "⚖️ Tarozidan (0.001g)" : "✍️ Qo'lda"}
+                  </span>
+                </div>
                 {isConnected && (
                   <button
                     type="button"
-                    onClick={() => setOutputWeight(liveWeight)}
+                    onClick={handleCaptureOutput}
                     className="text-xs text-primary font-medium hover:underline flex items-center gap-1"
                   >
                     ⚖️ Tarozidan olish ({liveWeight.toFixed(3)}g)
@@ -128,7 +192,10 @@ export function HandoverWeightForm({
                 type="number"
                 step="0.001"
                 value={outputWeight || ""}
-                onChange={(e) => setOutputWeight(parseFloat(e.target.value) || 0)}
+                onChange={(e) => {
+                  setOutputWeight(parseFloat(e.target.value) || 0);
+                  setOutputMode("MANUAL_ENTRY");
+                }}
                 className="flex h-14 md:h-16 w-full rounded-lg border border-input bg-background px-4 py-2 text-2xl font-mono ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="0.000"
                 required
