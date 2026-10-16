@@ -44,3 +44,9 @@ allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
 public = false
 file_size_limit = "5MiB"
 allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+
+[storage.buckets.qc-inspection-photos]
+public = false
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+

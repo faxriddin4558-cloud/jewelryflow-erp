@@ -24,7 +24,9 @@ import { StageQueueBoard, type QueueItem } from "./StageQueueBoard";
 import { HandoverWeightForm } from "./HandoverWeightForm";
 import { ManufacturingStatusBadge } from "./ManufacturingStatusBadge";
 import { DEPARTMENT_ROUTE_CONFIG, type DepartmentRouteSlug } from "@/modules/manufacturing/presentation/config/departments.config";
-import { RefreshCw, CheckCircle2, AlertOctagon, Scale, ShieldAlert } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertOctagon, Scale, ShieldAlert, Printer } from "lucide-react";
+import { useScaleReader } from "@/hooks/manufacturing";
+import { triggerBrowserPrint } from "@/lib/qr-generator";
 
 interface HandoverRecord {
   id: string;
@@ -108,6 +110,7 @@ export function ShopfloorOperatorWorkspace({
   const [recvPieces, setRecvPieces] = React.useState<string>("");
   const [overrideReason, setOverrideReason] = React.useState<string>("");
   const [selectedPendingHandover, setSelectedPendingHandover] = React.useState<HandoverRecord | null>(null);
+  const { isConnected: isScaleConnected, liveWeight, connect: connectScale, isSupported: isScaleSupported, connectMockScale } = useScaleReader();
 
   const currentUser = RBAC.getCurrentUser();
   const factoryConfig = getActiveFactoryConfig();
@@ -518,10 +521,32 @@ export function ShopfloorOperatorWorkspace({
                           <>
                             <div className="grid grid-cols-2 gap-2 text-xs">
                               <div>
-                                <label className="font-semibold text-muted-foreground">O&apos;lchangan vazn (g):</label>
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="font-semibold text-muted-foreground">O&apos;lchangan vazn (g):</label>
+                                  {isScaleConnected ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setRecvWeight(liveWeight.toFixed(3))}
+                                      className="text-[10px] text-primary font-bold hover:underline"
+                                    >
+                                      ⚖️ {liveWeight.toFixed(3)}g
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (isScaleSupported) void connectScale();
+                                        else void connectMockScale();
+                                      }}
+                                      className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                                    >
+                                      ⚖️ Tarozi
+                                    </button>
+                                  )}
+                                </div>
                                 <input
                                   type="number"
-                                  step="0.01"
+                                  step="0.001"
                                   value={recvWeight}
                                   onChange={(e) => setRecvWeight(e.target.value)}
                                   className="w-full border rounded px-2 py-1.5 font-mono font-bold text-base bg-background"
@@ -634,6 +659,35 @@ export function ShopfloorOperatorWorkspace({
 
           {/* Right: Selected Batch Progress Card and Complete & Handover Form */}
           <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Tanlangan partiya holati
+              </span>
+              {selectedBatch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const bNo = selectedBatch.batch_no || selectedBatch.number || "BATCH";
+                    const pName = selectedBatch.product_name || selectedBatch.product || "Zargarlik buyumi";
+                    triggerBrowserPrint({
+                      batchNo: bNo,
+                      productName: pName,
+                      proba: selectedBatch.proba || 585,
+                      plannedQty: Number(selectedBatch.planned_qty || 1),
+                      issuedGoldGram: Number(selectedBatch.issued_gold_gram || selectedBatch.wip_gram || 0),
+                      masterName: currentUser.name,
+                      createdAt: selectedBatch.created_at,
+                    });
+                  }}
+                  className="px-2.5 py-1 text-xs rounded-lg border font-medium bg-background hover:bg-muted flex items-center gap-1.5 transition-colors text-foreground shadow-sm"
+                  title="Termoprinter yoki brauzerda partiya stikerini chop etish"
+                >
+                  <Printer className="w-3.5 h-3.5 text-primary" />
+                  <span>QR Yorliqni chop etish</span>
+                </button>
+              )}
+            </div>
+
             <BatchProgressCard
               batchNumber={selectedBatch?.batch_no || selectedBatch?.number}
               status={normalizeBatchStatus(selectedBatch?.status)}
