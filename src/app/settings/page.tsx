@@ -9,13 +9,20 @@ import {
   type MachineRow,
   type ProductionStageRow,
 } from "@/lib/erp-engine";
+import {
+  getActiveFactoryConfig,
+  fetchFactoryConfigFromDb,
+  persistFactoryConfigToDb,
+  type FactoryConfig,
+} from "@/lib/factory-config";
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<"system" | "employees" | "machines" | "stages">("system");
+  const [tab, setTab] = useState<"system" | "factory" | "employees" | "machines" | "stages">("system");
   const [currentUser, setCurrentUser] = useState(() => RBAC.getCurrentUser());
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [stages, setStages] = useState<ProductionStageRow[]>([]);
+  const [factoryConfig, setFactoryConfig] = useState<FactoryConfig>(() => getActiveFactoryConfig());
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
 
@@ -35,14 +42,16 @@ export default function SettingsPage() {
 
   const load = useCallback(async () => {
     setCurrentUser(RBAC.getCurrentUser());
-    const [eRes, mRes, sRes] = await Promise.all([
+    const [eRes, mRes, sRes, fc] = await Promise.all([
       supabase.from("employees").select("*").order("created_at", { ascending: false }),
       supabase.from("machines").select("*").order("name"),
       supabase.from("production_stages").select("*").order("stage_order"),
+      fetchFactoryConfigFromDb(),
     ]);
     if (eRes.data) setEmployees(eRes.data as EmployeeRow[]);
     if (mRes.data) setMachines(mRes.data as MachineRow[]);
     if (sRes.data) setStages(sRes.data as ProductionStageRow[]);
+    if (fc) setFactoryConfig(fc);
   }, []);
 
   useEffect(() => {
@@ -182,6 +191,25 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveFactoryConfig = async () => {
+    if (!isDirector) {
+      alert("Faqat Director yoki Admin zavod sozlamalarini o'zgartira oladi!");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await persistFactoryConfigToDb(factoryConfig);
+      if (!res.success) {
+        alert(`Xatolik: ${res.error}`);
+      } else {
+        alert("Zavod sozlamalari bazada (organization_factory_settings) muvaffaqiyatli saqlandi!");
+        await load();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-8 text-slate-800 space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
@@ -201,6 +229,14 @@ export default function SettingsPage() {
             }`}
           >
             🛡️ Tizim &amp; RBAC
+          </button>
+          <button
+            onClick={() => setTab("factory")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+              tab === "factory" ? "bg-slate-900 text-white" : "text-slate-600"
+            }`}
+          >
+            🏭 Korxona Profili
           </button>
           <button
             onClick={() => setTab("employees")}
@@ -228,6 +264,165 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {tab === "factory" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-2xl border space-y-4 text-sm">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h2 className="font-black text-slate-900 text-base">🏭 {factoryConfig.factoryName}</h2>
+                <div className="text-xs text-slate-400 font-mono">Tenant ID: {factoryConfig.factoryId}</div>
+              </div>
+              <span className="bg-amber-100 text-amber-800 text-xs px-3 py-1 rounded-full font-black">
+                Faol Profil
+              </span>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between py-1.5 border-b">
+                <span className="text-slate-500">Zargarlik Konveyer Turi:</span>
+                <b className="text-slate-900 font-bold">20 Bosqichli Goldia Optimallashtirilgan</b>
+              </div>
+              <div className="flex justify-between py-1.5 border-b">
+                <span className="text-slate-500">Aylanib O&apos;tiladigan Bosqichlar (Bypass):</span>
+                <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded font-bold font-mono">
+                  #9 Ponza (Pumice) &amp; #13 Zirkon (Zircon)
+                </span>
+              </div>
+              <div className="flex justify-between py-1.5 border-b">
+                <span className="text-slate-500">Ikki Tomonlama Topshirish Tolerantligi:</span>
+                <b className="text-emerald-700 font-bold">&plusmn;0.0500 gr (Ikki tarozi solishtiruvi)</b>
+              </div>
+              <div className="flex justify-between py-1.5 border-b">
+                <span className="text-slate-500">Maksimal Ruxsat Etilgan Yo&apos;qotish (Loss Limit):</span>
+                <b className="text-slate-900 font-bold">2.0% (Oshsa, Supervayzer tasdig&apos;i shart)</b>
+              </div>
+              <div className="flex justify-between py-1.5 border-b">
+                <span className="text-slate-500">Ish Haqi Hisoblash:</span>
+                <b className="text-slate-900 font-bold">Faqat qabul qilingan topshirishdan keyin (Donabay/Grammabay)</b>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 p-3.5 rounded-xl text-xs text-blue-900 space-y-1">
+              <div className="font-bold">💡 Multi-Tenant SaaS Arxitekturasi:</div>
+              <p>
+                Ushbu korxona sozlamalari <code>factory_settings</code> jadvalida tenant darajasida saqlanadi. Boshqa zargarlik korxonalari (masalan, tosh terish sexlari yoki to&apos;liq tsiklli zavodlar) istalgan bosqichni mustaqil faollashtirishi mumkin.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border space-y-4 text-sm h-fit">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h2 className="font-black text-slate-900 text-base">
+                ⚡ Quvvat va Partiya Standartlari
+              </h2>
+              {isDirector && (
+                <button
+                  type="button"
+                  onClick={() => void handleSaveFactoryConfig()}
+                  disabled={busy}
+                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm"
+                >
+                  {busy ? "Saqlanmoqda..." : "💾 Bazada Saqlash"}
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div className="p-3 bg-slate-50 border rounded-xl space-y-1">
+                {isDirector ? (
+                  <input
+                    type="number"
+                    value={factoryConfig.laserMachinesCount}
+                    onChange={(e) =>
+                      setFactoryConfig({
+                        ...factoryConfig,
+                        laserMachinesCount: Math.max(1, parseInt(e.target.value, 10) || 1),
+                      })
+                    }
+                    className="w-full text-center text-xl font-black text-purple-700 bg-white border rounded p-1"
+                  />
+                ) : (
+                  <div className="text-2xl font-black text-purple-700">{factoryConfig.laserMachinesCount}</div>
+                )}
+                <div className="text-xs font-semibold text-slate-500">Lazer Uskunalari</div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border rounded-xl space-y-1">
+                {isDirector ? (
+                  <input
+                    type="number"
+                    value={factoryConfig.castingMachinesCount}
+                    onChange={(e) =>
+                      setFactoryConfig({
+                        ...factoryConfig,
+                        castingMachinesCount: Math.max(1, parseInt(e.target.value, 10) || 1),
+                      })
+                    }
+                    className="w-full text-center text-xl font-black text-amber-700 bg-white border rounded p-1"
+                  />
+                ) : (
+                  <div className="text-2xl font-black text-amber-700">{factoryConfig.castingMachinesCount}</div>
+                )}
+                <div className="text-xs font-semibold text-slate-500">Quyish Pechlari</div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border rounded-xl space-y-1">
+                {isDirector ? (
+                  <input
+                    type="number"
+                    value={factoryConfig.workersCount}
+                    onChange={(e) =>
+                      setFactoryConfig({
+                        ...factoryConfig,
+                        workersCount: Math.max(1, parseInt(e.target.value, 10) || 1),
+                      })
+                    }
+                    className="w-full text-center text-xl font-black text-blue-700 bg-white border rounded p-1"
+                  />
+                ) : (
+                  <div className="text-2xl font-black text-blue-700">{factoryConfig.workersCount}+</div>
+                )}
+                <div className="text-xs font-semibold text-slate-500">Zargarlar &amp; Ustalar</div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border rounded-xl space-y-1">
+                {isDirector ? (
+                  <input
+                    type="number"
+                    value={factoryConfig.maxModelsPerBatch}
+                    onChange={(e) =>
+                      setFactoryConfig({
+                        ...factoryConfig,
+                        maxModelsPerBatch: Math.max(1, parseInt(e.target.value, 10) || 1),
+                      })
+                    }
+                    className="w-full text-center text-xl font-black text-emerald-700 bg-white border rounded p-1"
+                  />
+                ) : (
+                  <div className="text-2xl font-black text-emerald-700">{factoryConfig.maxModelsPerBatch} model</div>
+                )}
+                <div className="text-xs font-semibold text-slate-500">Maks. Partiya Zichligi</div>
+              </div>
+            </div>
+
+            <div className="border-t pt-3 text-xs text-slate-600 space-y-1">
+              <div className="flex justify-between py-1">
+                <span>Modelga komplekt normasi:</span>
+                <b>{factoryConfig.setsPerModel} komplekt / model</b>
+              </div>
+              <div className="flex justify-between py-1">
+                <span>Partiya yorliq formati:</span>
+                <b>QR-kodli Termal Yorliq (58x40mm)</b>
+              </div>
+              <div className="flex justify-between py-1">
+                <span>Hisobotlar soni:</span>
+                <b>21 ta Avtomatlashtirilgan Modul</b>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {tab === "system" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

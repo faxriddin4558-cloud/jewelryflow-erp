@@ -24,7 +24,8 @@ export default function LoginPage() {
     });
     
     if (error) {
-      setError("Email yoki parol noto'g'ri!");
+      console.error("[LOGIN-ERROR]", error);
+      setError(error.message || "Email yoki parol noto'g'ri!");
       setLoading(false);
     } else {
       // Muvaffaqiyatli kirilsa, asosiy boshqaruv paneliga o'tkazish

@@ -16,7 +16,12 @@
     "db:diff": "supabase db diff",
     "db:types": "supabase gen types typescript --local > src/shared/types/database.types.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:db:migrations": "node scripts/test-migrations-real-postgres.js",
+    "test:db:integration": "node scripts/verify-real-database-all-phases.js",
+    "test:e2e:simulation": "node scripts/simulate-10-batches-e2e.js",
+    "test:db:all": "node scripts/test-migrations-real-postgres.js && node scripts/verify-real-database-all-phases.js && node scripts/simulate-10-batches-e2e.js",
+    "test:e2e:browser": "node scripts/run-isolated-browser-e2e.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -47,6 +52,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "@playwright/test": "^1.64.1",
     "@tanstack/react-query-devtools": "^5.59.0",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^22.7.4",

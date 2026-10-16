@@ -173,6 +173,7 @@ export interface SaleRow {
   proba?: number | string;
   payment_type?: string;
   total_amount?: number | string;
+  paid_amount?: number | string;
   amount?: number | string;
   price?: number | string;
   total?: number | string;
@@ -564,9 +565,73 @@ export interface MassBalanceResult {
   statusText: string;
 }
 
+export interface StageLossValidationInput {
+  inputWeightGram: number;
+  lossWeightGram: number;
+  maxLossPct?: number;
+  maxLossGram?: number;
+  stageName?: string;
+}
+
+export interface StageLossValidationResult {
+  isAcceptable: boolean;
+  lossPct: number;
+  lossWeightGram: number;
+  maxLossPct: number;
+  maxLossGram: number;
+  excessLossGram: number;
+  status: "ACCEPTABLE" | "EXCESSIVE_LOSS_ALERT";
+  statusText: string;
+}
+
 export interface FineGoldAccumulationEntry {
   grossWeight: number | string;
   proba: number | string;
+}
+
+export interface HandoverAuditRow {
+  id?: string;
+  batch_no?: string;
+  status?: string;
+  dispatched_weight_gram?: number;
+  received_weight_gram?: number | null;
+  weight_discrepancy_gram?: number | null;
+  tolerance_gram?: number;
+  dispatched_at?: string;
+}
+
+export interface FactoryIntegrityAuditInput {
+  inv?: InventoryItemRow[];
+  batches?: BatchRow[];
+  wipRows?: BatchStageWipRow[];
+  handovers?: HandoverAuditRow[];
+  sales?: SaleRow[];
+  debtRepayments?: DebtRepaymentRow[];
+  products?: ProductRow[];
+  salaryLedger?: SalaryLedgerRow[];
+}
+
+export interface FactoryIntegrityAnomaly {
+  severity: "CRITICAL" | "WARNING" | "INFO";
+  category: "SAFE_VAULT" | "MASS_BALANCE" | "HANDOVER" | "FINANCE" | "PAYROLL";
+  entityId: string;
+  description: string;
+  varianceGram?: number;
+}
+
+export interface FactoryIntegrityAuditReport {
+  isHealthy: boolean;
+  totalGoldIssuedGram: number;
+  totalGoldAccountedGram: number;
+  unaccountedGoldLeakGram: number;
+  safeRawGoldOnHandGram: number;
+  safeReservedGoldGram: number;
+  safeAvailableGoldGram: number;
+  fineGoldTotalGram: number;
+  activeWipGoldGram: number;
+  finishedProductGoldGram: number;
+  anomaliesCount: number;
+  anomalies: FactoryIntegrityAnomaly[];
 }
 
 export const GoldEngine = {
@@ -809,6 +874,33 @@ export const GoldEngine = {
     };
   },
 
+  validateStageLoss: (input: StageLossValidationInput): StageLossValidationResult => {
+    const inW = Math.max(0, Number(input.inputWeightGram) || 0);
+    const lossW = Math.max(0, Number(input.lossWeightGram) || 0);
+    const maxPct = Number(input.maxLossPct ?? 1.0);
+    const maxGram = Number(input.maxLossGram ?? 0.5);
+
+    const lossPct = inW > 0 ? Number(((lossW / inW) * 100).toFixed(3)) : 0;
+    const maxAllowedByPct = Number(((inW * maxPct) / 100).toFixed(4));
+    const effectiveLimitGram = Math.min(maxGram, maxAllowedByPct > 0 ? maxAllowedByPct : maxGram);
+
+    const isAcceptable = lossW <= effectiveLimitGram && (inW === 0 || lossPct <= maxPct);
+    const excessLossGram = Number(Math.max(0, lossW - effectiveLimitGram).toFixed(4));
+
+    return {
+      isAcceptable,
+      lossPct,
+      lossWeightGram: lossW,
+      maxLossPct: maxPct,
+      maxLossGram: maxGram,
+      excessLossGram,
+      status: isAcceptable ? "ACCEPTABLE" : "EXCESSIVE_LOSS_ALERT",
+      statusText: isAcceptable
+        ? `Ruxsat etilgan me'yor doirasida (${lossW.toFixed(2)}g / ${lossPct.toFixed(2)}%)`
+        : `XATO: Yo'qotish me'yordan oshdi (+${excessLossGram.toFixed(2)}g ortiqcha pateriya)!`,
+    };
+  },
+
   calculateSafeGoldSummary: (items: InventoryItemRow[]) => {
     const goldItems = items.filter((x) => {
       const cat = (x.category || "").toLowerCase();
@@ -908,7 +1000,219 @@ export const GoldEngine = {
       customerDebt,
     };
   },
+
+  /**
+   * Factory-Wide Gold Conservation, Chain-of-Custody, and Financial Reconciliation Engine.
+   * Scans all inventory, batches, handovers, sales, and payroll ledgers to detect:
+   * - Missing or unaccounted gold
+   * - Negative balances
+   * - Broken batch mass balances
+   * - Handover discrepancies & frozen chain-of-custody transfers
+   * - Financial kassa/debt imbalances
+   * - Duplicate piecework earnings
+   */
+  auditFactoryIntegrity: (ctx: FactoryIntegrityAuditInput): FactoryIntegrityAuditReport => {
+    const anomalies: FactoryIntegrityAnomaly[] = [];
+
+    // 1. SAFE VAULT AUDIT
+    const inv = ctx.inv || [];
+
+    for (const item of inv) {
+      const onHand = Number(item.on_hand ?? item.stock_grams ?? 0);
+      const reserved = Number(item.reserved ?? 0);
+      const proba = Number(item.proba ?? 0);
+      const name = item.name || item.material_code || "Noma'lum material";
+
+      if (onHand < 0) {
+        anomalies.push({
+          severity: "CRITICAL",
+          category: "SAFE_VAULT",
+          entityId: String(item.id || name),
+          description: `SAFE omborida manfiy qoldiq aniqlandi: ${name} (${onHand}g). Jismonan manfiy oltin mavjud bo'lishi mumkin emas!`,
+          varianceGram: onHand,
+        });
+      }
+
+      if (reserved > onHand && onHand >= 0) {
+        anomalies.push({
+          severity: "CRITICAL",
+          category: "SAFE_VAULT",
+          entityId: String(item.id || name),
+          description: `Rezervdagi oltin (${reserved}g) mavjud qoldiqdan (${onHand}g) oshib ketgan: ${name}`,
+          varianceGram: Number((reserved - onHand).toFixed(4)),
+        });
+      }
+
+      if (onHand > 0 && (proba <= 0 || proba > 1000)) {
+        anomalies.push({
+          severity: "WARNING",
+          category: "SAFE_VAULT",
+          entityId: String(item.id || name),
+          description: `Noto'g'ri proba kiritilgan: ${name} (proba: ${proba}). 1 dan 1000 gacha bo'lishi shart!`,
+        });
+      }
+    }
+
+    const safeSummary = GoldEngine.calculateSafeGoldSummary(inv);
+
+    // 2. BATCH MASS BALANCE & LEAKAGE AUDIT
+    const batches = ctx.batches || [];
+    let totalGoldIssuedGram = 0;
+    let totalGoldAccountedGram = 0;
+    let totalActiveWipGram = 0;
+
+    for (const b of batches) {
+      const bCode = b.batch_no || b.number || "BATCH";
+      const isCompleted = b.status === "COMPLETED" || b.status === "Tugatildi";
+      const inG = Number(b.issued_gold_gram ?? b.planned_gram ?? 0);
+      const goodG = Number(b.good_output_gram ?? (isCompleted ? b.actual_gram ?? 0 : 0));
+      const sprueG = Number(b.sprue_gram ?? 0);
+      const scrapG = Number(b.scrap_gram ?? 0);
+      const reworkG = Number(b.rework_gram ?? 0);
+      const lossG = Number(b.loss_gram ?? 0);
+      const wipG = isCompleted ? 0 : Number(b.wip_gram ?? Math.max(0, inG - goodG - sprueG - scrapG - reworkG - lossG));
+
+      totalGoldIssuedGram += inG;
+      totalActiveWipGram += wipG;
+
+      if (inG > 0) {
+        const mb = GoldEngine.verifyMassBalance({
+          inputGold: inG,
+          goodProduct: goodG,
+          sprue: sprueG,
+          scrap: scrapG,
+          rework: reworkG,
+          loss: lossG,
+          remainingWip: wipG,
+        });
+
+        totalGoldAccountedGram += mb.accountedWeight;
+
+        if (!mb.isBalanced) {
+          anomalies.push({
+            severity: Math.abs(mb.discrepancy) > 0.05 ? "CRITICAL" : "WARNING",
+            category: "MASS_BALANCE",
+            entityId: bCode,
+            description: `Partiya ${bCode} mass balansi nomuvofiq: ${mb.statusText}. Kirish: ${inG}g, Hisoblangan: ${mb.accountedWeight}g`,
+            varianceGram: mb.discrepancy,
+          });
+        }
+
+        if (goodG + sprueG + scrapG + lossG > inG + 0.05) {
+          anomalies.push({
+            severity: "CRITICAL",
+            category: "MASS_BALANCE",
+            entityId: bCode,
+            description: `Partiya ${bCode}da chiqish va yo'qotishlar (${(goodG + sprueG + scrapG + lossG).toFixed(2)}g) berilgan oltindan (${inG}g) oshib ketgan! Oltin generatsiyasi nomaqbul.`,
+            varianceGram: Number((goodG + sprueG + scrapG + lossG - inG).toFixed(4)),
+          });
+        }
+      }
+    }
+
+    // 3. TWO-PARTY HANDOVER CHAIN-OF-CUSTODY AUDIT
+    const handovers = ctx.handovers || [];
+    const nowMs = Date.now();
+
+    for (const h of handovers) {
+      const bCode = h.batch_no || "BATCH";
+      if (h.status === "DISCREPANCY_FLAGGED") {
+        anomalies.push({
+          severity: "WARNING",
+          category: "HANDOVER",
+          entityId: String(h.id || bCode),
+          description: `Partiya ${bCode} topshirishida vazn farqi aniqlangan (+${h.weight_discrepancy_gram ?? 0}g) va jarayon muzlatilgan. Supervayzer xulosasi zarur.`,
+          varianceGram: Number(h.weight_discrepancy_gram ?? 0),
+        });
+      }
+
+      if (h.status === "PENDING_ACCEPTANCE" && h.dispatched_at) {
+        const dispMs = new Date(h.dispatched_at).getTime();
+        const waitingHours = (nowMs - dispMs) / (1000 * 3600);
+        if (waitingHours > 24) {
+          anomalies.push({
+            severity: "WARNING",
+            category: "HANDOVER",
+            entityId: String(h.id || bCode),
+            description: `Partiya ${bCode} topshirishi 24 soatdan ortiq qabul qilinmasdan turibdi (${waitingHours.toFixed(1)} soat).`,
+          });
+        }
+      }
+    }
+
+    // 4. FINANCIAL & INVENTORY AUDIT
+    const sales = ctx.sales || [];
+    for (const s of sales) {
+      const tot = Number(s.total_amount ?? s.amount ?? 0);
+      const paid = Number(s.paid_amount ?? 0);
+      const debt = Number(s.debt_amount ?? 0);
+
+      if (tot > 0 && Math.abs(tot - (paid + debt)) > 1.0) {
+        anomalies.push({
+          severity: "WARNING",
+          category: "FINANCE",
+          entityId: String(s.id || "SALE"),
+          description: `Sotuv kassa/qarz balansi nomuvofiq: Jami narx (${tot}) != To'langan (${paid}) + Qarz (${debt})`,
+        });
+      }
+    }
+
+    const products = ctx.products || [];
+    let finishedProductGoldGram = 0;
+    for (const p of products) {
+      const stock = Number(p.stock ?? p.quantity ?? 0);
+      const netWeight = Math.max(0, Number(p.weight || 0) - Number(p.stone_weight || 0));
+      if (stock < 0) {
+        anomalies.push({
+          severity: "CRITICAL",
+          category: "FINANCE",
+          entityId: String(p.id || p.name),
+          description: `Vitrina tayyor mahsulot qoldig'i manfiy: ${p.name || p.title} (${stock} dona). Manfiy tovar bo'lishi mumkin emas!`,
+        });
+      }
+      if (stock > 0 && netWeight > 0) {
+        finishedProductGoldGram += stock * netWeight;
+      }
+    }
+
+    // 5. PAYROLL DUPLICATE AUDIT
+    const salaryLedger = ctx.salaryLedger || [];
+    const earnedKeySet = new Set<string>();
+    for (const entry of salaryLedger) {
+      if (entry.tx_type === "EARNED" && entry.employee_id && entry.batch_no && entry.stage_name) {
+        const key = `${entry.employee_id}_${entry.batch_no}_${entry.stage_name}`;
+        if (earnedKeySet.has(key)) {
+          anomalies.push({
+            severity: "WARNING",
+            category: "PAYROLL",
+            entityId: String(entry.id || key),
+            description: `Ish haqi hisobida takroriy yozuv (dublikat) aniqlandi: Xodim ${entry.worker_name || entry.employee_id}, Partiya ${entry.batch_no}, Bosqich ${entry.stage_name}`,
+          });
+        }
+        earnedKeySet.add(key);
+      }
+    }
+
+    const unaccountedLeak = Number(Math.max(0, totalGoldIssuedGram - totalGoldAccountedGram).toFixed(4));
+    const isHealthy = anomalies.filter((a) => a.severity === "CRITICAL").length === 0 && unaccountedLeak <= 0.05;
+
+    return {
+      isHealthy,
+      totalGoldIssuedGram: Number(totalGoldIssuedGram.toFixed(4)),
+      totalGoldAccountedGram: Number(totalGoldAccountedGram.toFixed(4)),
+      unaccountedGoldLeakGram: unaccountedLeak,
+      safeRawGoldOnHandGram: safeSummary.rawGoldOnHand,
+      safeReservedGoldGram: safeSummary.reservedGold,
+      safeAvailableGoldGram: safeSummary.availableGold,
+      fineGoldTotalGram: safeSummary.fineGoldTotal,
+      activeWipGoldGram: Number(totalActiveWipGram.toFixed(4)),
+      finishedProductGoldGram: Number(finishedProductGoldGram.toFixed(4)),
+      anomaliesCount: anomalies.length,
+      anomalies,
+    };
+  },
 };
+
 
 export interface AuditLogPayload {
   table_name?: string;
@@ -2240,6 +2544,7 @@ export const ERP_REPORT_TYPES = [
   "18. Salary report",
   "19. Finished goods",
   "20. Raw material inventory",
+  "21. Reconciliation and Integrity Audit",
 ] as const;
 
 export type ErpReportType = (typeof ERP_REPORT_TYPES)[number];
@@ -2283,6 +2588,16 @@ export interface ErpReportContext {
   goldTx: GoldTransactionRow[];
   batches: BatchRow[];
   wipRows?: BatchStageWipRow[];
+  handovers?: {
+    id?: string;
+    batch_no?: string;
+    status?: string;
+    dispatched_weight_gram?: number;
+    received_weight_gram?: number | null;
+    weight_discrepancy_gram?: number | null;
+    tolerance_gram?: number;
+    dispatched_at?: string;
+  }[];
   orders: OrderRow[];
   sales: SaleRow[];
   debtRepayments?: DebtRepaymentRow[];
@@ -2828,6 +3143,90 @@ export function buildErpReportRows(
         ];
       }),
     ];
+  }
+
+  if (idx === 21) {
+    const audit = GoldEngine.auditFactoryIntegrity({
+      inv: ctx.inv,
+      batches: ctx.batches,
+      wipRows: ctx.wipRows,
+      handovers: ctx.handovers,
+      sales: ctx.sales,
+      debtRepayments: ctx.debtRepayments,
+      products: ctx.products,
+      salaryLedger: ctx.salaryLedger,
+    });
+
+    const header = [
+      "TOIFA",
+      "OBYEKT (ID)",
+      "XATOLIK DARAJASI",
+      "TAVSIF",
+      "NOMUTANOSIBLIK (GR)",
+    ];
+
+    const anomalyRows = audit.anomalies.map((a) => [
+      a.category,
+      a.entityId,
+      a.severity,
+      a.description,
+      a.varianceGram != null ? a.varianceGram : "-",
+    ]);
+
+    const summaryRows = [
+      ["--- UMUMIY REKONSILYATSIYA XULOSASI ---", "", "", "", ""],
+      [
+        "FABRIKA HOLATI",
+        audit.isHealthy ? "SOG'LOM / INTEGRITY PASS" : "XATOLIKLAR MAVJUD",
+        audit.isHealthy ? "PASS" : "DEFECT",
+        `Jami anomaliyalar: ${audit.anomaliesCount}`,
+        "-",
+      ],
+      [
+        "BERILGAN OLTIN",
+        "JAMI PARTIYALAR",
+        "INFO",
+        "Fabrika partiyalariga berilgan jami oltin",
+        audit.totalGoldIssuedGram,
+      ],
+      [
+        "HISOBLANGAN OLTIN",
+        "CHIQISH + QOLDIQ + LOSS",
+        "INFO",
+        "Barcha partiyalar bo'yicha hisoblangan oltin",
+        audit.totalGoldAccountedGram,
+      ],
+      [
+        "NOMALUM YO'QOTISH",
+        "UNACCOUNTED LEAK",
+        audit.unaccountedGoldLeakGram > 0.05 ? "CRITICAL" : "PASS",
+        "Tushuntirilmagan oltin kamomadi (0.0000g kutiladi)",
+        audit.unaccountedGoldLeakGram,
+      ],
+      [
+        "SAFE SOF OLTIN",
+        "999 EKVIVALENT",
+        "INFO",
+        "Safe omboridagi sof oltin zaxirasi",
+        audit.fineGoldTotalGram,
+      ],
+      [
+        "SEX WIP OLTIN",
+        "JARAYONDA",
+        "INFO",
+        "Sexlarda hozirda ishlov berilayotgan oltin",
+        audit.activeWipGoldGram,
+      ],
+      [
+        "VITRINA OLTIN",
+        "TAYYOR MAHSULOT",
+        "INFO",
+        "Vitrinada turgan tayyor mahsulotlar sof oltini",
+        audit.finishedProductGoldGram,
+      ],
+    ];
+
+    return [header, ...anomalyRows, ...summaryRows];
   }
 
   return [

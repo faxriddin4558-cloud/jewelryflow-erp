@@ -15,3 +15,6 @@ errors*.txt
 *.dump
 *.bak
 _backup_*
+test-results/
+e2e-report*/
+e2e-report.json

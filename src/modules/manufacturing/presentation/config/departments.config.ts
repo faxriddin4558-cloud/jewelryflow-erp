@@ -34,3 +34,34 @@ export type DepartmentRouteSlug = keyof typeof DEPARTMENT_ROUTE_CONFIG;
 export function getDepartmentRouteConfig(slug: DepartmentRouteSlug) {
   return DEPARTMENT_ROUTE_CONFIG[slug];
 }
+
+import {
+  isDepartmentSlugActive,
+  getActiveFactoryConfig,
+  type FactoryConfig,
+} from "@/lib/factory-config";
+
+/**
+ * Checks whether a given department route is active for the current factory configuration.
+ */
+export function isDepartmentRouteActive(
+  slug: DepartmentRouteSlug,
+  config: FactoryConfig = getActiveFactoryConfig()
+): boolean {
+  return isDepartmentSlugActive(slug, config);
+}
+
+/**
+ * Returns all department routes that are active in the current factory profile.
+ */
+export function getActiveDepartmentRoutes(
+  config: FactoryConfig = getActiveFactoryConfig()
+): { slug: DepartmentRouteSlug; code: string; title: string }[] {
+  const entries = Object.entries(DEPARTMENT_ROUTE_CONFIG) as [
+    DepartmentRouteSlug,
+    { code: string; title: string }
+  ][];
+  return entries
+    .filter(([slug]) => isDepartmentRouteActive(slug, config))
+    .map(([slug, meta]) => ({ slug, ...meta }));
+}
