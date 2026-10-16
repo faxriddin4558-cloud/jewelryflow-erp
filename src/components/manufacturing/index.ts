@@ -4,3 +4,4 @@ export * from "./StageQueueBoard";
 export * from "./HandoverWeightForm";
 export * from "./StageLossWarning";
 export * from "./ManufacturingStatusBadge";
+export * from "./ShopfloorOperatorWorkspace";

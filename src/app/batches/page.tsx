@@ -17,6 +17,7 @@ import {
   getNextActiveStage,
   isStageActive,
 } from "@/lib/factory-config";
+import { ShopfloorOperatorWorkspace } from "@/components/manufacturing";
 
 interface HandoverRow {
   id: string;
@@ -47,7 +48,7 @@ interface HandoverRow {
 }
 
 export default function BatchesPage() {
-  const [tab, setTab] = useState<"wip" | "queue" | "machines" | "tv" | "handovers">("wip");
+  const [tab, setTab] = useState<"wip" | "queue" | "machines" | "tv" | "handovers" | "operator">("wip");
   const [batches, setBatches] = useState<BatchRow[]>([]);
   const [stages, setStages] = useState<ProductionStageRow[]>([]);
   const [wipRows, setWipRows] = useState<BatchStageWipRow[]>([]);
@@ -540,6 +541,14 @@ export default function BatchesPage() {
             }`}
           >
             🤝 Qabul/Topshirish ({handovers.filter((h) => h.status === "PENDING_ACCEPTANCE").length})
+          </button>
+          <button
+            onClick={() => setTab("operator")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+              tab === "operator" ? "bg-purple-600 text-white" : "text-slate-600"
+            }`}
+          >
+            📱 Operator Panel
           </button>
           <button
             onClick={() => setTab("tv")}
@@ -1107,6 +1116,12 @@ export default function BatchesPage() {
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {tab === "operator" && (
+        <div className="space-y-4">
+          <ShopfloorOperatorWorkspace onRefresh={load} />
         </div>
       )}
     </div>

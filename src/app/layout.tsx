@@ -137,6 +137,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       title: "ISHLAB CHIQARISH",
       items: [
         { name: "Partiyalar", path: "/batches", icon: "⚙️" },
+        { name: "Sexlar va Operator", path: "/manufacturing", icon: "🏭" },
         { name: "Proba / Ligatura", path: "/calculator", icon: "🧮" },
         { name: "Xodimlar", path: "/employees", icon: "👥" },
       ],
