@@ -129,7 +129,7 @@ async function runEndToEndSimulation() {
   });
 
   // 1. Setup Database
-  process.stdout.write('  Applying all migrations (001-022) to fresh database ... ');
+  process.stdout.write('  Applying all migrations (001-024) to fresh database ... ');
   await setupSupabaseBase(db);
   await applyAllMigrations(db);
   console.log(green('DONE'));

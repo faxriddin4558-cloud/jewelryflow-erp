@@ -184,3 +184,66 @@ export async function recordQcInspectionToDb(input: {
     return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }
+
+export interface QcReworkCompletionInput {
+  qcId?: string;
+  batchId?: string;
+  batchNo?: string;
+  reworkStageOrder?: number;
+  inspectStageOrder?: number;
+  completedQty: number;
+  masterName?: string;
+  resolutionNotes?: string;
+  idempotencyKey?: string;
+}
+
+export interface QcReworkCompletionResult {
+  success: boolean;
+  qcId?: string;
+  batchNo?: string;
+  completedReworkQty?: number;
+  reworkStage?: number;
+  returnedStage?: number;
+  resolvedBy?: string;
+  error?: string;
+}
+
+/**
+ * Marks rework completed by a master goldsmith and returns pieces to the inspection stage WIP.
+ */
+export async function completeQcReworkToDb(
+  input: QcReworkCompletionInput
+): Promise<QcReworkCompletionResult> {
+  try {
+    const { supabase, generateIdempotencyKey } = await import("./erp-engine");
+    const { data, error } = await supabase.rpc("rpc_complete_qc_rework", {
+      p_qc_id: input.qcId ?? null,
+      p_batch_id: input.batchId ?? null,
+      p_batch_no: input.batchNo ?? null,
+      p_rework_stage_order: input.reworkStageOrder ?? 8,
+      p_inspect_stage_order: input.inspectStageOrder ?? 20,
+      p_completed_qty: input.completedQty,
+      p_master_name: input.masterName ?? "",
+      p_resolution_notes: input.resolutionNotes ?? "",
+      p_idempotency_key: input.idempotencyKey ?? generateIdempotencyKey("qc-rw-comp"),
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    const payload = data as Record<string, unknown>;
+    return {
+      success: true,
+      qcId: payload.qcId ? String(payload.qcId) : undefined,
+      batchNo: payload.batchNo ? String(payload.batchNo) : undefined,
+      completedReworkQty: typeof payload.completedReworkQty === "number" ? payload.completedReworkQty : input.completedQty,
+      reworkStage: typeof payload.reworkStage === "number" ? payload.reworkStage : input.reworkStageOrder,
+      returnedStage: typeof payload.returnedStage === "number" ? payload.returnedStage : input.inspectStageOrder,
+      resolvedBy: payload.resolvedBy ? String(payload.resolvedBy) : input.masterName,
+    };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+

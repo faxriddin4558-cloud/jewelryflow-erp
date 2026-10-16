@@ -272,12 +272,16 @@ export interface SalaryLedgerRow {
   worker_name?: string;
   batch_no?: string;
   stage_name?: string;
-  tx_type?: "EARNED" | "PAID" | string;
+  tx_type?: "EARNED" | "PAID" | "ADJUSTMENT" | "REVERSAL" | string;
   weight_done?: number | string;
   rate?: number | string;
   amount?: number | string;
   payment_status?: string;
   note?: string;
+  handover_id?: string;
+  stage_order?: number;
+  original_ledger_id?: string;
+  organization_id?: string;
   idempotency_key?: string;
   created_at?: string;
 }
@@ -285,12 +289,21 @@ export interface SalaryLedgerRow {
 export interface QualityControlRow {
   id?: string;
   created_at: string;
+  batch_id?: string;
   batch_no?: string;
   operation_name?: string;
   checked_qty?: number | string;
   passed_qty?: number | string;
   rework_qty?: number | string;
+  defect_code?: string;
+  rework_stage_order?: number;
+  inspector_name?: string;
   reason?: string;
+  status?: string;
+  resolved_at?: string;
+  resolved_by?: string;
+  resolution_notes?: string;
+  organization_id?: string;
 }
 
 export interface AuditLogRow {
@@ -1175,21 +1188,51 @@ export const GoldEngine = {
       }
     }
 
-    // 5. PAYROLL DUPLICATE AUDIT
+    // 5. PAYROLL DUPLICATE & OVER-ADJUSTMENT AUDIT
     const salaryLedger = ctx.salaryLedger || [];
     const earnedKeySet = new Set<string>();
+    const adjustmentsByOrigId = new Map<string, number>();
+    const earnedRecordsById = new Map<string, { amount: number; worker: string }>();
+
     for (const entry of salaryLedger) {
-      if (entry.tx_type === "EARNED" && entry.employee_id && entry.batch_no && entry.stage_name) {
-        const key = `${entry.employee_id}_${entry.batch_no}_${entry.stage_name}`;
-        if (earnedKeySet.has(key)) {
-          anomalies.push({
-            severity: "WARNING",
-            category: "PAYROLL",
-            entityId: String(entry.id || key),
-            description: `Ish haqi hisobida takroriy yozuv (dublikat) aniqlandi: Xodim ${entry.worker_name || entry.employee_id}, Partiya ${entry.batch_no}, Bosqich ${entry.stage_name}`,
+      if (entry.tx_type === "EARNED") {
+        if (entry.id) {
+          earnedRecordsById.set(String(entry.id), {
+            amount: Number(entry.amount || 0),
+            worker: entry.worker_name || entry.employee_id || "Xodim",
           });
         }
-        earnedKeySet.add(key);
+        if (entry.employee_id && entry.batch_no && entry.stage_name) {
+          const key = `${entry.employee_id}_${entry.batch_no}_${entry.stage_name}`;
+          if (earnedKeySet.has(key)) {
+            anomalies.push({
+              severity: "WARNING",
+              category: "PAYROLL",
+              entityId: String(entry.id || key),
+              description: `Ish haqi hisobida takroriy yozuv (dublikat) aniqlandi: Xodim ${entry.worker_name || entry.employee_id}, Partiya ${entry.batch_no}, Bosqich ${entry.stage_name}`,
+            });
+          }
+          earnedKeySet.add(key);
+        }
+      } else if (
+        (entry.tx_type === "ADJUSTMENT" || entry.tx_type === "REVERSAL") &&
+        entry.original_ledger_id
+      ) {
+        const origId = String(entry.original_ledger_id);
+        const currentSum = adjustmentsByOrigId.get(origId) || 0;
+        adjustmentsByOrigId.set(origId, currentSum + Number(entry.amount || 0));
+      }
+    }
+
+    for (const [origId, totalAdj] of adjustmentsByOrigId.entries()) {
+      const orig = earnedRecordsById.get(origId);
+      if (orig && totalAdj > orig.amount) {
+        anomalies.push({
+          severity: "CRITICAL",
+          category: "PAYROLL",
+          entityId: origId,
+          description: `Ish haqi ortiqcha ushlab qolingan (over-adjusted): Xodim ${orig.worker}. Hisoblangan: ${orig.amount} UZS, Ushlangan: ${totalAdj} UZS.`,
+        });
       }
     }
 

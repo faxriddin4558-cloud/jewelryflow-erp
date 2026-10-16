@@ -102,6 +102,23 @@ describe("GoldEngine.auditFactoryIntegrity", () => {
 
     expect(report.anomalies.some((a) => a.category === "PAYROLL" && a.description.includes("takroriy"))).toBe(true);
   });
+
+  it("detects critical payroll anomaly when adjustments exceed original earned amount", () => {
+    const report = GoldEngine.auditFactoryIntegrity({
+      salaryLedger: [
+        { id: "sal-100", employee_id: "emp-1", worker_name: "Usta", amount: 100000, tx_type: "EARNED" },
+        { id: "sal-101", original_ledger_id: "sal-100", amount: 70000, tx_type: "ADJUSTMENT" },
+        { id: "sal-102", original_ledger_id: "sal-100", amount: 50000, tx_type: "ADJUSTMENT" }, // 70k + 50k = 120k > 100k!
+      ],
+    });
+
+    expect(report.isHealthy).toBe(false);
+    expect(
+      report.anomalies.some(
+        (a) => a.category === "PAYROLL" && a.severity === "CRITICAL" && a.description.includes("ortiqcha ushlab qolingan")
+      )
+    ).toBe(true);
+  });
 });
 
 describe("QR Code & Batch Label Engine (Printer-Independent)", () => {

@@ -150,10 +150,10 @@ async function runAllVerificationPhases() {
   };
 
   // 1. Initial Migration Setup
-  console.log(cyan('--- PHASE A: Migration 001-021 Application & Database Boot ---'));
+  console.log(cyan('--- PHASE A: Migration 001-024 Application & Database Boot ---'));
   await setupSupabaseBase(db);
   await applyAllMigrations(db);
-  console.log(green('  Migrations 001 through 021 successfully applied to fresh PostgreSQL.\n'));
+  console.log(green('  Migrations 001 through 024 successfully applied to fresh PostgreSQL.\n'));
 
   // Define Fixture UUIDs (valid hex digits only)
   const ORG_A_ID = '11111111-1111-1111-1111-111111111111';
@@ -161,6 +161,8 @@ async function runAllVerificationPhases() {
   const OP_A_UID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
   const OP_B_UID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
   const MGR_A_UID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+  const MGR_B_UID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+  const MASTER_A_UID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
   // Seed Tenants and Users as Superuser
   await db.exec(`
@@ -174,14 +176,18 @@ async function runAllVerificationPhases() {
     VALUES
       ('${OP_A_UID}'::uuid, 'operator-a@org-a.uz'),
       ('${OP_B_UID}'::uuid, 'operator-b@org-b.uz'),
-      ('${MGR_A_UID}'::uuid, 'manager-a@org-a.uz')
+      ('${MGR_A_UID}'::uuid, 'manager-a@org-a.uz'),
+      ('${MGR_B_UID}'::uuid, 'manager-b@org-b.uz'),
+      ('${MASTER_A_UID}'::uuid, 'master-a@org-a.uz')
     ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO public.employees (id, user_id, name, full_name, email, role, role_type, organization_id, is_active, status)
     VALUES
       ('${OP_A_UID}'::uuid, '${OP_A_UID}'::uuid, 'Ali Operator A', 'Ali Operator A', 'operator-a@org-a.uz', 'department_operator', 'department_operator', '${ORG_A_ID}'::uuid, true, 'active'),
       ('${OP_B_UID}'::uuid, '${OP_B_UID}'::uuid, 'Vali Operator B', 'Vali Operator B', 'operator-b@org-b.uz', 'department_operator', 'department_operator', '${ORG_B_ID}'::uuid, true, 'active'),
-      ('${MGR_A_UID}'::uuid, '${MGR_A_UID}'::uuid, 'Karim Rahbar A', 'Karim Rahbar A', 'manager-a@org-a.uz', 'production_manager', 'production_manager', '${ORG_A_ID}'::uuid, true, 'active')
+      ('${MGR_A_UID}'::uuid, '${MGR_A_UID}'::uuid, 'Karim Rahbar A', 'Karim Rahbar A', 'manager-a@org-a.uz', 'production_manager', 'production_manager', '${ORG_A_ID}'::uuid, true, 'active'),
+      ('${MGR_B_UID}'::uuid, '${MGR_B_UID}'::uuid, 'Sardor Rahbar B', 'Sardor Rahbar B', 'manager-b@org-b.uz', 'production_manager', 'production_manager', '${ORG_B_ID}'::uuid, true, 'active'),
+      ('${MASTER_A_UID}'::uuid, '${MASTER_A_UID}'::uuid, 'Hasan Master A', 'Hasan Master A', 'master-a@org-a.uz', 'master', 'master', '${ORG_A_ID}'::uuid, true, 'active')
     ON CONFLICT (id) DO NOTHING;
 
     -- Seed factory configs for Org A (skips 9, 13) and Org B (full pipeline)
@@ -829,6 +835,478 @@ async function runAllVerificationPhases() {
       }
     }
     if (!rejected) throw new Error('Operator B tampered Org A QC!');
+  });
+
+  // ==========================================================================
+  // PHASE I: MULTI-TENANT SCHEMA ISOLATION & SEQUENCE COLLISION RESISTANCE
+  // ==========================================================================
+  console.log(cyan('\n--- PHASE I: Multi-Tenant Schema Isolation & Collision Resistance ---'));
+
+  await testAssert('Org A creates order "ORD-SHARED-001" and batch "BATCH-SHARED-001"', async () => {
+    await setContext(db, MGR_A_UID);
+    const ordRes = await db.query(`
+      SELECT public.rpc_create_order_with_advance(
+        p_order_no := 'ORD-SHARED-001',
+        p_client_name := 'Mijoz Org A',
+        p_product_model := 'Uzuk Klassika',
+        p_qty := 5,
+        p_weight_gram := 20.0,
+        p_total_price := 10000000,
+        p_advance := 2000000
+      ) as res;
+    `);
+    if (ordRes.rows[0].res.status !== 'ok') throw new Error('Failed to create Org A order');
+
+    const srcRes = await db.query(`SELECT id::text FROM public.inventory_items WHERE name = 'Oltin 585 SAFE Org A'`);
+    const bRes = await db.query(`
+      SELECT public.rpc_create_batch_with_gold_issue(
+        p_source_item_id := '${srcRes.rows[0].id}',
+        p_batch_no := 'BATCH-SHARED-001',
+        p_product_name := 'Uzuk Klassika',
+        p_master_name := 'Ali Usta',
+        p_proba := 585,
+        p_planned_qty := 5,
+        p_issued_gold_gram := 20.0000,
+        p_pure_gold := 11.7000,
+        p_priority := 'NORMAL',
+        p_deadline := CURRENT_DATE + 5,
+        p_idempotency_key := 'b-shared-a-01'
+      ) as res;
+    `);
+    if (bRes.rows[0].res.status !== 'ok') throw new Error('Failed to create Org A batch');
+  });
+
+  await testAssert('Org B creates order "ORD-SHARED-001" and batch "BATCH-SHARED-001" with IDENTICAL keys without collision', async () => {
+    await setContext(db, MGR_B_UID);
+    const ordRes = await db.query(`
+      SELECT public.rpc_create_order_with_advance(
+        p_order_no := 'ORD-SHARED-001',
+        p_client_name := 'Mijoz Org B',
+        p_product_model := 'Uzuk Klassika',
+        p_qty := 3,
+        p_weight_gram := 15.0,
+        p_total_price := 7500000,
+        p_advance := 1500000
+      ) as res;
+    `);
+    if (ordRes.rows[0].res.status !== 'ok') throw new Error('Failed to create Org B order with shared number');
+
+    const srcRes = await db.query(`SELECT id::text FROM public.inventory_items WHERE name = 'Oltin 585 SAFE Org B'`);
+    const bRes = await db.query(`
+      SELECT public.rpc_create_batch_with_gold_issue(
+        p_source_item_id := '${srcRes.rows[0].id}',
+        p_batch_no := 'BATCH-SHARED-001',
+        p_product_name := 'Uzuk Klassika',
+        p_master_name := 'Vali Usta',
+        p_proba := 585,
+        p_planned_qty := 3,
+        p_issued_gold_gram := 15.0000,
+        p_pure_gold := 8.7750,
+        p_priority := 'NORMAL',
+        p_deadline := CURRENT_DATE + 5,
+        p_idempotency_key := 'b-shared-b-01'
+      ) as res;
+    `);
+    if (bRes.rows[0].res.status !== 'ok') throw new Error('Failed to create Org B batch with shared number');
+  });
+
+  await testAssert('Org B queries orders and batches and sees ONLY Org B data (0 leakage from Org A)', async () => {
+    await setContext(db, MGR_B_UID);
+    const ords = await db.query(`SELECT * FROM public.orders WHERE order_no = 'ORD-SHARED-001'`);
+    if (ords.rows.length !== 1 || ords.rows[0].client_name !== 'Mijoz Org B') {
+      throw new Error(`Data leakage in orders: got ${ords.rows.length} rows`);
+    }
+
+    await setContext(db, OP_B_UID);
+    const batches = await db.query(`SELECT * FROM public.batches WHERE batch_no = 'BATCH-SHARED-001'`);
+    if (batches.rows.length !== 1 || batches.rows[0].organization_id !== ORG_B_ID) {
+      throw new Error(`Data leakage in batches: got ${batches.rows.length} rows`);
+    }
+  });
+
+  await testAssert('Org A and Org B both create product with identical name "Uzuk Klassika" without collision', async () => {
+    await setContext(db, MGR_A_UID);
+    const pARes = await db.query(`
+      SELECT public.rpc_create_product_with_bom(
+        p_name := 'Uzuk Klassika 585 Model',
+        p_proba := 585,
+        p_weight := 4.0
+      ) as res;
+    `);
+    if (pARes.rows[0].res.status !== 'ok') throw new Error('Org A product creation failed');
+
+    await setContext(db, MGR_B_UID);
+    const pBRes = await db.query(`
+      SELECT public.rpc_create_product_with_bom(
+        p_name := 'Uzuk Klassika 585 Model',
+        p_proba := 585,
+        p_weight := 5.0
+      ) as res;
+    `);
+    if (pBRes.rows[0].res.status !== 'ok') throw new Error('Org B product creation failed with same name');
+  });
+
+  // ==========================================================================
+  // PHASE J: INVENTORY, ALLOY, AFFINAJ & GOLD ACCOUNTING ISOLATION
+  // ==========================================================================
+  console.log(cyan('\n--- PHASE J: Inventory, Alloy, Affinaj & Gold Accounting Isolation ---'));
+
+  let orgAItem585Id, orgAItem750Id, orgAItem999Id, orgBItem585Id;
+  await testAssert('Setup and verify initial gold inventory items for Org A and Org B', async () => {
+    await setContext(db, MGR_A_UID);
+    const itemsA = await db.query(`SELECT id::text, name, on_hand FROM public.inventory_items WHERE organization_id = '${ORG_A_ID}'`);
+    orgAItem585Id = itemsA.rows.find((r) => r.name === 'Oltin 585 SAFE Org A').id;
+    orgAItem750Id = itemsA.rows.find((r) => r.name === 'Oltin 750 SAFE Org A').id;
+    orgAItem999Id = itemsA.rows.find((r) => r.name === 'Oltin 999 SAFE Org A').id;
+
+    await setContext(db, MGR_B_UID);
+    const itemsB = await db.query(`SELECT id::text, name, on_hand FROM public.inventory_items WHERE organization_id = '${ORG_B_ID}'`);
+    orgBItem585Id = itemsB.rows.find((r) => r.name === 'Oltin 585 SAFE Org B').id;
+
+    if (!orgAItem585Id || !orgBItem585Id) throw new Error('Failed to resolve inventory IDs');
+  });
+
+  await testAssert('Org B operator CANNOT execute withdrawal (chiqim) on Org A inventory (Cross-tenant violation)', async () => {
+    await setContext(db, OP_B_UID);
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_inventory_transaction(
+          p_item_id := '${orgAItem585Id}',
+          p_tx_type := 'chiqim',
+          p_weight := 10.0
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+      if (!err.message.includes('Cross-tenant violation') && !err.message.includes('Permission denied')) {
+        throw new Error(`Unexpected message: ${err.message}`);
+      }
+    }
+    if (!rejected) throw new Error('Org B operator executed withdrawal on Org A inventory!');
+  });
+
+  await testAssert('Org A withdrawal exceeding available on-hand gold is rejected (Negative balance guard)', async () => {
+    await setContext(db, MGR_A_UID);
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_inventory_transaction(
+          p_item_id := '${orgAItem585Id}',
+          p_tx_type := 'chiqim',
+          p_weight := 999999.0
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+      if (!err.message.includes('Insufficient available inventory')) {
+        throw new Error(`Unexpected message: ${err.message}`);
+      }
+    }
+    if (!rejected) throw new Error('Overselling gold succeeded without error!');
+  });
+
+  await testAssert('Org B operator CANNOT execute alloy transaction using Org A gold items', async () => {
+    await setContext(db, MGR_B_UID);
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_execute_alloy_transaction(
+          p_source_item_id := '${orgAItem585Id}',
+          p_target_item_id := '${orgBItem585Id}',
+          p_input_weight := 10.0,
+          p_source_proba := 585,
+          p_target_proba := 750,
+          p_output_weight := 12.0
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+      if (!err.message.includes('Cross-tenant violation') && !err.message.includes('Permission denied')) {
+        throw new Error(`Unexpected message: ${err.message}`);
+      }
+    }
+    if (!rejected) throw new Error('Org B executed alloy on Org A gold!');
+  });
+
+  await testAssert('Org A executes alloy transaction (585 -> 750) and fine gold mass is conserved', async () => {
+    await setContext(db, MGR_A_UID);
+    const alloyRes = await db.query(`
+      SELECT public.rpc_execute_alloy_transaction(
+        p_source_item_id := '${orgAItem585Id}',
+        p_target_item_id := '${orgAItem750Id}',
+        p_input_weight := 20.0,
+        p_source_proba := 585,
+        p_target_proba := 750,
+        p_output_weight := 25.0,
+        p_fine_gold_item_id := '${orgAItem999Id}',
+        p_fine_gold_added := 7.05,
+        p_idempotency_key := 'alloy-test-01'
+      ) as res;
+    `);
+    const val = alloyRes.rows[0].res;
+    if (val.status !== 'ok' || val.output_weight !== 25) {
+      throw new Error(`Alloy transaction failed: ${JSON.stringify(val)}`);
+    }
+  });
+
+  // ==========================================================================
+  // PHASE K: PIECEWORK PAYROLL DEDUPLICATION & OVER-ADJUSTMENT GUARDS
+  // ==========================================================================
+  console.log(cyan('\n--- PHASE K: Piecework Payroll Deduplication & Adjustment Guards ---'));
+
+  let earnedLedgerId = null;
+
+  await testAssert('Unauthorized operator A CANNOT call rpc_calculate_piecework_salary directly without accepted handover', async () => {
+    await setContext(db, OP_A_UID);
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_calculate_piecework_salary(
+          p_worker_name := 'Ali Operator A',
+          p_batch_no := 'BATCH-A-001',
+          p_stage_name := '8. Quyish (Casting)',
+          p_weight_done := 10.0,
+          p_rate := 15000.0
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+      if (!err.message.includes('Permission denied')) {
+        throw new Error(`Unexpected message: ${err.message}`);
+      }
+    }
+    if (!rejected) throw new Error('Operator calculated piecework salary directly!');
+  });
+
+  await testAssert('Manager A awards piecework salary for completed stage (10g @ 15,000 UZS/g = 150,000 UZS)', async () => {
+    await setContext(db, MGR_A_UID);
+    const salRes = await db.query(`
+      SELECT public.rpc_calculate_piecework_salary(
+        p_worker_name := 'Ali Operator A',
+        p_batch_no := 'BATCH-SHARED-001',
+        p_stage_name := '8. Quyish (Casting)',
+        p_weight_done := 10.0,
+        p_rate := 15000.0,
+        p_idempotency_key := 'sal-batch-shared-01'
+      ) as res;
+    `);
+    const val = salRes.rows[0].res;
+    if (val.status !== 'ok' || val.amount !== 150000 || val.deduplicated !== false) {
+      throw new Error(`Salary calculation failed: ${JSON.stringify(val)}`);
+    }
+    earnedLedgerId = val.ledger_id;
+  });
+
+  await testAssert('Duplicate calculation call returns existing ledger record with deduplicated: true (no double salary)', async () => {
+    await setContext(db, MGR_A_UID);
+    const dupRes = await db.query(`
+      SELECT public.rpc_calculate_piecework_salary(
+        p_worker_name := 'Ali Operator A',
+        p_batch_no := 'BATCH-SHARED-001',
+        p_stage_name := '8. Quyish (Casting)',
+        p_weight_done := 10.0,
+        p_rate := 15000.0,
+        p_idempotency_key := 'sal-batch-shared-02'
+      ) as res;
+    `);
+    const val = dupRes.rows[0].res;
+    if (val.status !== 'ok' || val.deduplicated !== true || val.ledger_id !== earnedLedgerId) {
+      throw new Error(`Deduplication failed: ${JSON.stringify(val)}`);
+    }
+  });
+
+  await testAssert('Operator A CANNOT adjust piecework salary (Permission Denied)', async () => {
+    await setContext(db, OP_A_UID);
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_adjust_piecework_salary(
+          p_original_ledger_id := '${earnedLedgerId}',
+          p_adjustment_amount := 50000.0,
+          p_reason := 'Unauthorized penalty'
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+      if (!err.message.includes('Permission denied')) {
+        throw new Error(`Unexpected message: ${err.message}`);
+      }
+    }
+    if (!rejected) throw new Error('Operator adjusted piecework salary!');
+  });
+
+  let firstAdjLedgerId = null;
+  await testAssert('Manager A adjusts 50,000 UZS with documented justification (100,000 UZS remaining)', async () => {
+    await setContext(db, MGR_A_UID);
+    const adjRes = await db.query(`
+      SELECT public.rpc_adjust_piecework_salary(
+        p_original_ledger_id := '${earnedLedgerId}',
+        p_adjustment_amount := 50000.0,
+        p_reason := 'Qisman nuqson jarimasi (50,000 UZS)',
+        p_tx_type := 'ADJUSTMENT',
+        p_idempotency_key := 'adj-01'
+      ) as res;
+    `);
+    const val = adjRes.rows[0].res;
+    if (val.status !== 'ok' || val.adjusted_amount !== 50000 || val.remaining_balance !== 100000) {
+      throw new Error(`Salary adjustment failed: ${JSON.stringify(val)}`);
+    }
+    firstAdjLedgerId = val.adjustment_ledger_id;
+  });
+
+  await testAssert('Manager A attempts to adjust 110,000 UZS (exceeds 100,000 remaining balance) is REJECTED', async () => {
+    await setContext(db, MGR_A_UID);
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_adjust_piecework_salary(
+          p_original_ledger_id := '${earnedLedgerId}',
+          p_adjustment_amount := 110000.0,
+          p_reason := 'Over-adjustment exceeding balance'
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+      if (!err.message.includes('exceeds remaining adjustable balance')) {
+        throw new Error(`Unexpected message: ${err.message}`);
+      }
+    }
+    if (!rejected) throw new Error('Over-adjustment succeeded without error!');
+  });
+
+  await testAssert('Manager A attempts to adjust an ADJUSTMENT transaction is REJECTED', async () => {
+    await setContext(db, MGR_A_UID);
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_adjust_piecework_salary(
+          p_original_ledger_id := '${firstAdjLedgerId}',
+          p_adjustment_amount := 10000.0,
+          p_reason := 'Attempt to adjust an adjustment'
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+      if (!err.message.includes('Cannot adjust an adjustment or reversal transaction')) {
+        throw new Error(`Unexpected message: ${err.message}`);
+      }
+    }
+    if (!rejected) throw new Error('Adjusting an adjustment succeeded without error!');
+  });
+
+  // ==========================================================================
+  // PHASE L: QC DEFECT REWORK COMPLETION LIFECYCLE
+  // ==========================================================================
+  console.log(cyan('\n--- PHASE L: QC Defect Rework Completion Lifecycle ---'));
+
+  let createdQcId = null;
+  await testAssert('QC Inspector records 2 defective pieces at stage 14 and routes to stage 8 (status: IN_REWORK)', async () => {
+    await setContext(db, MGR_A_UID);
+    const qcRes = await db.query(`
+      SELECT public.rpc_record_qc_inspection(
+        '${batchAId}',
+        'BATCH-A-001',
+        'QC Yakuniy Tekshiruv',
+        14,
+        20,
+        18,
+        2,
+        'CASTING_POROSITY',
+        8,
+        'QC Nazoratchi',
+        'G''ovaklik aniqlandi, qayta quyishga yuborildi',
+        'idemp-qc-rw-01'
+      ) as res;
+    `);
+    const val = qcRes.rows[0].res;
+    if (val.status !== 'ok' || val.reworkQty !== 2 || val.qcStatus !== 'IN_REWORK') {
+      throw new Error(`QC record failed: ${JSON.stringify(val)}`);
+    }
+    createdQcId = val.qcId;
+  });
+
+  await testAssert('Master A completes rework for defective pieces via rpc_complete_qc_rework', async () => {
+    await setContext(db, MASTER_A_UID);
+    const compRes = await db.query(`
+      SELECT public.rpc_complete_qc_rework(
+        p_qc_id := '${createdQcId}',
+        p_batch_id := '${batchAId}',
+        p_batch_no := 'BATCH-A-001',
+        p_rework_stage_order := 8,
+        p_inspect_stage_order := 14,
+        p_completed_qty := 4,
+        p_master_name := 'Hasan Master A',
+        p_resolution_notes := 'G''ovak joylar eritilib qayta quyildi va to''g''rilandi',
+        p_idempotency_key := 'comp-rw-01'
+      ) as res;
+    `);
+    const val = compRes.rows[0].res;
+    if (val.status !== 'ok' || val.completedReworkQty !== 4) {
+      throw new Error(`Rework completion failed: ${JSON.stringify(val)}`);
+    }
+  });
+
+  await testAssert('Rework WIP at stage 8 is decremented, inspection WIP at stage 14 restored, and rework_qty cleared', async () => {
+    await setContext(db, MGR_A_UID);
+    const inspWip = await db.query(`
+      SELECT available_qty, rework_qty FROM public.batch_stage_wip
+      WHERE batch_no = 'BATCH-A-001' AND stage_order = 14
+    `);
+    if (inspWip.rows.length === 0 || inspWip.rows[0].rework_qty !== 0) {
+      throw new Error(`Inspection rework_qty was not cleared: ${JSON.stringify(inspWip.rows)}`);
+    }
+
+    const qcRow = await db.query(`SELECT status, resolved_by FROM public.quality_control WHERE id = '${createdQcId}'`);
+    if (qcRow.rows[0].status !== 'REWORK_COMPLETED' || !qcRow.rows[0].resolved_by.includes('Hasan Master')) {
+      throw new Error(`QC record not marked REWORK_COMPLETED: ${JSON.stringify(qcRow.rows)}`);
+    }
+  });
+
+  await testAssert('Operator B CANNOT complete rework or tamper with Org A QC records (Cross-tenant violation)', async () => {
+    await setContext(db, OP_B_UID);
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_complete_qc_rework(
+          p_qc_id := '${createdQcId}',
+          p_batch_no := 'BATCH-A-001',
+          p_completed_qty := 1
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+      if (!err.message.includes('Cross-tenant violation') && !err.message.includes('Permission denied') && !err.message.includes('not found')) {
+        throw new Error(`Unexpected message: ${err.message}`);
+      }
+    }
+    if (!rejected) throw new Error('Operator B tampered with Org A rework completion!');
+  });
+
+  // ==========================================================================
+  // PHASE M: CONCURRENCY & IDEMPOTENCY STRESS TESTING
+  // ==========================================================================
+  console.log(cyan('\n--- PHASE M: Concurrency & Idempotency Stress Testing ---'));
+
+  await testAssert('Calling rpc_complete_qc_rework with duplicate idempotency key returns cached result without double decrement', async () => {
+    await setContext(db, MASTER_A_UID);
+    const dupRes = await db.query(`
+      SELECT public.rpc_complete_qc_rework(
+        p_qc_id := '${createdQcId}',
+        p_batch_id := '${batchAId}',
+        p_batch_no := 'BATCH-A-001',
+        p_rework_stage_order := 8,
+        p_inspect_stage_order := 14,
+        p_completed_qty := 4,
+        p_master_name := 'Hasan Master A',
+        p_resolution_notes := 'G''ovak joylar eritilib qayta quyildi va to''g''rilandi',
+        p_idempotency_key := 'comp-rw-01'
+      ) as res;
+    `);
+    const val = dupRes.rows[0].res;
+    if (val.status !== 'ok' || val.completedReworkQty !== 4) {
+      throw new Error(`Idempotency replay failed: ${JSON.stringify(val)}`);
+    }
   });
 
   await db.close();
