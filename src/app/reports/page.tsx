@@ -20,6 +20,7 @@ import {
   type EmployeeRow,
   type SalaryLedgerRow,
   type QualityControlRow,
+  type HandoverAuditRow,
 } from "@/lib/erp-engine";
 
 export default function ReportsPage() {
@@ -38,9 +39,10 @@ export default function ReportsPage() {
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [salaryLedger, setSalaryLedger] = useState<SalaryLedgerRow[]>([]);
   const [qcLogs, setQcLogs] = useState<QualityControlRow[]>([]);
+  const [handovers, setHandovers] = useState<HandoverAuditRow[]>([]);
 
   const loadAll = useCallback(async () => {
-    const [i, g, b, w, o, s, dr, m, c, p, e, sl, q] = await Promise.all([
+    const [i, g, b, w, o, s, dr, m, c, p, e, sl, q, h] = await Promise.all([
       supabase.from("inventory_items").select("*"),
       supabase.from("gold_transactions").select("*").order("created_at", { ascending: false }),
       supabase.from("batches").select("*").order("created_at", { ascending: false }),
@@ -54,6 +56,7 @@ export default function ReportsPage() {
       supabase.from("employees").select("*"),
       supabase.from("salary_ledger").select("*").order("created_at", { ascending: false }),
       supabase.from("quality_control").select("*").order("created_at", { ascending: false }),
+      supabase.from("two_party_handovers").select("*").order("dispatched_at", { ascending: false }),
     ]);
     if (i.data) setInv(i.data as InventoryItemRow[]);
     if (g.data) setGoldTx(g.data as GoldTransactionRow[]);
@@ -68,6 +71,7 @@ export default function ReportsPage() {
     if (e.data) setEmployees(e.data as EmployeeRow[]);
     if (sl.data) setSalaryLedger(sl.data as SalaryLedgerRow[]);
     if (q.data) setQcLogs(q.data as QualityControlRow[]);
+    if (h.data) setHandovers(h.data as HandoverAuditRow[]);
   }, []);
 
   useEffect(() => {
@@ -86,6 +90,7 @@ export default function ReportsPage() {
     goldTx,
     batches,
     wipRows,
+    handovers,
     orders,
     sales,
     debtRepayments,

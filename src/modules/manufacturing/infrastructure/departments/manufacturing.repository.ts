@@ -20,6 +20,7 @@ import {
   type RawOperationWithRelations,
   type RawOperationWithStage,
 } from "./mappers";
+import { isStageActive } from "@/lib/factory-config";
 
 /**
  * Supabase-backed implementation of `ManufacturingRepository`. Every
@@ -78,32 +79,48 @@ export class SupabaseManufacturingRepository implements ManufacturingRepository 
   async findFirstActiveStage(): Promise<ResolvedNextStage | null> {
     const { data, error } = await this.client
       .from("workflow_stages")
-      .select("id, department_id, is_terminal")
+      .select("id, code, name, sequence_order, department_id, is_terminal, is_active")
       .eq("is_active", true)
-      .order("sequence_order", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .order("sequence_order", { ascending: true });
 
     if (error) throw error;
-    if (!data) return null;
+    if (!data || data.length === 0) return null;
 
-    return { stageId: data.id, departmentId: data.department_id, isTerminal: data.is_terminal };
+    const firstActive = data.find((st) =>
+      isStageActive({
+        stage_order: st.sequence_order,
+        code: st.code,
+        name: st.name,
+        is_active: st.is_active,
+      })
+    );
+    if (!firstActive) return null;
+
+    return { stageId: firstActive.id, departmentId: firstActive.department_id, isTerminal: firstActive.is_terminal };
   }
 
   async findNextActiveStage(currentSequenceOrder: number): Promise<ResolvedNextStage | null> {
     const { data, error } = await this.client
       .from("workflow_stages")
-      .select("id, department_id, is_terminal")
+      .select("id, code, name, sequence_order, department_id, is_terminal, is_active")
       .eq("is_active", true)
       .gt("sequence_order", currentSequenceOrder)
-      .order("sequence_order", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .order("sequence_order", { ascending: true });
 
     if (error) throw error;
-    if (!data) return null;
+    if (!data || data.length === 0) return null;
 
-    return { stageId: data.id, departmentId: data.department_id, isTerminal: data.is_terminal };
+    const nextActive = data.find((st) =>
+      isStageActive({
+        stage_order: st.sequence_order,
+        code: st.code,
+        name: st.name,
+        is_active: st.is_active,
+      })
+    );
+    if (!nextActive) return null;
+
+    return { stageId: nextActive.id, departmentId: nextActive.department_id, isTerminal: nextActive.is_terminal };
   }
 
   async findStageById(stageId: string): Promise<ResolvedNextStage | null> {
