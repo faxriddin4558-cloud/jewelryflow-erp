@@ -1,11 +1,11 @@
 # JEWELRYFLOW ERP — ACCELERATED MULTI-AGENT DEVELOPMENT ROADMAP
-**Hujjat Versiyasi:** 1.1.0-USER-WORKFLOW-VERIFIED  
+**Hujjat Versiyasi:** 1.2.0-ISOLATED-STAGING-BROWSER-E2E-VERIFIED  
 **Sana:** 2026-10-16  
 **Loyiha:** JewelryFlow ERP (Goldia Factory Core ERP & Multi-Tenant SaaS)  
 **Asosiy Branch:** `dev/manufacturing-erp-saas`  
 **Rollar & Dvigatellar:** Google Antigravity (Backend, DB, Security, Core Engine) & Jules (Frontend, UI/UX, Hardware & Operator Experience)  
 **Texnik Lider:** Principal Software Architect / Full-Stack & Security Lead  
-**Holat:** 23 ta SQL Migratsiya, 111 ta Vitest Unit Test, 30 ta Real PostgreSQL Integratsiya Testi, 10-Partiya E2E Simulyatsiyasi (0.0000g leak), 32 ta Production Sahifa  
+**Holat:** 23 ta SQL Migratsiya, 111 ta Vitest Test, 30 ta Real DB Test, 10-Partiya Simulyatsiyasi (0.0000g leak), 10/10 Playwright Real Browser E2E Test (Chromium), 32 ta Production Sahifa  
 
 ---
 
@@ -56,6 +56,7 @@
 | **Audit & QC** | Xavfsizlik auditi logi (`audit_logs`) | **DONE** | PASS (Test 11) | Antigravity | Barcha jiddiy o'zgarishlar va override lar qayd etiladi |
 | **Audit & QC** | Sifat nazorati inspeksiyasi (QC Defect Routing) | **DONE** | PASS (Test 28-30) | Antigravity | `rpc_record_qc_inspection` orqali nuqsonlar saqlanadi va rework ga yo'naltiriladi |
 | **Reconciliation** | Korxona miqyosidagi oltin rekonsilyatsiyasi | **DONE** | PASS | Antigravity | 21-hisobot `auditFactoryIntegrity` kamomadlarni avtomatik aniqlaydi |
+| **Browser E2E** | Playwright Real Browser E2E Test Suite (Chromium) | **DONE** | PASS (10/10) | Antigravity | Real Login, Safe Gold, Batch Form, Manufacturing Hub, Reports, Settings Persistence, Cross-Tenant Isolation |
 
 ---
 

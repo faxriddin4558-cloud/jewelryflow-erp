@@ -136,7 +136,7 @@ export default function BatchesPage() {
       return;
     }
 
-    const sourceGold = inv.find((x) => x.category === "Gold" && Number(x.proba) === prN);
+    const sourceGold = inv.find((x) => (x.category?.toLowerCase() === "gold" || x.category === "Gold") && Number(x.proba) === prN);
     if (!sourceGold) {
       alert(
         `SAFE omborida ${prN} probali oltin yozuvi topilmadi! Manba inventarsiz partiya ochish taqiqlangan.`
