@@ -135,3 +135,52 @@ export function evaluateQcInspection(input: QcInspectionInput): QcInspectionResu
     timestamp: new Date().toISOString(),
   };
 }
+
+/**
+ * Persistently records a quality control inspection and routes rework pieces to the target stage via Supabase RPC.
+ */
+export async function recordQcInspectionToDb(input: {
+  batchId: string;
+  batchNo: string;
+  operationName: string;
+  currentStageOrder: number;
+  checkedQty: number;
+  passedQty: number;
+  reworkQty: number;
+  defectCategory?: DefectCategory;
+  reworkStageOrder?: number;
+  inspectorName?: string;
+  reason?: string;
+  idempotencyKey?: string;
+}): Promise<{ success: boolean; qcId?: string; error?: string }> {
+  try {
+    const { supabase, generateIdempotencyKey } = await import("./erp-engine");
+    const targetStage =
+      input.reworkStageOrder ??
+      (input.defectCategory ? DEFECT_CATALOG[input.defectCategory]?.defaultReworkStageOrder ?? 8 : 8);
+
+    const { data, error } = await supabase.rpc("rpc_record_qc_inspection", {
+      p_batch_id: input.batchId,
+      p_batch_no: input.batchNo,
+      p_operation_name: input.operationName,
+      p_current_stage_order: input.currentStageOrder,
+      p_checked_qty: input.checkedQty,
+      p_passed_qty: input.passedQty,
+      p_rework_qty: input.reworkQty,
+      p_defect_code: input.defectCategory ?? null,
+      p_rework_stage_order: targetStage,
+      p_inspector_name: input.inspectorName ?? "",
+      p_reason: input.reason ?? null,
+      p_idempotency_key: input.idempotencyKey ?? generateIdempotencyKey("qc-insp"),
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    const payload = data as Record<string, unknown>;
+    return { success: true, qcId: String(payload.qcId || "") };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}

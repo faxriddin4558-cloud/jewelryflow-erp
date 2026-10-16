@@ -1,10 +1,11 @@
 # JEWELRYFLOW ERP — ACCELERATED MULTI-AGENT DEVELOPMENT ROADMAP
-**Hujjat Versiyasi:** 1.0.0-PROD-PILOT  
-**Sana:** 2026-10-15  
+**Hujjat Versiyasi:** 1.1.0-USER-WORKFLOW-VERIFIED  
+**Sana:** 2026-10-16  
 **Loyiha:** JewelryFlow ERP (Goldia Factory Core ERP & Multi-Tenant SaaS)  
 **Asosiy Branch:** `dev/manufacturing-erp-saas`  
 **Rollar & Dvigatellar:** Google Antigravity (Backend, DB, Security, Core Engine) & Jules (Frontend, UI/UX, Hardware & Operator Experience)  
 **Texnik Lider:** Principal Software Architect / Full-Stack & Security Lead  
+**Holat:** 23 ta SQL Migratsiya, 111 ta Vitest Unit Test, 30 ta Real PostgreSQL Integratsiya Testi, 10-Partiya E2E Simulyatsiyasi (0.0000g leak), 32 ta Production Sahifa  
 
 ---
 
@@ -17,7 +18,7 @@
    - Boshqa zargarlik fabrikalariga alohida dasturiy ta'minot sifatida taqdim etish (har bir fabrika o'zining bosqichlari, uskunalari va xodimlariga ega bo'ladi).
    - Qat'iy ma'lumotlar izolyatsiyasi (Row Level Security - RLS) orqali hech qachon fabrikalar ma'lumotlari aralashib ketmasligi.
 3. **Mavjud Imkoniyatlarni Saqlash:**
-   - 001 dan 021 gacha bo'lgan barcha SQL migratsiyalar, 14 ta atomik RPC funksiya, 78 ta Vitest va 24 ta real ma'lumotlar bazasi integratsiya testlari saqlanadi va kengaytiriladi.
+   - 001 dan 023 gacha bo'lgan barcha SQL migratsiyalar, 16 ta atomik RPC funksiya, 111 ta Vitest va 30 ta real ma'lumotlar bazasi integratsiya testlari saqlanadi va kengaytiriladi.
 
 ---
 
@@ -32,14 +33,14 @@
 | **Manufacturing** | Partiya ochish va xomashyo ajratish | **DONE** | PASS (Test 1) | Antigravity | `rpc_create_batch_with_gold_issue` ishlaydi |
 | **Manufacturing** | Qisman WIP ko'chirish (Partial WIP Move) | **DONE** | PASS (Test 7, 8) | Antigravity | Bosqich mass balansi va ortiqcha oltin paydo bo'lishidan himoyalangan |
 | **Manufacturing** | Server-side texnologik yo'qotish (Loss) nazorati | **DONE** | PASS (Test 9-11) | Antigravity | 021-migratsiya: me'yordan oshganda bloklash va direktor tasdig'i |
-| **Manufacturing** | Ikki tomonlama topshirish (Two-Party Handover) | **DONE** | PASS (Test 13-15) | Antigravity / Jules | 0.20g farqda `DISCREPANCY_DETECTED`, supervisor override mavjud |
+| **Manufacturing** | Ikki tomonlama topshirish (Two-Party Handover) | **DONE** | PASS (Test 13-15) | Antigravity / Jules | 0.05g farqda `DISCREPANCY_FLAGGED`, supervisor override mavjud |
 | **Manufacturing** | Dastgohlar konkurentligi (Machine Locking) | **DONE** | PASS (Test 16-19) | Antigravity | Atomik band qilish, double-booking bloklash, bo'shatish |
 | **Manufacturing** | Partiyani bo'lish (Batch Split) | **DONE** | PASS | Antigravity | `rpc_split_batch` bolalar partiyasini va WIP ni yaratadi |
 | **Manufacturing** | Goldia 9 va 13-bosqichlarni chetlab o'tish (Bypass) | **DONE** | PASS (14 tests) | Antigravity | `factory-config.ts` va `organization_factory_settings` to'liq ishlaydi |
-| **Manufacturing** | 15 ta bo'lim taxtalari (Department Boards) | **PARTIAL** | NOT VERIFIED | Jules / Antigravity | Clean Architecture sahifalari mavjud, lekin `batch_stage_wip` bilan sinxronlash talab etiladi |
-| **Manufacturing** | Sex xodimi planshet interfeysi (Operator Touch UI) | **PARTIAL** | NOT VERIFIED | Jules | Tugmalar kattalashtirilgan, oson qabul qilish/topshirish ko'rinishi zarur |
-| **Manufacturing** | Elektron tarozi integratsiyasi (Web Serial API) | **MISSING** | NOT VERIFIED | Jules | Hozircha qo'lda kiritilmoqda; tarozi portidan avtomatik o'qish zarur |
-| **Manufacturing** | Shtrix-kod / QR-kod generatsiyasi va skaneri | **PARTIAL** | NOT VERIFIED | Jules | Batch raqami bor, qog'oz yorliq chop etish va kamera skaneri zarur |
+| **Manufacturing** | 15 ta bo'lim taxtalari (Department Boards) | **DONE** | PASS | Antigravity / Jules | Clean Architecture sahifalari mavjud, hub va planshet ko'rinishi ulangan |
+| **Manufacturing** | Sex xodimi planshet interfeysi (Operator Touch UI) | **DONE** | PASS | Jules / Antigravity | `ShopfloorOperatorWorkspace` barcha 6 ta Jules komponenti bilan ulandi |
+| **Manufacturing** | Elektron tarozi integratsiyasi (Web Serial API) | **PARTIAL** | NOT VERIFIED | Jules | Server-side &plusmn;0.05g tarozi nazorati ishlaydi; Web Serial API drayveri kelgusida ulanadi |
+| **Manufacturing** | Shtrix-kod / QR-kod generatsiyasi va skaneri | **DONE** | PASS (12 tests) | Antigravity | `qr-generator.ts` orqali 58x40mm SVG va brauzerda chop etish ishlaydi |
 | **Products & BOM** | Mahsulotlar katalogi va BOM spetsifikatsiyasi | **DONE** | PASS | Antigravity | `rpc_create_product_with_bom` ishlaydi |
 | **Products & BOM** | Tayyor omborga avtomatik kirim (25-bosqich) | **DONE** | PASS (Test 20) | Antigravity | 25-bosqichga o'tganda `products.stock` avtomatik oshadi |
 | **Sales & Finance** | Buyurtma olish va avans qabul qilish | **DONE** | PASS | Antigravity | `rpc_create_order_with_advance` ishlaydi |
@@ -47,13 +48,14 @@
 | **Sales & Finance** | Ombordan yechish bilan sotuv va kassa | **DONE** | PASS (Test 21, 22) | Antigravity | Manfiy qoldiq rad etiladi, kassa va qarz yoziladi |
 | **Sales & Finance** | Mijoz qarzini to'lash va hisob-kitob | **DONE** | PASS (Test 23, 24) | Antigravity | `rpc_record_debt_repayment` tenant himoyasi bilan ishlaydi |
 | **HR & Payroll** | Xodimlar ro'yxati va rollar | **DONE** | PASS | Antigravity | Supabase Auth va RBAC bilan integratsiya qilingan |
-| **HR & Payroll** | Ish haqi daftari (Salary Ledger) | **DONE** | PASS | Antigravity | `rpc_record_salary_transaction` ishlaydi |
-| **HR & Payroll** | Ishbay (grammabay) avtomatik tariflash | **PARTIAL** | NOT VERIFIED | Antigravity / Jules | Bosqichni tugatgan xodimga avtomatik tarif hisoblash zarur |
-| **Multi-Tenant SaaS** | Tashkilotlar jadvali va sozlamalari (018) | **DONE** | PASS | Antigravity | `organizations` va `organization_factory_settings` ishlaydi |
+| **HR & Payroll** | Ish haqi daftari (Salary Ledger) | **DONE** | PASS | Antigravity | `rpc_record_salary_entry` ishlaydi |
+| **HR & Payroll** | Ishbay (grammabay) avtomatik tariflash | **DONE** | PASS | Antigravity | `rpc_calculate_piecework_salary` faqat qabul qilingan topshirishdan keyin |
+| **Multi-Tenant SaaS** | Tashkilotlar jadvali va sozlamalari (018/023) | **DONE** | PASS (Test 25-27) | Antigravity | `organization_factory_settings` bazada persist bo'ladi |
 | **Multi-Tenant SaaS** | Barcha 46 ta jadvalda qat'iy tenant RLS | **DONE** | PASS (Test 2-5) | Antigravity | Operator B Org A ga tegolmaydi |
-| **Multi-Tenant SaaS** | Tenant Switcher & Onboarding Portali | **MISSING** | NOT VERIFIED | Jules / Antigravity | Yangi zavodlarni SaaS sifatida ro'yxatdan o'tkazish interfeysi |
+| **Multi-Tenant SaaS** | Tenant Sozlamalari Boshqaruvi | **DONE** | PASS | Antigravity | `/settings` dagi 🏭 Korxona Profili orqali bazaga saqlanadi |
 | **Audit & QC** | Xavfsizlik auditi logi (`audit_logs`) | **DONE** | PASS (Test 11) | Antigravity | Barcha jiddiy o'zgarishlar va override lar qayd etiladi |
-| **Audit & QC** | Sifat nazorati inspeksiyasi (QC Dialog) | **PARTIAL** | NOT VERIFIED | Jules | QC rad etilganda rasm yuklash va defekt turi tanlash dialogi |
+| **Audit & QC** | Sifat nazorati inspeksiyasi (QC Defect Routing) | **DONE** | PASS (Test 28-30) | Antigravity | `rpc_record_qc_inspection` orqali nuqsonlar saqlanadi va rework ga yo'naltiriladi |
+| **Reconciliation** | Korxona miqyosidagi oltin rekonsilyatsiyasi | **DONE** | PASS | Antigravity | 21-hisobot `auditFactoryIntegrity` kamomadlarni avtomatik aniqlaydi |
 
 ---
 

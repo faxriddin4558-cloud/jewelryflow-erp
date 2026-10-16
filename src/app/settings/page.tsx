@@ -9,7 +9,12 @@ import {
   type MachineRow,
   type ProductionStageRow,
 } from "@/lib/erp-engine";
-import { getActiveFactoryConfig } from "@/lib/factory-config";
+import {
+  getActiveFactoryConfig,
+  fetchFactoryConfigFromDb,
+  persistFactoryConfigToDb,
+  type FactoryConfig,
+} from "@/lib/factory-config";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<"system" | "factory" | "employees" | "machines" | "stages">("system");
@@ -17,9 +22,9 @@ export default function SettingsPage() {
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [stages, setStages] = useState<ProductionStageRow[]>([]);
+  const [factoryConfig, setFactoryConfig] = useState<FactoryConfig>(() => getActiveFactoryConfig());
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
-  const factoryConfig = getActiveFactoryConfig();
 
   // New employee form state (Admin / Director only)
   const [empName, setEmpName] = useState("");
@@ -37,14 +42,16 @@ export default function SettingsPage() {
 
   const load = useCallback(async () => {
     setCurrentUser(RBAC.getCurrentUser());
-    const [eRes, mRes, sRes] = await Promise.all([
+    const [eRes, mRes, sRes, fc] = await Promise.all([
       supabase.from("employees").select("*").order("created_at", { ascending: false }),
       supabase.from("machines").select("*").order("name"),
       supabase.from("production_stages").select("*").order("stage_order"),
+      fetchFactoryConfigFromDb(),
     ]);
     if (eRes.data) setEmployees(eRes.data as EmployeeRow[]);
     if (mRes.data) setMachines(mRes.data as MachineRow[]);
     if (sRes.data) setStages(sRes.data as ProductionStageRow[]);
+    if (fc) setFactoryConfig(fc);
   }, []);
 
   useEffect(() => {
@@ -184,6 +191,25 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveFactoryConfig = async () => {
+    if (!isDirector) {
+      alert("Faqat Director yoki Admin zavod sozlamalarini o'zgartira oladi!");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await persistFactoryConfigToDb(factoryConfig);
+      if (!res.success) {
+        alert(`Xatolik: ${res.error}`);
+      } else {
+        alert("Zavod sozlamalari bazada (organization_factory_settings) muvaffaqiyatli saqlandi!");
+        await load();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-8 text-slate-800 space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
@@ -286,26 +312,97 @@ export default function SettingsPage() {
           </div>
 
           <div className="bg-white p-6 rounded-2xl border space-y-4 text-sm h-fit">
-            <h2 className="font-black text-slate-900 text-base border-b pb-3">
-              ⚡ Quvvat va Partiya Standartlari
-            </h2>
+            <div className="flex justify-between items-center border-b pb-3">
+              <h2 className="font-black text-slate-900 text-base">
+                ⚡ Quvvat va Partiya Standartlari
+              </h2>
+              {isDirector && (
+                <button
+                  type="button"
+                  onClick={() => void handleSaveFactoryConfig()}
+                  disabled={busy}
+                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm"
+                >
+                  {busy ? "Saqlanmoqda..." : "💾 Bazada Saqlash"}
+                </button>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="p-3 bg-slate-50 border rounded-xl">
-                <div className="text-2xl font-black text-purple-700">{factoryConfig.laserMachinesCount}</div>
-                <div className="text-xs font-semibold text-slate-500 mt-1">Lazer Uskunalari</div>
+              <div className="p-3 bg-slate-50 border rounded-xl space-y-1">
+                {isDirector ? (
+                  <input
+                    type="number"
+                    value={factoryConfig.laserMachinesCount}
+                    onChange={(e) =>
+                      setFactoryConfig({
+                        ...factoryConfig,
+                        laserMachinesCount: Math.max(1, parseInt(e.target.value, 10) || 1),
+                      })
+                    }
+                    className="w-full text-center text-xl font-black text-purple-700 bg-white border rounded p-1"
+                  />
+                ) : (
+                  <div className="text-2xl font-black text-purple-700">{factoryConfig.laserMachinesCount}</div>
+                )}
+                <div className="text-xs font-semibold text-slate-500">Lazer Uskunalari</div>
               </div>
-              <div className="p-3 bg-slate-50 border rounded-xl">
-                <div className="text-2xl font-black text-amber-700">{factoryConfig.castingMachinesCount}</div>
-                <div className="text-xs font-semibold text-slate-500 mt-1">Quyish Pechlari</div>
+
+              <div className="p-3 bg-slate-50 border rounded-xl space-y-1">
+                {isDirector ? (
+                  <input
+                    type="number"
+                    value={factoryConfig.castingMachinesCount}
+                    onChange={(e) =>
+                      setFactoryConfig({
+                        ...factoryConfig,
+                        castingMachinesCount: Math.max(1, parseInt(e.target.value, 10) || 1),
+                      })
+                    }
+                    className="w-full text-center text-xl font-black text-amber-700 bg-white border rounded p-1"
+                  />
+                ) : (
+                  <div className="text-2xl font-black text-amber-700">{factoryConfig.castingMachinesCount}</div>
+                )}
+                <div className="text-xs font-semibold text-slate-500">Quyish Pechlari</div>
               </div>
-              <div className="p-3 bg-slate-50 border rounded-xl">
-                <div className="text-2xl font-black text-blue-700">{factoryConfig.workersCount}+</div>
-                <div className="text-xs font-semibold text-slate-500 mt-1">Zargarlar &amp; Ustalar</div>
+
+              <div className="p-3 bg-slate-50 border rounded-xl space-y-1">
+                {isDirector ? (
+                  <input
+                    type="number"
+                    value={factoryConfig.workersCount}
+                    onChange={(e) =>
+                      setFactoryConfig({
+                        ...factoryConfig,
+                        workersCount: Math.max(1, parseInt(e.target.value, 10) || 1),
+                      })
+                    }
+                    className="w-full text-center text-xl font-black text-blue-700 bg-white border rounded p-1"
+                  />
+                ) : (
+                  <div className="text-2xl font-black text-blue-700">{factoryConfig.workersCount}+</div>
+                )}
+                <div className="text-xs font-semibold text-slate-500">Zargarlar &amp; Ustalar</div>
               </div>
-              <div className="p-3 bg-slate-50 border rounded-xl">
-                <div className="text-2xl font-black text-emerald-700">{factoryConfig.maxModelsPerBatch} model</div>
-                <div className="text-xs font-semibold text-slate-500 mt-1">Maks. Partiya Zichligi</div>
+
+              <div className="p-3 bg-slate-50 border rounded-xl space-y-1">
+                {isDirector ? (
+                  <input
+                    type="number"
+                    value={factoryConfig.maxModelsPerBatch}
+                    onChange={(e) =>
+                      setFactoryConfig({
+                        ...factoryConfig,
+                        maxModelsPerBatch: Math.max(1, parseInt(e.target.value, 10) || 1),
+                      })
+                    }
+                    className="w-full text-center text-xl font-black text-emerald-700 bg-white border rounded p-1"
+                  />
+                ) : (
+                  <div className="text-2xl font-black text-emerald-700">{factoryConfig.maxModelsPerBatch} model</div>
+                )}
+                <div className="text-xs font-semibold text-slate-500">Maks. Partiya Zichligi</div>
               </div>
             </div>
 

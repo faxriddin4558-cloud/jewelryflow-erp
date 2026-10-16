@@ -99,6 +99,76 @@ export function resetFactoryConfig(): void {
 }
 
 /**
+ * Loads the tenant's persistent factory configuration from Supabase.
+ * Updates in-memory activeFactoryConfig upon successful retrieval.
+ */
+export async function fetchFactoryConfigFromDb(
+  organizationId?: string
+): Promise<FactoryConfig> {
+  try {
+    const { supabase } = await import("./erp-engine");
+    const { data, error } = await supabase.rpc("rpc_get_factory_settings", {
+      p_organization_id: organizationId ?? null,
+    });
+
+    if (error || !data) {
+      return activeFactoryConfig;
+    }
+
+    const payload = data as Record<string, unknown>;
+    const loadedConfig: FactoryConfig = {
+      factoryId: String(payload.organizationId || payload.organizationCode || "goldia"),
+      factoryName: String(payload.organizationName || "Goldia Jewelry Factory"),
+      disabledStageCodes: Array.isArray(payload.disabledStageCodes) ? (payload.disabledStageCodes as string[]) : [],
+      disabledStageOrders: Array.isArray(payload.disabledStageOrders) ? (payload.disabledStageOrders as number[]) : [],
+      disabledDepartmentSlugs: Array.isArray(payload.disabledDepartmentSlugs) ? (payload.disabledDepartmentSlugs as string[]) : [],
+      laserMachinesCount: Number(payload.laserMachinesCount ?? 8),
+      castingMachinesCount: Number(payload.castingMachinesCount ?? 2),
+      workersCount: Number(payload.workersCount ?? 35),
+      maxModelsPerBatch: Number(payload.maxModelsPerBatch ?? 20),
+      setsPerModel: Number(payload.setsPerModel ?? 10),
+    };
+
+    activeFactoryConfig = loadedConfig;
+    return loadedConfig;
+  } catch {
+    return activeFactoryConfig;
+  }
+}
+
+/**
+ * Persistently saves the factory configuration into Supabase via rpc_update_factory_settings.
+ */
+export async function persistFactoryConfigToDb(
+  updates: Partial<FactoryConfig>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase } = await import("./erp-engine");
+    const merged = { ...activeFactoryConfig, ...updates };
+
+    const { error } = await supabase.rpc("rpc_update_factory_settings", {
+      p_disabled_stage_codes: merged.disabledStageCodes,
+      p_disabled_stage_orders: merged.disabledStageOrders,
+      p_disabled_department_slugs: merged.disabledDepartmentSlugs,
+      p_laser_machines_count: merged.laserMachinesCount,
+      p_casting_machines_count: merged.castingMachinesCount,
+      p_workers_count: merged.workersCount,
+      p_max_models_per_batch: merged.maxModelsPerBatch,
+      p_sets_per_model: merged.setsPerModel,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    activeFactoryConfig = merged;
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+/**
  * Normalizes an identifier string for matching (trim and uppercase, replace underscores with spaces)
  */
 function normalizeIdentifier(val?: string | null): string {

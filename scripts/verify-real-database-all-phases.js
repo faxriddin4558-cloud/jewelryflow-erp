@@ -695,6 +695,142 @@ async function runAllVerificationPhases() {
     if (!rejected) throw new Error('Cross-tenant financial tampering succeeded!');
   });
 
+  // ==========================================================================
+  // PHASE G: MULTI-TENANT FACTORY SETTINGS PERSISTENCE
+  // ==========================================================================
+  console.log(cyan('\n--- PHASE G: Multi-Tenant Factory Settings Persistence ---'));
+
+  await testAssert('Retrieve persistent factory settings for Org A (defaults match Goldia)', async () => {
+    await setContext(db, MGR_A_UID);
+    const res = await db.query(`SELECT public.rpc_get_factory_settings() as result;`);
+    const val = res.rows[0].result;
+    if (!val.organizationId || val.laserMachinesCount !== 8 || val.castingMachinesCount !== 2) {
+      throw new Error(`Settings mismatch: ${JSON.stringify(val)}`);
+    }
+  });
+
+  await testAssert('Manager A updates Org A settings (sets custom capacities & bypasses)', async () => {
+    await setContext(db, MGR_A_UID);
+    const res = await db.query(`
+      SELECT public.rpc_update_factory_settings(
+        ARRAY['PUMICE', 'PONZA', 'ZIRCON']::text[],
+        ARRAY[9, 13]::integer[],
+        ARRAY['pumice', 'zircon']::text[],
+        10,
+        3,
+        40,
+        25,
+        12,
+        0.04
+      ) as result;
+    `);
+    const val = res.rows[0].result;
+    if (val.status !== 'ok' || Number(val.handoverToleranceGram) !== 0.04) {
+      throw new Error(`Update settings failed: ${JSON.stringify(val)}`);
+    }
+
+    // Verify persistence
+    const reRes = await db.query(`SELECT public.rpc_get_factory_settings() as result;`);
+    const reVal = reRes.rows[0].result;
+    if (reVal.laserMachinesCount !== 10 || reVal.castingMachinesCount !== 3 || Number(reVal.handoverToleranceGram) !== 0.04) {
+      throw new Error(`Settings not persisted: ${JSON.stringify(reVal)}`);
+    }
+  });
+
+  await testAssert('Operator B CANNOT modify Org A factory settings (Permission Denied)', async () => {
+    await setContext(db, OP_B_UID);
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_update_factory_settings(
+          ARRAY[]::text[],
+          ARRAY[]::integer[],
+          ARRAY[]::text[],
+          99,
+          99,
+          99
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+      if (!err.message.includes('Permission denied')) {
+        throw new Error(`Unexpected message: ${err.message}`);
+      }
+    }
+    if (!rejected) throw new Error('Operator updated factory settings!');
+  });
+
+  // ==========================================================================
+  // PHASE H: QUALITY CONTROL DEFECT LOGGING & REWORK ROUTING
+  // ==========================================================================
+  console.log(cyan('\n--- PHASE H: Quality Control Defect Logging & Rework Routing ---'));
+
+  await testAssert('QC Inspector logs inspection defect into quality_control table and routes rework WIP', async () => {
+    await setContext(db, MGR_A_UID);
+    const res = await db.query(`
+      SELECT public.rpc_record_qc_inspection(
+        '${batchAId}',
+        'BATCH-A-001',
+        'QC Nazorati',
+        14,
+        20,
+        18,
+        2,
+        'CASTING_POROSITY',
+        8,
+        'QC Mutaxassis',
+        'Quyish g''ovakligi aniqlandi - Quyishga qaytarildi',
+        'idemp-qc-001'
+      ) as result;
+    `);
+    const val = res.rows[0].result;
+    if (val.status !== 'ok' || val.reworkQty !== 2 || val.targetReworkStage !== 8) {
+      throw new Error(`QC inspection failed: ${JSON.stringify(val)}`);
+    }
+
+    // Verify record in quality_control table
+    const qcRows = await db.query(`
+      SELECT * FROM public.quality_control WHERE batch_no = 'BATCH-A-001' AND defect_code = 'CASTING_POROSITY'
+    `);
+    if (qcRows.rows.length === 0 || qcRows.rows[0].rework_qty !== 2) {
+      throw new Error(`QC record not found in table: ${JSON.stringify(qcRows.rows)}`);
+    }
+  });
+
+  await testAssert('Target rework stage (Casting order 8) receives rework pieces in available_qty', async () => {
+    await setContext(db, MGR_A_UID);
+    const rwWip = await db.query(`
+      SELECT available_qty FROM public.batch_stage_wip WHERE batch_no = 'BATCH-A-001' AND stage_order = 8
+    `);
+    if (rwWip.rows.length === 0 || rwWip.rows[0].available_qty < 2) {
+      throw new Error(`Rework WIP not routed to stage 8: ${JSON.stringify(rwWip.rows)}`);
+    }
+  });
+
+  await testAssert('Operator B cannot inspect or tamper Org A batch QC (Cross-tenant violation)', async () => {
+    await setContext(db, OP_B_UID);
+    let rejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_record_qc_inspection(
+          '${batchAId}',
+          'BATCH-A-001',
+          'Fake QC',
+          14,
+          20,
+          20,
+          0
+        );
+      `);
+    } catch (err) {
+      rejected = true;
+      if (!err.message.includes('Cross-tenant violation') && !err.message.includes('Permission denied')) {
+        throw new Error(`Unexpected message: ${err.message}`);
+      }
+    }
+    if (!rejected) throw new Error('Operator B tampered Org A QC!');
+  });
+
   await db.close();
 
   // Final Summary

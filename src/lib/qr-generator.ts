@@ -186,3 +186,74 @@ export class SimulatedThermalPrinterAdapter implements ThermalPrinterAdapter {
     };
   }
 }
+
+/**
+ * Formats a clean standalone HTML document suitable for standard browser printing (`window.print()`).
+ */
+export function generatePrintableHtml(
+  data: BatchLabelData,
+  options: PrintOptions = {}
+): string {
+  const widthMm = options.labelWidthMm ?? 58;
+  const heightMm = options.labelHeightMm ?? 40;
+  const svg = generateBatchLabelSvg(data, options);
+
+  return `<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <title>Batch Label - ${data.batchNo}</title>
+  <style>
+    @page {
+      size: ${widthMm}mm ${heightMm}mm;
+      margin: 0;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: ${widthMm}mm;
+      height: ${heightMm}mm;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #ffffff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  </style>
+</head>
+<body onload="window.print()">
+  ${svg}
+</body>
+</html>`.trim();
+}
+
+/**
+ * Triggers standard browser printing of the batch label in client-side environments.
+ */
+export function triggerBrowserPrint(
+  data: BatchLabelData,
+  options: PrintOptions = {}
+): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const html = generatePrintableHtml(data, options);
+  const printWindow = window.open("", "_blank", "width=400,height=300");
+  if (!printWindow) {
+    return false;
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  return true;
+}
+

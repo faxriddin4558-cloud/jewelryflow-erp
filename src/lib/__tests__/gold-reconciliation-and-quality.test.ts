@@ -3,6 +3,7 @@ import { GoldEngine } from "../erp-engine";
 import {
   generateQrMatrix,
   generateBatchLabelSvg,
+  generatePrintableHtml,
   SimulatedThermalPrinterAdapter,
 } from "../qr-generator";
 import { evaluateQcInspection, DEFECT_CATALOG } from "../quality-control";
@@ -144,6 +145,23 @@ describe("QR Code & Batch Label Engine (Printer-Independent)", () => {
     expect(result.jobId.startsWith("JOB-")).toBe(true);
     expect(result.driverType).toBe("SIMULATED_THERMAL");
     expect(result.renderedSvg).toContain("BATCH-002");
+  });
+
+  it("generates standard browser-printable HTML document with page formatting", () => {
+    const html = generatePrintableHtml({
+      batchNo: "BATCH-PRINT-01",
+      productName: "Zanjir Italy 750",
+      proba: 750,
+      plannedQty: 10,
+      issuedGoldGram: 92.0,
+      masterName: "Usta Jasur",
+    });
+
+    expect(html).toContain("<!DOCTYPE html>");
+    expect(html).toContain("@page");
+    expect(html).toContain("onload=\"window.print()\"");
+    expect(html).toContain("BATCH-PRINT-01");
+    expect(html).toContain("Zanjir Italy 750");
   });
 });
 

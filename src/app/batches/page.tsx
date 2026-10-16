@@ -18,6 +18,7 @@ import {
   isStageActive,
 } from "@/lib/factory-config";
 import { ShopfloorOperatorWorkspace } from "@/components/manufacturing";
+import { triggerBrowserPrint } from "@/lib/qr-generator";
 
 interface HandoverRow {
   id: string;
@@ -731,6 +732,22 @@ export default function BatchesPage() {
                     Quantity WIP)
                   </h3>
                   <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        triggerBrowserPrint({
+                          batchNo: sel.batch_no || sel.number || "BATCH",
+                          productName: sel.product_name || sel.product || "Zargarlik Buyumi",
+                          proba: sel.proba || 585,
+                          plannedQty: Number(sel.planned_qty || 1),
+                          issuedGoldGram: Number(sel.issued_gold_gram || sel.planned_gram || 0),
+                          priority: sel.priority || "Normal",
+                        })
+                      }
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1 rounded font-bold"
+                    >
+                      🖨️ Yorliq
+                    </button>
                     <input
                       type="number"
                       value={splitQ}
