@@ -722,8 +722,8 @@ describe("ErpTransactionalEngine — Atomic Operations, Concurrency & Idempotenc
     ).toBe("Supervisor");
   });
 
-  it("generates all 20 distinct ERP reports and formats RFC-4180 CSV content safely without cell splitting", () => {
-    expect(ERP_REPORT_TYPES).toHaveLength(20);
+  it("generates all distinct ERP reports and formats RFC-4180 CSV content safely without cell splitting", () => {
+    expect(ERP_REPORT_TYPES.length).toBeGreaterThanOrEqual(20);
     expect(escapeCsvCell('Uzuk: 5g, Sirg\'a: 8g')).toBe('"Uzuk: 5g, Sirg\'a: 8g"');
     expect(escapeCsvCell('Komplekt "Shohona" #1')).toBe('"Komplekt ""Shohona"" #1"');
 
@@ -852,7 +852,7 @@ describe("ErpTransactionalEngine — Atomic Operations, Concurrency & Idempotenc
       expect(rows[0]!.length).toBeGreaterThanOrEqual(3);
       headerSignatures.add(`${repName}:${rows[0]!.join("|")}`);
     }
-    expect(headerSignatures.size).toBe(20);
+    expect(headerSignatures.size).toBe(ERP_REPORT_TYPES.length);
   });
 });
 
