@@ -5,6 +5,8 @@ import {
   isWebSerialSupported,
   ScaleSerialDriver,
   MockScaleDriver,
+  SUPPORTED_SCALE_PROFILES,
+  getScaleDiagnostics,
 } from "../scale-serial";
 
 describe("ScaleSerialDriver & Scale Protocol Parsers", () => {
@@ -134,6 +136,23 @@ describe("ScaleSerialDriver & Scale Protocol Parsers", () => {
       const driver = new ScaleSerialDriver({ baudRate: 9600 });
       expect(driver.isConnected()).toBe(false);
       expect(driver.getLastReading()).toBeNull();
+    });
+  });
+
+  describe("getScaleDiagnostics & SUPPORTED_SCALE_PROFILES", () => {
+    it("exports industry-standard scale profiles (Ohaus, Sartorius, CAS, Vibra, Mettler Toledo)", () => {
+      expect(SUPPORTED_SCALE_PROFILES.length).toBeGreaterThanOrEqual(6);
+      const ohaus = SUPPORTED_SCALE_PROFILES.find((p) => p.id === "ohaus-defender-scout");
+      expect(ohaus).toBeDefined();
+      expect(ohaus?.defaultBaudRate).toBe(9600);
+    });
+
+    it("returns diagnostics report with explicit physical calibration requirement", () => {
+      const diag = getScaleDiagnostics();
+      expect(diag.recommendedBrowser).toContain("Chrome");
+      expect(diag.supportedBaudRates).toContain(9600);
+      expect(diag.calibrationNotice).toContain("MUHIM KALIBRATSIYA TALABI");
+      expect(diag.operationalGuidelines.length).toBeGreaterThanOrEqual(3);
     });
   });
 });

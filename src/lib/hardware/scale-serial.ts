@@ -53,6 +53,122 @@ interface NavigatorWithSerial {
   };
 }
 
+export interface ScaleProtocolProfile {
+  id: string;
+  name: string;
+  manufacturer: string;
+  defaultBaudRate: number;
+  dataBits: 7 | 8;
+  stopBits: 1 | 2;
+  parity: "none" | "even" | "odd";
+  description: string;
+}
+
+export const SUPPORTED_SCALE_PROFILES: ScaleProtocolProfile[] = [
+  {
+    id: "ohaus-defender-scout",
+    name: "Ohaus Scout / Defender / Navigator",
+    manufacturer: "Ohaus Corporation",
+    defaultBaudRate: 9600,
+    dataBits: 8,
+    stopBits: 1,
+    parity: "none",
+    description: "Standard continuous ASCII stream (ST,+12.34g / ?12.34g)",
+  },
+  {
+    id: "sartorius-quintix-entris",
+    name: "Sartorius Entris / Practum / Quintix",
+    manufacturer: "Sartorius AG",
+    defaultBaudRate: 9600,
+    dataBits: 8,
+    stopBits: 1,
+    parity: "none",
+    description: "SBI / 16-character continuous format (N + 12.3450 g)",
+  },
+  {
+    id: "sartorius-7e1",
+    name: "Sartorius Classic Laboratory (7-E-1)",
+    manufacturer: "Sartorius AG",
+    defaultBaudRate: 9600,
+    dataBits: 7,
+    stopBits: 1,
+    parity: "even",
+    description: "Legacy 7-bit Even Parity configuration",
+  },
+  {
+    id: "cas-sw-mwp",
+    name: "CAS SW / MWP / CI-Series",
+    manufacturer: "CAS Scale Corporation",
+    defaultBaudRate: 9600,
+    dataBits: 8,
+    stopBits: 1,
+    parity: "none",
+    description: "CAS 22-byte continuous protocol (ST,GS,+12.345 g)",
+  },
+  {
+    id: "vibra-aj-sj",
+    name: "Vibra (Shinko Denshi) AJ / SJ / LN",
+    manufacturer: "Shinko Denshi Co., Ltd.",
+    defaultBaudRate: 9600,
+    dataBits: 8,
+    stopBits: 1,
+    parity: "none",
+    description: "Tuning-fork precision scale continuous stream",
+  },
+  {
+    id: "mettler-toledo-mt-sics",
+    name: "Mettler Toledo (MT-SICS)",
+    manufacturer: "Mettler Toledo",
+    defaultBaudRate: 9600,
+    dataBits: 8,
+    stopBits: 1,
+    parity: "none",
+    description: "Standard MT-SICS command/response and stream",
+  },
+  {
+    id: "generic-rs232",
+    name: "Standart RS-232 / USB Virtual COM",
+    manufacturer: "Generic Electronic Scales",
+    defaultBaudRate: 9600,
+    dataBits: 8,
+    stopBits: 1,
+    parity: "none",
+    description: "Moslashuvchan RS-232/USB tarozi protokoli",
+  },
+];
+
+export interface ScaleDiagnosticsReport {
+  isWebSerialSupported: boolean;
+  recommendedBrowser: string;
+  isBrowserCompatible: boolean;
+  supportedProfiles: ScaleProtocolProfile[];
+  supportedBaudRates: number[];
+  calibrationNotice: string;
+  operationalGuidelines: string[];
+}
+
+/**
+ * Returns diagnostics information, supported profiles, and factory calibration requirements.
+ */
+export function getScaleDiagnostics(): ScaleDiagnosticsReport {
+  const supported = isWebSerialSupported();
+  return {
+    isWebSerialSupported: supported,
+    recommendedBrowser: "Google Chrome 89+ yoki Microsoft Edge 89+ (Desktop)",
+    isBrowserCompatible: supported,
+    supportedProfiles: SUPPORTED_SCALE_PROFILES,
+    supportedBaudRates: [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200],
+    calibrationNotice:
+      "MUHIM KALIBRATSIYA TALABI: Ishlab chiqarish va oltin omborida taroziga tayanib operatsiya o'tkazishdan oldin har bir tarozi joyida (on-site) davlat metrologiya standarti (F1/F2 klassli etalon toshlar) bilan kalibratsiya qilinishi, tekislik pufagi (spirit level) markazga keltirilishi va havo oqimidan himoya qilingan shisha kamera ichida ishlatilishi shart!",
+    operationalGuidelines: [
+      "1. Tarozini shamollatish moslamasi (konditsioner yoki deraza) yaqiniga qo'ymang.",
+      "2. Har doim ekrandagi 'ST' yoki barqarorlik belgisini kutib, keyin qabul qilish tugmasini bosing.",
+      "3. Tarani har bir yangi idish yoki patnis uchun alohida nollang (Tare).",
+      "4. Agar Web Serial ochilmasa, USB-RS232 drayverini (FTDI yoki CH340) tekshiring.",
+    ],
+  };
+}
+
 /**
  * Checks if the W3C Web Serial API is supported in the current browser environment.
  */

@@ -103,12 +103,17 @@ async function main() {
 
     // 4. Print credentials table
     console.log('\n----------------------------------------------------------------------');
-    console.log('GOLDIA ZAVODI PILOTI UCHUN TAYYOR AKKAUNTLAR (Barchasining paroli bir xil):');
+    console.log('DIQQAT: [DEMO / NOT PRODUCTION] OFFLINE EMULATED ENVIRONMENT');
+    console.log('Bu muhit faqat Goldia zavodi lokal pilot sinovlari uchun mo\'ljallangan.');
+    console.log('Ma\'lumotlar bazasi fayllari .local-pilot-data/db da saqlanadi va server o\'chirilganda ham o\'chib ketmaydi.');
+    console.log('Zaxira nusxa yaratish: npm run db:backup | Tiklash: npm run db:restore');
+    console.log('----------------------------------------------------------------------');
+    console.log('GOLDIA ZAVODI PILOTI UCHUN TAYYOR DEMO AKKAUNTLAR:');
     console.log('----------------------------------------------------------------------');
     for (const u of TEST_USERS) {
       console.log(`  * ${u.full_name.padEnd(28)} | ${u.email.padEnd(24)} | Rol: ${u.role}`);
     }
-    console.log(`  Umumiy Parol: GoldiaPassword2026!`);
+    console.log(`  Umumiy Parol: GoldiaPassword2026! (FAQAT LOKAL EMULATORDA ISHLAYDI)`);
     console.log('----------------------------------------------------------------------\n');
 
     // 5. Start Next.js development server

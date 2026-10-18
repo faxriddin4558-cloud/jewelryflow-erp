@@ -22,7 +22,9 @@
     "test:e2e:simulation": "node scripts/simulate-10-batches-e2e.js",
     "test:db:all": "node scripts/test-migrations-real-postgres.js && node scripts/verify-real-database-all-phases.js && node scripts/simulate-10-batches-e2e.js",
     "test:e2e:browser": "node scripts/run-isolated-browser-e2e.js",
-    "start:offline": "node scripts/start-local-zero-budget-erp.js"
+    "start:offline": "node scripts/start-local-zero-budget-erp.js",
+    "db:backup": "node scripts/backup-local-db.js",
+    "db:restore": "node scripts/restore-local-db.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

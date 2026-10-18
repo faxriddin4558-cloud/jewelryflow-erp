@@ -7,6 +7,8 @@ const { pg_trgm } = require('@electric-sql/pglite/contrib/pg_trgm');
 const { btree_gist } = require('@electric-sql/pglite/contrib/btree_gist');
 
 const PORT = parseInt(process.env.STAGING_SUPABASE_PORT || '54321', 10);
+const DEFAULT_DATA_DIR = path.resolve(__dirname, '../.local-pilot-data/db');
+const DEFAULT_BACKUP_DIR = path.resolve(__dirname, '../.local-backups');
 
 // Fictional test organization and user IDs
 const ORG_GOLDIA_ID = '00000000-0000-0000-0000-000000000001';
@@ -54,6 +56,14 @@ const TEST_USERS = [
     full_name: 'Ziyoda Hisobchi (Goldia)'
   },
   {
+    id: '11111111-1111-4001-8001-000000000006',
+    email: 'warehouse@goldia.uz',
+    password: 'GoldiaPassword2026!',
+    role: 'inventory_manager',
+    organization_id: ORG_GOLDIA_ID,
+    full_name: 'Anvar Omborchi (Goldia)'
+  },
+  {
     id: '22222222-2222-4002-8002-000000000001',
     email: 'director@samarkand.uz',
     password: 'SamarkandPassword2026!',
@@ -65,7 +75,66 @@ const TEST_USERS = [
 
 let dbInstance = null;
 let serverInstance = null;
+let activeDataDir = null;
+let activeLockFile = null;
 
+// ==============================================================================
+// 1. Concurrency File-Lock Mechanism
+// ==============================================================================
+function acquireDbLock(dataDir, port) {
+  const lockDir = path.dirname(dataDir);
+  fs.mkdirSync(lockDir, { recursive: true });
+  const lockFilePath = path.join(lockDir, 'db.lock');
+
+  if (fs.existsSync(lockFilePath)) {
+    try {
+      const content = fs.readFileSync(lockFilePath, 'utf8');
+      const lockData = JSON.parse(content);
+      if (lockData.pid) {
+        let isRunning = false;
+        try {
+          process.kill(lockData.pid, 0);
+          isRunning = true;
+        } catch {
+          isRunning = false;
+        }
+        if (isRunning) {
+          throw new Error(
+            `[CONCURRENCY_VIOLATION] Local database is locked by another running process (PID: ${lockData.pid}, Port: ${lockData.port}, Started: ${lockData.startedAt}). Multiple processes cannot write to the same database directory concurrently.`
+          );
+        } else {
+          console.warn(`[DATABASE-LOCK] Stale lockfile detected from dead process (PID: ${lockData.pid}). Recovering lock safely.`);
+        }
+      }
+    } catch (err) {
+      if (err.message.includes('[CONCURRENCY_VIOLATION]')) {
+        throw err;
+      }
+      console.warn('[DATABASE-LOCK] Unreadable lockfile detected. Overwriting safely.');
+    }
+  }
+
+  const newLock = {
+    pid: process.pid,
+    port,
+    dataDir,
+    startedAt: new Date().toISOString()
+  };
+  fs.writeFileSync(lockFilePath, JSON.stringify(newLock, null, 2), 'utf8');
+  return lockFilePath;
+}
+
+function releaseDbLock(lockFilePath) {
+  if (lockFilePath && fs.existsSync(lockFilePath)) {
+    try {
+      fs.unlinkSync(lockFilePath);
+    } catch {}
+  }
+}
+
+// ==============================================================================
+// 2. Base Supabase Auth & Schema Setup
+// ==============================================================================
 async function setupSupabaseBase(db) {
   await db.exec(`
     DO $$
@@ -126,17 +195,39 @@ async function setupSupabaseBase(db) {
       RETURN NEW;
     END;
     $$;
+
+    CREATE TABLE IF NOT EXISTS public.schema_migrations (
+      version TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS public.local_db_metadata (
+      key TEXT PRIMARY KEY,
+      value JSONB,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
   `);
 }
 
+// ==============================================================================
+// 3. Schema Migrations with Version Tracking (Never re-runs applied migrations)
+// ==============================================================================
 async function applyAllMigrations(db) {
+  const appliedRes = await db.query('SELECT version FROM public.schema_migrations;');
+  const appliedSet = new Set(appliedRes.rows.map(r => r.version));
+
   const migrationsDir = path.resolve(__dirname, '../supabase/migrations');
   const files = fs
     .readdirSync(migrationsDir)
     .filter((f) => f.endsWith('.sql'))
     .sort();
 
+  let newlyApplied = 0;
   for (const file of files) {
+    if (appliedSet.has(file)) {
+      continue;
+    }
+
     const filePath = path.join(migrationsDir, file);
     const sql = fs.readFileSync(filePath, 'utf8');
     const sanitizedSql = sql
@@ -150,6 +241,12 @@ async function applyAllMigrations(db) {
       );
 
     await db.exec(sanitizedSql);
+    await db.query('INSERT INTO public.schema_migrations (version) VALUES ($1);', [file]);
+    newlyApplied++;
+  }
+
+  if (newlyApplied > 0) {
+    console.log(`[DATABASE-MIGRATIONS] Applied ${newlyApplied} new migrations. Schema is up to date.`);
   }
 
   await db.exec(`
@@ -162,7 +259,22 @@ async function applyAllMigrations(db) {
   `);
 }
 
-async function seedStagingData(db) {
+// ==============================================================================
+// 4. Seed Staging Data (Separated from user data, never overwrites on restart)
+// ==============================================================================
+async function seedStagingData(db, force = false) {
+  if (!force) {
+    const metaCheck = await db.query(
+      "SELECT value FROM public.local_db_metadata WHERE key = 'initial_seed_completed';"
+    );
+    if (metaCheck.rows.length > 0) {
+      console.log('[DATABASE-SEED] Persistent database already initialized. Preserving user records and skipping initial seed.');
+      return;
+    }
+  }
+
+  console.log('[DATABASE-SEED] Initializing demo factory (Goldia), users, and safe inventory...');
+
   // Seed Organizations
   await db.exec(`
     INSERT INTO public.organizations (id, code, name, status)
@@ -179,7 +291,7 @@ async function seedStagingData(db) {
       VALUES (
         '${u.id}'::uuid,
         '${u.email}',
-        '{"role": "${u.role}", "organization_id": "${u.organization_id}", "full_name": "${u.full_name}"}'::jsonb
+        '{"role": "${u.role}", "organization_id": "${u.organization_id}", "full_name": "${u.full_name}", "is_demo": true}'::jsonb
       )
       ON CONFLICT (id) DO UPDATE SET
         raw_user_meta_data = EXCLUDED.raw_user_meta_data;
@@ -251,26 +363,38 @@ async function seedStagingData(db) {
       (gen_random_uuid(), 'LASER-SAM-01', 'Lazer', 'IDLE', '${ORG_SAMARKAND_ID}'::uuid)
     ON CONFLICT DO NOTHING;
   `);
+
+  await db.query(
+    "INSERT INTO public.local_db_metadata (key, value) VALUES ('initial_seed_completed', 'true'::jsonb) ON CONFLICT (key) DO UPDATE SET updated_at = now();"
+  );
+  console.log('[DATABASE-SEED] Initial demo factory and accounts successfully provisioned.');
 }
 
+// ==============================================================================
+// 5. Auth Helper Functions (Explicitly marked DEMO / OFFLINE ONLY)
+// ==============================================================================
 function createJWT(user) {
-  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT', emulated: true })).toString('base64url');
   const payload = Buffer.from(JSON.stringify({
     sub: user.id,
     email: user.email,
     role: 'authenticated',
+    is_demo: true,
+    auth_emulator: 'LOCAL_OFFLINE_PG_EMULATOR_NOT_PRODUCTION',
     user_metadata: {
       role: user.role,
       organization_id: user.organization_id,
-      full_name: user.full_name
+      full_name: user.full_name,
+      is_demo_account: true
     },
     app_metadata: {
       provider: 'email',
-      providers: ['email']
+      providers: ['email'],
+      is_local_emulator: true
     },
     exp: Math.floor(Date.now() / 1000) + 86400 * 7
   })).toString('base64url');
-  return `${header}.${payload}.sig`;
+  return `${header}.${payload}.demo-sig-do-not-use-in-production`;
 }
 
 function parseToken(authHeader) {
@@ -302,17 +426,52 @@ async function setSqlContext(db, user) {
   }
 }
 
-async function startStagingServer(port = PORT) {
-  dbInstance = new PGlite({
-    extensions: { uuid_ossp, pg_trgm, btree_gist }
-  });
+// ==============================================================================
+// 6. Server Lifecycle: Start & Stop (Persistent by Default)
+// ==============================================================================
+async function startStagingServer(port = PORT, options = {}) {
+  // Remote production protection guard
+  const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  if (configuredUrl && !configuredUrl.includes('127.0.0.1') && !configuredUrl.includes('localhost')) {
+    throw new Error(
+      `[CRITICAL_SECURITY_GUARD] Remote Supabase URL detected (${configuredUrl}). Refusing to run offline emulator against remote target to prevent accidental cloud leakage.`
+    );
+  }
 
-  await setupSupabaseBase(dbInstance);
-  await applyAllMigrations(dbInstance);
-  await seedStagingData(dbInstance);
+  const isMemory = options.isMemory === true;
+  const dataDir = isMemory ? null : (options.dataDir || DEFAULT_DATA_DIR);
+  activeDataDir = dataDir;
+
+  if (!isMemory) {
+    activeLockFile = acquireDbLock(dataDir, port);
+    fs.mkdirSync(dataDir, { recursive: true });
+    console.log(`[LOCAL-PILOT-DB] Opening persistent PGlite storage at: ${dataDir}`);
+    dbInstance = new PGlite(dataDir, {
+      extensions: { uuid_ossp, pg_trgm, btree_gist }
+    });
+  } else {
+    console.log('[LOCAL-PILOT-DB] Opening transient in-memory PGlite storage (isolated test run)');
+    dbInstance = new PGlite({
+      extensions: { uuid_ossp, pg_trgm, btree_gist }
+    });
+  }
+
+  // Self-check database integrity
+  try {
+    await setupSupabaseBase(dbInstance);
+    await applyAllMigrations(dbInstance);
+    await seedStagingData(dbInstance);
+  } catch (err) {
+    console.error('[DATABASE-CORRUPTION-ALERT] Failed to initialize database:', err);
+    throw new Error(`[DATABASE_INTEGRITY_FAILURE] Database startup failed: ${err.message}. If corrupted, restore from latest backup via node scripts/restore-local-db.js.`);
+  }
 
   return new Promise((resolve) => {
     serverInstance = http.createServer(async (req, res) => {
+      // Security and Demarcation Headers (Milestone 2)
+      res.setHeader('X-JewelryFlow-Environment', 'LOCAL-PILOT-EMULATED-NOT-PRODUCTION');
+      res.setHeader('X-JewelryFlow-Auth-Mode', 'OFFLINE-MOCK-JWT-DEMO-ONLY');
+      res.setHeader('X-JewelryFlow-Notice', 'DEMO-OFFLINE-ONLY-NEVER-USE-IN-PRODUCTION');
       res.setHeader('Access-Control-Allow-Origin', req.headers['origin'] || '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || '*');
@@ -325,10 +484,13 @@ async function startStagingServer(port = PORT) {
         return;
       }
 
-      const parsedUrl = new URL(req.url, `http://localhost:${port}`);
+      const parsedUrl = new URL(req.url, `http://127.0.0.1:${port}`);
       const pathname = parsedUrl.pathname;
       const tokenPayload = parseToken(req.headers['authorization']);
-      console.log(`[STAGING-REQ] ${req.method} ${pathname} Auth:${req.headers['authorization'] ? 'BEARER' : 'NONE'}`);
+
+      if (options.verbose) {
+        console.log(`[PILOT-REQ] ${req.method} ${pathname} Auth:${req.headers['authorization'] ? 'BEARER' : 'NONE'}`);
+      }
 
       // Read Body
       let bodyData = '';
@@ -340,21 +502,73 @@ async function startStagingServer(port = PORT) {
         }
 
         try {
-          // 1. Health check & reset
+          // 1. Health check & Diagnostics
           if (pathname === '/staging/health') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ status: 'ok', isolated: true, pglite: true }));
+            res.end(JSON.stringify({
+              status: 'ok',
+              environment: 'LOCAL-PILOT-EMULATED-NOT-PRODUCTION',
+              isolated: true,
+              persistent: !isMemory,
+              dataDir: activeDataDir,
+              pid: process.pid,
+              pglite: true,
+              notice: 'DEMO / NOT PRODUCTION. Offline Emulated Supabase Backend.'
+            }));
             return;
           }
 
-          if (pathname === '/staging/reset' && req.method === 'POST') {
-            await seedStagingData(dbInstance);
+          // 2. Database Backup Snapshot (Milestone 1)
+          if (pathname === '/staging/backup' && req.method === 'POST') {
+            const backupDir = DEFAULT_BACKUP_DIR;
+            fs.mkdirSync(backupDir, { recursive: true });
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const targetDir = path.join(backupDir, `backup-${timestamp}`);
+
+            const tableStats = await dbInstance.query(`
+              SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';
+            `);
+            const batchCount = await dbInstance.query('SELECT count(*)::int as cnt FROM public.batches;');
+            const goldTxCount = await dbInstance.query('SELECT count(*)::int as cnt FROM public.gold_transactions;');
+            const ordersCount = await dbInstance.query('SELECT count(*)::int as cnt FROM public.orders;');
+
+            fs.mkdirSync(targetDir, { recursive: true });
+            if (activeDataDir && fs.existsSync(activeDataDir)) {
+              fs.cpSync(activeDataDir, path.join(targetDir, 'db'), { recursive: true });
+            }
+
+            const manifest = {
+              backupName: `backup-${timestamp}`,
+              timestamp: new Date().toISOString(),
+              engine: 'PGlite PostgreSQL 18/16 WASM',
+              totalTables: tableStats.rows.length,
+              recordCounts: {
+                batches: batchCount.rows[0].cnt,
+                goldTransactions: goldTxCount.rows[0].cnt,
+                orders: ordersCount.rows[0].cnt
+              }
+            };
+            fs.writeFileSync(path.join(targetDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ reset: true }));
+            res.end(JSON.stringify({ success: true, targetDir, manifest }));
             return;
           }
 
-          // 2. Auth: /auth/v1/token
+          // 3. Reset (Requires explicit force: true parameter)
+          if (pathname === '/staging/reset' && req.method === 'POST') {
+            if (jsonBody.force === true) {
+              await seedStagingData(dbInstance, true);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ reset: true, notice: 'Forced reseed completed.' }));
+            } else {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Reset rejected: To prevent accidental data loss, provide force: true.' }));
+            }
+            return;
+          }
+
+          // 4. Auth: /auth/v1/token (Offline Mock Login)
           if (pathname === '/auth/v1/token') {
             const { email, password } = jsonBody;
             const user = TEST_USERS.find(u => u.email.toLowerCase() === (email || '').toLowerCase());
@@ -382,15 +596,16 @@ async function startStagingServer(port = PORT) {
                 user_metadata: {
                   role: user.role,
                   organization_id: user.organization_id,
-                  full_name: user.full_name
+                  full_name: user.full_name,
+                  is_demo_account: true
                 },
-                app_metadata: { provider: 'email', providers: ['email'] }
+                app_metadata: { provider: 'email', providers: ['email'], is_local_emulator: true }
               }
             }));
             return;
           }
 
-          // 3. Auth: /auth/v1/user
+          // 5. Auth: /auth/v1/user
           if (pathname === '/auth/v1/user') {
             if (!tokenPayload || !tokenPayload.sub) {
               res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -398,7 +613,6 @@ async function startStagingServer(port = PORT) {
               return;
             }
 
-            const user = TEST_USERS.find(u => u.id === tokenPayload.sub);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
               id: tokenPayload.sub,
@@ -406,12 +620,12 @@ async function startStagingServer(port = PORT) {
               role: 'authenticated',
               email: tokenPayload.email,
               user_metadata: tokenPayload.user_metadata || {},
-              app_metadata: tokenPayload.app_metadata || { provider: 'email' }
+              app_metadata: tokenPayload.app_metadata || { provider: 'email', is_local_emulator: true }
             }));
             return;
           }
 
-          // 4. Auth: /auth/v1/logout
+          // 6. Auth: /auth/v1/logout
           if (pathname === '/auth/v1/logout') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({}));
@@ -421,7 +635,7 @@ async function startStagingServer(port = PORT) {
           // Set SQL context for RLS
           await setSqlContext(dbInstance, tokenPayload);
 
-          // 5. REST RPC: /rest/v1/rpc/<rpc_name>
+          // 7. REST RPC: /rest/v1/rpc/<rpc_name>
           if (pathname.startsWith('/rest/v1/rpc/')) {
             const rpcName = pathname.replace('/rest/v1/rpc/', '').replace(/\/$/, '');
             const params = jsonBody || {};
@@ -446,11 +660,10 @@ async function startStagingServer(port = PORT) {
             return;
           }
 
-          // 6. REST Tables: /rest/v1/<table>
+          // 8. REST Tables: /rest/v1/<table>
           if (pathname.startsWith('/rest/v1/')) {
             const tableName = pathname.replace('/rest/v1/', '').split('?')[0].replace(/\/$/, '');
             
-            // Build simple query from params
             const selectCol = parsedUrl.searchParams.get('select') || '*';
             const orderParam = parsedUrl.searchParams.get('order');
             const limitParam = parsedUrl.searchParams.get('limit');
@@ -558,21 +771,38 @@ async function startStagingServer(port = PORT) {
       });
     });
 
-    serverInstance.listen(port, () => {
-      console.log(`[ISOLATED-STAGING-SERVER] Running on http://127.0.0.1:${port}`);
-      resolve({ server: serverInstance, db: dbInstance });
+    // Explicit localhost-only binding (Milestone 2)
+    serverInstance.listen(port, '127.0.0.1', () => {
+      console.log(`[LOCAL-PILOT-SERVER] [DEMO/NOT-PRODUCTION] Listening exclusively on http://127.0.0.1:${port}`);
+      resolve({ server: serverInstance, db: dbInstance, dataDir: activeDataDir });
     });
   });
 }
 
 function stopStagingServer() {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
+    if (activeLockFile) {
+      releaseDbLock(activeLockFile);
+      activeLockFile = null;
+    }
     if (serverInstance) {
-      serverInstance.close(() => {
-        console.log('[ISOLATED-STAGING-SERVER] Stopped.');
+      serverInstance.close(async () => {
+        if (dbInstance) {
+          try {
+            await dbInstance.close();
+          } catch {}
+          dbInstance = null;
+        }
+        console.log('[LOCAL-PILOT-SERVER] Stopped.');
         resolve();
       });
     } else {
+      if (dbInstance) {
+        try {
+          await dbInstance.close();
+        } catch {}
+        dbInstance = null;
+      }
       resolve();
     }
   });
@@ -589,5 +819,7 @@ module.exports = {
   stopStagingServer,
   TEST_USERS,
   ORG_GOLDIA_ID,
-  ORG_SAMARKAND_ID
+  ORG_SAMARKAND_ID,
+  DEFAULT_DATA_DIR,
+  DEFAULT_BACKUP_DIR
 };
