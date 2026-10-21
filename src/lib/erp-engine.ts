@@ -647,6 +647,27 @@ export interface FactoryIntegrityAuditReport {
   anomalies: FactoryIntegrityAnomaly[];
 }
 
+export interface JewelryConsignmentAndSaleCalc {
+  baseWeightGrams: number;
+  factoryMarkupPct: number;
+  factoryGoldDueGrams: number;
+  clientMarkupPct: number;
+  clientGoldDueGrams: number;
+  markupSpreadGrams: number;
+}
+
+export interface GoldSettlementCalc {
+  previousDebtGrams: number;
+  scrapWeightGrams: number;
+  cashPaidAmount: number;
+  ratePerGram: number;
+  cashEquivalentGrams: number;
+  totalSettledGrams: number;
+  appliedToDebtGrams: number;
+  excessGoldGrams: number;
+  remainingDebtGrams: number;
+}
+
 export const GoldEngine = {
   /**
    * Standard 2-decimal Fine Gold display helper (preserved for backward compatibility).
@@ -724,6 +745,85 @@ export const GoldEngine = {
       exactGrams,
       grams4dp,
       grams2dp,
+    };
+  },
+
+  /**
+   * Calculates Factory -> Seller and Seller -> Client gold obligations.
+   * STRICT RULE: Both factory markup and client markup are computed directly
+   * from the BASE PRODUCT WEIGHT. Markups are NEVER compounded.
+   * The difference (markupSpreadGrams) is an accounting differential, NOT personal profit.
+   */
+  calculateJewelryConsignmentAndSale: (
+    baseWeight: number | string,
+    factoryMarkupPct: number | string,
+    clientMarkupPct: number | string
+  ): JewelryConsignmentAndSaleCalc => {
+    const w = Number(baseWeight || 0);
+    const fPct = Math.max(0, Number(factoryMarkupPct || 0));
+    const cPct = Math.max(0, Number(clientMarkupPct || 0));
+
+    if (!Number.isFinite(w) || w <= 0) {
+      return {
+        baseWeightGrams: 0,
+        factoryMarkupPct: fPct,
+        factoryGoldDueGrams: 0,
+        clientMarkupPct: cPct,
+        clientGoldDueGrams: 0,
+        markupSpreadGrams: 0,
+      };
+    }
+
+    const factoryGoldDueGrams = Number((w * (1 + fPct / 100)).toFixed(4));
+    const clientGoldDueGrams = Number((w * (1 + cPct / 100)).toFixed(4));
+    const markupSpreadGrams = Number((clientGoldDueGrams - factoryGoldDueGrams).toFixed(4));
+
+    return {
+      baseWeightGrams: w,
+      factoryMarkupPct: fPct,
+      factoryGoldDueGrams,
+      clientMarkupPct: cPct,
+      clientGoldDueGrams,
+      markupSpreadGrams,
+    };
+  },
+
+  /**
+   * Calculates settlement of gold debt via scrap gold and/or cash.
+   * Cash is converted to scrap gold grams using the confirmed rate per gram on operation date.
+   * If total settled exceeds previous debt, excess is NOT lost: it is preserved as advance balance.
+   */
+  calculateGoldSettlement: (
+    previousDebt: number | string,
+    scrapWeight: number | string,
+    cashAmount: number | string,
+    ratePerGram: number | string
+  ): GoldSettlementCalc => {
+    const prevDebt = Math.max(0, Number(previousDebt || 0));
+    const scrapW = Math.max(0, Number(scrapWeight || 0));
+    const cash = Math.max(0, Number(cashAmount || 0));
+    const rate = Number(ratePerGram || 0);
+
+    let cashEquivalentGrams = 0;
+    if (cash > 0 && rate > 0) {
+      cashEquivalentGrams = Number((cash / rate).toFixed(4));
+    }
+
+    const totalSettledGrams = Number((scrapW + cashEquivalentGrams).toFixed(4));
+    const appliedToDebtGrams = Number(Math.min(prevDebt, totalSettledGrams).toFixed(4));
+    const excessGoldGrams = Number(Math.max(0, totalSettledGrams - prevDebt).toFixed(4));
+    const remainingDebtGrams = Number(Math.max(0, prevDebt - appliedToDebtGrams).toFixed(4));
+
+    return {
+      previousDebtGrams: prevDebt,
+      scrapWeightGrams: scrapW,
+      cashPaidAmount: cash,
+      ratePerGram: rate,
+      cashEquivalentGrams,
+      totalSettledGrams,
+      appliedToDebtGrams,
+      excessGoldGrams,
+      remainingDebtGrams,
     };
   },
 
