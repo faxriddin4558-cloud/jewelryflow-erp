@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/erp-engine";
-import { formatGrams } from "@/lib/barcode-scanner-engine";
+import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 
 interface CustomerRow {
   id: string;
@@ -397,10 +397,10 @@ export function CustomerLedgerAndSheetsSection() {
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3">
           <div>
             <h2 className="text-xl font-black text-amber-300 flex items-center gap-2">
-              <span>🛍️</span> Mijozlar Katalogi & Google Sheets Paritet Daftari
+              <span>🛍️</span> Mijozlar Hisob-Kitobi va Nasiya Daftari
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Sotuvchilarning &quot;Лист1&quot; kundalik savdo jurnali va &quot;Oylik Hisobot&quot; mijozlar balansi.
+              Sotuvchilarning kundalik savdo jurnali va oylik mijozlar hisob-kitob balansi.
             </p>
           </div>
 
@@ -419,7 +419,7 @@ export function CustomerLedgerAndSheetsSection() {
                 activeTab === "daily_ledger" ? "bg-amber-500 text-slate-950 shadow-md" : "text-slate-400 hover:text-white"
               }`}
             >
-              <span>📑</span> Лист1 (Kunlik Savdo)
+              <span>📑</span> Kunlik Savdo Jurnali
             </button>
             <button
               onClick={() => setActiveTab("monthly_report")}
@@ -564,13 +564,13 @@ export function CustomerLedgerAndSheetsSection() {
                       {c.seller?.full_name || c.seller?.name || "Biriktirilmagan"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-amber-300">
-                      {formatGrams(c.total_scrap_paid_grams || 0)} g
+                      {formatScreenGrams(c.total_scrap_paid_grams)}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-emerald-400">
-                      {(c.total_cash_paid_amount || 0).toLocaleString()} UZS
+                      {formatScreenUZS(c.total_cash_paid_amount)}
                     </td>
                     <td className="py-2.5 px-3 font-mono font-black text-rose-400 text-sm">
-                      {formatGrams(c.current_debt_grams || 0)} g
+                      {formatScreenGrams(c.current_debt_grams)}
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -609,12 +609,12 @@ export function CustomerLedgerAndSheetsSection() {
         </div>
       )}
 
-      {/* TAB 2: DAILY LEDGER (Лист1) */}
+      {/* TAB 2: DAILY LEDGER (Kunlik Savdo Jurnali) */}
       {activeTab === "daily_ledger" && (
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-white space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
-              Лист1 — Kundalik Savdo va Tushumlar Jurnali ({dailyLedgerRows.length})
+              Kunlik Savdo va Tushumlar Jurnali ({dailyLedgerRows.length})
             </h3>
             <span className="text-xs text-slate-400">
               Sana, Klient, Sotilgan gr, Ustama %, gram+%, Lom berdi, Pul berdi, Qarzdorlik
@@ -660,28 +660,28 @@ export function CustomerLedgerAndSheetsSection() {
                     </td>
                     <td className="py-2.5 px-3 text-slate-300">{r.model_name}</td>
                     <td className="py-2.5 px-3 font-mono text-cyan-300">
-                      {Number(r.sold_weight_g) > 0 ? `${formatGrams(r.sold_weight_g ?? 0)} g` : "—"}
+                      {Number(r.sold_weight_g) > 0 ? formatScreenGrams(r.sold_weight_g) : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono">
                       {Number(r.markup_pct) > 0 ? `${Number(r.markup_pct).toFixed(1)}%` : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-rose-300">
-                      {Number(r.obligation_g) > 0 ? `${formatGrams(r.obligation_g ?? 0)} g` : "—"}
+                      {Number(r.obligation_g) > 0 ? formatScreenGrams(r.obligation_g) : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-amber-300">
-                      {Number(r.scrap_received_g) > 0 ? `${formatGrams(r.scrap_received_g ?? 0)} g` : "—"}
+                      {Number(r.scrap_received_g) > 0 ? formatScreenGrams(r.scrap_received_g) : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-emerald-300">
-                      {Number(r.cash_received_uzs) > 0 ? `${Number(r.cash_received_uzs).toLocaleString()} UZS` : "—"}
+                      {Number(r.cash_received_uzs) > 0 ? formatScreenUZS(r.cash_received_uzs) : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-amber-200">
-                      {Number(r.rate_per_gram) > 0 ? `${Number(r.rate_per_gram).toLocaleString()}` : "—"}
+                      {Number(r.rate_per_gram) > 0 ? formatScreenUZS(r.rate_per_gram) : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-emerald-200">
-                      {Number(r.total_payment_g) > 0 ? `${formatGrams(r.total_payment_g ?? 0)} g` : "—"}
+                      {Number(r.total_payment_g) > 0 ? formatScreenGrams(r.total_payment_g) : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono font-bold text-rose-400">
-                      {formatGrams(r.closing_debt_g)} g
+                      {formatScreenGrams(r.closing_debt_g)}
                     </td>
                   </tr>
                 ))}
@@ -732,25 +732,25 @@ export function CustomerLedgerAndSheetsSection() {
                       <td className="py-2.5 px-3 font-bold text-white">{it.customer_name}</td>
                       <td className="py-2.5 px-3 font-mono text-slate-400">{it.customer_code}</td>
                       <td className="py-2.5 px-3 font-mono text-amber-200">
-                        {formatGrams(it.opening_debt_g)} g
+                        {formatScreenGrams(it.opening_debt_g)}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-cyan-300">
-                        {formatGrams(it.sales_in_month_g)} g
+                        {formatScreenGrams(it.sales_in_month_g)}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-amber-300">
-                        {formatGrams(it.scrap_received_g)} g
+                        {formatScreenGrams(it.scrap_received_g)}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-emerald-300">
-                        {Number(it.cash_received_uzs).toLocaleString()} UZS
+                        {formatScreenUZS(it.cash_received_uzs)}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-emerald-200">
-                        {formatGrams(it.cash_equivalent_g)} g
+                        {formatScreenGrams(it.cash_equivalent_g)}
                       </td>
                       <td className="py-2.5 px-3 font-mono font-bold text-emerald-400">
-                        {formatGrams(it.total_settled_g)} g
+                        {formatScreenGrams(it.total_settled_g)}
                       </td>
                       <td className="py-2.5 px-3 font-mono font-black text-rose-400 text-sm">
-                        {formatGrams(it.closing_debt_g)} g
+                        {formatScreenGrams(it.closing_debt_g)}
                       </td>
                     </tr>
                   ))}
@@ -775,37 +775,37 @@ export function CustomerLedgerAndSheetsSection() {
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1">
                 <div className="text-slate-400 font-sans font-bold text-[11px]">Jami Tarqatilgan (Oyda)</div>
                 <div className="text-lg font-black text-cyan-300">
-                  {formatGrams(monthlyReportData.summary.total_distributed_month_g)} g
+                  {formatScreenGrams(monthlyReportData.summary.total_distributed_month_g)}
                 </div>
               </div>
 
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1">
                 <div className="text-slate-400 font-sans font-bold text-[11px]">Jami Yig&apos;ilgan (Oyda)</div>
                 <div className="text-lg font-black text-emerald-400">
-                  {formatGrams(monthlyReportData.summary.total_collected_month_g)} g
+                  {formatScreenGrams(monthlyReportData.summary.total_collected_month_g)}
                 </div>
               </div>
 
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1">
                 <div className="text-slate-400 font-sans font-bold text-[11px]">Mijozlar Nasiya Qoldig&apos;i</div>
                 <div className="text-lg font-black text-rose-400">
-                  {formatGrams(monthlyReportData.summary.total_customer_debt_g)} g
+                  {formatScreenGrams(monthlyReportData.summary.total_customer_debt_g)}
                 </div>
               </div>
 
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1">
                 <div className="text-slate-400 font-sans font-bold text-[11px]">Sotuvchi G&apos;aznasi</div>
                 <div className="text-xs font-bold text-slate-200">
-                  <span className="text-amber-300">{formatGrams(monthlyReportData.summary.seller_held_scrap_g)} g lom</span>
+                  <span className="text-amber-300">{formatScreenGrams(monthlyReportData.summary.seller_held_scrap_g)} lom</span>
                   <br />
-                  <span className="text-emerald-400">{Number(monthlyReportData.summary.seller_held_cash_uzs).toLocaleString()} UZS</span>
+                  <span className="text-emerald-400">{formatScreenUZS(monthlyReportData.summary.seller_held_cash_uzs)}</span>
                 </div>
               </div>
 
               <div className="bg-slate-950 p-4 rounded-2xl border border-amber-800/40 space-y-1">
                 <div className="text-amber-300 font-sans font-bold text-[11px]">Boshqaruvchiga Bozor Qarzi</div>
                 <div className="text-lg font-black text-amber-400">
-                  {formatGrams(Math.abs(monthlyReportData.summary.seller_manager_bozor_qarzi_g))} g
+                  {formatScreenGrams(Math.abs(monthlyReportData.summary.seller_manager_bozor_qarzi_g))}
                 </div>
                 <div className="text-[10px] text-slate-400 font-sans">
                   {monthlyReportData.summary.seller_manager_bozor_qarzi_g < 0 ? "(Sotuvchi qarzdor)" : "(Haqdor)"}
@@ -915,7 +915,7 @@ export function CustomerLedgerAndSheetsSection() {
               <div className="text-slate-400 font-mono">
                 Hozirgi qarz:{" "}
                 <span className="text-rose-400 font-bold">
-                  {formatGrams(targetCustomer.current_debt_grams || 0)} g
+                  {formatScreenGrams(targetCustomer.current_debt_grams)}
                 </span>
               </div>
             </div>
@@ -1004,7 +1004,7 @@ export function CustomerLedgerAndSheetsSection() {
               <div className="text-slate-400 font-mono">
                 Hozirgi qarz:{" "}
                 <span className="text-rose-400 font-bold">
-                  {formatGrams(targetCustomer.current_debt_grams || 0)} g
+                  {formatScreenGrams(targetCustomer.current_debt_grams)}
                 </span>
               </div>
             </div>
@@ -1025,7 +1025,7 @@ export function CustomerLedgerAndSheetsSection() {
                     .filter((p) => !targetCustomer.seller_id || String(p.seller_id) === String(targetCustomer.seller_id))
                     .map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.model_name} ({p.model_code}) — {Number(p.weight_grams).toFixed(4)}g
+                        {p.model_name} ({p.model_code}) — {formatScreenGrams(p.weight_grams)}
                       </option>
                     ))}
                 </select>

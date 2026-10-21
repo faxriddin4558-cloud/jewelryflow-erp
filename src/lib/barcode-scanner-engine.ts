@@ -113,7 +113,42 @@ export function subtractGrams(a: number, b: number): number {
  * Format physical jewelry grams nicely (e.g. 14.5200)
  */
 export function formatGrams(grams: number, decimals = 4): string {
-  return (Number(grams) || 0).toFixed(decimals);
+  const num = Number(grams);
+  if (!Number.isFinite(num)) return `0.${'0'.repeat(decimals)}`;
+  return num.toFixed(decimals);
+}
+
+/**
+ * Safe screen display formatter for grams:
+ * Always returns '0.00 g' format, handles NaN, undefined, Infinity, null gracefully.
+ * Retains internal calculation precision because it is strictly for UI display.
+ */
+export function formatScreenGrams(grams: unknown, decimals = 2): string {
+  const num = Number(grams);
+  if (!Number.isFinite(num)) {
+    return `0.${'0'.repeat(decimals)} g`;
+  }
+  return `${num.toFixed(decimals)} g`;
+}
+
+/**
+ * Safe screen display formatter for UZS currency:
+ * Returns e.g. "900,000 UZS" with thousands separators, handles NaN, undefined, Infinity gracefully.
+ */
+export function formatScreenUZS(amount: unknown): string {
+  const num = Number(amount);
+  if (!Number.isFinite(num)) {
+    return '0 UZS';
+  }
+  return `${Math.round(num).toLocaleString('ru-RU')} UZS`;
+}
+
+/**
+ * Safe number extractor that never returns NaN or Infinity
+ */
+export function safeNumber(val: unknown, fallback = 0): number {
+  const num = Number(val);
+  return Number.isFinite(num) ? num : fallback;
 }
 
 /**

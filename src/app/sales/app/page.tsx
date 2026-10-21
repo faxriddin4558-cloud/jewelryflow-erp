@@ -10,6 +10,7 @@ import {
   type ConsignmentPieceRow,
   type ManagerVaultAccountRow,
 } from "@/lib/erp-engine";
+import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 
 
 export default function SalesDashboardPage() {
@@ -127,7 +128,7 @@ export default function SalesDashboardPage() {
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-amber-500/40 transition">
           <div className="text-slate-400 text-xs font-bold">1. Zavod Majburiyati</div>
           <div className="text-xl font-black font-mono text-amber-400 mt-1">
-            {totalFactoryObligation.toFixed(4)} <span className="text-xs font-normal text-slate-400">g</span>
+            {formatScreenGrams(totalFactoryObligation)}
           </div>
           <div className="text-[10px] text-slate-400 mt-1">8% ustama bilan zavod oldidagi qarz</div>
         </div>
@@ -135,7 +136,7 @@ export default function SalesDashboardPage() {
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-blue-500/40 transition">
           <div className="text-slate-400 text-xs font-bold">2. Sotuvchilardagi Tovar</div>
           <div className="text-xl font-black font-mono text-cyan-400 mt-1">
-            {totalPhysicalGrams.toFixed(4)} <span className="text-xs font-normal text-slate-400">g</span>
+            {formatScreenGrams(totalPhysicalGrams)}
           </div>
           <div className="text-[10px] text-slate-400 mt-1">{availableSellerPieces.length} dona fizik buyum</div>
         </div>
@@ -143,7 +144,7 @@ export default function SalesDashboardPage() {
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-rose-500/40 transition">
           <div className="text-slate-400 text-xs font-bold">3. Mijozlar Nasiyasi</div>
           <div className="text-xl font-black font-mono text-rose-400 mt-1">
-            {totalClientDebtGrams.toFixed(4)} <span className="text-xs font-normal text-slate-400">g</span>
+            {formatScreenGrams(totalClientDebtGrams)}
           </div>
           <div className="text-[10px] text-slate-400 mt-1">12% ustama bilan mijoz qarzlari</div>
         </div>
@@ -151,27 +152,27 @@ export default function SalesDashboardPage() {
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-amber-500/40 transition">
           <div className="text-slate-400 text-xs font-bold">4. Sotuvchilar Kassasi</div>
           <div className="text-xl font-black font-mono text-amber-300 mt-1">
-            {totalSellerTillScrap.toFixed(4)} <span className="text-xs font-normal text-slate-400">g lom</span>
+            {formatScreenGrams(totalSellerTillScrap)} lom
           </div>
           <div className="text-[10px] text-emerald-400 font-mono mt-1">
-            +{totalSellerTillCash.toLocaleString()} UZS
+            +{formatScreenUZS(totalSellerTillCash)}
           </div>
         </div>
 
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-emerald-500/40 transition">
           <div className="text-slate-400 text-xs font-bold">5. Menejer Seyfi</div>
           <div className="text-xl font-black font-mono text-emerald-400 mt-1">
-            {managerScrap.toFixed(4)} <span className="text-xs font-normal text-slate-400">g lom</span>
+            {formatScreenGrams(managerScrap)} lom
           </div>
           <div className="text-[10px] text-emerald-300 font-mono mt-1">
-            +{managerCash.toLocaleString()} UZS
+            +{formatScreenUZS(managerCash)}
           </div>
         </div>
 
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-purple-500/40 transition">
           <div className="text-slate-400 text-xs font-bold">6. Sof Oltin (995)</div>
           <div className="text-xl font-black font-mono text-purple-300 mt-1">
-            {managerRefined.toFixed(4)} <span className="text-xs font-normal text-slate-400">g</span>
+            {formatScreenGrams(managerRefined)}
           </div>
           <div className="text-[10px] text-slate-400 mt-1">Afinaj qilingan sof quyma</div>
         </div>
@@ -199,20 +200,20 @@ export default function SalesDashboardPage() {
 
         <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 font-mono text-xs md:text-sm text-slate-200 space-y-2">
           <div className="text-cyan-400 font-bold text-xs uppercase tracking-wider">
-            Zavoddan Qabul Qilingan ({totalPhysicalBaseGrams.toFixed(4)}g) ≡ Joylashuv Bo&apos;yicha Fizik Ta&apos;minot:
+            Zavoddan Qabul Qilingan ({formatScreenGrams(totalPhysicalBaseGrams)}) ≡ Joylashuv Bo&apos;yicha Fizik Ta&apos;minot:
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs md:text-base font-black">
-            <span className="text-cyan-400">{totalPhysicalBaseGrams.toFixed(4)}g</span>
+            <span className="text-cyan-400">{formatScreenGrams(totalPhysicalBaseGrams)}</span>
             <span className="text-slate-500">=</span>
-            <span className="text-blue-400">{managerStockGrams.toFixed(4)}g (Menejer Seyfida)</span>
+            <span className="text-blue-400">{formatScreenGrams(managerStockGrams)} (Menejer Seyfida)</span>
             <span className="text-slate-500">+</span>
-            <span className="text-amber-300">{totalPhysicalGrams.toFixed(4)}g (Sotuvchilarda Unsold)</span>
+            <span className="text-amber-300">{formatScreenGrams(totalPhysicalGrams)} (Sotuvchilarda Unsold)</span>
             <span className="text-slate-500">+</span>
-            <span className="text-emerald-400">{soldPhysicalGrams.toFixed(4)}g (Mijozga Sotilgan)</span>
+            <span className="text-emerald-400">{formatScreenGrams(soldPhysicalGrams)} (Mijozga Sotilgan)</span>
             {returnedPhysicalGrams > 0 && (
               <>
                 <span className="text-slate-500">+</span>
-                <span className="text-purple-300">{returnedPhysicalGrams.toFixed(4)}g (Zavodga Qaytarilgan)</span>
+                <span className="text-purple-300">{formatScreenGrams(returnedPhysicalGrams)} (Zavodga Qaytarilgan)</span>
               </>
             )}
           </div>
@@ -246,7 +247,7 @@ export default function SalesDashboardPage() {
           <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
             <div className="text-amber-400 text-xs font-black uppercase">1-Daraja: Zavod Majburiyati (8%)</div>
             <div className="text-lg font-black font-mono text-amber-300">
-              {totalFactoryObligation.toFixed(4)} g
+              {formatScreenGrams(totalFactoryObligation)}
             </div>
             <p className="text-[11px] text-slate-400 leading-tight">
               Menejerning zavod oldidagi qarzi. Faqat afinaj qilingan sof quyma yoki 585 lom topshirilganda kamayadi.
@@ -256,7 +257,7 @@ export default function SalesDashboardPage() {
           <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
             <div className="text-blue-400 text-xs font-black uppercase">2-Daraja: Sotuvchilar Mas&apos;uliyati (12%)</div>
             <div className="text-lg font-black font-mono text-blue-300">
-              {totalSellerObligation.toFixed(4)} g
+              {formatScreenGrams(totalSellerObligation)}
             </div>
             <p className="text-[11px] text-slate-400 leading-tight">
               Sotuvchilar tovar va to&apos;lovlar uchun javobgar (bozor qarzi). Faqat tushum menejerga topshirilganda kamayadi.
@@ -266,7 +267,7 @@ export default function SalesDashboardPage() {
           <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
             <div className="text-rose-400 text-xs font-black uppercase">3-Daraja: Mijozlar Nasiyasi (12-15%)</div>
             <div className="text-lg font-black font-mono text-rose-300">
-              {totalClientDebtGrams.toFixed(4)} g
+              {formatScreenGrams(totalClientDebtGrams)}
             </div>
             <p className="text-[11px] text-slate-400 leading-tight">
               Mijozlarning sotuvchilar oldidagi 585 oltin qarzi. Mijoz to&apos;lov qilganda kamayadi.
@@ -278,14 +279,18 @@ export default function SalesDashboardPage() {
         <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 font-bold text-slate-300">
             <span>🏦 Likvid G&apos;azna:</span>
-            <span className="font-mono text-amber-300">{(totalSellerTillScrap + managerScrap).toFixed(4)}g lom</span>
+            <span className="font-mono text-amber-300">{formatScreenGrams(totalSellerTillScrap + managerScrap)} lom</span>
             <span className="text-slate-500">|</span>
-            <span className="font-mono text-emerald-400">{(totalSellerTillCash + managerCash).toLocaleString()} UZS naqd</span>
+            <span className="font-mono text-emerald-400">{formatScreenUZS(totalSellerTillCash + managerCash)} naqd</span>
             <span className="text-slate-500">|</span>
-            <span className="font-mono text-purple-300">{managerRefined.toFixed(4)}g sof quyma (995)</span>
+            <span className="font-mono text-purple-300">{formatScreenGrams(managerRefined)} sof quyma (995)</span>
           </div>
           <div className="text-[11px] text-slate-400 font-mono">
-            Naqd pul oltin ekvivalenti (~{cashEquivalentInGrams.toFixed(4)}g @ {currentRate.toLocaleString()} UZS/g)
+            {dailyRate && Number(dailyRate.rate_per_gram) > 0 ? (
+              <>Naqd pul oltin ekvivalenti (~{formatScreenGrams(cashEquivalentInGrams)} @ {formatScreenUZS(currentRate)}/g)</>
+            ) : (
+              <span className="text-amber-400">Lom kursi belgilanmagan</span>
+            )}
           </div>
         </div>
       </div>

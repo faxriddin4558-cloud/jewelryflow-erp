@@ -8,5 +8,15 @@ const nextConfig = {
   outputFileTracingRoot: __dirname,
   typescript: { ignoreBuildErrors: false },
   eslint: { ignoreDuringBuilds: false },
+  webpack: (config) => {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [
+        ...(Array.isArray(config.watchOptions?.ignored) ? config.watchOptions.ignored : []),
+        "**/.local-pilot-data/**",
+      ],
+    };
+    return config;
+  },
 };
 export default nextConfig;

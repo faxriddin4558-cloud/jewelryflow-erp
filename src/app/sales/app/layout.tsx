@@ -144,13 +144,17 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
           .select("*")
           .order("rate_date", { ascending: false })
           .limit(1)
-          .single();
-        if (data) {
+          .maybeSingle();
+        if (data && data.rate_per_gram) {
           setDailyRate(data as DailyGoldRateRow);
-          setNewRateValue(String(data.rate_per_gram || 900000));
+          setNewRateValue(String(data.rate_per_gram));
+        } else {
+          setDailyRate(null);
+          setNewRateValue("");
         }
       } catch {
-        // default rate
+        setDailyRate(null);
+        setNewRateValue("");
       }
     };
     void loadRate();
@@ -169,19 +173,45 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
 
     try {
       const today = new Date().toISOString().split("T")[0];
-      const { data, error } = await supabase.from("daily_gold_rates").insert([
-        {
-          rate_date: today,
-          purity: "585",
-          rate_per_gram: rateNum,
-          notes: "Savdo ilovasidan yangilandi",
-        },
-      ]).select().single();
+      const idempotencyKey = `daily_rate_${today}_${Date.now()}`;
 
-      if (!error && data) {
-        setDailyRate(data as DailyGoldRateRow);
-        setRateModalOpen(false);
+      // Try canonical RPC first
+      const { error: rpcErr } = await supabase.rpc("rpc_set_daily_gold_rate", {
+        p_rate_per_gram: rateNum,
+        p_proba: 585,
+        p_rate_date: today,
+        p_currency: "UZS",
+        p_notes: "Savdo ilovasidan yangilandi",
+        p_idempotency_key: idempotencyKey,
+      });
+
+      if (rpcErr) {
+        // Direct upsert fallback
+        await supabase.from("daily_gold_rates").upsert(
+          {
+            rate_date: today,
+            proba: 585,
+            rate_per_gram: rateNum,
+            currency: "UZS",
+            notes: "Savdo ilovasidan yangilandi",
+            is_confirmed: true,
+          },
+          { onConflict: "organization_id, rate_date, proba" }
+        );
       }
+
+      // Re-fetch latest confirmed rate
+      const { data: latest } = await supabase
+        .from("daily_gold_rates")
+        .select("*")
+        .order("rate_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latest && latest.rate_per_gram) {
+        setDailyRate(latest as DailyGoldRateRow);
+      }
+      setRateModalOpen(false);
     } catch {
       setRateModalOpen(false);
     }
@@ -304,8 +334,14 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
           <div>
             <div className="text-[10px] uppercase font-bold text-amber-400">Bugungi Lom (585)</div>
             <div className="font-mono font-black text-white text-sm">
-              {dailyRate ? Number(dailyRate.rate_per_gram).toLocaleString() : "900,000"}
-              <span className="text-[10px] text-slate-400 font-normal"> UZS/g</span>
+              {dailyRate && Number(dailyRate.rate_per_gram) > 0 ? (
+                <>
+                  {Number(dailyRate.rate_per_gram).toLocaleString()}
+                  <span className="text-[10px] text-slate-400 font-normal"> UZS/g</span>
+                </>
+              ) : (
+                <span className="text-amber-400 font-bold text-xs">Kurs belgilanmagan</span>
+              )}
             </div>
           </div>
           <button
@@ -456,7 +492,8 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
                 required
                 value={newRateValue}
                 onChange={(e) => setNewRateValue(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl font-mono text-lg font-black text-amber-400 focus:outline-none focus:border-amber-400"
+                placeholder="Masalan: 900000"
+                className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl font-mono text-lg font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-inner"
               />
             </div>
 
@@ -464,13 +501,14 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
               <button
                 type="button"
                 onClick={() => setRateModalOpen(false)}
-                className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl"
+                className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
               >
                 Bekor qilish
               </button>
               <button
                 type="submit"
-                className="flex-1 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20"
+                disabled={!newRateValue || parseFloat(newRateValue) <= 0}
+                className="flex-1 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 transition"
               >
                 Saqlash
               </button>

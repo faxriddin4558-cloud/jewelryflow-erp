@@ -119,7 +119,7 @@ test.describe('9. JewelryFlow Sales — Dedicated Application, Vertical Sidebar,
     await page.locator('button:has-text("Tekshirish & Ko\'rish (Preview)")').click();
     await expect(page.locator('text=Import Oldindan Ko\'rish Natijalari')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=To\'g\'ri: 3')).toBeVisible();
-    await expect(page.locator('text=275.7000 g')).toBeVisible();
+    await expect(page.locator('text=275.70 g')).toBeVisible();
 
     console.log('[SUCCESS] All dedicated Sales application flows verified!');
   });

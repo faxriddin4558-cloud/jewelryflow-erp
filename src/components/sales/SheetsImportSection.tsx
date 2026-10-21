@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase, type SheetsImportBatchRow } from "@/lib/erp-engine";
+import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 
 interface SheetsPreviewResponse {
   success: boolean;
@@ -358,13 +359,13 @@ export function SheetsImportSection() {
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
                   <div className="text-slate-500 font-medium">Jami Oltin Vazni</div>
                   <div className="text-base font-black font-mono text-amber-600 mt-0.5">
-                    {preview.summary.total_weight_g.toFixed(4)} g
+                    {formatScreenGrams(preview.summary.total_weight_g)}
                   </div>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
                   <div className="text-slate-500 font-medium">Jami Naqd Summa</div>
                   <div className="text-base font-black font-mono text-emerald-700 mt-0.5">
-                    {preview.summary.total_cash_amount.toLocaleString()} UZS
+                    {formatScreenUZS(preview.summary.total_cash_amount)}
                   </div>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
@@ -443,8 +444,8 @@ export function SheetsImportSection() {
                     <td className="py-2.5 px-3 font-mono font-bold text-blue-700">{b.batch_no}</td>
                     <td className="py-2.5 px-3 font-bold text-slate-900">{b.sheet_name}</td>
                     <td className="py-2.5 px-3 font-mono">{b.valid_rows} / {b.total_rows}</td>
-                    <td className="py-2.5 px-3 font-mono text-amber-600 font-bold">{Number(b.total_weight_g).toFixed(4)} g</td>
-                    <td className="py-2.5 px-3 font-mono text-emerald-700">{Number(b.total_cash_amount).toLocaleString()} UZS</td>
+                    <td className="py-2.5 px-3 font-mono text-amber-600 font-bold">{formatScreenGrams(b.total_weight_g)}</td>
+                    <td className="py-2.5 px-3 font-mono text-emerald-700">{formatScreenUZS(b.total_cash_amount)}</td>
                     <td className="py-2.5 px-3 text-slate-500">{new Date(b.created_at).toLocaleString("uz-UZ")}</td>
                   </tr>
                 ))}

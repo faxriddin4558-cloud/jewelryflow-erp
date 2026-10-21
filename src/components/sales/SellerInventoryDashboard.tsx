@@ -21,7 +21,7 @@ interface Props {
 }
 
 export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, models, onRefresh }: Props) {
-  const [viewMode, setViewMode] = useState<"pieces" | "aggregated">("pieces");
+  const [viewMode, setViewMode] = useState<"pieces" | "aggregated">("aggregated");
   const [selectedSellerFilter, setSelectedSellerFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [modelSearch, setModelSearch] = useState("");

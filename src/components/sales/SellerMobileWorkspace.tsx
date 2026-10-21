@@ -22,6 +22,8 @@ import {
   parseWeightValue,
   playScannerBeep,
   DEFAULT_SCANNER_CONFIG,
+  formatScreenGrams,
+  formatScreenUZS,
   type JewelryModelItem,
 } from "@/lib/barcode-scanner-engine";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
@@ -948,7 +950,7 @@ export function SellerMobileWorkspace() {
                   id="scanSaleCustomerSelect"
                   value={scanCustomerId}
                   onChange={(e) => setScanCustomerId(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold focus:border-amber-500 outline-none"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 outline-none"
                   required
                 >
                   <option value="">— Mijozni tanlang —</option>
@@ -988,7 +990,7 @@ export function SellerMobileWorkspace() {
                   max="100"
                   value={scanClientMarkup}
                   onChange={(e) => setScanClientMarkup(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900"
                   required
                 />
               </div>
@@ -1027,7 +1029,7 @@ export function SellerMobileWorkspace() {
                   placeholder="Savdo haqida eslatma..."
                   value={scanNotes}
                   onChange={(e) => setScanNotes(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
                 />
               </div>
 
@@ -1219,7 +1221,7 @@ export function SellerMobileWorkspace() {
                 id="saleConsignmentSelect"
                 value={saleConsignmentId}
                 onChange={(e) => setSaleConsignmentId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
                 required
               >
                 <option value="">Mahsulotni tanlang...</option>
@@ -1247,7 +1249,7 @@ export function SellerMobileWorkspace() {
                 id="saleCustomerSelect"
                 value={saleCustomerId}
                 onChange={(e) => setSaleCustomerId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
                 required
               >
                 <option value="">Mijozni tanlang...</option>
@@ -1319,7 +1321,7 @@ export function SellerMobileWorkspace() {
                 placeholder="To'lov muddati yoki shartlar..."
                 value={saleNotes}
                 onChange={(e) => setSaleNotes(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
               />
             </div>
 
@@ -1355,7 +1357,7 @@ export function SellerMobileWorkspace() {
                 id="settleCustomerSelect"
                 value={settleCustomerId}
                 onChange={(e) => setSettleCustomerId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
                 required
               >
                 <option value="">To&apos;lov qiluvchi mijozni tanlang...</option>
@@ -1412,7 +1414,7 @@ export function SellerMobileWorkspace() {
                   id="settleScrapPuritySelect"
                   value={settleScrapPurity}
                   onChange={(e) => setSettleScrapPurity(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-semibold"
                 >
                   <option value="585">585 proba</option>
                   <option value="750">750 proba</option>
@@ -1476,7 +1478,7 @@ export function SellerMobileWorkspace() {
                 placeholder="To'lov izohi..."
                 value={settleNotes}
                 onChange={(e) => setSettleNotes(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
               />
             </div>
 
@@ -1573,7 +1575,7 @@ export function SellerMobileWorkspace() {
                 placeholder="Masalan: Sardor Rustamov"
                 value={newCustName}
                 onChange={(e) => setNewCustName(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900"
                 required
               />
             </div>
@@ -1585,7 +1587,7 @@ export function SellerMobileWorkspace() {
                 placeholder="+998 90 123 45 67"
                 value={newCustPhone}
                 onChange={(e) => setNewCustPhone(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-900"
               />
             </div>
 
@@ -1598,7 +1600,7 @@ export function SellerMobileWorkspace() {
                 placeholder="Pasport seriya yoki do'kon nomi..."
                 value={newCustCompany}
                 onChange={(e) => setNewCustCompany(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
               />
             </div>
 
@@ -1659,14 +1661,14 @@ export function SellerMobileWorkspace() {
               <div className="flex justify-between items-center p-3 bg-amber-50 rounded-2xl border border-amber-200">
                 <span className="font-bold text-amber-900">Kassamdagi Lom Oltin:</span>
                 <span className="font-mono font-black text-amber-950 text-base">
-                  {myTillScrap.toFixed(4)} g
+                  {formatScreenGrams(myTillScrap)}
                 </span>
               </div>
 
               <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-2xl border border-emerald-200">
                 <span className="font-bold text-emerald-900">Kassamdagi Naqd Pul:</span>
                 <span className="font-mono font-black text-emerald-950 text-base">
-                  {myTillCash.toLocaleString()} UZS
+                  {formatScreenUZS(myTillCash)}
                 </span>
               </div>
             </div>

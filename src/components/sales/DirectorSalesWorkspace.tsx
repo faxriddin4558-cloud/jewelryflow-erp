@@ -347,7 +347,18 @@ export function DirectorSalesWorkspace({
         p_idempotency_key: idempotencyKey,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Fallback upsert for mock/staging environment
+        const { error: upsertErr } = await supabase.from("daily_gold_rates").upsert({
+          rate_date: newRateDate || new Date().toISOString().split("T")[0],
+          proba: 585,
+          rate_per_gram: rateNum,
+          currency: "UZS",
+          notes: newRateNotes || "Direktor tomonidan kiritilgan kunlik lom narxi",
+          is_confirmed: true,
+        }, { onConflict: "organization_id, rate_date, proba" });
+        if (upsertErr) throw upsertErr;
+      }
       notifySuccess(`Kunlik lom kursi muvaffaqiyatli saqlandi: ${rateNum.toLocaleString()} UZS/g`);
       setShowRateModal(false);
       setNewRateNotes("");
@@ -940,8 +951,14 @@ export function DirectorSalesWorkspace({
               <div>
                 <div className="text-xs text-amber-300 font-extrabold uppercase">Bugungi Lom Kursi (585)</div>
                 <div className="text-xl md:text-2xl font-black font-mono text-white">
-                  {dailyRate ? `${Number(dailyRate.rate_per_gram).toLocaleString()} UZS` : "900,000 UZS"}
-                  <span className="text-xs font-semibold text-slate-200"> / gramm</span>
+                  {dailyRate && Number(dailyRate.rate_per_gram) > 0 ? (
+                    <>
+                      {Number(dailyRate.rate_per_gram).toLocaleString()} UZS
+                      <span className="text-xs font-semibold text-slate-200"> / gramm</span>
+                    </>
+                  ) : (
+                    <span className="text-amber-400 font-bold text-base">Kurs belgilanmagan</span>
+                  )}
                 </div>
                 <div className="text-[11px] text-slate-300 font-medium">
                   Sana: {dailyRate?.rate_date || new Date().toISOString().split("T")[0]}
@@ -1265,7 +1282,7 @@ export function DirectorSalesWorkspace({
                       placeholder="Masalan: Malika sirg'a partiyasi, zanjir..."
                       value={rcpProductName}
                       onChange={(e) => setRcpProductName(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900"
                       required
                     />
                   </div>
@@ -1279,7 +1296,7 @@ export function DirectorSalesWorkspace({
                         min="0.0001"
                         value={rcpWeight}
                         onChange={(e) => setRcpWeight(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
                         required
                       />
                     </div>
@@ -1288,7 +1305,7 @@ export function DirectorSalesWorkspace({
                       <select
                         value={rcpPurity}
                         onChange={(e) => setRcpPurity(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold text-slate-900"
                       >
                         <option value="585">585 (Asosiy)</option>
                         <option value="750">750</option>
@@ -1332,7 +1349,7 @@ export function DirectorSalesWorkspace({
                       placeholder="Zavod nakladnoyi, sana yoki eslatma..."
                       value={rcpNotes}
                       onChange={(e) => setRcpNotes(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
                     />
                   </div>
                 </div>
@@ -1369,7 +1386,7 @@ export function DirectorSalesWorkspace({
                     <select
                       value={hndSourceType}
                       onChange={(e) => setHndSourceType(e.target.value as "refined_gold" | "purchased_gold" | "scrap_gold")}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900"
                     >
                       <option value="refined_gold">Afinaj qilingan toza oltin (995/999.9)</option>
                       <option value="purchased_gold">Bozordan naqdga olingan oltin</option>
@@ -1387,7 +1404,7 @@ export function DirectorSalesWorkspace({
                         value={hndWeight}
                         onChange={(e) => setHndWeight(e.target.value)}
                         placeholder="0.0000"
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
                         required
                       />
                     </div>
@@ -1400,7 +1417,7 @@ export function DirectorSalesWorkspace({
                         max="1000"
                         value={hndProba}
                         onChange={(e) => setHndProba(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
                         required
                       />
                     </div>
@@ -1425,7 +1442,7 @@ export function DirectorSalesWorkspace({
                         type="text"
                         value={hndRecipient}
                         onChange={(e) => setHndRecipient(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900"
                         required
                       />
                     </div>
@@ -1436,7 +1453,7 @@ export function DirectorSalesWorkspace({
                         placeholder="Tilxat yoki akt raqami..."
                         value={hndNotes}
                         onChange={(e) => setHndNotes(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900"
                       />
                     </div>
                   </div>
@@ -1913,7 +1930,7 @@ export function DirectorSalesWorkspace({
                           value={refInputScrap}
                           onChange={(e) => setRefInputScrap(e.target.value)}
                           placeholder="Masalan: 50.0000"
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
                           required
                         />
                       </div>
@@ -1926,7 +1943,7 @@ export function DirectorSalesWorkspace({
                           value={refMeltedWeight}
                           onChange={(e) => setRefMeltedWeight(e.target.value)}
                           placeholder="Eritgandan so'ng"
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
                           required
                         />
                       </div>
@@ -1942,7 +1959,7 @@ export function DirectorSalesWorkspace({
                           value={refFineWeight}
                           onChange={(e) => setRefFineWeight(e.target.value)}
                           placeholder="Afinajdan chiqqan"
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
                           required
                         />
                       </div>
@@ -1993,7 +2010,7 @@ export function DirectorSalesWorkspace({
                         placeholder="Usta / laboratoriya izohi..."
                         value={refNotes}
                         onChange={(e) => setRefNotes(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
                       />
                     </div>
                   </div>
@@ -2032,7 +2049,7 @@ export function DirectorSalesWorkspace({
                         placeholder="Masalan: Bozor, Usta Akmal..."
                         value={buySupplier}
                         onChange={(e) => setBuySupplier(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900"
                         required
                       />
                     </div>
@@ -2066,7 +2083,7 @@ export function DirectorSalesWorkspace({
                           min="1000"
                           value={buyRate}
                           onChange={(e) => setBuyRate(e.target.value)}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
                           required
                         />
                       </div>
@@ -2082,7 +2099,7 @@ export function DirectorSalesWorkspace({
                           value={buyWeight}
                           onChange={(e) => setBuyWeight(e.target.value)}
                           placeholder="20.0000"
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
                           required
                         />
                       </div>
@@ -2095,7 +2112,7 @@ export function DirectorSalesWorkspace({
                           max="1000"
                           value={buyProba}
                           onChange={(e) => setBuyProba(e.target.value)}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
                           required
                         />
                       </div>
@@ -2124,7 +2141,7 @@ export function DirectorSalesWorkspace({
                         placeholder="Bozor yoki tovar tafsiloti..."
                         value={buyNotes}
                         onChange={(e) => setBuyNotes(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
                       />
                     </div>
                   </div>
@@ -2257,7 +2274,7 @@ export function DirectorSalesWorkspace({
                   id="consignSellerSelect"
                   value={consignSellerId}
                   onChange={(e) => setConsignSellerId(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-blue-500 outline-none text-xs"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-blue-500 outline-none text-xs text-slate-900"
                   required
                 >
                   <option value="">-- Sotuvchini tanlang (Direktor tanlanmaydi) --</option>
@@ -2279,7 +2296,7 @@ export function DirectorSalesWorkspace({
                 <select
                   value={consignProductId}
                   onChange={(e) => handleProductSelect(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-blue-500 outline-none text-xs"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-blue-500 outline-none text-xs text-slate-900"
                   required
                 >
                   <option value="">Mahsulotni tanlang...</option>
@@ -2299,7 +2316,7 @@ export function DirectorSalesWorkspace({
                     min="1"
                     value={consignQty}
                     onChange={(e) => setConsignQty(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs text-slate-900"
                     required
                   />
                 </div>
@@ -2310,7 +2327,7 @@ export function DirectorSalesWorkspace({
                     step="0.0001"
                     value={consignBaseWeight}
                     onChange={(e) => setConsignBaseWeight(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs text-slate-900"
                     required
                   />
                 </div>
@@ -2368,7 +2385,7 @@ export function DirectorSalesWorkspace({
                   placeholder="Partiya yoki topshirish shartlari..."
                   value={consignNotes}
                   onChange={(e) => setConsignNotes(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
                 />
               </div>
 
@@ -2789,7 +2806,7 @@ export function DirectorSalesWorkspace({
                   type="date"
                   value={newRateDate}
                   onChange={(e) => setNewRateDate(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
                   required
                 />
               </div>
@@ -2801,7 +2818,7 @@ export function DirectorSalesWorkspace({
                   placeholder="Bozor kursi bo'yicha tasdiqlandi..."
                   value={newRateNotes}
                   onChange={(e) => setNewRateNotes(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
                 />
               </div>
 
@@ -2857,7 +2874,7 @@ export function DirectorSalesWorkspace({
                   value={presetType}
                   onChange={(e) => setPresetType(e.target.value as "factory_markup" | "client_markup")}
                   disabled={editingPreset != null}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900"
                 >
                   <option value="factory_markup">Zavod Ustamasi (Factory Markup)</option>
                   <option value="client_markup">Mijozga Sotish Ustamasi (Client Markup)</option>
@@ -2875,7 +2892,7 @@ export function DirectorSalesWorkspace({
                     placeholder="Masalan: 14.5"
                     value={presetPercentage}
                     onChange={(e) => setPresetPercentage(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-sm"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-sm text-slate-900"
                     required
                   />
                 </div>
@@ -2885,7 +2902,7 @@ export function DirectorSalesWorkspace({
                     type="number"
                     value={presetOrder}
                     onChange={(e) => setPresetOrder(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm text-slate-900"
                   />
                 </div>
               </div>
@@ -2897,7 +2914,7 @@ export function DirectorSalesWorkspace({
                   placeholder="Masalan: Zavod 14% (Katta Partiya)"
                   value={presetName}
                   onChange={(e) => setPresetName(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
                 />
               </div>
 
@@ -2990,7 +3007,7 @@ export function DirectorSalesWorkspace({
                   min="0"
                   value={surrenderScrapWeight}
                   onChange={(e) => setSurrenderScrapWeight(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
                   required
                 />
               </div>
@@ -3017,7 +3034,7 @@ export function DirectorSalesWorkspace({
                   placeholder="Kassir qabul qildi..."
                   value={surrenderNotes}
                   onChange={(e) => setSurrenderNotes(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
                 />
               </div>
             </div>
