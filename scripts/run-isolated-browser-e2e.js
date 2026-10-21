@@ -59,12 +59,13 @@ async function main() {
     // 1. Safety backup of .env.local
     if (fs.existsSync(ENV_LOCAL_PATH)) {
       hadOriginalEnv = true;
+      if (process.platform === 'win32') {
+        try { execSync(`attrib -H -R "${ENV_LOCAL_PATH}"`, { stdio: 'ignore' }); } catch {}
+        try { execSync(`attrib -H -R "${ENV_BACKUP_PATH}"`, { stdio: 'ignore' }); } catch {}
+      }
       fs.copyFileSync(ENV_LOCAL_PATH, ENV_BACKUP_PATH);
       console.log('[SAFETY] Backed up existing .env.local to .env.local.backup');
       try {
-        if (process.platform === 'win32') {
-          execSync(`attrib -H "${ENV_LOCAL_PATH}"`, { stdio: 'ignore' });
-        }
         fs.unlinkSync(ENV_LOCAL_PATH);
       } catch {}
     }

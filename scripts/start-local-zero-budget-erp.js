@@ -99,7 +99,7 @@ async function main() {
     // 3. Boot PGlite backend server
     console.log('[MA\'LUMOTLAR BAZASI] Real PostgreSQL WASM dvigateli ishga tushirilmoqda (port 54321)...');
     await startStagingServer(54321);
-    console.log('[MA\'LUMOTLAR BAZASI] Barcha 25 ta migratsiya va Goldia zavodi test xodimlari tayyor.');
+    console.log('[MA\'LUMOTLAR BAZASI] Barcha 27 ta migratsiya va Goldia zavodi test ma\'lumotlari tayyor.');
 
     // 4. Print credentials table
     console.log('\n----------------------------------------------------------------------');
@@ -110,10 +110,15 @@ async function main() {
     console.log('----------------------------------------------------------------------');
     console.log('GOLDIA ZAVODI PILOTI UCHUN TAYYOR DEMO AKKAUNTLAR:');
     console.log('----------------------------------------------------------------------');
+    console.log('  👑 DIREKTOR (Savdo va zavod boshqaruvi):');
+    console.log('     Email: director@goldia.uz | Parol: GoldiaPassword2026! | URL: /sales/director');
+    console.log('  📱 SOTUVCHI (Mobil savdo va kassa):');
+    console.log('     Email: seller@goldia.uz   | Parol: GoldiaPassword2026! | URL: /sales/mobile');
+    console.log('----------------------------------------------------------------------');
     for (const u of TEST_USERS) {
-      console.log(`  * ${u.full_name.padEnd(28)} | ${u.email.padEnd(24)} | Rol: ${u.role}`);
+      console.log(`  * ${u.full_name.padEnd(28)} | ${u.email.padEnd(24)} | Rol: ${u.role_type || u.role}`);
     }
-    console.log(`  Umumiy Parol: GoldiaPassword2026! (FAQAT LOKAL EMULATORDA ISHLAYDI)`);
+    console.log(`\n  Umumiy Parol: GoldiaPassword2026! (FAQAT LOKAL EMULATORDA ISHLAYDI)`);
     console.log('----------------------------------------------------------------------\n');
 
     // 5. Start Next.js development server

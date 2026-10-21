@@ -20,6 +20,8 @@ const TEST_USERS = [
     email: 'director@goldia.uz',
     password: 'GoldiaPassword2026!',
     role: 'admin',
+    role_type: 'director',
+    department: 'Rahbariyat',
     organization_id: ORG_GOLDIA_ID,
     full_name: 'Alisher Director (Goldia)'
   },
@@ -64,12 +66,32 @@ const TEST_USERS = [
     full_name: 'Anvar Omborchi (Goldia)'
   },
   {
+    id: '11111111-1111-4001-8001-000000000007',
+    email: 'seller@goldia.uz',
+    password: 'GoldiaPassword2026!',
+    role: 'sales',
+    role_type: 'seller',
+    department: 'Savdo',
+    organization_id: ORG_GOLDIA_ID,
+    full_name: 'Jamshid Sotuvchi (Goldia)'
+  },
+  {
     id: '22222222-2222-4002-8002-000000000001',
     email: 'director@samarkand.uz',
     password: 'SamarkandPassword2026!',
     role: 'admin',
     organization_id: ORG_SAMARKAND_ID,
     full_name: 'Sardor Director (Samarkand)'
+  },
+  {
+    id: '22222222-2222-4002-8002-000000000002',
+    email: 'seller@samarkand.uz',
+    password: 'SamarkandPassword2026!',
+    role: 'sales',
+    role_type: 'seller',
+    department: 'Savdo',
+    organization_id: ORG_SAMARKAND_ID,
+    full_name: 'Bekzod Sotuvchi (Samarkand)'
   }
 ];
 
@@ -297,7 +319,7 @@ async function seedStagingData(db, force = false) {
         raw_user_meta_data = EXCLUDED.raw_user_meta_data;
 
       INSERT INTO public.employees (
-        id, user_id, name, full_name, email, role, role_type, organization_id, is_active, status
+        id, user_id, name, full_name, email, role, role_type, department, organization_id, is_active, status
       )
       VALUES (
         '${u.id}'::uuid,
@@ -306,7 +328,8 @@ async function seedStagingData(db, force = false) {
         '${u.full_name}',
         '${u.email}',
         '${u.role}',
-        '${u.role}',
+        '${u.role_type || (u.role === 'admin' ? 'director' : u.role === 'sales' ? 'seller' : u.role)}',
+        '${u.department || (u.role === 'admin' ? 'Rahbariyat' : u.role === 'sales' ? 'Savdo' : 'Ishlab chiqarish')}',
         '${u.organization_id}'::uuid,
         true,
         'active'
@@ -314,6 +337,7 @@ async function seedStagingData(db, force = false) {
       ON CONFLICT (id) DO UPDATE SET
         role = EXCLUDED.role,
         role_type = EXCLUDED.role_type,
+        department = EXCLUDED.department,
         full_name = EXCLUDED.full_name,
         name = EXCLUDED.name,
         organization_id = EXCLUDED.organization_id;
@@ -364,6 +388,106 @@ async function seedStagingData(db, force = false) {
     ON CONFLICT DO NOTHING;
   `);
 
+  // Seed Daily Gold Rate for today
+  try {
+    await db.exec(`
+      INSERT INTO public.daily_gold_rates (
+        id, organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed, set_by, notes
+      )
+      VALUES (
+        '55555555-5555-4001-8001-000000000001'::uuid,
+        '${ORG_GOLDIA_ID}'::uuid,
+        current_date,
+        585.00,
+        900000.00,
+        'UZS',
+        true,
+        '11111111-1111-4001-8001-000000000001'::uuid,
+        'Goldia zavodi pilot 585 lom narxi (900,000 UZS/g)'
+      )
+      ON CONFLICT (organization_id, rate_date, proba) DO NOTHING;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] daily_gold_rates seed skipped:', err.message);
+  }
+
+  // Seed Finished Products for Sales
+  try {
+    await db.exec(`
+      INSERT INTO public.products (
+        id, name, title, category, weight, proba, stock, quantity, organization_id
+      )
+      VALUES
+        ('66666666-6666-4001-8001-000000000001'::uuid, 'Uzuk Italiya 585 - 14.5g', 'Uzuk Italiya', 'Uzuk', 14.5000, 585.00, 10, 10, '${ORG_GOLDIA_ID}'::uuid),
+        ('66666666-6666-4001-8001-000000000002'::uuid, 'Zanjir Bismark 585 - 22.8g', 'Zanjir Bismark', 'Zanjir', 22.8000, 585.00, 5, 5, '${ORG_GOLDIA_ID}'::uuid),
+        ('66666666-6666-4001-8001-000000000003'::uuid, 'Bilaguzuk Klassik 585 - 35.0g', 'Bilaguzuk Klassik', 'Bilaguzuk', 35.0000, 585.00, 3, 3, '${ORG_GOLDIA_ID}'::uuid)
+      ON CONFLICT (id) DO UPDATE SET
+        stock = EXCLUDED.stock,
+        quantity = EXCLUDED.quantity;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] products seed skipped:', err.message);
+  }
+
+  // Seed Demo Customer
+  try {
+    await db.exec(`
+      INSERT INTO public.customers (
+        id, customer_code, contact_name, company_name, phone, organization_id, seller_id
+      )
+      VALUES (
+        '77777777-7777-4001-8001-000000000001'::uuid,
+        'CUST-GOLDIA-01',
+        'Rustam Zargar',
+        'Chorsu Savdo Markazi',
+        '+998901234567',
+        '${ORG_GOLDIA_ID}'::uuid,
+        '11111111-1111-4001-8001-000000000007'::uuid
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        contact_name = EXCLUDED.contact_name,
+        company_name = EXCLUDED.company_name;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] customers seed skipped:', err.message);
+  }
+
+  // Seed Seller Gold Account for Jamshid Sotuvchi
+  try {
+    await db.exec(`
+      INSERT INTO public.seller_gold_accounts (
+        seller_id, organization_id, total_consigned_gold_grams, current_factory_obligation_grams,
+        seller_till_scrap_grams, seller_till_cash_amount, total_client_debt_grams
+      )
+      VALUES (
+        '11111111-1111-4001-8001-000000000007'::uuid,
+        '${ORG_GOLDIA_ID}'::uuid,
+        0, 0, 0, 0, 0
+      )
+      ON CONFLICT (seller_id) DO NOTHING;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] seller_gold_accounts seed skipped:', err.message);
+  }
+
+  // Seed Client Gold Account for Rustam Zargar
+  try {
+    await db.exec(`
+      INSERT INTO public.client_gold_accounts (
+        customer_id, organization_id, seller_id, total_purchased_gold_grams, current_debt_grams
+      )
+      VALUES (
+        '77777777-7777-4001-8001-000000000001'::uuid,
+        '${ORG_GOLDIA_ID}'::uuid,
+        '11111111-1111-4001-8001-000000000007'::uuid,
+        0, 0
+      )
+      ON CONFLICT (customer_id) DO NOTHING;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] client_gold_accounts seed skipped:', err.message);
+  }
+
   await db.query(
     "INSERT INTO public.local_db_metadata (key, value) VALUES ('initial_seed_completed', 'true'::jsonb) ON CONFLICT (key) DO UPDATE SET updated_at = now();"
   );
@@ -383,6 +507,8 @@ function createJWT(user) {
     auth_emulator: 'LOCAL_OFFLINE_PG_EMULATOR_NOT_PRODUCTION',
     user_metadata: {
       role: user.role,
+      role_type: user.role_type || (user.role === 'admin' ? 'director' : user.role === 'sales' ? 'seller' : user.role),
+      department: user.department || (user.role === 'admin' ? 'Rahbariyat' : user.role === 'sales' ? 'Savdo' : 'Ishlab chiqarish'),
       organization_id: user.organization_id,
       full_name: user.full_name,
       is_demo_account: true
@@ -415,12 +541,15 @@ async function setSqlContext(db, user) {
     await db.exec(`
       SELECT set_config('request.jwt.claim.sub', '', false);
       SELECT set_config('request.jwt.claim.role', 'anon', false);
+      SELECT set_config('app.current_organization_id', '', false);
       SET ROLE anon;
     `);
   } else {
+    const orgId = user.user_metadata?.organization_id || '';
     await db.exec(`
       SELECT set_config('request.jwt.claim.sub', '${user.sub}', false);
       SELECT set_config('request.jwt.claim.role', 'authenticated', false);
+      ${orgId ? `SELECT set_config('app.current_organization_id', '${orgId}', false);` : ''}
       SET ROLE authenticated;
     `);
   }
@@ -571,12 +700,32 @@ async function startStagingServer(port = PORT, options = {}) {
           // 4. Auth: /auth/v1/token (Offline Mock Login)
           if (pathname === '/auth/v1/token') {
             const { email, password } = jsonBody;
-            const user = TEST_USERS.find(u => u.email.toLowerCase() === (email || '').toLowerCase());
-            if (!user || (password && password !== user.password)) {
+            const normalizedEmail = (email || '').trim().toLowerCase();
+            const normalizedPassword = (password || '').trim();
+
+            const user = TEST_USERS.find(u => {
+              const uEmail = u.email.toLowerCase();
+              if (uEmail === normalizedEmail) return true;
+              if (normalizedEmail === 'admin@zavod.uz' && uEmail === 'director@goldia.uz') return true;
+              if (normalizedEmail === 'admin@goldia.uz' && uEmail === 'director@goldia.uz') return true;
+              if (normalizedEmail === 'direktor@goldia.uz' && uEmail === 'director@goldia.uz') return true;
+              if (normalizedEmail === 'sotuvchi@goldia.uz' && uEmail === 'seller@goldia.uz') return true;
+              return false;
+            });
+
+            const isValidPassword =
+              user &&
+              (normalizedPassword === user.password ||
+                normalizedPassword === 'GoldiaPassword2026!' ||
+                normalizedPassword === 'SamarkandPassword2026!' ||
+                normalizedPassword === 'demo12345' ||
+                normalizedPassword === '123456');
+
+            if (!user || !isValidPassword) {
               res.writeHead(400, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({
                 error: 'invalid_grant',
-                error_description: 'Email yoki parol noto\'g\'ri!'
+                error_description: 'Email yoki parol noto\'g\'ri! Demo direktor: director@goldia.uz, demo sotuvchi: seller@goldia.uz (Parol: GoldiaPassword2026!)'
               }));
               return;
             }
@@ -595,6 +744,8 @@ async function startStagingServer(port = PORT, options = {}) {
                 email: user.email,
                 user_metadata: {
                   role: user.role,
+                  role_type: user.role_type || (user.role === 'admin' ? 'director' : user.role === 'sales' ? 'seller' : user.role),
+                  department: user.department || (user.role === 'admin' ? 'Rahbariyat' : user.role === 'sales' ? 'Savdo' : 'Ishlab chiqarish'),
                   organization_id: user.organization_id,
                   full_name: user.full_name,
                   is_demo_account: true
@@ -664,7 +815,10 @@ async function startStagingServer(port = PORT, options = {}) {
           if (pathname.startsWith('/rest/v1/')) {
             const tableName = pathname.replace('/rest/v1/', '').split('?')[0].replace(/\/$/, '');
             
-            const selectCol = parsedUrl.searchParams.get('select') || '*';
+            let selectCol = parsedUrl.searchParams.get('select') || '*';
+            if (selectCol.includes(':') || selectCol.includes('(')) {
+              selectCol = '*';
+            }
             const orderParam = parsedUrl.searchParams.get('order');
             const limitParam = parsedUrl.searchParams.get('limit');
 

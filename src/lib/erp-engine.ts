@@ -427,7 +427,14 @@ function classifyRoleToken(token?: string | null): ErpRole | null {
   if (lower === "warehouse" || lower === "inventory_manager" || lower === "omborchi") {
     return "Warehouse";
   }
-  if (lower === "accountant" || lower === "sales" || lower === "buxgalter" || lower === "hisobchi") {
+  if (
+    lower === "accountant" ||
+    lower === "sales" ||
+    lower === "seller" ||
+    lower === "sotuvchi" ||
+    lower === "buxgalter" ||
+    lower === "hisobchi"
+  ) {
     return "Accountant";
   }
   if (
