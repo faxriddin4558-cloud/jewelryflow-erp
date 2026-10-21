@@ -47,7 +47,13 @@ function SalesLoginContent() {
   const [tgIsChecking, setTgIsChecking] = useState<boolean>(false);
   const [tgNeedsOtp, setTgNeedsOtp] = useState<boolean>(false);
 
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const isLocalPilot =
+    isMounted &&
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1" ||
@@ -190,27 +196,22 @@ function SalesLoginContent() {
     }
   };
 
-  const redirectUserAfterLogin = (role: string) => {
+  const redirectUserAfterLogin = (_role?: string) => {
     const redirectedFrom = searchParams.get("redirectedFrom");
-    if (
+    const targetUrl =
       redirectedFrom &&
       redirectedFrom.startsWith("/") &&
       !redirectedFrom.startsWith("//") &&
       !redirectedFrom.startsWith("/sales/login")
-    ) {
-      router.push(redirectedFrom);
-      router.refresh();
-      return;
-    }
+        ? redirectedFrom
+        : "/sales/app";
 
-    const lower = (role || "").toLowerCase();
-    if (lower === "seller" || lower === "sotuvchi") {
-      // If mobile screen, can go to mobile or app
-      router.push("/sales/app");
+    if (typeof window !== "undefined") {
+      window.location.href = targetUrl;
     } else {
-      router.push("/sales/app");
+      router.push(targetUrl);
+      router.refresh();
     }
-    router.refresh();
   };
 
   const executeLogin = async (userEmail: string, userPass: string) => {
@@ -221,54 +222,68 @@ function SalesLoginContent() {
     const cleanEmail = userEmail.trim().toLowerCase();
 
     try {
-      // 1. Try Supabase Auth
+      // 1. Authenticate with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: userPass,
       });
 
-      let matchedEmp: EmployeeRow | null = null;
-
-      // 2. Lookup matching employee row in DB
-      const { data: empData } = await supabase
-        .from("employees")
-        .select("*")
-        .or(`email.ilike.${cleanEmail},name.ilike.%${cleanEmail.split("@")[0]}%`)
-        .limit(1);
-
-      if (empData && empData.length > 0) {
-        matchedEmp = empData[0] as EmployeeRow;
-      }
-
-      // If local pilot mode and Supabase Auth gave an error (e.g. offline or unconfirmed email in dev):
-      if (authError && isLocalPilot && matchedEmp) {
-        // Fallback local pilot authentication
-        console.warn("[LOCAL-PILOT-AUTH] Bypassing auth with matched employee:", matchedEmp.name);
-      } else if (authError && !isLocalPilot) {
-        setErrorMessage(authError.message || "Email yoki parol noto'g'ri!");
+      if (authError || !authData?.user) {
+        setErrorMessage(
+          authError?.message || "Email yoki parol noto'g'ri! Iltimos, ma'lumotlarni qayta tekshiring."
+        );
         setLoading(false);
         await recordAuditLog(undefined, cleanEmail, "Unknown", "password", "failed");
         return;
       }
 
-      // Resolve role
-      const resolvedRole = matchedEmp ? resolveEmployeeRole(matchedEmp) : "Worker";
+      // 2. Lookup matching employee row in DB
+      let matchedEmp: EmployeeRow | null = null;
+      try {
+        const { data: empData } = await supabase
+          .from("employees")
+          .select("*")
+          .or(`email.ilike.${cleanEmail},name.ilike.%${cleanEmail.split("@")[0]}%`)
+          .limit(1);
 
-      // Set RBAC Session
+        if (empData && empData.length > 0) {
+          matchedEmp = empData[0] as EmployeeRow;
+        }
+      } catch {
+        // DB lookup failure should not break valid login
+      }
+
+      const userMeta = (authData.user.user_metadata || {}) as Record<string, unknown>;
+      const resolvedRole = matchedEmp
+        ? resolveEmployeeRole(matchedEmp)
+        : (userMeta.role_type === "director" || userMeta.role === "admin"
+            ? "Director"
+            : userMeta.role_type === "seller" || userMeta.role === "sales"
+            ? "Seller"
+            : "Production Manager");
+
+      const resolvedName =
+        matchedEmp?.name ||
+        matchedEmp?.full_name ||
+        (userMeta.full_name as string) ||
+        cleanEmail.split("@")[0] ||
+        "Xodim";
+
+      // 3. Set RBAC Session (synced to localStorage)
       RBAC.setCurrentUser({
-        id: matchedEmp?.id || authData?.user?.id,
-        name: matchedEmp?.name || matchedEmp?.full_name || cleanEmail.split("@")[0] || "Xodim",
+        id: matchedEmp?.id || authData.user.id,
+        name: resolvedName,
         email: cleanEmail,
-        role: resolvedRole,
-        department: matchedEmp?.department || "Savdo",
+        role: resolvedRole as ErpRole,
+        department: matchedEmp?.department || (userMeta.department as string) || "Savdo",
       });
 
-      setSuccessMessage(`Muvaffaqiyatli kirdingiz: ${matchedEmp?.name || cleanEmail}!`);
-      await recordAuditLog(matchedEmp?.id, cleanEmail, resolvedRole, "password", "success");
+      setSuccessMessage(`Muvaffaqiyatli kirdingiz: ${resolvedName}!`);
+      await recordAuditLog(matchedEmp?.id || authData.user.id, cleanEmail, resolvedRole, "password", "success");
 
       setTimeout(() => {
         redirectUserAfterLogin(resolvedRole);
-      }, 500);
+      }, 400);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMessage(`Tizimga kirishda xatolik: ${msg}`);
@@ -429,7 +444,7 @@ function SalesLoginContent() {
               <div className="grid grid-cols-2 gap-2 text-xs font-bold">
                 <button
                   type="button"
-                  onClick={() => handleQuickPilotLogin("admin@goldia.uz", "Direktor", "Alisher")}
+                  onClick={() => handleQuickPilotLogin("director@goldia.uz", "Direktor", "Alisher")}
                   className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-amber-500/30 text-amber-300 text-left transition hover:border-amber-400"
                 >
                   <div className="text-[10px] text-slate-400">Direktor</div>
@@ -438,7 +453,7 @@ function SalesLoginContent() {
 
                 <button
                   type="button"
-                  onClick={() => handleQuickPilotLogin("manager@jewelryflow.uz", "Boshqaruvchi", "Rustam")}
+                  onClick={() => handleQuickPilotLogin("manager@goldia.uz", "Boshqaruvchi", "Rustam")}
                   className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-blue-500/30 text-blue-300 text-left transition hover:border-blue-400"
                 >
                   <div className="text-[10px] text-slate-400">Boshqaruvchi</div>

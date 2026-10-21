@@ -545,7 +545,20 @@ function notifyRbacListeners(): void {
 }
 
 export const RBAC = {
-  getCurrentUser: (): ErpUser => ({ ...currentSessionUser }),
+  getCurrentUser: (): ErpUser => {
+    if (typeof window !== "undefined" && currentSessionUser.name === DEFAULT_USER.name) {
+      try {
+        const stored = localStorage.getItem("jf_session_user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.role) {
+            currentSessionUser = parsed;
+          }
+        }
+      } catch {}
+    }
+    return { ...currentSessionUser };
+  },
   setCurrentUser: (user: ErpUser): void => {
     if (!user || !user.role) return;
     currentSessionUser = {
@@ -555,10 +568,20 @@ export const RBAC = {
       role: user.role,
       department: user.department || DEFAULT_USER.department,
     };
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("jf_session_user", JSON.stringify(currentSessionUser));
+      } catch {}
+    }
     notifyRbacListeners();
   },
   resetUser: (): void => {
     currentSessionUser = { ...DEFAULT_USER };
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("jf_session_user");
+      } catch {}
+    }
     notifyRbacListeners();
   },
   subscribe: (listener: (user: ErpUser) => void): (() => void) => {

@@ -6,8 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   supabase,
   RBAC,
+  resolveEmployeeRole,
   type DailyGoldRateRow,
   type ErpUser,
+  type ErpRole,
 } from "@/lib/erp-engine";
 
 interface NavItem {
@@ -73,12 +75,14 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
   const [dailyRate, setDailyRate] = useState<DailyGoldRateRow | null>(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Rate update modal
   const [rateModalOpen, setRateModalOpen] = useState(false);
   const [newRateValue, setNewRateValue] = useState("900000");
 
   useEffect(() => {
+    setIsMounted(true);
     // Monitor RBAC user
     const unsub = RBAC.subscribe((u) => setCurrentUser(u));
 
@@ -88,6 +92,51 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     setIsOnline(navigator.onLine);
+
+    // Sync user session from Supabase Auth
+    const syncAuthSession = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const userMeta = (user.user_metadata || {}) as Record<string, unknown>;
+          const cleanEmail = (user.email || "").trim().toLowerCase();
+
+          // Lookup matching employee
+          const { data: empData } = await supabase
+            .from("employees")
+            .select("*")
+            .or(`email.ilike.${cleanEmail},name.ilike.%${cleanEmail.split("@")[0]}%`)
+            .limit(1);
+
+          const matchedEmp = empData && empData.length > 0 ? empData[0] : null;
+          const resolvedRole = matchedEmp
+            ? resolveEmployeeRole(matchedEmp)
+            : (userMeta.role_type === "director" || userMeta.role === "admin"
+                ? "Director"
+                : userMeta.role_type === "seller" || userMeta.role === "sales"
+                ? "Seller"
+                : "Production Manager");
+
+          const resolvedName =
+            matchedEmp?.name ||
+            matchedEmp?.full_name ||
+            (userMeta.full_name as string) ||
+            cleanEmail.split("@")[0] ||
+            "Xodim";
+
+          RBAC.setCurrentUser({
+            id: matchedEmp?.id || user.id,
+            name: resolvedName,
+            email: cleanEmail,
+            role: resolvedRole as ErpRole,
+            department: matchedEmp?.department || (userMeta.department as string) || "Savdo",
+          });
+        }
+      } catch {
+        // ignore
+      }
+    };
+    void syncAuthSession();
 
     // Load daily rate
     const loadRate = async () => {
@@ -145,12 +194,19 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
       await supabase.auth.signOut();
     } catch {}
     RBAC.resetUser();
-    router.push("/sales/login");
-    router.refresh();
+    if (typeof window !== "undefined") {
+      window.location.href = "/sales/login";
+    } else {
+      router.push("/sales/login");
+      router.refresh();
+    }
   };
 
-  const roleName = currentUser.role || "Worker";
-  const isSeller = roleName.toLowerCase() === "seller" || roleName.toLowerCase() === "sotuvchi";
+  const roleName = isMounted ? (currentUser.role || "Worker") : "Worker";
+  const isSeller = isMounted && (roleName.toLowerCase() === "seller" || roleName.toLowerCase() === "sotuvchi");
+  const displayName = isMounted ? (currentUser.name || "Foydalanuvchi") : "Foydalanuvchi";
+  const displayEmail = isMounted ? (currentUser.email || "Lokal sessiya") : "Lokal sessiya";
+  const avatarLetter = isMounted && currentUser.name ? currentUser.name.slice(0, 1).toUpperCase() : "U";
 
   return (
     <div className="flex h-screen w-full bg-slate-950 text-slate-100 font-sans overflow-hidden">
@@ -205,12 +261,15 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
         <div className="p-3 mx-3 my-2 bg-slate-900/90 rounded-2xl border border-slate-800 text-xs space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 truncate">
-              <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-amber-400 text-xs">
-                {currentUser.name ? currentUser.name.slice(0, 1).toUpperCase() : "U"}
+              <div
+                suppressHydrationWarning
+                className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-amber-400 text-xs"
+              >
+                {avatarLetter}
               </div>
               <div className="truncate">
-                <div className="font-bold text-white truncate">{currentUser.name || "Foydalanuvchi"}</div>
-                <div className="text-[10px] text-slate-400 font-mono truncate">{currentUser.email || "Lokal sessiya"}</div>
+                <div suppressHydrationWarning className="font-bold text-white truncate">{displayName}</div>
+                <div suppressHydrationWarning className="text-[10px] text-slate-400 font-mono truncate">{displayEmail}</div>
               </div>
             </div>
             <button
@@ -224,6 +283,7 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
 
           <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-[10px]">
             <span
+              suppressHydrationWarning
               className={`px-2 py-0.5 rounded-md font-black tracking-wider uppercase ${
                 isSeller
                   ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"

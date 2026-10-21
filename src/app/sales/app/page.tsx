@@ -103,7 +103,7 @@ export default function SalesDashboardPage() {
         <div>
           <div className="text-xs uppercase font-extrabold tracking-widest text-amber-400 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-            Asosiy Boshqaruv & Rekonsilyatsiya Paneli
+            Asosiy Boshqaruv & Global Rekonsilyatsiya Formulari
           </div>
           <h1 className="text-2xl md:text-3xl font-black mt-1 text-white">
             JewelryFlow Sales Boshqaruv Markazi
@@ -193,7 +193,7 @@ export default function SalesDashboardPage() {
           </div>
           <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-black px-3 py-1 rounded-xl flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-            FIZIK VAZN TO&apos;LIQ SAQLANGAN (0.0000g farq)
+            BALANS TO&apos;LIQ MOS • FIZIK VAZN TO&apos;LIQ SAQLANGAN (0.0000g farq)
           </span>
         </div>
 

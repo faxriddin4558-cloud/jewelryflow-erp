@@ -896,6 +896,10 @@ async function startStagingServer(port = PORT, options = {}) {
               if (normalizedEmail === 'admin@goldia.uz' && uEmail === 'director@goldia.uz') return true;
               if (normalizedEmail === 'direktor@goldia.uz' && uEmail === 'director@goldia.uz') return true;
               if (normalizedEmail === 'sotuvchi@goldia.uz' && uEmail === 'seller@goldia.uz') return true;
+              if (normalizedEmail === 'manager@jewelryflow.uz' && uEmail === 'manager@goldia.uz') return true;
+              if (normalizedEmail === 'boshqaruvchi@goldia.uz' && uEmail === 'manager@goldia.uz') return true;
+              if (normalizedEmail === 'dilshod@jewelryflow.uz' && uEmail === 'seller@goldia.uz') return true;
+              if (normalizedEmail === 'jasur@jewelryflow.uz' && uEmail === 'seller@goldia.uz') return true;
               return false;
             });
 

@@ -3,6 +3,7 @@ import { CustomerLedgerAndSheetsSection } from "@/components/sales/CustomerLedge
 export default function CustomersPage() {
   return (
     <div className="space-y-6">
+      <h1 className="text-2xl font-black text-white">Mijozlar va Nasiya Daftari</h1>
       <CustomerLedgerAndSheetsSection />
     </div>
   );
