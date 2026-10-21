@@ -406,6 +406,58 @@ async function ensureSalesDemoData(db) {
   } catch (err) {
     console.warn('[SEED-NOTICE] daily_gold_rates ensure skipped:', err.message);
   }
+
+  // Ensure Demo Jewelry Models (e.g. Malika for BarTender / Scanner 564)
+  try {
+    await db.exec(`
+      INSERT INTO public.jewelry_models (
+        id, model_code, name, category, ring_size, loops_count, locks_count, decorations, reference_weight_grams, is_active, organization_id
+      )
+      VALUES (
+        '88888888-8888-4001-8001-000000000001'::uuid,
+        'JF-M-0001',
+        'Malika',
+        'Серьги',
+        null,
+        0,
+        0,
+        'Дорика',
+        14.500,
+        true,
+        '${ORG_GOLDIA_ID}'::uuid
+      )
+      ON CONFLICT (model_code) DO UPDATE SET
+        name = EXCLUDED.name,
+        category = EXCLUDED.category,
+        decorations = EXCLUDED.decorations,
+        reference_weight_grams = EXCLUDED.reference_weight_grams,
+        organization_id = EXCLUDED.organization_id,
+        is_active = true;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] jewelry_models ensure skipped:', err.message);
+  }
+
+  // Ensure Sales Markup Presets (Factory & Client)
+  try {
+    await db.exec(`
+      INSERT INTO public.sales_markup_presets (
+        organization_id, type, name, percentage, is_active, is_default, display_order
+      )
+      VALUES
+        ('${ORG_GOLDIA_ID}'::uuid, 'factory_markup', 'Zavod 6%', 6.00, true, false, 1),
+        ('${ORG_GOLDIA_ID}'::uuid, 'factory_markup', 'Zavod 8% (Standart)', 8.00, true, true, 2),
+        ('${ORG_GOLDIA_ID}'::uuid, 'factory_markup', 'Zavod 10%', 10.00, true, false, 3),
+        ('${ORG_GOLDIA_ID}'::uuid, 'client_markup', 'Mijoz 10% (Optom)', 10.00, true, false, 1),
+        ('${ORG_GOLDIA_ID}'::uuid, 'client_markup', 'Mijoz 12% (Standart)', 12.00, true, true, 2),
+        ('${ORG_GOLDIA_ID}'::uuid, 'client_markup', 'Mijoz 15% (Chakana)', 15.00, true, false, 3),
+        ('${ORG_GOLDIA_ID}'::uuid, 'client_markup', 'Mijoz 18% (Eksklyuziv)', 18.00, true, false, 4),
+        ('${ORG_GOLDIA_ID}'::uuid, 'client_markup', 'Mijoz 25% (Maxsus)', 25.00, true, false, 5)
+      ON CONFLICT (organization_id, type, percentage) DO NOTHING;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] sales_markup_presets ensure skipped:', err.message);
+  }
 }
 
 async function seedStagingData(db, force = false) {

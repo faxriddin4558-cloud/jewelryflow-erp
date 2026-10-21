@@ -13,8 +13,17 @@ import {
   type SellerGoldAccountRow,
   type DailyGoldRateRow,
   type EmployeeRow,
+  type ConsignmentPieceRow,
 } from "@/lib/erp-engine";
 import { SalesReceiptModal, type ReceiptData } from "./SalesReceiptModal";
+import { MobileBarcodeScannerModal } from "./MobileBarcodeScannerModal";
+import {
+  detectBarcodeType,
+  parseWeightValue,
+  playScannerBeep,
+  DEFAULT_SCANNER_CONFIG,
+  type JewelryModelItem,
+} from "@/lib/barcode-scanner-engine";
 
 interface CustomerItem {
   id: string;
@@ -25,7 +34,9 @@ interface CustomerItem {
 }
 
 export function SellerMobileWorkspace() {
-  const [activeTab, setActiveTab] = useState<"stock" | "sale" | "settle" | "debts" | "customer" | "till">("stock");
+  const [activeTab, setActiveTab] = useState<
+    "stock" | "pieces" | "scan_sale" | "sale" | "settle" | "debts" | "customer" | "till"
+  >("stock");
 
   // State
   const [busy, setBusy] = useState(false);
@@ -42,10 +53,22 @@ export function SellerMobileWorkspace() {
   const [dailyRate, setDailyRate] = useState<DailyGoldRateRow | null>(null);
   const [activeClientMarkups, setActiveClientMarkups] = useState<SalesMarkupPresetRow[]>([]);
   const [myConsignments, setMyConsignments] = useState<SellerConsignmentRow[]>([]);
+  const [myPieces, setMyPieces] = useState<ConsignmentPieceRow[]>([]);
+  const [models, setModels] = useState<JewelryModelItem[]>([]);
   const [mySales, setMySales] = useState<JewelrySaleRow[]>([]);
   const [myTillAccount, setMyTillAccount] = useState<SellerGoldAccountRow | null>(null);
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [clientAccounts, setClientAccounts] = useState<ClientGoldAccountRow[]>([]);
+
+  // Mobile Barcode Scan Sale state
+  const [scanModelCode, setScanModelCode] = useState("");
+  const [scanWeight, setScanWeight] = useState("");
+  const [matchedPiece, setMatchedPiece] = useState<ConsignmentPieceRow | null>(null);
+  const [scanCustomerId, setScanCustomerId] = useState("");
+  const [scanClientMarkup, setScanClientMarkup] = useState("12.00");
+  const [scanNotes, setScanNotes] = useState("");
+  const [scanInputVal, setScanInputVal] = useState("");
+  const [cameraModalOpen, setCameraModalOpen] = useState(false);
 
   // Form: Customer Registration
   const [newCustName, setNewCustName] = useState("");
@@ -108,6 +131,8 @@ export function SellerMobileWorkspace() {
         tillRes,
         custRes,
         clientAccRes,
+        piecesRes,
+        modelsRes,
       ] = await Promise.all([
         supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(1),
         supabase.rpc("rpc_get_active_sales_markups", { p_type: "client_markup" }),
@@ -126,6 +151,10 @@ export function SellerMobileWorkspace() {
         sellerId && !isAdminOrDir
           ? supabase.from("client_gold_accounts").select("*, customer:customer_id(id, contact_name, customer_code, phone)").eq("seller_id", sellerId)
           : supabase.from("client_gold_accounts").select("*, customer:customer_id(id, contact_name, customer_code, phone)"),
+        sellerId
+          ? supabase.from("consignment_pieces").select("*").eq("seller_id", sellerId).order("created_at", { ascending: false })
+          : Promise.resolve({ data: [] }),
+        supabase.from("jewelry_models").select("*").order("model_code", { ascending: true }),
       ]);
 
       if (ratesRes.data && ratesRes.data.length > 0) {
@@ -141,6 +170,12 @@ export function SellerMobileWorkspace() {
       }
       if (consignRes.data) {
         setMyConsignments(consignRes.data as unknown as SellerConsignmentRow[]);
+      }
+      if (piecesRes.data) {
+        setMyPieces(piecesRes.data as unknown as ConsignmentPieceRow[]);
+      }
+      if (modelsRes.data) {
+        setModels(modelsRes.data as JewelryModelItem[]);
       }
       if (salesRes.data) {
         setMySales(salesRes.data as unknown as JewelrySaleRow[]);
@@ -423,8 +458,177 @@ export function SellerMobileWorkspace() {
     setActiveTab("settle");
   };
 
-  // Filtered available items in seller's hand
+  // Filtered available consignments (batches) in seller's hand
   const availableConsignments = myConsignments.filter(c => c.status === "held_by_seller");
+
+  // Filtered available pieces in seller's hand
+  const availablePieces = useMemo(() => {
+    return myPieces.filter(p => p.status === "held_by_seller");
+  }, [myPieces]);
+
+  // Selected customer for Barcode Scan Sale
+  const selectedScanCustomer = useMemo(() => {
+    return customers.find(c => String(c.id) === scanCustomerId) || null;
+  }, [customers, scanCustomerId]);
+
+  // Real-time piece calculation
+  const livePieceSaleCalc = useMemo(() => {
+    const baseW = matchedPiece ? Number(matchedPiece.weight_grams) : (parseFloat(scanWeight) || 0);
+    if (baseW <= 0) return null;
+    const fPct = 8.0; // Default or parent consignment markup
+    const cPct = parseFloat(scanClientMarkup) || 12.0;
+    return GoldEngine.calculateJewelryConsignmentAndSale(baseW, fPct, cPct);
+  }, [matchedPiece, scanWeight, scanClientMarkup]);
+
+  const activeModelItem = useMemo(() => {
+    return models.find(m => m.model_code?.toLowerCase() === scanModelCode.toLowerCase()) || null;
+  }, [models, scanModelCode]);
+
+  // Handle scanned barcode (model QR or weight barcode)
+  const handleProcessMobileBarcode = (rawCode: string) => {
+    const code = rawCode.trim();
+    if (!code) return;
+
+    const detected = detectBarcodeType(code, {
+      ...DEFAULT_SCANNER_CONFIG,
+      modelPrefixes: ["JF-M-", "MOD-", "JF-"],
+    });
+
+    if (detected.type === "model_qr") {
+      const modelCode = detected.extractedModelCode || code;
+      setScanModelCode(modelCode);
+      playScannerBeep("model_switch");
+      notifySuccess(`Model kodi tanlandi: ${modelCode}`);
+
+      if (scanWeight) {
+        const targetW = parseFloat(scanWeight);
+        const match = availablePieces.find(
+          p => (p.model_code?.toLowerCase() === modelCode.toLowerCase() || p.model_id === modelCode) &&
+               Math.abs(Number(p.weight_grams) - targetW) < 0.001
+        );
+        if (match) {
+          setMatchedPiece(match);
+          playScannerBeep("success");
+          notifySuccess(`Dona topildi: ${match.model_name || match.model_code} (${match.weight_grams} g)`);
+        }
+      }
+      return;
+    }
+
+    // Weight barcode / number
+    const parsed = parseWeightValue(code);
+    if (parsed.success && parsed.weightGrams && parsed.weightGrams > 0) {
+      setScanWeight(String(parsed.weightGrams));
+      playScannerBeep("success");
+
+      const targetW = parsed.weightGrams;
+      const match = availablePieces.find(p => {
+        const matchesWeight = Math.abs(Number(p.weight_grams) - targetW) < 0.001;
+        if (!matchesWeight) return false;
+        if (scanModelCode) {
+          return p.model_code?.toLowerCase() === scanModelCode.toLowerCase();
+        }
+        return true;
+      });
+
+      if (match) {
+        setMatchedPiece(match);
+        if (match.model_code && !scanModelCode) {
+          setScanModelCode(match.model_code);
+        }
+        notifySuccess(`Dona tasdiqlandi: ${match.model_name || match.model_code} (${match.weight_grams} g)`);
+      } else {
+        playScannerBeep("duplicate_warning");
+        notifyError(`Ogohlantirish: ${targetW}g vaznli dona hisobingizda topilmadi!`);
+      }
+    } else {
+      playScannerBeep("error");
+      notifyError(`Noma'lum shtrix-kod: "${code}". Model QR yoki vazn shtrix-kodi kerak.`);
+    }
+  };
+
+  // Quick Action: Pre-select piece for sale
+  const handleQuickSellPiece = (piece: ConsignmentPieceRow) => {
+    setMatchedPiece(piece);
+    setScanModelCode(piece.model_code || "");
+    setScanWeight(String(piece.weight_grams));
+    setActiveTab("scan_sale");
+  };
+
+  // Confirm Barcode Piece Sale
+  const handleConfirmBarcodePieceSale = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!scanCustomerId) {
+      notifyError("Iltimos, xaridor mijozni tanlang!");
+      return;
+    }
+
+    const weightGrams = matchedPiece ? Number(matchedPiece.weight_grams) : parseFloat(scanWeight);
+    if (!weightGrams || weightGrams <= 0) {
+      notifyError("Mahsulot vazni aniqlanmadi! Shtrix-kodni qayta skanerlang.");
+      return;
+    }
+
+    const cPct = parseFloat(scanClientMarkup);
+    if (isNaN(cPct) || cPct < 0) {
+      notifyError("Mijoz ustama foizi xato kiritilgan!");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const idempotencyKey = generateIdempotencyKey("sale-piece-scan");
+      const { data, error } = await supabase.rpc("rpc_record_barcode_piece_sale", {
+        p_customer_id: scanCustomerId,
+        p_seller_id: currentSeller?.id,
+        p_piece_id: matchedPiece?.id || null,
+        p_model_id: matchedPiece?.model_id || null,
+        p_weight_grams: weightGrams,
+        p_client_markup_pct: cPct,
+        p_notes: scanNotes.trim() || null,
+        p_idempotency_key: idempotencyKey,
+      });
+
+      if (error) throw error;
+
+      if (livePieceSaleCalc) {
+        setReceiptData({
+          title: "Skaner Savdo Cheki (Dona Barcode)",
+          receiptNo: data.sale_no || "SALE-SCAN",
+          date: new Date().toLocaleDateString("uz-UZ"),
+          sellerName: currentSeller?.name || currentSeller?.full_name || "Sotuvchi",
+          customerName: selectedScanCustomer?.contact_name || "Mijoz",
+          customerCode: selectedScanCustomer?.customer_code,
+          customerPhone: selectedScanCustomer?.phone,
+          itemName: `${matchedPiece?.category || "Zargarlik"} ${matchedPiece?.model_name || scanModelCode || ""}`.trim(),
+          baseWeightGrams: livePieceSaleCalc.baseWeightGrams,
+          purity: Number(matchedPiece?.purity || 585),
+          factoryMarkupPct: livePieceSaleCalc.factoryMarkupPct,
+          factoryGoldDueGrams: livePieceSaleCalc.factoryGoldDueGrams,
+          clientMarkupPct: livePieceSaleCalc.clientMarkupPct,
+          clientGoldDueGrams: livePieceSaleCalc.clientGoldDueGrams,
+          markupSpreadGrams: livePieceSaleCalc.markupSpreadGrams,
+          remainingDebtGrams: livePieceSaleCalc.clientGoldDueGrams,
+          notes: scanNotes || "Skaner 564 orqali sotildi",
+        });
+      }
+
+      notifySuccess(`№${data.sale_no} savdo muvaffaqiyatli rasmiylashtirildi! Chek shakllantirildi.`);
+      setScanModelCode("");
+      setScanWeight("");
+      setMatchedPiece(null);
+      setScanNotes("");
+      setScanInputVal("");
+
+      await loadSellerWorkspace();
+      setActiveTab("pieces");
+    } catch (err: unknown) {
+      notifyError(`Skaner savdoni yozishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   // Filtered debtors
   const debtorsList = clientAccounts.filter(c => Number(c.current_debt_grams || c.current_gold_debt_grams || 0) > 0);
@@ -514,16 +718,36 @@ export function SellerMobileWorkspace() {
       </div>
 
       {/* Touch-Friendly Navigation Tabs (Touch targets >= 44px) */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 bg-slate-900 border-2 border-slate-800 p-2 rounded-2xl text-xs font-bold shadow-md">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2 bg-slate-900 border-2 border-slate-800 p-2 rounded-2xl text-xs font-bold shadow-md">
         <button
+          id="tabScanSale"
+          onClick={() => setActiveTab("scan_sale")}
+          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+            activeTab === "scan_sale" ? "bg-amber-500 text-slate-950 shadow-md font-extrabold" : "text-amber-400 hover:bg-slate-800"
+          }`}
+        >
+          ⚡ Skaner Savdo
+        </button>
+        <button
+          id="tabPieces"
+          onClick={() => setActiveTab("pieces")}
+          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+            activeTab === "pieces" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
+          📦 Donalar ({availablePieces.length})
+        </button>
+        <button
+          id="tabStock"
           onClick={() => setActiveTab("stock")}
           className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
             activeTab === "stock" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
-          💎 Mahsulotlar ({availableConsignments.length})
+          💎 Partiyalar ({availableConsignments.length})
         </button>
         <button
+          id="tabSale"
           onClick={() => setActiveTab("sale")}
           className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
             activeTab === "sale" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
@@ -532,6 +756,7 @@ export function SellerMobileWorkspace() {
           🏷️ Nasiya
         </button>
         <button
+          id="tabSettle"
           onClick={() => setActiveTab("settle")}
           className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
             activeTab === "settle" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
@@ -540,6 +765,7 @@ export function SellerMobileWorkspace() {
           💰 To&apos;lov Olish
         </button>
         <button
+          id="tabDebts"
           onClick={() => setActiveTab("debts")}
           className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
             activeTab === "debts" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
@@ -548,6 +774,7 @@ export function SellerMobileWorkspace() {
           📒 Qarzlar ({debtorsList.length})
         </button>
         <button
+          id="tabCustomer"
           onClick={() => setActiveTab("customer")}
           className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
             activeTab === "customer" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
@@ -556,6 +783,7 @@ export function SellerMobileWorkspace() {
           ➕ Yangi Mijoz
         </button>
         <button
+          id="tabTill"
           onClick={() => setActiveTab("till")}
           className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
             activeTab === "till" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
@@ -564,6 +792,269 @@ export function SellerMobileWorkspace() {
           🏦 Kassam
         </button>
       </div>
+
+      {/* TAB: SCANNER 564 & CAMERA PIECE SALE */}
+      {activeTab === "scan_sale" && (
+        <div className="space-y-4">
+          <div className="bg-slate-900 border-2 border-amber-500/50 rounded-3xl p-5 shadow-xl text-white space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
+                  Scanner 564 + Kamera Skaner
+                </span>
+                <h2 className="text-lg font-black text-white mt-0.5">Shtrix-kodli Dona Savdo</h2>
+              </div>
+              <button
+                type="button"
+                id="openCameraBtn"
+                onClick={() => setCameraModalOpen(true)}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow transition"
+              >
+                📷 Kamera Skaner
+              </button>
+            </div>
+
+            {/* Keyboard Wedge / Scanner input */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                Skaner 564 Kiritish (Model QR yoki Vazn Shtrix-kodi):
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="sellerBarcodeScanInput"
+                  type="text"
+                  autoFocus
+                  placeholder="Skanerlang yoki kiriting (masalan: JF-M-0001 yoki 14.52)..."
+                  value={scanInputVal}
+                  onChange={(e) => setScanInputVal(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleProcessMobileBarcode(scanInputVal);
+                      setScanInputVal("");
+                    }
+                  }}
+                  className="flex-1 bg-slate-950 border-2 border-slate-700 focus:border-amber-400 text-white rounded-xl px-3 py-2.5 text-xs font-mono outline-none"
+                />
+                <button
+                  type="button"
+                  id="processScanBtn"
+                  onClick={() => {
+                    handleProcessMobileBarcode(scanInputVal);
+                    setScanInputVal("");
+                  }}
+                  className="bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold px-4 py-2.5 rounded-xl text-xs border border-slate-700"
+                >
+                  Kiritish
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                💡 Skaner 564 shtrix-kodni o&apos;qigach Enter bosadi. Telefon kamerasini ishlatish uchun &quot;Kamera Skaner&quot; tugmasini bosing.
+              </p>
+            </div>
+
+            {/* Scanned Indicators */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3">
+                <span className="text-[10px] text-slate-400 block font-bold">Model Kodi</span>
+                <span id="scannedModelIndicator" className="font-mono font-bold text-sm text-amber-300">
+                  {scanModelCode ? `${scanModelCode}${activeModelItem ? ` (${activeModelItem.name})` : ""}` : "— Tanlanmagan —"}
+                </span>
+              </div>
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3">
+                <span className="text-[10px] text-slate-400 block font-bold">Skanerlangan Vazn</span>
+                <span id="scannedWeightIndicator" className="font-mono font-bold text-sm text-emerald-400">
+                  {scanWeight ? `${scanWeight} g` : "— Kiritilmagan —"}
+                </span>
+              </div>
+            </div>
+
+            {/* Matched Piece Card */}
+            {matchedPiece ? (
+              <div id="matchedPieceCard" className="bg-emerald-950/60 border-2 border-emerald-500/60 rounded-2xl p-3.5 space-y-1 text-xs">
+                <div className="flex justify-between items-center text-emerald-300 font-bold">
+                  <span>✅ Omboringizdagi Mahsulot Topildi:</span>
+                  <span className="font-mono bg-emerald-900/60 px-2 py-0.5 rounded text-[10px]">{matchedPiece.id.slice(0, 8)}...</span>
+                </div>
+                <div className="text-white font-extrabold text-sm">
+                  {matchedPiece.category || "Zargarlik"} — {matchedPiece.model_name || matchedPiece.model_code}
+                </div>
+                <div className="flex gap-4 text-slate-300 font-mono text-[11px] pt-1">
+                  <span>Proba: <strong className="text-amber-300">{matchedPiece.purity}°</strong></span>
+                  <span>Aniq Vazn: <strong id="matchedPieceWeight" className="text-emerald-300">{Number(matchedPiece.weight_grams).toFixed(4)} g</strong></span>
+                  <span>Model: <strong className="text-white">{matchedPiece.model_code}</strong></span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-950/80 border border-dashed border-slate-700 rounded-2xl p-3 text-center text-slate-400 text-xs">
+                🔍 Model kodi yoki vazn shtrix-kodini skanerlang. Omboringizdagi mos dona avtomatik tanlanadi.
+              </div>
+            )}
+          </div>
+
+          {/* Sale Confirmation Form */}
+          <form onSubmit={handleConfirmBarcodePieceSale} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <h3 className="font-bold text-slate-900 text-sm">Xaridor va Savdo Shartlari</h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Xaridor Mijozni Tanlang: <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  id="scanSaleCustomerSelect"
+                  value={scanCustomerId}
+                  onChange={(e) => setScanCustomerId(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold focus:border-amber-500 outline-none"
+                  required
+                >
+                  <option value="">— Mijozni tanlang —</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.contact_name} {c.customer_code ? `(${c.customer_code})` : ""} {c.phone ? `— ${c.phone}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Mijozga Sotish Ustama Foizi (%): <span className="text-rose-500">*</span>
+                </label>
+                <div className="flex gap-2 mb-2 flex-wrap">
+                  {activeClientMarkups.map((p) => (
+                    <button
+                      type="button"
+                      key={p.id}
+                      onClick={() => setScanClientMarkup(String(p.percentage))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                        scanClientMarkup === String(p.percentage)
+                          ? "bg-amber-600 text-white shadow-sm"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      +{p.percentage}%
+                    </button>
+                  ))}
+                </div>
+                <input
+                  id="scanSaleMarkupSelect"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  value={scanClientMarkup}
+                  onChange={(e) => setScanClientMarkup(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold"
+                  required
+                />
+              </div>
+
+              {/* Real-time Calculation Breakdown */}
+              {livePieceSaleCalc && (
+                <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-3.5 space-y-2 text-xs">
+                  <div className="font-bold text-amber-900 border-b border-amber-200 pb-1 flex justify-between">
+                    <span>Hisob-kitob (Asl Mahsulot Grammidan):</span>
+                    <span className="font-mono text-amber-800">{livePieceSaleCalc.baseWeightGrams.toFixed(4)} g</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-500 block">Zavod Majburiyati (+{livePieceSaleCalc.factoryMarkupPct}%):</span>
+                      <span className="font-mono font-bold text-slate-800">{livePieceSaleCalc.factoryGoldDueGrams.toFixed(4)} g</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Mijoz Qarzi (+{livePieceSaleCalc.clientMarkupPct}%):</span>
+                      <span id="liveClientDueGrams" className="font-mono font-bold text-blue-700">{livePieceSaleCalc.clientGoldDueGrams.toFixed(4)} g</span>
+                    </div>
+                    <div className="col-span-2 pt-1 border-t border-amber-200/60 flex justify-between">
+                      <span className="text-slate-600">Ustama Farqi:</span>
+                      <span className="font-mono font-bold text-amber-900">+{livePieceSaleCalc.markupSpreadGrams.toFixed(4)} g</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Izoh (Ixtiyoriy):
+                </label>
+                <input
+                  id="scanSaleNotesInput"
+                  type="text"
+                  placeholder="Savdo haqida eslatma..."
+                  value={scanNotes}
+                  onChange={(e) => setScanNotes(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                />
+              </div>
+
+              <button
+                id="confirmScanSaleBtn"
+                type="submit"
+                disabled={busy || !scanCustomerId || (!matchedPiece && !scanWeight)}
+                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 text-slate-950 font-black text-sm rounded-xl shadow-lg transition"
+              >
+                {busy ? "Savdo Rasmiylashtirilmoqda..." : "⚡ Savdoni Tasdiqlash va Chek Berish"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* TAB: MY CONSIGNED PIECES LIST */}
+      {activeTab === "pieces" && (
+        <div className="space-y-3">
+          <div className="flex justify-between items-center px-1">
+            <h2 className="text-base font-bold text-slate-800">Vitrinamdagi Donalar Ro&apos;yxati</h2>
+            <span id="piecesCountBadge" className="text-xs text-slate-500 font-medium">Jami: {availablePieces.length} dona</span>
+          </div>
+
+          {availablePieces.length === 0 ? (
+            <div className="bg-white p-8 rounded-3xl border text-center text-slate-500 space-y-2">
+              <div className="text-3xl">📦</div>
+              <div className="font-bold text-sm">Hozirda sizning hisobingizda dona mahsulotlar yo&apos;q</div>
+              <p className="text-xs text-slate-400">
+                Direktor &quot;Shtrix-kodli Mahsulot Topshirish&quot; orqali sizga mahsulot yuklaganda bu yerda paydo bo&apos;ladi.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {availablePieces.map((p) => (
+                <div
+                  key={p.id}
+                  data-piece-id={p.id}
+                  className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm flex items-center justify-between hover:border-amber-400 transition"
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 text-sm">
+                        {p.category || "Zargarlik"} — {p.model_name || p.model_code}
+                      </span>
+                      <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {p.purity || 585}°
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-slate-500">
+                      <span className="font-mono text-slate-600 font-semibold">{p.model_code}</span>
+                      <span>•</span>
+                      <span className="font-mono font-black text-slate-900 text-sm">
+                        {Number(p.weight_grams).toFixed(4)} g
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleQuickSellPiece(p)}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow transition"
+                  >
+                    ⚡ Sotish
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* TAB 1: MY CONSIGNED STOCK */}
       {activeTab === "stock" && (
@@ -1103,6 +1594,16 @@ export function SellerMobileWorkspace() {
           </div>
         </div>
       )}
+
+      {/* MOBILE BARCODE CAMERA SCANNER MODAL */}
+      <MobileBarcodeScannerModal
+        isOpen={cameraModalOpen}
+        onClose={() => setCameraModalOpen(false)}
+        onDetected={(code: string) => {
+          handleProcessMobileBarcode(code);
+          setCameraModalOpen(false);
+        }}
+      />
 
       {/* RECEIPT MODAL */}
       <SalesReceiptModal data={receiptData} onClose={() => setReceiptData(null)} />

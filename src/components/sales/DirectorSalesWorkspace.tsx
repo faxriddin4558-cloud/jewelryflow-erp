@@ -13,11 +13,19 @@ import {
   type DailyGoldRateRow,
   type EmployeeRow,
   type ProductRow,
+  type ConsignmentPieceRow,
 } from "@/lib/erp-engine";
 import { SalesReceiptModal, type ReceiptData } from "./SalesReceiptModal";
+import { ScannerDiagnostics } from "./ScannerDiagnostics";
+import { BarTenderModelManager } from "./BarTenderModelManager";
+import { ScannerConsignmentSection } from "./ScannerConsignmentSection";
+import { SellerInventoryDashboard } from "./SellerInventoryDashboard";
+import { type JewelryModelItem } from "@/lib/barcode-scanner-engine";
 
 export function DirectorSalesWorkspace() {
-  const [activeTab, setActiveTab] = useState<"sellers" | "consign" | "presets" | "clients" | "history">("sellers");
+  const [activeTab, setActiveTab] = useState<
+    "sellers" | "consign" | "scanner_consign" | "seller_stock" | "models" | "diagnostics" | "presets" | "clients" | "history"
+  >("sellers");
 
   // State
   const [busy, setBusy] = useState(false);
@@ -35,6 +43,8 @@ export function DirectorSalesWorkspace() {
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [customers, setCustomers] = useState<{ id: string; contact_name: string; customer_code?: string; phone?: string }[]>([]);
+  const [models, setModels] = useState<JewelryModelItem[]>([]);
+  const [pieces, setPieces] = useState<ConsignmentPieceRow[]>([]);
 
   // Daily rate form
   const [newRateAmount, setNewRateAmount] = useState<string>("900000");
@@ -91,6 +101,8 @@ export function DirectorSalesWorkspace() {
         empRes,
         prodRes,
         custRes,
+        modelsRes,
+        piecesRes,
       ] = await Promise.all([
         supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(20),
         supabase.from("sales_markup_presets").select("*").order("display_order", { ascending: true }),
@@ -102,6 +114,8 @@ export function DirectorSalesWorkspace() {
         supabase.from("employees").select("*"),
         supabase.from("products").select("*").gt("stock", 0),
         supabase.from("customers").select("id, contact_name, customer_code, phone"),
+        supabase.from("jewelry_models").select("*").order("model_code", { ascending: true }),
+        supabase.from("consignment_pieces").select("*").order("created_at", { ascending: false }),
       ]);
 
       if (ratesRes.data && ratesRes.data.length > 0) {
@@ -114,6 +128,8 @@ export function DirectorSalesWorkspace() {
       if (clientAccRes.data) setClientAccounts(clientAccRes.data as unknown as ClientGoldAccountRow[]);
       if (settleRes.data) setSettlements(settleRes.data as unknown as GoldSettlementRow[]);
       if (custRes.data) setCustomers(custRes.data as unknown as { id: string; contact_name: string; customer_code?: string; phone?: string }[]);
+      if (modelsRes.data) setModels(modelsRes.data as JewelryModelItem[]);
+      if (piecesRes.data) setPieces(piecesRes.data as ConsignmentPieceRow[]);
       if (empRes.data) {
         setEmployees(empRes.data as EmployeeRow[]);
       }
@@ -163,7 +179,14 @@ export function DirectorSalesWorkspace() {
         rt === "sales" ||
         dept.includes("savdo")
       );
-    });
+    }).map(e => ({
+      ...e,
+      id: String(e.id),
+      name: e.name || e.full_name || "Sotuvchi",
+      full_name: e.full_name,
+      phone: (e as unknown as { phone?: string }).phone,
+      department: e.department,
+    }));
   }, [employees]);
 
   // Factory & Client markups separated
@@ -430,6 +453,87 @@ export function DirectorSalesWorkspace() {
     }
   };
 
+  // 5. High-Throughput Scanner 564 Consignment Action
+  const handleConfirmBarcodeConsignment = async (payload: {
+    sellerId: string;
+    factoryMarkupPct: number;
+    pieces: Array<{
+      model_id?: string;
+      model_code: string;
+      model_name: string;
+      category?: string;
+      purity: number;
+      weight_grams: number;
+      raw_barcode: string;
+    }>;
+    notes?: string;
+  }) => {
+    setBusy(true);
+    try {
+      const idempotencyKey = generateIdempotencyKey("consign-barcode");
+      const { data, error } = await supabase.rpc("rpc_issue_barcode_consignment", {
+        p_seller_id: payload.sellerId,
+        p_factory_markup_pct: payload.factoryMarkupPct,
+        p_pieces: payload.pieces,
+        p_notes: payload.notes || null,
+        p_idempotency_key: idempotencyKey,
+      });
+
+      if (error) throw error;
+
+      const selectedSeller = activeSellers.find((s) => String(s.id) === payload.sellerId);
+      setReceiptData({
+        title: "Zavod Skaner Konsignatsiya Cheki",
+        receiptNo: data.consignment_no || "CONS-BC",
+        date: new Date().toLocaleDateString("uz-UZ"),
+        sellerName: selectedSeller?.name || selectedSeller?.full_name || "Sotuvchi",
+        itemName: `Skanerlangan partiya (${payload.pieces.length} dona)`,
+        baseWeightGrams: Number(data.base_weight_grams),
+        purity: 585,
+        factoryMarkupPct: payload.factoryMarkupPct,
+        factoryGoldDueGrams: Number(data.factory_gold_due_grams),
+        notes: payload.notes || "Scanner 564 orqali topshirilgan partiya",
+      });
+
+      notifySuccess(
+        `№${data.consignment_no} konsignatsiya muvaffaqiyatli topshirildi! (${payload.pieces.length} dona, ${Number(data.base_weight_grams).toFixed(4)}g)`
+      );
+      await loadData();
+      setActiveTab("seller_stock");
+    } catch (err: unknown) {
+      notifyError(`Konsignatsiyani topshirishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 6. BarTender Model Creation Action
+  const handleAddNewModel = async (modelData: {
+    model_code: string;
+    name: string;
+    category: string;
+    decorations?: string;
+    reference_weight_grams?: number;
+    gold_purity?: number;
+  }) => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.from("jewelry_models").insert([
+        {
+          ...modelData,
+          is_active: true,
+        },
+      ]);
+      if (error) throw error;
+      notifySuccess(`Yangi model muvaffaqiyatli saqlandi: ${modelData.name} (${modelData.model_code})`);
+      await loadData();
+    } catch (err: unknown) {
+      notifyError(`Model qo'shishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // Calculations for Consignment Form Live Preview
   const selectedProdForCalc = products.find(p => String(p.id) === consignProductId);
   const curBaseWeight = (Number(selectedProdForCalc?.weight || consignBaseWeight || 0) * (parseInt(consignQty, 10) || 1));
@@ -552,6 +656,36 @@ export function DirectorSalesWorkspace() {
           <span>👥</span> Sotuvchilar Balansi & Kassasi
         </button>
         <button
+          onClick={() => setActiveTab("scanner_consign")}
+          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+            activeTab === "scanner_consign"
+              ? "border-amber-500 text-amber-500 font-black"
+              : "border-transparent hover:text-slate-900"
+          }`}
+        >
+          <span>⚡</span> Skaner 564 Konsignatsiya
+        </button>
+        <button
+          onClick={() => setActiveTab("seller_stock")}
+          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+            activeTab === "seller_stock"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent hover:text-slate-900"
+          }`}
+        >
+          <span>📊</span> Sotuvchilar Ombori (Donalar)
+        </button>
+        <button
+          onClick={() => setActiveTab("models")}
+          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+            activeTab === "models"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent hover:text-slate-900"
+          }`}
+        >
+          <span>🏷️</span> BarTender Modellar
+        </button>
+        <button
           onClick={() => setActiveTab("consign")}
           className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
             activeTab === "consign"
@@ -559,7 +693,7 @@ export function DirectorSalesWorkspace() {
               : "border-transparent hover:text-slate-900"
           }`}
         >
-          <span>📦</span> Mahsulot Topshirish (Konsignatsiya)
+          <span>📦</span> Mahsulot Topshirish (Klassik)
         </button>
         <button
           onClick={() => setActiveTab("presets")}
@@ -569,7 +703,7 @@ export function DirectorSalesWorkspace() {
               : "border-transparent hover:text-slate-900"
           }`}
         >
-          <span>⚡</span> Dinamik Foizlar Boshqaruvi
+          <span>⚙️</span> Dinamik Foizlar
         </button>
         <button
           onClick={() => setActiveTab("clients")}
@@ -579,7 +713,7 @@ export function DirectorSalesWorkspace() {
               : "border-transparent hover:text-slate-900"
           }`}
         >
-          <span>📒</span> Mijozlar Qarzdorligi
+          <span>📒</span> Mijozlar Qarzi
         </button>
         <button
           onClick={() => setActiveTab("history")}
@@ -589,7 +723,17 @@ export function DirectorSalesWorkspace() {
               : "border-transparent hover:text-slate-900"
           }`}
         >
-          <span>📑</span> Tushumlar & Qaytimlar Tarixi
+          <span>📑</span> Tarix
+        </button>
+        <button
+          onClick={() => setActiveTab("diagnostics")}
+          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+            activeTab === "diagnostics"
+              ? "border-amber-600 text-amber-600 font-bold"
+              : "border-transparent hover:text-slate-900"
+          }`}
+        >
+          <span>🔍</span> Skaner Diagnostikasi
         </button>
       </div>
 
@@ -1145,6 +1289,38 @@ export function DirectorSalesWorkspace() {
           </div>
         </div>
       )}
+
+      {/* TAB 6: SCANNER 564 CONSIGNMENT */}
+      {activeTab === "scanner_consign" && (
+        <ScannerConsignmentSection
+          activeSellers={activeSellers}
+          availableModels={models}
+          factoryPresets={factoryPresets}
+          onConfirmConsignment={handleConfirmBarcodeConsignment}
+          isBusy={busy}
+        />
+      )}
+
+      {/* TAB 7: SELLER INVENTORY (PIECES & RECONCILIATION) */}
+      {activeTab === "seller_stock" && (
+        <SellerInventoryDashboard
+          pieces={pieces}
+          sellers={activeSellers}
+          sellerAccounts={sellerAccounts}
+        />
+      )}
+
+      {/* TAB 8: BARTENDER MODELS & QR */}
+      {activeTab === "models" && (
+        <BarTenderModelManager
+          models={models}
+          onAddModel={handleAddNewModel}
+          isBusy={busy}
+        />
+      )}
+
+      {/* TAB 9: SCANNER 564 DIAGNOSTICS */}
+      {activeTab === "diagnostics" && <ScannerDiagnostics />}
 
       {/* MODAL 1: DAILY SCRAP RATE */}
       {showRateModal && (

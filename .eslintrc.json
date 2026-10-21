@@ -1,6 +1,6 @@
 {
   "root": true,
-  "ignorePatterns": ["next-env.d.ts", ".next/**", "out/**", "node_modules/**", "scripts/**"],
+  "ignorePatterns": ["next-env.d.ts", ".next/**", ".next/*", ".next", "out/**", "node_modules/**", "scripts/**", "test-results/**", "e2e-report-html/**", "playwright-report/**"],
   "extends": ["next/core-web-vitals", "plugin:@typescript-eslint/recommended", "prettier"],
   "parser": "@typescript-eslint/parser",
   "plugins": ["@typescript-eslint"],

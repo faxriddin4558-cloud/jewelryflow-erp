@@ -714,11 +714,47 @@ export interface SellerConsignmentRow {
   sold_at?: string;
   returned_at?: string;
   notes?: string;
+  pieces?: Array<{
+    id?: string;
+    model_code?: string;
+    model_name?: string;
+    weight_grams?: number;
+    category?: string;
+    purity?: number;
+    raw_barcode?: string;
+  }>;
   seller?: {
     id: string;
     name?: string;
     full_name?: string;
     phone?: string;
+  };
+}
+
+export interface ConsignmentPieceRow {
+  id: string;
+  organization_id?: string;
+  consignment_id: string;
+  model_id?: string | null;
+  model_code: string;
+  model_name: string;
+  category?: string;
+  purity: number;
+  weight_grams: number;
+  status: "in_factory" | "held_by_seller" | "sold" | "returned_to_factory";
+  seller_id: string;
+  sale_id?: string | null;
+  sold_at?: string | null;
+  raw_barcode?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  model?: {
+    id: string;
+    name: string;
+    model_code: string;
+    category?: string;
+    decorations?: string;
   };
 }
 
