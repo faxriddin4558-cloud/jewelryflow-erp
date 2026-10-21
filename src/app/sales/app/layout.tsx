@@ -30,7 +30,6 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     items: [
       { name: "Asosiy Panel", href: "/sales/app", icon: "📊" },
       { name: "Zavod Bilan Hisob", href: "/sales/app/factory", icon: "🏭", roles: ["Director", "Production Manager", "manager"] },
-      { name: "Zavoddan Qabul", href: "/sales/app/factory-receive", icon: "📥", roles: ["Director", "Production Manager", "manager"] },
     ],
   },
   {
@@ -38,12 +37,12 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     items: [
       { name: "Boshqaruvchi Ombori", href: "/sales/app/inventory", icon: "🏦" },
       { name: "Scanner 564 Tarqatish", href: "/sales/app/consignments", icon: "📟", roles: ["Director", "Production Manager", "manager"] },
-      { name: "Sotuvchilar & Bozor Qarzi", href: "/sales/app/sellers", icon: "👥", roles: ["Director", "Production Manager", "manager"] },
     ],
   },
   {
     title: "SAVDO & KASSALAR",
     items: [
+      { name: "Sotuvchilar & Bozor Qarzi", href: "/sales/app/sellers", icon: "👥", roles: ["Director", "Production Manager", "manager"] },
       { name: "Mijozlar va Nasiya", href: "/sales/app/customers", icon: "🛍️" },
       { name: "Kassa & Valyuta", href: "/sales/app/cash", icon: "💰" },
     ],
@@ -53,7 +52,6 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     items: [
       { name: "Afinaj / Lom Pateriya", href: "/sales/app/refining", icon: "⚗️", roles: ["Director", "Production Manager", "manager"] },
       { name: "Naqdga Oltin Xarid", href: "/sales/app/purchases", icon: "🪙", roles: ["Director", "Production Manager", "manager"] },
-      { name: "Zavodga Oltin Topshirish", href: "/sales/app/handovers", icon: "🚚", roles: ["Director", "Production Manager", "manager"] },
     ],
   },
   {

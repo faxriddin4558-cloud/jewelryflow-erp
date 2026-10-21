@@ -16,7 +16,7 @@ export default function HandoversPage() {
         </div>
       </div>
 
-      <DirectorSalesWorkspace initialTab="factory" hideTopBanner={true} hideTabBar={true} />
+      <DirectorSalesWorkspace initialTab="factory" factorySection="handover" hideTopBanner={true} hideTabBar={true} />
     </div>
   );
 }

@@ -16,7 +16,7 @@ export default function PurchasesPage() {
         </div>
       </div>
 
-      <DirectorSalesWorkspace initialTab="vault" hideTopBanner={true} hideTabBar={true} />
+      <DirectorSalesWorkspace initialTab="vault" vaultSection="purchases" hideTopBanner={true} hideTabBar={true} />
     </div>
   );
 }

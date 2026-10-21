@@ -16,7 +16,7 @@ export default function RefiningPage() {
         </div>
       </div>
 
-      <DirectorSalesWorkspace initialTab="vault" hideTopBanner={true} hideTabBar={true} />
+      <DirectorSalesWorkspace initialTab="vault" vaultSection="refining" hideTopBanner={true} hideTabBar={true} />
     </div>
   );
 }

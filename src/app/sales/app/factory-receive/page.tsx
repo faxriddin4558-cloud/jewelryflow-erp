@@ -16,7 +16,7 @@ export default function FactoryReceivePage() {
         </div>
       </div>
 
-      <DirectorSalesWorkspace initialTab="factory" hideTopBanner={true} hideTabBar={true} />
+      <DirectorSalesWorkspace initialTab="factory" factorySection="receive" hideTopBanner={true} hideTabBar={true} />
     </div>
   );
 }

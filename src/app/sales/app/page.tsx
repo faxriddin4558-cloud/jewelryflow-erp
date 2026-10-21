@@ -298,15 +298,15 @@ export default function SalesDashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
           <Link
-            href="/sales/app/factory-receive"
+            href="/sales/app/factory"
             className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-amber-500/40 transition group shadow-sm"
           >
-            <div className="text-2xl mb-2">📥</div>
+            <div className="text-2xl mb-2">🏭</div>
             <div className="font-bold text-white text-sm group-hover:text-amber-400 transition">
-              Zavoddan Tovar Qabul
+              Zavod Bilan Hisob-Kitob
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              585 vazn + 8% ustama bilan kirim qilish
+              Tovar qabul qilish (8%) va qaytarilgan oltin balansi
             </div>
           </Link>
 

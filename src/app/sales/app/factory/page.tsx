@@ -16,7 +16,7 @@ export default function FactoryLedgerPage() {
         </div>
       </div>
 
-      <DirectorSalesWorkspace initialTab="factory" hideTopBanner={true} hideTabBar={true} />
+      <DirectorSalesWorkspace initialTab="factory" factorySection="all" hideTopBanner={true} hideTabBar={true} />
     </div>
   );
 }

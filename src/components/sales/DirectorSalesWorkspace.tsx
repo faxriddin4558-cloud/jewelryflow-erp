@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import {
   supabase,
   GoldEngine,
@@ -50,20 +51,38 @@ export interface DirectorSalesWorkspaceProps {
   initialTab?: DirectorSalesTab;
   hideTopBanner?: boolean;
   hideTabBar?: boolean;
+  factorySection?: "all" | "receive" | "handover";
+  vaultSection?: "all" | "cash" | "refining" | "purchases";
 }
 
 export function DirectorSalesWorkspace({
   initialTab = "sellers",
   hideTopBanner = false,
   hideTabBar = false,
+  factorySection = "all",
+  vaultSection = "all",
 }: DirectorSalesWorkspaceProps = {}) {
   const [activeTab, setActiveTab] = useState<DirectorSalesTab>(initialTab);
+  const [activeFactorySection, setActiveFactorySection] = useState<"all" | "receive" | "handover">(factorySection);
+  const [activeVaultSection, setActiveVaultSection] = useState<"all" | "cash" | "refining" | "purchases">(vaultSection);
 
   useEffect(() => {
     if (initialTab) {
       setActiveTab(initialTab);
     }
   }, [initialTab]);
+
+  useEffect(() => {
+    if (factorySection) {
+      setActiveFactorySection(factorySection);
+    }
+  }, [factorySection]);
+
+  useEffect(() => {
+    if (vaultSection) {
+      setActiveVaultSection(vaultSection);
+    }
+  }, [vaultSection]);
 
 
   // State
@@ -1184,306 +1203,351 @@ export function DirectorSalesWorkspace({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Form: Zavoddan Tovar Qabul Qilish */}
-            <form
-              onSubmit={(e) => void handleCreateFactoryReceipt(e)}
-              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
+          {/* Subview Segmented Control for Factory Accounting */}
+          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setActiveFactorySection("all")}
+              className={`px-3 py-1.5 rounded-xl transition ${
+                activeFactorySection === "all"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
             >
-              <div className="border-b pb-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-                  Varaqa: &quot;Zavod bilan&quot; Kirim
-                </span>
-                <h3 className="text-lg font-black text-slate-900 mt-2">Zavoddan Tovar Qabul Qilish</h3>
-                <p className="text-xs text-slate-500">
-                  Zavoddan kelgan partiyani fizik vazni va zavod ustama foizi bilan qabul qilish.
-                </p>
-              </div>
+              📋 Barchasi (Kirim & Chiqim)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveFactorySection("receive")}
+              className={`px-3 py-1.5 rounded-xl transition ${
+                activeFactorySection === "receive"
+                  ? "bg-amber-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              📥 Faqat Zavoddan Qabul (Kirim)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveFactorySection("handover")}
+              className={`px-3 py-1.5 rounded-xl transition ${
+                activeFactorySection === "handover"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              🚚 Faqat Zavodga Topshirish (Chiqim)
+            </button>
+          </div>
 
-              <div className="space-y-3 text-sm">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Mahsulot Nomi / Partiya Tavsifi:</label>
-                  <input
-                    type="text"
-                    placeholder="Masalan: Malika sirg'a partiyasi, zanjir..."
-                    value={rcpProductName}
-                    onChange={(e) => setRcpProductName(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Fizik Vazn (g):</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      min="0.0001"
-                      value={rcpWeight}
-                      onChange={(e) => setRcpWeight(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Proba:</label>
-                    <select
-                      value={rcpPurity}
-                      onChange={(e) => setRcpPurity(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold"
-                    >
-                      <option value="585">585 (Asosiy)</option>
-                      <option value="750">750</option>
-                      <option value="999">999 (Toza)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Zavod Foizi (%):</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={rcpMarkup}
-                      onChange={(e) => setRcpMarkup(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-amber-700"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Live Preview */}
-                <div className="bg-amber-50/70 p-3 rounded-2xl border border-amber-200 text-xs space-y-1 font-mono">
-                  <div className="flex justify-between text-amber-900">
-                    <span>Fizik vazn:</span>
-                    <span className="font-bold">{parseFloat(rcpWeight) || 0} g</span>
-                  </div>
-                  <div className="flex justify-between text-amber-900">
-                    <span>Zavod ustamasi ({parseFloat(rcpMarkup) || 0}%):</span>
-                    <span className="font-bold">{((parseFloat(rcpWeight) || 0) * ((parseFloat(rcpMarkup) || 0) / 100)).toFixed(4)} g</span>
-                  </div>
-                  <div className="flex justify-between text-amber-950 font-black border-t border-amber-300 pt-1 text-sm">
-                    <span>Zavod Majburiyati:</span>
-                    <span>{((parseFloat(rcpWeight) || 0) * (1 + (parseFloat(rcpMarkup) || 0) / 100)).toFixed(4)} g</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Izoh / Nakladnoy №:</label>
-                  <input
-                    type="text"
-                    placeholder="Zavod nakladnoyi, sana yoki eslatma..."
-                    value={rcpNotes}
-                    onChange={(e) => setRcpNotes(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={busy}
-                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+          <div className={activeFactorySection === "all" ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : "max-w-2xl"}>
+            {/* Form: Zavoddan Tovar Qabul Qilish */}
+            {(activeFactorySection === "all" || activeFactorySection === "receive") && (
+              <form
+                onSubmit={(e) => void handleCreateFactoryReceipt(e)}
+                className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
               >
-                {busy ? "Saqlanmoqda..." : "📥 Zavoddan Tovar Qabul Qilish"}
-              </button>
-            </form>
+                <div className="border-b pb-3">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                    Varaqa: &quot;Zavod bilan&quot; Kirim
+                  </span>
+                  <h3 className="text-lg font-black text-slate-900 mt-2">Zavoddan Tovar Qabul Qilish</h3>
+                  <p className="text-xs text-slate-500">
+                    Zavoddan kelgan partiyani fizik vazni va zavod ustama foizi bilan qabul qilish.
+                  </p>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Mahsulot Nomi / Partiya Tavsifi:</label>
+                    <input
+                      type="text"
+                      placeholder="Masalan: Malika sirg'a partiyasi, zanjir..."
+                      value={rcpProductName}
+                      onChange={(e) => setRcpProductName(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Fizik Vazn (g):</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        min="0.0001"
+                        value={rcpWeight}
+                        onChange={(e) => setRcpWeight(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Proba:</label>
+                      <select
+                        value={rcpPurity}
+                        onChange={(e) => setRcpPurity(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold"
+                      >
+                        <option value="585">585 (Asosiy)</option>
+                        <option value="750">750</option>
+                        <option value="999">999 (Toza)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Zavod Foizi (%):</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={rcpMarkup}
+                        onChange={(e) => setRcpMarkup(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-amber-700"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Live Preview */}
+                  <div className="bg-amber-50/70 p-3 rounded-2xl border border-amber-200 text-xs space-y-1 font-mono">
+                    <div className="flex justify-between text-amber-900">
+                      <span>Fizik vazn:</span>
+                      <span className="font-bold">{parseFloat(rcpWeight) || 0} g</span>
+                    </div>
+                    <div className="flex justify-between text-amber-900">
+                      <span>Zavod ustamasi ({parseFloat(rcpMarkup) || 0}%):</span>
+                      <span className="font-bold">{((parseFloat(rcpWeight) || 0) * ((parseFloat(rcpMarkup) || 0) / 100)).toFixed(4)} g</span>
+                    </div>
+                    <div className="flex justify-between text-amber-950 font-black border-t border-amber-300 pt-1 text-sm">
+                      <span>Zavod Majburiyati:</span>
+                      <span>{((parseFloat(rcpWeight) || 0) * (1 + (parseFloat(rcpMarkup) || 0) / 100)).toFixed(4)} g</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Izoh / Nakladnoy №:</label>
+                    <input
+                      type="text"
+                      placeholder="Zavod nakladnoyi, sana yoki eslatma..."
+                      value={rcpNotes}
+                      onChange={(e) => setRcpNotes(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+                >
+                  {busy ? "Saqlanmoqda..." : "📥 Zavoddan Tovar Qabul Qilish"}
+                </button>
+              </form>
+            )}
 
             {/* Form: Zavodga Oltin Topshirish */}
-            <form
-              onSubmit={(e) => void handleCreateFactoryHandover(e)}
-              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
-            >
-              <div className="border-b pb-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                  Qarzni Yopish Hujjati
-                </span>
-                <h3 className="text-lg font-black text-slate-900 mt-2">Zavodga Oltin Topshirish</h3>
-                <p className="text-xs text-slate-500">
-                  Afinaj qilingan toza oltin, xarid qilingan oltin yoki lomni zavodga topshirish. Faqat ushbu amal zavod qarzini kamaytiradi.
-                </p>
-              </div>
-
-              <div className="space-y-3 text-sm">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Topshirilayotgan Oltin Manbasi:</label>
-                  <select
-                    value={hndSourceType}
-                    onChange={(e) => setHndSourceType(e.target.value as "refined_gold" | "purchased_gold" | "scrap_gold")}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold"
-                  >
-                    <option value="refined_gold">Afinaj qilingan toza oltin (995/999.9)</option>
-                    <option value="purchased_gold">Bozordan naqdga olingan oltin</option>
-                    <option value="scrap_gold">Seyfdagi 585 lom oltin</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Fizik Vazn (g):</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      min="0.0001"
-                      value={hndWeight}
-                      onChange={(e) => setHndWeight(e.target.value)}
-                      placeholder="0.0000"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Probasi:</label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="375"
-                      max="1000"
-                      value={hndProba}
-                      onChange={(e) => setHndProba(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Live Preview */}
-                <div className="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono">
-                  <div className="flex justify-between text-emerald-900">
-                    <span>Topshirilayotgan vazn:</span>
-                    <span className="font-bold">{parseFloat(hndWeight) || 0} g ({parseFloat(hndProba) || 585} proba)</span>
-                  </div>
-                  <div className="flex justify-between text-emerald-950 font-black border-t border-emerald-300 pt-1 text-sm">
-                    <span>585 Ekvivalenti (Qarz kamayishi):</span>
-                    <span>{(((parseFloat(hndWeight) || 0) * (parseFloat(hndProba) || 585)) / 585.0).toFixed(4)} g</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Zavod Qabul Qiluvchi:</label>
-                    <input
-                      type="text"
-                      value={hndRecipient}
-                      onChange={(e) => setHndRecipient(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
-                    <input
-                      type="text"
-                      placeholder="Tilxat yoki akt raqami..."
-                      value={hndNotes}
-                      onChange={(e) => setHndNotes(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={busy}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+            {(activeFactorySection === "all" || activeFactorySection === "handover") && (
+              <form
+                onSubmit={(e) => void handleCreateFactoryHandover(e)}
+                className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
               >
-                {busy ? "Topshirilmoqda..." : "📤 Zavodga Oltin Topshirish & Qarzni Kamaytirish"}
-              </button>
-            </form>
+                <div className="border-b pb-3">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                    Qarzni Yopish Hujjati
+                  </span>
+                  <h3 className="text-lg font-black text-slate-900 mt-2">Zavodga Oltin Topshirish</h3>
+                  <p className="text-xs text-slate-500">
+                    Afinaj qilingan toza oltin, xarid qilingan oltin yoki lomni zavodga topshirish. Faqat ushbu amal zavod qarzini kamaytiradi.
+                  </p>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Topshirilayotgan Oltin Manbasi:</label>
+                    <select
+                      value={hndSourceType}
+                      onChange={(e) => setHndSourceType(e.target.value as "refined_gold" | "purchased_gold" | "scrap_gold")}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold"
+                    >
+                      <option value="refined_gold">Afinaj qilingan toza oltin (995/999.9)</option>
+                      <option value="purchased_gold">Bozordan naqdga olingan oltin</option>
+                      <option value="scrap_gold">Seyfdagi 585 lom oltin</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Fizik Vazn (g):</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        min="0.0001"
+                        value={hndWeight}
+                        onChange={(e) => setHndWeight(e.target.value)}
+                        placeholder="0.0000"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Probasi:</label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="375"
+                        max="1000"
+                        value={hndProba}
+                        onChange={(e) => setHndProba(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Live Preview */}
+                  <div className="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono">
+                    <div className="flex justify-between text-emerald-900">
+                      <span>Topshirilayotgan vazn:</span>
+                      <span className="font-bold">{parseFloat(hndWeight) || 0} g ({parseFloat(hndProba) || 585} proba)</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-950 font-black border-t border-emerald-300 pt-1 text-sm">
+                      <span>585 Ekvivalenti (Qarz kamayishi):</span>
+                      <span>{(((parseFloat(hndWeight) || 0) * (parseFloat(hndProba) || 585)) / 585.0).toFixed(4)} g</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Zavod Qabul Qiluvchi:</label>
+                      <input
+                        type="text"
+                        value={hndRecipient}
+                        onChange={(e) => setHndRecipient(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
+                      <input
+                        type="text"
+                        placeholder="Tilxat yoki akt raqami..."
+                        value={hndNotes}
+                        onChange={(e) => setHndNotes(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+                >
+                  {busy ? "Topshirilmoqda..." : "📤 Zavodga Oltin Topshirish & Qarzni Kamaytirish"}
+                </button>
+              </form>
+            )}
           </div>
 
           {/* Tables: Factory Receipts & Handovers */}
           <div className="space-y-4">
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="font-bold text-slate-900 text-sm">Zavoddan Kelgan Tovarlar Ro&apos;yxati (&quot;Zavod bilan&quot;)</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 text-slate-700 border-b font-bold">
-                    <tr>
-                      <th className="p-2.5">Kvitansiya №</th>
-                      <th className="p-2.5">Sana</th>
-                      <th className="p-2.5">Mahsulot Nomi</th>
-                      <th className="p-2.5 text-right">Fizik Vazn (g)</th>
-                      <th className="p-2.5 text-right">Proba</th>
-                      <th className="p-2.5 text-right">Zavod %</th>
-                      <th className="p-2.5 text-right">Zavod Majburiyati (g)</th>
-                      <th className="p-2.5 text-right">Qoldiq Vazn (g)</th>
-                      <th className="p-2.5 text-center">Holati</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y font-mono">
-                    {factoryReceipts.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-50">
-                        <td className="p-2.5 font-bold text-slate-900">{r.receipt_no}</td>
-                        <td className="p-2.5 text-slate-600">{r.receipt_date}</td>
-                        <td className="p-2.5 font-sans font-medium text-slate-800">{r.product_name}</td>
-                        <td className="p-2.5 text-right font-bold">{Number(r.original_physical_g).toFixed(4)}</td>
-                        <td className="p-2.5 text-right">{r.proba}</td>
-                        <td className="p-2.5 text-right text-amber-700 font-bold">+{r.factory_markup_pct}%</td>
-                        <td className="p-2.5 text-right font-black text-amber-900">{Number(r.factory_obligation_g).toFixed(4)}</td>
-                        <td className="p-2.5 text-right text-slate-600">{Number(r.available_physical_g).toFixed(4)}</td>
-                        <td className="p-2.5 text-center font-sans">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {factoryReceipts.length === 0 && (
+            {(activeFactorySection === "all" || activeFactorySection === "receive") && (
+              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <h3 className="font-bold text-slate-900 text-sm">Zavoddan Kelgan Tovarlar Ro&apos;yxati (&quot;Zavod bilan&quot;)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 text-slate-700 border-b font-bold">
                       <tr>
-                        <td colSpan={9} className="p-6 text-center text-slate-400 font-sans">
-                          Hozircha zavoddan tovar kirimi mavjud emas.
-                        </td>
+                        <th className="p-2.5">Kvitansiya №</th>
+                        <th className="p-2.5">Sana</th>
+                        <th className="p-2.5">Mahsulot Nomi</th>
+                        <th className="p-2.5 text-right">Fizik Vazn (g)</th>
+                        <th className="p-2.5 text-right">Proba</th>
+                        <th className="p-2.5 text-right">Zavod %</th>
+                        <th className="p-2.5 text-right">Zavod Majburiyati (g)</th>
+                        <th className="p-2.5 text-right">Qoldiq Vazn (g)</th>
+                        <th className="p-2.5 text-center">Holati</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y font-mono">
+                      {factoryReceipts.map((r) => (
+                        <tr key={r.id} className="hover:bg-slate-50">
+                          <td className="p-2.5 font-bold text-slate-900">{r.receipt_no}</td>
+                          <td className="p-2.5 text-slate-600">{r.receipt_date}</td>
+                          <td className="p-2.5 font-sans font-medium text-slate-800">{r.product_name}</td>
+                          <td className="p-2.5 text-right font-bold">{Number(r.original_physical_g).toFixed(4)}</td>
+                          <td className="p-2.5 text-right">{r.proba}</td>
+                          <td className="p-2.5 text-right text-amber-700 font-bold">+{r.factory_markup_pct}%</td>
+                          <td className="p-2.5 text-right font-black text-amber-900">{Number(r.factory_obligation_g).toFixed(4)}</td>
+                          <td className="p-2.5 text-right text-slate-600">{Number(r.available_physical_g).toFixed(4)}</td>
+                          <td className="p-2.5 text-center font-sans">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                              {r.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {factoryReceipts.length === 0 && (
+                        <tr>
+                          <td colSpan={9} className="p-6 text-center text-slate-400 font-sans">
+                            Hozircha zavoddan tovar kirimi mavjud emas.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="font-bold text-slate-900 text-sm">Zavodga Topshirilgan Oltinlar Tarixi (Qarz Qoplamasi)</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 text-slate-700 border-b font-bold">
-                    <tr>
-                      <th className="p-2.5">Hujjat №</th>
-                      <th className="p-2.5">Sana</th>
-                      <th className="p-2.5">Manba Turi</th>
-                      <th className="p-2.5 text-right">Fizik Vazn (g)</th>
-                      <th className="p-2.5 text-right">Proba</th>
-                      <th className="p-2.5 text-right">585 Ekvivalenti (g)</th>
-                      <th className="p-2.5">Qabul Qiluvchi</th>
-                      <th className="p-2.5">Izoh</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y font-mono">
-                    {factoryHandovers.map((h) => (
-                      <tr key={h.id} className="hover:bg-slate-50">
-                        <td className="p-2.5 font-bold text-slate-900">{h.handover_no}</td>
-                        <td className="p-2.5 text-slate-600">{h.handover_date}</td>
-                        <td className="p-2.5 font-sans font-medium text-slate-800">
-                          {h.source_type === "refined_gold" ? "Afinaj toza oltin" : h.source_type === "purchased_gold" ? "Bozordan xarid" : "Lom oltin"}
-                        </td>
-                        <td className="p-2.5 text-right font-bold">{Number(h.physical_weight_g).toFixed(4)}</td>
-                        <td className="p-2.5 text-right">{h.proba}</td>
-                        <td className="p-2.5 text-right font-black text-emerald-700">{Number(h.agreed_equivalent_g).toFixed(4)}</td>
-                        <td className="p-2.5 font-sans text-slate-700">{h.factory_recipient}</td>
-                        <td className="p-2.5 font-sans text-slate-500">{h.notes || "—"}</td>
-                      </tr>
-                    ))}
-                    {factoryHandovers.length === 0 && (
+            {(activeFactorySection === "all" || activeFactorySection === "handover") && (
+              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <h3 className="font-bold text-slate-900 text-sm">Zavodga Topshirilgan Oltinlar Tarixi (Qarz Qoplamasi)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 text-slate-700 border-b font-bold">
                       <tr>
-                        <td colSpan={8} className="p-6 text-center text-slate-400 font-sans">
-                          Hozircha zavodga topshirilgan oltinlar tarixi mavjud emas.
-                        </td>
+                        <th className="p-2.5">Hujjat №</th>
+                        <th className="p-2.5">Sana</th>
+                        <th className="p-2.5">Manba Turi</th>
+                        <th className="p-2.5 text-right">Fizik Vazn (g)</th>
+                        <th className="p-2.5 text-right">Proba</th>
+                        <th className="p-2.5 text-right">585 Ekvivalenti (g)</th>
+                        <th className="p-2.5">Qabul Qiluvchi</th>
+                        <th className="p-2.5">Izoh</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y font-mono">
+                      {factoryHandovers.map((h) => (
+                        <tr key={h.id} className="hover:bg-slate-50">
+                          <td className="p-2.5 font-bold text-slate-900">{h.handover_no}</td>
+                          <td className="p-2.5 text-slate-600">{h.handover_date}</td>
+                          <td className="p-2.5 font-sans font-medium text-slate-800">
+                            {h.source_type === "refined_gold" ? "Afinaj toza oltin" : h.source_type === "purchased_gold" ? "Bozordan xarid" : "Lom oltin"}
+                          </td>
+                          <td className="p-2.5 text-right font-bold">{Number(h.physical_weight_g).toFixed(4)}</td>
+                          <td className="p-2.5 text-right">{h.proba}</td>
+                          <td className="p-2.5 text-right font-black text-emerald-700">{Number(h.agreed_equivalent_g).toFixed(4)}</td>
+                          <td className="p-2.5 font-sans text-slate-700">{h.factory_recipient}</td>
+                          <td className="p-2.5 font-sans text-slate-500">{h.notes || "—"}</td>
+                        </tr>
+                      ))}
+                      {factoryHandovers.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="p-6 text-center text-slate-400 font-sans">
+                            Hozircha zavodga topshirilgan oltinlar tarixi mavjud emas.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -1629,9 +1693,23 @@ export function DirectorSalesWorkspace({
           {/* Header & Metrics */}
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-black text-slate-900">Boshqaruvchi Kassasi & Afinaj (Lom Pateriya)</h2>
+              <h2 className="text-xl font-black text-slate-900">
+                {activeVaultSection === "cash"
+                  ? "Boshqaruvchi Kassasi & Seyf Balansi"
+                  : activeVaultSection === "refining"
+                  ? "Afinaj & Lom Pateriya (Eritish va Qayta Ishlash)"
+                  : activeVaultSection === "purchases"
+                  ? "Naqd Pulga Oltin Xarid (\"Tovar Olish\")"
+                  : "Boshqaruvchi Kassasi, Afinaj & Xaridlar"}
+              </h2>
               <p className="text-xs text-slate-500">
-                Sheets &quot;Lom pateriya&quot; va &quot;Tovar olish&quot; varaqalari pariteti: Sotuvchilardan tushgan pul va lom boshqaruvchi kassasida saqlanadi. Afinaj yo&apos;qotishi faqat boshqaruvchi hisobiga yoziladi.
+                {activeVaultSection === "cash"
+                  ? "Boshqaruvchi seyfi va kassasidagi fizik lom oltin, naqd UZS hamda toza quyma qoldiqlari."
+                  : activeVaultSection === "refining"
+                  ? "Sheets \"Lom pateriya\" pariteti: Yig'ilgan 585 lomni eritish, toza quyma (995) olish va yo'qotish (pateriya) hisobi."
+                  : activeVaultSection === "purchases"
+                  ? "Sheets \"Tovar olish\" pariteti: Naqd pulga bozordan oltin sotib olish va kassa hisob-kitobi."
+                  : "Sheets \"Lom pateriya\" va \"Tovar olish\" varaqalari pariteti: G'azna, afinaj va oltin xaridlari yagona markazda."}
               </p>
             </div>
             <button
@@ -1642,377 +1720,516 @@ export function DirectorSalesWorkspace({
             </button>
           </div>
 
-          {/* Metric Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
-              <div className="text-xs font-bold text-amber-200">Seyfdagi Lom Oltin (585)</div>
-              <div className="text-2xl font-black font-mono text-amber-300 mt-1">
-                {Number(managerVault?.manager_scrap_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
-              </div>
-              <div className="text-[11px] text-amber-200/80 mt-1">Sotuvchilardan qabul qilingan lom</div>
-            </div>
-
-            <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
-              <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd Pul</div>
-              <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
-                {Number(managerVault?.manager_cash_amount || 0).toLocaleString()} <span className="text-xs font-normal">UZS</span>
-              </div>
-              <div className="text-[11px] text-emerald-300/80 mt-1">Boshqaruvchi kassasidagi naqd</div>
-            </div>
-
-            <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
-              <div className="text-xs font-bold text-cyan-300">Afinaj Qilingan Toza Oltin</div>
-              <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
-                {Number(managerVault?.manager_refined_gold_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
-              </div>
-              <div className="text-[11px] text-cyan-300/80 mt-1">Afinajdan chiqqan toza oltin zaxirasi</div>
-            </div>
-
-            <div className="bg-indigo-950 text-white p-4 rounded-3xl border border-indigo-800 shadow-sm">
-              <div className="text-xs font-bold text-indigo-300">Bozordan Xarid Qilingan Oltin</div>
-              <div className="text-2xl font-black font-mono text-indigo-300 mt-1">
-                {Number(managerVault?.manager_purchased_gold_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
-              </div>
-              <div className="text-[11px] text-indigo-300/80 mt-1">Naqd pulga sotib olingan oltin</div>
-            </div>
+          {/* Subview Segmented Control (only when all subviews are allowed) */}
+          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setActiveVaultSection("all")}
+              className={`px-3 py-1.5 rounded-xl transition ${
+                activeVaultSection === "all"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              📋 Barchasi
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveVaultSection("cash")}
+              className={`px-3 py-1.5 rounded-xl transition ${
+                activeVaultSection === "cash"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              💰 Kassa Balansi
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveVaultSection("refining")}
+              className={`px-3 py-1.5 rounded-xl transition ${
+                activeVaultSection === "refining"
+                  ? "bg-cyan-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              ⚗️ Afinaj (Pateriya)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveVaultSection("purchases")}
+              className={`px-3 py-1.5 rounded-xl transition ${
+                activeVaultSection === "purchases"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              🪙 Naqdga Oltin Xarid
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Form 1: Afinaj — Lom Pateriya */}
-            <form
-              onSubmit={(e) => void handleCreateRefiningBatch(e)}
-              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
-            >
-              <div className="border-b pb-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-cyan-600 bg-cyan-50 px-2.5 py-1 rounded-full border border-cyan-200">
-                  Varaqa: &quot;Lom pateriya&quot;
-                </span>
-                <h3 className="text-lg font-black text-slate-900 mt-2">Afinaj (Eritish & Qayta Ishlash)</h3>
-                <p className="text-xs text-slate-500">
-                  Lom oltinni eritish va tozalash. Yo&apos;qotish (pateriya) faqat boshqaruvchi hisobiga yoziladi, zavod qarzi o&apos;zgarmaydi!
-                </p>
+          {/* Metric Cards (Scoped per section) */}
+          {activeVaultSection === "refining" ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
+                <div className="text-xs font-bold text-amber-200">Seyfdagi Lom Oltin (585)</div>
+                <div className="text-2xl font-black font-mono text-amber-300 mt-1">
+                  {Number(managerVault?.manager_scrap_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                </div>
+                <div className="text-[11px] text-amber-200/80 mt-1">Eritish uchun tayyor lom zaxirasi</div>
               </div>
 
-              <div className="space-y-3 text-sm">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Kiruvchi Lom Vazni (g):</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      min="0.0001"
-                      value={refInputScrap}
-                      onChange={(e) => setRefInputScrap(e.target.value)}
-                      placeholder="Masalan: 50.0000"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Eritilgan Vazn (g):</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      min="0.0001"
-                      value={refMeltedWeight}
-                      onChange={(e) => setRefMeltedWeight(e.target.value)}
-                      placeholder="Eritgandan so'ng"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
-                      required
-                    />
-                  </div>
+              <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
+                <div className="text-xs font-bold text-cyan-300">Afinaj Qilingan Toza Oltin (995)</div>
+                <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
+                  {Number(managerVault?.manager_refined_gold_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Chiqqan Toza Vazn (g):</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      min="0.0001"
-                      value={refFineWeight}
-                      onChange={(e) => setRefFineWeight(e.target.value)}
-                      placeholder="Afinajdan chiqqan"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Toza Oltin Probasi:</label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="900"
-                      max="1000"
-                      value={refFineProba}
-                      onChange={(e) => setRefFineProba(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-cyan-800"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Live Preview */}
-                <div className="bg-cyan-50/70 p-3 rounded-2xl border border-cyan-200 text-xs space-y-1 font-mono">
-                  <div className="flex justify-between text-cyan-900">
-                    <span>Eritish yo&apos;qotishi (kuya):</span>
-                    <span className="font-bold">
-                      {Math.max(0, (parseFloat(refInputScrap) || 0) - (parseFloat(refMeltedWeight) || 0)).toFixed(4)} g
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-cyan-900">
-                    <span>585 Ekvivalenti:</span>
-                    <span className="font-bold">
-                      {(((parseFloat(refFineWeight) || 0) * (parseFloat(refFineProba) || 995)) / 585.0).toFixed(4)} g
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-rose-950 font-black border-t border-cyan-300 pt-1 text-sm">
-                    <span>Jami Yo&apos;qotish (Lom Pateriya):</span>
-                    <span>
-                      {Math.max(0, (parseFloat(refInputScrap) || 0) - (((parseFloat(refFineWeight) || 0) * (parseFloat(refFineProba) || 995)) / 585.0)).toFixed(4)} g
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-cyan-800 font-sans mt-1">
-                    ℹ️ Pateriya to&apos;liq boshqaruvchi hisobiga yoziladi, zavod qarzi o&apos;zgarmaydi.
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
-                  <input
-                    type="text"
-                    placeholder="Usta / laboratoriya izohi..."
-                    value={refNotes}
-                    onChange={(e) => setRefNotes(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
-                  />
-                </div>
+                <div className="text-[11px] text-cyan-300/80 mt-1">Zavodga topshirishga tayyor sof quyma</div>
               </div>
 
-              <button
-                type="submit"
-                disabled={busy}
-                className="w-full py-3 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs rounded-xl shadow-md transition"
+              <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm">
+                <div className="text-xs font-bold text-rose-300">Jami Afinaj Yo&apos;qotishi (Pateriya)</div>
+                <div className="text-2xl font-black font-mono text-rose-300 mt-1">
+                  {refiningBatches.reduce((sum, b) => sum + Number(b.total_loss_grams || 0), 0).toFixed(4)} <span className="text-xs font-normal">g 585</span>
+                </div>
+                <div className="text-[11px] text-rose-300/80 mt-1">Boshqaruvchi hisobiga yozilgan zarar</div>
+              </div>
+            </div>
+          ) : activeVaultSection === "purchases" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
+                <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd Pul</div>
+                <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
+                  {Number(managerVault?.manager_cash_amount || 0).toLocaleString()} <span className="text-xs font-normal">UZS</span>
+                </div>
+                <div className="text-[11px] text-emerald-300/80 mt-1">Oltin xarid qilish uchun mavjud mablag&apos;</div>
+              </div>
+
+              <div className="bg-indigo-950 text-white p-4 rounded-3xl border border-indigo-800 shadow-sm">
+                <div className="text-xs font-bold text-indigo-300">Bozordan Xarid Qilingan Oltin</div>
+                <div className="text-2xl font-black font-mono text-indigo-300 mt-1">
+                  {Number(managerVault?.manager_purchased_gold_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                </div>
+                <div className="text-[11px] text-indigo-300/80 mt-1">{goldPurchases.length} ta xarid amaliyoti o&apos;tkazilgan</div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
+                <div className="text-xs font-bold text-amber-200">Seyfdagi Lom Oltin (585)</div>
+                <div className="text-2xl font-black font-mono text-amber-300 mt-1">
+                  {Number(managerVault?.manager_scrap_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                </div>
+                <div className="text-[11px] text-amber-200/80 mt-1">Sotuvchilardan qabul qilingan lom</div>
+              </div>
+
+              <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
+                <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd Pul</div>
+                <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
+                  {Number(managerVault?.manager_cash_amount || 0).toLocaleString()} <span className="text-xs font-normal">UZS</span>
+                </div>
+                <div className="text-[11px] text-emerald-300/80 mt-1">Boshqaruvchi kassasidagi naqd</div>
+              </div>
+
+              <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
+                <div className="text-xs font-bold text-cyan-300">Afinaj Qilingan Toza Oltin</div>
+                <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
+                  {Number(managerVault?.manager_refined_gold_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                </div>
+                <div className="text-[11px] text-cyan-300/80 mt-1">Afinajdan chiqqan toza oltin zaxirasi</div>
+              </div>
+
+              <div className="bg-indigo-950 text-white p-4 rounded-3xl border border-indigo-800 shadow-sm">
+                <div className="text-xs font-bold text-indigo-300">Bozordan Xarid Qilingan Oltin</div>
+                <div className="text-2xl font-black font-mono text-indigo-300 mt-1">
+                  {Number(managerVault?.manager_purchased_gold_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                </div>
+                <div className="text-[11px] text-indigo-300/80 mt-1">Naqd pulga sotib olingan oltin</div>
+              </div>
+            </div>
+          )}
+
+          {/* Dedicated Kassa & Seyf quick action links when on cash view */}
+          {activeVaultSection === "cash" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Link
+                href="/sales/app/refining"
+                className="p-5 rounded-2xl bg-gradient-to-r from-cyan-950/40 to-slate-900 border border-cyan-500/30 hover:border-cyan-400 transition flex items-center justify-between group shadow-sm"
               >
-                {busy ? "Saqlanmoqda..." : "🔬 Afinaj Partiyasini Saqlash (Pateriya Qayd Qilish)"}
-              </button>
-            </form>
-
-            {/* Form 2: Tovar Olish (Naqd Pulga Oltin Xarid Qilish) */}
-            <form
-              onSubmit={(e) => void handleCreateGoldPurchase(e)}
-              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
-            >
-              <div className="border-b pb-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                  Varaqa: &quot;Tovar olish&quot;
-                </span>
-                <h3 className="text-lg font-black text-slate-900 mt-2">Tovar Olish (Naqdga Oltin Xarid Qilish)</h3>
-                <p className="text-xs text-slate-500">
-                  Kassadagi naqd pulga oltin sotib olish. Kassadagi naqd pul kamayadi, seyfdagi oltin ko&apos;payadi. Zavod qarzi o&apos;zgarmaydi!
-                </p>
-              </div>
-
-              <div className="space-y-3 text-sm">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Yetkazib Beruvchi / Bozor Nomi:</label>
-                  <input
-                    type="text"
-                    placeholder="Masalan: Bozor, Usta Akmal..."
-                    value={buySupplier}
-                    onChange={(e) => setBuySupplier(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Sarflangan Naqd (UZS):</label>
-                    <input
-                      type="number"
-                      step="1000"
-                      min="1000"
-                      value={buyCash}
-                      onChange={(e) => {
-                        setBuyCash(e.target.value);
-                        const c = parseFloat(e.target.value);
-                        const r = parseFloat(buyRate);
-                        if (c > 0 && r > 0 && !buyWeight) {
-                          setBuyWeight((c / r).toFixed(4));
-                        }
-                      }}
-                      placeholder="18000000"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-emerald-700"
-                      required
-                    />
+                  <div className="text-cyan-400 font-bold text-sm group-hover:underline">
+                    ⚗️ Afinaj & Lom Pateriya Bo&apos;limiga O&apos;tish
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">1 g Kursi (UZS):</label>
-                    <input
-                      type="number"
-                      step="1000"
-                      min="1000"
-                      value={buyRate}
-                      onChange={(e) => setBuyRate(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
-                      required
-                    />
+                  <div className="text-xs text-slate-400 mt-0.5">
+                    Yig&apos;ilgan lomni eritish va toza quyma (995) olish amaliyoti
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Olingan Oltin Vazni (g):</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      min="0.0001"
-                      value={buyWeight}
-                      onChange={(e) => setBuyWeight(e.target.value)}
-                      placeholder="20.0000"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Probasi:</label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="375"
-                      max="1000"
-                      value={buyProba}
-                      onChange={(e) => setBuyProba(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Live Preview */}
-                <div className="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono">
-                  <div className="flex justify-between text-emerald-900">
-                    <span>Sarflangan naqd pul:</span>
-                    <span className="font-bold">{(parseFloat(buyCash) || 0).toLocaleString()} UZS</span>
-                  </div>
-                  <div className="flex justify-between text-emerald-900">
-                    <span>Olingan oltin vazni:</span>
-                    <span className="font-bold">{parseFloat(buyWeight) || 0} g ({parseFloat(buyProba) || 585} proba)</span>
-                  </div>
-                  <div className="flex justify-between text-emerald-950 font-black border-t border-emerald-300 pt-1 text-sm">
-                    <span>585 Ekvivalenti:</span>
-                    <span>{(((parseFloat(buyWeight) || 0) * (parseFloat(buyProba) || 585)) / 585.0).toFixed(4)} g</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
-                  <input
-                    type="text"
-                    placeholder="Bozor yoki tovar tafsiloti..."
-                    value={buyNotes}
-                    onChange={(e) => setBuyNotes(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={busy}
-                className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-md transition"
+                <span className="text-cyan-400 font-bold text-lg group-hover:translate-x-1 transition">→</span>
+              </Link>
+              <Link
+                href="/sales/app/purchases"
+                className="p-5 rounded-2xl bg-gradient-to-r from-emerald-950/40 to-slate-900 border border-emerald-500/30 hover:border-emerald-400 transition flex items-center justify-between group shadow-sm"
               >
-                {busy ? "Saqlanmoqda..." : "💵 Oltin Xaridini Qayd Etish"}
-              </button>
-            </form>
-          </div>
+                <div>
+                  <div className="text-emerald-400 font-bold text-sm group-hover:underline">
+                    🪙 Naqdga Oltin Xarid Bo&apos;limiga O&apos;tish
+                  </div>
+                  <div className="text-xs text-slate-400 mt-0.5">
+                    Kassadagi naqd pulga bozordan oltin sotib olish (&quot;Tovar olish&quot;)
+                  </div>
+                </div>
+                <span className="text-emerald-400 font-bold text-lg group-hover:translate-x-1 transition">→</span>
+              </Link>
+            </div>
+          )}
+
+          {/* Operational Forms (Refining and/or Purchases) */}
+          {(activeVaultSection === "all" || activeVaultSection === "refining" || activeVaultSection === "purchases") && (
+            <div className={activeVaultSection === "all" ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : "max-w-2xl"}>
+              {/* Form 1: Afinaj — Lom Pateriya */}
+              {(activeVaultSection === "all" || activeVaultSection === "refining") && (
+                <form
+                  onSubmit={(e) => void handleCreateRefiningBatch(e)}
+                  className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
+                >
+                  <div className="border-b pb-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-600 bg-cyan-50 px-2.5 py-1 rounded-full border border-cyan-200">
+                      Varaqa: &quot;Lom pateriya&quot;
+                    </span>
+                    <h3 className="text-lg font-black text-slate-900 mt-2">Afinaj (Eritish & Qayta Ishlash)</h3>
+                    <p className="text-xs text-slate-500">
+                      Lom oltinni eritish va tozalash. Yo&apos;qotish (pateriya) faqat boshqaruvchi hisobiga yoziladi, zavod qarzi o&apos;zgarmaydi!
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Kiruvchi Lom Vazni (g):</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          min="0.0001"
+                          value={refInputScrap}
+                          onChange={(e) => setRefInputScrap(e.target.value)}
+                          placeholder="Masalan: 50.0000"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Eritilgan Vazn (g):</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          min="0.0001"
+                          value={refMeltedWeight}
+                          onChange={(e) => setRefMeltedWeight(e.target.value)}
+                          placeholder="Eritgandan so'ng"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Chiqqan Toza Vazn (g):</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          min="0.0001"
+                          value={refFineWeight}
+                          onChange={(e) => setRefFineWeight(e.target.value)}
+                          placeholder="Afinajdan chiqqan"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Toza Oltin Probasi:</label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="900"
+                          max="1000"
+                          value={refFineProba}
+                          onChange={(e) => setRefFineProba(e.target.value)}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-cyan-800"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Live Preview */}
+                    <div className="bg-cyan-50/70 p-3 rounded-2xl border border-cyan-200 text-xs space-y-1 font-mono">
+                      <div className="flex justify-between text-cyan-900">
+                        <span>Eritish yo&apos;qotishi (kuya):</span>
+                        <span className="font-bold">
+                          {Math.max(0, (parseFloat(refInputScrap) || 0) - (parseFloat(refMeltedWeight) || 0)).toFixed(4)} g
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-cyan-900">
+                        <span>585 Ekvivalenti:</span>
+                        <span className="font-bold">
+                          {(((parseFloat(refFineWeight) || 0) * (parseFloat(refFineProba) || 995)) / 585.0).toFixed(4)} g
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-rose-950 font-black border-t border-cyan-300 pt-1 text-sm">
+                        <span>Jami Yo&apos;qotish (Lom Pateriya):</span>
+                        <span>
+                          {Math.max(0, (parseFloat(refInputScrap) || 0) - (((parseFloat(refFineWeight) || 0) * (parseFloat(refFineProba) || 995)) / 585.0)).toFixed(4)} g
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-cyan-800 font-sans mt-1">
+                        ℹ️ Pateriya to&apos;liq boshqaruvchi hisobiga yoziladi, zavod qarzi o&apos;zgarmaydi.
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
+                      <input
+                        type="text"
+                        placeholder="Usta / laboratoriya izohi..."
+                        value={refNotes}
+                        onChange={(e) => setRefNotes(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="w-full py-3 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs rounded-xl shadow-md transition"
+                  >
+                    {busy ? "Saqlanmoqda..." : "🔬 Afinaj Partiyasini Saqlash (Pateriya Qayd Qilish)"}
+                  </button>
+                </form>
+              )}
+
+              {/* Form 2: Tovar Olish (Naqd Pulga Oltin Xarid Qilish) */}
+              {(activeVaultSection === "all" || activeVaultSection === "purchases") && (
+                <form
+                  onSubmit={(e) => void handleCreateGoldPurchase(e)}
+                  className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
+                >
+                  <div className="border-b pb-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                      Varaqa: &quot;Tovar olish&quot;
+                    </span>
+                    <h3 className="text-lg font-black text-slate-900 mt-2">Tovar Olish (Naqdga Oltin Xarid Qilish)</h3>
+                    <p className="text-xs text-slate-500">
+                      Kassadagi naqd pulga oltin sotib olish. Kassadagi naqd pul kamayadi, seyfdagi oltin ko&apos;payadi. Zavod qarzi o&apos;zgarmaydi!
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Yetkazib Beruvchi / Bozor Nomi:</label>
+                      <input
+                        type="text"
+                        placeholder="Masalan: Bozor, Usta Akmal..."
+                        value={buySupplier}
+                        onChange={(e) => setBuySupplier(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Sarflangan Naqd (UZS):</label>
+                        <input
+                          type="number"
+                          step="1000"
+                          min="1000"
+                          value={buyCash}
+                          onChange={(e) => {
+                            setBuyCash(e.target.value);
+                            const c = parseFloat(e.target.value);
+                            const r = parseFloat(buyRate);
+                            if (c > 0 && r > 0 && !buyWeight) {
+                              setBuyWeight((c / r).toFixed(4));
+                            }
+                          }}
+                          placeholder="18000000"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-emerald-700"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">1 g Kursi (UZS):</label>
+                        <input
+                          type="number"
+                          step="1000"
+                          min="1000"
+                          value={buyRate}
+                          onChange={(e) => setBuyRate(e.target.value)}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Olingan Oltin Vazni (g):</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          min="0.0001"
+                          value={buyWeight}
+                          onChange={(e) => setBuyWeight(e.target.value)}
+                          placeholder="20.0000"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Probasi:</label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="375"
+                          max="1000"
+                          value={buyProba}
+                          onChange={(e) => setBuyProba(e.target.value)}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Live Preview */}
+                    <div className="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono">
+                      <div className="flex justify-between text-emerald-900">
+                        <span>Sarflangan naqd pul:</span>
+                        <span className="font-bold">{(parseFloat(buyCash) || 0).toLocaleString()} UZS</span>
+                      </div>
+                      <div className="flex justify-between text-emerald-900">
+                        <span>Olingan oltin vazni:</span>
+                        <span className="font-bold">{parseFloat(buyWeight) || 0} g ({parseFloat(buyProba) || 585} proba)</span>
+                      </div>
+                      <div className="flex justify-between text-emerald-950 font-black border-t border-emerald-300 pt-1 text-sm">
+                        <span>585 Ekvivalenti:</span>
+                        <span>{(((parseFloat(buyWeight) || 0) * (parseFloat(buyProba) || 585)) / 585.0).toFixed(4)} g</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
+                      <input
+                        type="text"
+                        placeholder="Bozor yoki tovar tafsiloti..."
+                        value={buyNotes}
+                        onChange={(e) => setBuyNotes(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-md transition"
+                  >
+                    {busy ? "Saqlanmoqda..." : "💵 Oltin Xaridini Qayd Etish"}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
 
           {/* Tables: Refining Batches & Gold Purchases */}
           <div className="space-y-4">
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="font-bold text-slate-900 text-sm">Afinaj Partiyalari Ro&apos;yxati (&quot;Lom pateriya&quot;)</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 text-slate-700 border-b font-bold">
-                    <tr>
-                      <th className="p-2.5">Partiya №</th>
-                      <th className="p-2.5">Sana</th>
-                      <th className="p-2.5 text-right">Kiruvchi Lom (g)</th>
-                      <th className="p-2.5 text-right">Eritilgan (g)</th>
-                      <th className="p-2.5 text-right">Toza Oltin (g)</th>
-                      <th className="p-2.5 text-right">Toza Proba</th>
-                      <th className="p-2.5 text-right">585 Eq (g)</th>
-                      <th className="p-2.5 text-right text-rose-700">Yo&apos;qotish (g)</th>
-                      <th className="p-2.5 text-right text-rose-700">% Pateriya</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y font-mono">
-                    {refiningBatches.map((b) => (
-                      <tr key={b.id} className="hover:bg-slate-50">
-                        <td className="p-2.5 font-bold text-slate-900">{b.batch_no}</td>
-                        <td className="p-2.5 text-slate-600">{b.batch_date}</td>
-                        <td className="p-2.5 text-right font-bold">{Number(b.input_scrap_grams).toFixed(4)}</td>
-                        <td className="p-2.5 text-right">{Number(b.melted_weight_grams).toFixed(4)}</td>
-                        <td className="p-2.5 text-right font-bold text-cyan-800">{Number(b.output_fine_grams).toFixed(4)}</td>
-                        <td className="p-2.5 text-right">{b.output_fine_proba}</td>
-                        <td className="p-2.5 text-right font-black">{Number(b.output_585_equiv_grams).toFixed(4)}</td>
-                        <td className="p-2.5 text-right font-bold text-rose-700">{Number(b.total_loss_grams).toFixed(4)}</td>
-                        <td className="p-2.5 text-right font-black text-rose-700">{b.loss_pct}%</td>
-                      </tr>
-                    ))}
-                    {refiningBatches.length === 0 && (
+            {(activeVaultSection === "all" || activeVaultSection === "cash" || activeVaultSection === "refining") && (
+              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <h3 className="font-bold text-slate-900 text-sm">Afinaj Partiyalari Ro&apos;yxati (&quot;Lom pateriya&quot;)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 text-slate-700 border-b font-bold">
                       <tr>
-                        <td colSpan={9} className="p-6 text-center text-slate-400 font-sans">
-                          Hozircha afinaj partiyalari mavjud emas.
-                        </td>
+                        <th className="p-2.5">Partiya №</th>
+                        <th className="p-2.5">Sana</th>
+                        <th className="p-2.5 text-right">Kiruvchi Lom (g)</th>
+                        <th className="p-2.5 text-right">Eritilgan (g)</th>
+                        <th className="p-2.5 text-right">Toza Oltin (g)</th>
+                        <th className="p-2.5 text-right">Toza Proba</th>
+                        <th className="p-2.5 text-right">585 Eq (g)</th>
+                        <th className="p-2.5 text-right text-rose-700">Yo&apos;qotish (g)</th>
+                        <th className="p-2.5 text-right text-rose-700">% Pateriya</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y font-mono">
+                      {refiningBatches.map((b) => (
+                        <tr key={b.id} className="hover:bg-slate-50">
+                          <td className="p-2.5 font-bold text-slate-900">{b.batch_no}</td>
+                          <td className="p-2.5 text-slate-600">{b.batch_date}</td>
+                          <td className="p-2.5 text-right font-bold">{Number(b.input_scrap_grams).toFixed(4)}</td>
+                          <td className="p-2.5 text-right">{Number(b.melted_weight_grams).toFixed(4)}</td>
+                          <td className="p-2.5 text-right font-bold text-cyan-800">{Number(b.output_fine_grams).toFixed(4)}</td>
+                          <td className="p-2.5 text-right">{b.output_fine_proba}</td>
+                          <td className="p-2.5 text-right font-black">{Number(b.output_585_equiv_grams).toFixed(4)}</td>
+                          <td className="p-2.5 text-right font-bold text-rose-700">{Number(b.total_loss_grams).toFixed(4)}</td>
+                          <td className="p-2.5 text-right font-black text-rose-700">{b.loss_pct}%</td>
+                        </tr>
+                      ))}
+                      {refiningBatches.length === 0 && (
+                        <tr>
+                          <td colSpan={9} className="p-6 text-center text-slate-400 font-sans">
+                            Hozircha afinaj partiyalari mavjud emas.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="font-bold text-slate-900 text-sm">Oltin Xaridlari Tarixi (&quot;Tovar olish&quot;)</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 text-slate-700 border-b font-bold">
-                    <tr>
-                      <th className="p-2.5">Xarid №</th>
-                      <th className="p-2.5">Sana</th>
-                      <th className="p-2.5">Yetkazib Beruvchi</th>
-                      <th className="p-2.5 text-right">Sarflangan Naqd (UZS)</th>
-                      <th className="p-2.5 text-right">Kurs (UZS/g)</th>
-                      <th className="p-2.5 text-right">Vazn (g)</th>
-                      <th className="p-2.5 text-right">Proba</th>
-                      <th className="p-2.5 text-right font-bold text-emerald-800">585 Eq (g)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y font-mono">
-                    {goldPurchases.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50">
-                        <td className="p-2.5 font-bold text-slate-900">{p.purchase_no}</td>
-                        <td className="p-2.5 text-slate-600">{p.purchase_date}</td>
-                        <td className="p-2.5 font-sans font-medium text-slate-800">{p.supplier_name}</td>
-                        <td className="p-2.5 text-right font-bold text-emerald-700">{Number(p.cash_spent_uzs).toLocaleString()}</td>
-                        <td className="p-2.5 text-right text-slate-600">{Number(p.rate_per_gram).toLocaleString()}</td>
-                        <td className="p-2.5 text-right font-bold">{Number(p.gold_weight_grams).toFixed(4)}</td>
-                        <td className="p-2.5 text-right">{p.proba}</td>
-                        <td className="p-2.5 text-right font-black text-emerald-800">{Number(p.equiv_585_grams).toFixed(4)}</td>
-                      </tr>
-                    ))}
-                    {goldPurchases.length === 0 && (
+            {(activeVaultSection === "all" || activeVaultSection === "cash" || activeVaultSection === "purchases") && (
+              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <h3 className="font-bold text-slate-900 text-sm">Oltin Xaridlari Tarixi (&quot;Tovar olish&quot;)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 text-slate-700 border-b font-bold">
                       <tr>
-                        <td colSpan={8} className="p-6 text-center text-slate-400 font-sans">
-                          Hozircha oltin xaridlari mavjud emas.
-                        </td>
+                        <th className="p-2.5">Xarid №</th>
+                        <th className="p-2.5">Sana</th>
+                        <th className="p-2.5">Yetkazib Beruvchi</th>
+                        <th className="p-2.5 text-right">Sarflangan Naqd (UZS)</th>
+                        <th className="p-2.5 text-right">Kurs (UZS/g)</th>
+                        <th className="p-2.5 text-right">Vazn (g)</th>
+                        <th className="p-2.5 text-right">Proba</th>
+                        <th className="p-2.5 text-right font-bold text-emerald-800">585 Eq (g)</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y font-mono">
+                      {goldPurchases.map((p) => (
+                        <tr key={p.id} className="hover:bg-slate-50">
+                          <td className="p-2.5 font-bold text-slate-900">{p.purchase_no}</td>
+                          <td className="p-2.5 text-slate-600">{p.purchase_date}</td>
+                          <td className="p-2.5 font-sans font-medium text-slate-800">{p.supplier_name}</td>
+                          <td className="p-2.5 text-right font-bold text-emerald-700">{Number(p.cash_spent_uzs).toLocaleString()}</td>
+                          <td className="p-2.5 text-right text-slate-600">{Number(p.rate_per_gram).toLocaleString()}</td>
+                          <td className="p-2.5 text-right font-bold">{Number(p.gold_weight_grams).toFixed(4)}</td>
+                          <td className="p-2.5 text-right">{p.proba}</td>
+                          <td className="p-2.5 text-right font-black text-emerald-800">{Number(p.equiv_585_grams).toFixed(4)}</td>
+                        </tr>
+                      ))}
+                      {goldPurchases.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="p-6 text-center text-slate-400 font-sans">
+                            Hozircha oltin xaridlari mavjud emas.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
