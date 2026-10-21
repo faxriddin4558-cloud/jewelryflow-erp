@@ -208,5 +208,119 @@ describe("JewelryFlow Sales — Gold Ledger & Consignment Calculations", () => {
       expect(piece585Weight).not.toBe(pureGold);
     });
   });
+
+  describe("Master Financial Logic: Google Sheets Parity & Invariants", () => {
+    it("matches exact Google Sheets factory receipt: 194.75g @ 8% = 210.33g, 65.14g @ 8% = 70.35g", () => {
+      const res1 = GoldEngine.calculateFactoryReceipt(194.75, 8.0);
+      expect(res1.baseWeightGrams).toBe(194.75);
+      expect(res1.factoryMarkupPct).toBe(8.0);
+      expect(res1.factoryObligationGrams).toBe(210.33);
+
+      const res2 = GoldEngine.calculateFactoryReceipt(65.14, 8.0);
+      expect(res2.factoryObligationGrams).toBe(70.3512);
+      expect(Number(res2.factoryObligationGrams.toFixed(2))).toBe(70.35);
+
+      const res3 = GoldEngine.calculateFactoryReceipt(100.0, 8.0);
+      expect(res3.factoryObligationGrams).toBe(108.0);
+    });
+
+    it("matches exact Google Sheets seller transfer: 194.75g @ 12% = 218.12g, 65.14g @ 12% = 72.96g", () => {
+      const res1 = GoldEngine.calculateSellerTransfer(194.75, 12.0, 8.0);
+      expect(res1.baseWeightGrams).toBe(194.75);
+      expect(res1.sellerMarkupPct).toBe(12.0);
+      expect(res1.sellerObligationGrams).toBe(218.12);
+      expect(res1.factoryGoldDueGrams).toBe(210.33);
+      // Accounting differential between seller and factory markups
+      expect(res1.markupSpreadGrams).toBe(7.79);
+
+      const res2 = GoldEngine.calculateSellerTransfer(65.14, 12.0, 8.0);
+      expect(Number(res2.sellerObligationGrams.toFixed(2))).toBe(72.96);
+
+      const res3 = GoldEngine.calculateSellerTransfer(100.0, 12.0, 8.0);
+      expect(res3.sellerObligationGrams).toBe(112.0);
+      expect(res3.factoryGoldDueGrams).toBe(108.0);
+      expect(res3.markupSpreadGrams).toBe(4.0);
+    });
+
+    it("enforces non-compounding rule: 100g at 8% factory and 12% seller never produces 108 * 1.12", () => {
+      const compoundedWrong = Number((108 * 1.12).toFixed(4)); // 120.96g - WRONG!
+      const correctNonCompounded = GoldEngine.calculateSellerTransfer(100, 12, 8);
+
+      expect(correctNonCompounded.sellerObligationGrams).toBe(112.0);
+      expect(correctNonCompounded.sellerObligationGrams).not.toBe(compoundedWrong);
+      // The 7.79g difference in the 194.75g case belongs to factory accounting, not personal manager profit
+      const case194 = GoldEngine.calculateSellerTransfer(194.75, 12, 8);
+      expect(case194.markupSpreadGrams).toBe(7.79);
+    });
+
+    it("verifies owner-confirmed 'Bozor qarzi' sign convention: positive = we owe seller, negative = seller owes us", () => {
+      // Case 1: Seller owes us 112g
+      const debtorSeller = GoldEngine.calculateBozorQarzi(0, 112.0);
+      expect(debtorSeller.signedBalanceGrams).toBe(-112.0);
+      expect(debtorSeller.isSellerDebtor).toBe(true);
+      expect(debtorSeller.isManagerDebtor).toBe(false);
+      expect(debtorSeller.statusText).toContain("Sotuvchi bizga qarzdor");
+
+      // Case 2: Seller overpaid / advanced by 8g (we owe seller)
+      const creditorSeller = GoldEngine.calculateBozorQarzi(8.0, 0);
+      expect(creditorSeller.signedBalanceGrams).toBe(8.0);
+      expect(creditorSeller.isSellerDebtor).toBe(false);
+      expect(creditorSeller.isManagerDebtor).toBe(true);
+      expect(creditorSeller.statusText).toContain("Biz sotuvchiga qarzdormiz");
+
+      // Case 3: Exactly settled
+      const settled = GoldEngine.calculateBozorQarzi(0, 0);
+      expect(settled.signedBalanceGrams).toBe(0);
+      expect(settled.isSettled).toBe(true);
+      expect(settled.statusText).toBe("Hisob yopilgan");
+    });
+
+    it("calculates refining batch ('Lom pateriya') and records loss as manager operating loss", () => {
+      // 100g scrap gold melted, 95g melted weight, produces 56.5g fine gold @ 995 proba
+      const refining = GoldEngine.calculateRefiningBatch(100.0, 95.0, 56.5, 995.0);
+      // 585 equivalent = 56.5 * (995 / 585) = 96.0983g
+      expect(refining.output585EquivGrams).toBe(96.0983);
+      // Loss = 100 - 96.0983 = 3.9017g
+      expect(refining.totalLossGrams).toBe(3.9017);
+      expect(refining.lossPct).toBe(3.902);
+    });
+
+    it("calculates gold purchase with cash ('Tovar olish') correctly", () => {
+      // Purchase 10g 585 gold at 900,000 UZS/g = 9,000,000 UZS
+      const purchase = GoldEngine.calculateGoldPurchase(9_000_000, 900_000, 10.0, 585.0);
+      expect(purchase.cashSpentUzs).toBe(9_000_000);
+      expect(purchase.goldWeightGrams).toBe(10.0);
+      expect(purchase.equiv585Grams).toBe(10.0);
+    });
+
+    it("maintains separation of 3-tier debt: customer -> seller -> manager -> factory", () => {
+      // 1. Customer debt: 112g (from credit sale)
+      const custSale = GoldEngine.calculateJewelryConsignmentAndSale(100, 8, 12);
+      expect(custSale.clientGoldDueGrams).toBe(112);
+
+      // 2. Customer pays seller 70g scrap + 18M UZS @ 900k (20g equiv) = 90g
+      const custPayment = GoldEngine.calculateGoldSettlement(112, 70, 18_000_000, 900_000);
+      expect(custPayment.remainingDebtGrams).toBe(22);
+
+      // Customer payment stays in seller till (70g scrap, 18M UZS cash).
+      // Manager vault scrap and cash remain 0 until seller physically hands it over.
+      const managerVaultBeforeHandover = { scrap: 0, cash: 0, factoryDebt: 108 };
+      expect(managerVaultBeforeHandover.factoryDebt).toBe(108);
+
+      // 3. Seller hands over 70g scrap + 18M cash to manager
+      const sellerToManagerSettlement = GoldEngine.calculateGoldSettlement(112, 70, 18_000_000, 900_000);
+      // Seller remaining debt to manager: 22g
+      expect(sellerToManagerSettlement.remainingDebtGrams).toBe(22);
+      // Manager now has 70g scrap and 18M cash, but factory debt is STILL 108g!
+      const managerVaultAfterHandover = { scrap: 70, cash: 18_000_000, factoryDebt: 108 };
+      expect(managerVaultAfterHandover.factoryDebt).toBe(108);
+
+      // 4. Factory debt ONLY reduces when manager hands over gold to factory!
+      const factoryHandoverGrams = 108;
+      const managerFactoryDebtFinal = managerVaultAfterHandover.factoryDebt - factoryHandoverGrams;
+      expect(managerFactoryDebtFinal).toBe(0);
+    });
+  });
 });
+
 

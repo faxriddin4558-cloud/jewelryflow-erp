@@ -180,7 +180,11 @@ test.describe('8. JewelryFlow Sales — Barcode Inventory, Scanner 564, BarTende
     // -------------------------------------------------------------------------
     console.log('[STEP 4.3] Performing full browser reload to verify model persistence...');
     await page.reload();
-    await page.click('button:has-text("BarTender Modellar")');
+    await expect(page.locator('h1:has-text("Direktor Savdo & Konsignatsiya Paneli")')).toBeVisible({ timeout: 15000 });
+    await page.waitForTimeout(500);
+    const bartenderTabBtn = page.locator('button:has-text("BarTender Modellar")');
+    await bartenderTabBtn.click();
+    await expect(page.locator('text=BarTender Modellar Boshqaruvi').first()).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=Zarina').first()).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=JF-M-0002').first()).toBeVisible();
     await expect(page.locator('text=Malika').first()).toBeVisible();

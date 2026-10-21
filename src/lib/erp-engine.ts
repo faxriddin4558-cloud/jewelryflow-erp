@@ -889,12 +889,100 @@ export interface SellerGoldAccountRow {
   total_client_debt_grams?: number;
   seller_till_scrap_grams?: number;
   seller_till_cash_amount?: number;
+  total_transferred_physical_g?: number;
+  total_seller_obligation_g?: number;
+  total_settled_to_manager_g?: number;
+  seller_owes_manager_g?: number;
+  manager_owes_seller_g?: number;
+  bozor_qarzi_signed_g?: number;
   seller?: {
     id: string;
     name?: string;
     full_name?: string;
     phone?: string;
   };
+}
+
+export interface FactoryReceiptRow {
+  id: string;
+  organization_id?: string;
+  receipt_no: string;
+  receipt_date: string;
+  product_id?: string | null;
+  model_id?: string | null;
+  product_name: string;
+  proba: number;
+  quantity: number;
+  original_physical_g: number;
+  factory_markup_pct: number;
+  factory_obligation_g: number;
+  transferred_physical_g: number;
+  available_physical_g: number;
+  status: "in_manager_stock" | "partially_transferred" | "fully_transferred" | "returned_to_factory";
+  notes?: string | null;
+  created_at?: string;
+}
+
+export interface ManagerVaultAccountRow {
+  organization_id: string;
+  manager_scrap_grams: number;
+  manager_cash_amount: number;
+  manager_refined_gold_grams: number;
+  manager_purchased_gold_grams: number;
+  total_factory_received_g: number;
+  total_factory_obligation_g: number;
+  total_factory_handed_over_g: number;
+  current_factory_obligation_g: number;
+  updated_at?: string;
+}
+
+export interface RefiningBatchRow {
+  id: string;
+  organization_id?: string;
+  batch_no: string;
+  batch_date: string;
+  input_scrap_grams: number;
+  melted_weight_grams: number;
+  output_fine_grams: number;
+  output_fine_proba: number;
+  output_585_equiv_grams: number;
+  total_loss_grams: number;
+  loss_pct: number;
+  operator_id?: string | null;
+  status: "completed" | "pending" | "cancelled";
+  notes?: string | null;
+  created_at?: string;
+}
+
+export interface GoldPurchaseRow {
+  id: string;
+  organization_id?: string;
+  purchase_no: string;
+  purchase_date: string;
+  supplier_name: string;
+  cash_spent_uzs: number;
+  rate_per_gram: number;
+  gold_weight_grams: number;
+  proba: number;
+  equiv_585_grams: number;
+  payment_method?: string;
+  notes?: string | null;
+  created_at?: string;
+}
+
+export interface FactoryGoldHandoverRow {
+  id: string;
+  organization_id?: string;
+  handover_no: string;
+  handover_date: string;
+  source_type: "refined_gold" | "purchased_gold" | "scrap_gold";
+  physical_weight_g: number;
+  proba: number;
+  agreed_equivalent_g: number;
+  factory_recipient: string;
+  factory_accepted: boolean;
+  notes?: string | null;
+  created_at?: string;
 }
 
 export interface DailyGoldRateRow {
@@ -1062,6 +1150,136 @@ export const GoldEngine = {
       appliedToDebtGrams,
       excessGoldGrams,
       remainingDebtGrams,
+    };
+  },
+
+  /**
+   * Calculates Factory -> Manager receipt obligation ("Zavod bilan").
+   * Formula: factory_obligation_g = original_physical_g * (1 + factory_markup_pct / 100)
+   */
+  calculateFactoryReceipt: (
+    originalPhysicalG: number | string,
+    factoryMarkupPct: number | string
+  ) => {
+    const w = Math.max(0, Number(originalPhysicalG || 0));
+    const fPct = Math.max(0, Number(factoryMarkupPct || 0));
+    const factoryObligationGrams = Number((w * (1 + fPct / 100)).toFixed(4));
+    return {
+      baseWeightGrams: w,
+      factoryMarkupPct: fPct,
+      factoryObligationGrams,
+    };
+  },
+
+  /**
+   * Calculates Manager -> Seller transfer obligation ("O'tush").
+   * Non-compounding: Both factory and seller markups apply independently to original physical grams.
+   */
+  calculateSellerTransfer: (
+    originalPhysicalG: number | string,
+    sellerMarkupPct: number | string,
+    factoryMarkupPct: number | string = 8.0
+  ) => {
+    const w = Math.max(0, Number(originalPhysicalG || 0));
+    const sPct = Math.max(0, Number(sellerMarkupPct || 0));
+    const fPct = Math.max(0, Number(factoryMarkupPct || 0));
+    const sellerObligationGrams = Number((w * (1 + sPct / 100)).toFixed(4));
+    const factoryGoldDueGrams = Number((w * (1 + fPct / 100)).toFixed(4));
+    const markupSpreadGrams = Number((sellerObligationGrams - factoryGoldDueGrams).toFixed(4));
+
+    return {
+      baseWeightGrams: w,
+      sellerMarkupPct: sPct,
+      sellerObligationGrams,
+      factoryMarkupPct: fPct,
+      factoryGoldDueGrams,
+      markupSpreadGrams,
+    };
+  },
+
+  /**
+   * Calculates signed 'Bozor qarzi' according to owner-confirmed Google Sheets convention:
+   * POSITIVE (+) = We owe seller (manager_owes_seller)
+   * NEGATIVE (-) = Seller owes us (seller_owes_manager)
+   */
+  calculateBozorQarzi: (
+    managerOwesSellerG: number | string,
+    sellerOwesManagerG: number | string
+  ) => {
+    const mOwes = Math.max(0, Number(managerOwesSellerG || 0));
+    const sOwes = Math.max(0, Number(sellerOwesManagerG || 0));
+    const signedBalanceGrams = Number((mOwes - sOwes).toFixed(4));
+
+    let statusText: string;
+    if (signedBalanceGrams < -0.0001) {
+      statusText = `Sotuvchi bizga qarzdor: ${Math.abs(signedBalanceGrams).toFixed(2)}g`;
+    } else if (signedBalanceGrams > 0.0001) {
+      statusText = `Biz sotuvchiga qarzdormiz: ${signedBalanceGrams.toFixed(2)}g`;
+    } else {
+      statusText = "Hisob yopilgan";
+    }
+
+    return {
+      managerOwesSellerGrams: mOwes,
+      sellerOwesManagerGrams: sOwes,
+      signedBalanceGrams,
+      statusText,
+      isSellerDebtor: signedBalanceGrams < -0.0001,
+      isManagerDebtor: signedBalanceGrams > 0.0001,
+      isSettled: Math.abs(signedBalanceGrams) <= 0.0001,
+    };
+  },
+
+  /**
+   * Calculates Refining Batch ("Lom pateriya") with loss borne exclusively by manager.
+   */
+  calculateRefiningBatch: (
+    inputScrapG: number | string,
+    meltedWeightG: number | string,
+    outputFineG: number | string,
+    outputFineProba: number | string = 999.0
+  ) => {
+    const inW = Math.max(0, Number(inputScrapG || 0));
+    const meltW = Math.max(0, Number(meltedWeightG || 0));
+    const fineW = Math.max(0, Number(outputFineG || 0));
+    const fineP = Number(outputFineProba || 999.0);
+
+    const output585EquivGrams = Number((fineW * (fineP / 585.0)).toFixed(4));
+    const totalLossGrams = inW > 0 ? Number(Math.max(0, inW - output585EquivGrams).toFixed(4)) : 0;
+    const lossPct = inW > 0 ? Number(((totalLossGrams / inW) * 100).toFixed(3)) : 0;
+
+    return {
+      inputScrapGrams: inW,
+      meltedWeightGrams: meltW,
+      outputFineGrams: fineW,
+      outputFineProba: fineP,
+      output585EquivGrams,
+      totalLossGrams,
+      lossPct,
+    };
+  },
+
+  /**
+   * Calculates Gold Purchase ("Tovar olish" — cash-to-gold).
+   */
+  calculateGoldPurchase: (
+    cashSpentUzs: number | string,
+    ratePerGram: number | string,
+    goldWeightG: number | string,
+    proba: number | string = 585.0
+  ) => {
+    const cash = Math.max(0, Number(cashSpentUzs || 0));
+    const rate = Math.max(0, Number(ratePerGram || 0));
+    const goldW = Math.max(0, Number(goldWeightG || 0));
+    const pr = Number(proba || 585.0);
+    const equiv585Grams = Number((goldW * (pr / 585.0)).toFixed(4));
+
+    return {
+      cashSpentUzs: cash,
+      ratePerGram: rate,
+      goldWeightGrams: goldW,
+      proba: pr,
+      equiv585Grams,
     };
   },
 

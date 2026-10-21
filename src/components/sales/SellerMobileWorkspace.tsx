@@ -664,6 +664,7 @@ export function SellerMobileWorkspace() {
   const myTillScrap = Number(myTillAccount?.seller_till_scrap_grams || 0);
   const myTillCash = Number(myTillAccount?.seller_till_cash_amount || 0);
   const myFactoryObligation = Number(myTillAccount?.current_factory_obligation_grams || myTillAccount?.remaining_factory_gold_due_grams || 0);
+  const myBozorQarzi = myTillAccount?.bozor_qarzi_signed_g !== undefined ? Number(myTillAccount.bozor_qarzi_signed_g) : -myFactoryObligation;
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 pb-12">
@@ -736,9 +737,11 @@ export function SellerMobileWorkspace() {
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">
-            <div className="text-xs font-bold text-slate-200">Zavod Majburiyati</div>
-            <div className="text-base font-black font-mono text-rose-400 mt-0.5">
-              {myFactoryObligation.toFixed(4)} <span className="text-xs font-bold text-slate-200">g</span>
+            <div className="text-xs font-bold text-slate-200">Bozor Qarzi</div>
+            <div className={`text-base font-black font-mono mt-0.5 ${
+              myBozorQarzi < 0 ? "text-rose-400" : myBozorQarzi > 0 ? "text-emerald-400" : "text-slate-200"
+            }`}>
+              {myBozorQarzi > 0 ? "+" : ""}{myBozorQarzi.toFixed(4)} <span className="text-xs font-bold text-slate-200">g</span>
             </div>
           </div>
         </div>
@@ -1614,33 +1617,62 @@ export function SellerMobileWorkspace() {
       {activeTab === "till" && (
         <div className="space-y-4">
           <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Mening Kassam va Zavod Majburiyatim</h2>
+            <h2 className="text-base font-bold text-slate-900">Mening Kassam va Bozor Qarzi (Boshqaruvchi Oldidagi Majburiyat)</h2>
+
+            {/* Signed Bozor Qarzi Card */}
+            <div className={`p-4 rounded-2xl border space-y-1 ${
+              myBozorQarzi < 0
+                ? "bg-rose-50 border-rose-200 text-rose-950"
+                : myBozorQarzi > 0
+                ? "bg-emerald-50 border-emerald-200 text-emerald-950"
+                : "bg-slate-50 border-slate-200 text-slate-800"
+            }`}>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span>Bozor Qarzi:</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                  myBozorQarzi < 0
+                    ? "bg-rose-200 text-rose-800"
+                    : myBozorQarzi > 0
+                    ? "bg-emerald-200 text-emerald-800"
+                    : "bg-slate-200 text-slate-700"
+                }`}>
+                  {myBozorQarzi < 0
+                    ? "Qarzingiz bor (-)"
+                    : myBozorQarzi > 0
+                    ? "Haqqingiz bor (+)"
+                    : "0 qarz"}
+                </span>
+              </div>
+              <div className="text-2xl font-black font-mono">
+                {myBozorQarzi > 0 ? "+" : ""}{myBozorQarzi.toFixed(4)} <span className="text-xs font-normal">g</span>
+              </div>
+              <div className="text-[11px] opacity-80">
+                {myBozorQarzi < 0
+                  ? `Boshqaruvchiga ${Math.abs(myBozorQarzi).toFixed(4)} g lom qaytarishingiz kerak.`
+                  : myBozorQarzi > 0
+                  ? `Boshqaruvchi sizga ${myBozorQarzi.toFixed(4)} g ortiqcha tushum (avans) uchun qarzdor.`
+                  : "Barcha hisob-kitoblar to'liq yopilgan."}
+              </div>
+            </div>
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center p-3 bg-amber-50 rounded-2xl border border-amber-200">
-                <span className="font-bold text-amber-900">Yig&apos;ilgan Lom Oltin:</span>
+                <span className="font-bold text-amber-900">Kassamdagi Lom Oltin:</span>
                 <span className="font-mono font-black text-amber-950 text-base">
                   {myTillScrap.toFixed(4)} g
                 </span>
               </div>
 
               <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-2xl border border-emerald-200">
-                <span className="font-bold text-emerald-900">Yig&apos;ilgan Naqd Pul:</span>
+                <span className="font-bold text-emerald-900">Kassamdagi Naqd Pul:</span>
                 <span className="font-mono font-black text-emerald-950 text-base">
                   {myTillCash.toLocaleString()} UZS
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center p-3 bg-rose-50 rounded-2xl border border-rose-200">
-                <span className="font-bold text-rose-900">Zavod Oldidagi Majburiyat:</span>
-                <span className="font-mono font-black text-rose-950 text-base">
-                  {myFactoryObligation.toFixed(4)} g
                 </span>
               </div>
             </div>
 
             <div className="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-2xl border">
-              ℹ️ Qoida 5: Siz mijozdan pul yoki lom olganingizda, u sizning shaxsiy kassangizga tushadi. Direktor sizdan ushbu lom yoki pulni qabul qilmaguncha zavod oldidagi majburiyatingiz kamaymaydi.
+              ℹ️ Qoida 5: Mijoz to&apos;lagan lom yoki naqd pul sizning kassangizda saqlanadi. Boshqaruvchi sizdan ushbu lom yoki pulni qabul qilib olgandagina bozor qarzingiz kamayadi.
             </div>
           </div>
 
