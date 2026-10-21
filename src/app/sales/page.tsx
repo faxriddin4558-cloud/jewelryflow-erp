@@ -286,7 +286,7 @@ export default function SalesPage() {
               JewelryFlow Savdo & Kassa
             </h1>
             <p className="text-[11px] text-slate-500 hidden sm:block">
-              Konsignatsiya, sof oltin majburiyatlari va mobil savdo tizimi
+              Konsignatsiya, 585 lom oltin majburiyatlari va mobil savdo tizimi
             </p>
           </div>
         </div>

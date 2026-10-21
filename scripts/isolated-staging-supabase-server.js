@@ -284,13 +284,140 @@ async function applyAllMigrations(db) {
 // ==============================================================================
 // 4. Seed Staging Data (Separated from user data, never overwrites on restart)
 // ==============================================================================
+async function ensureSalesDemoData(db) {
+  // Ensure Organizations
+  try {
+    await db.exec(`
+      INSERT INTO public.organizations (id, code, name, status)
+      VALUES 
+        ('${ORG_GOLDIA_ID}'::uuid, 'goldia', 'Goldia Jewelry Factory', 'ACTIVE'),
+        ('${ORG_SAMARKAND_ID}'::uuid, 'samarkand', 'Samarkand Gold Factory', 'ACTIVE')
+      ON CONFLICT (code) DO NOTHING;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] org ensure skipped:', err.message);
+  }
+
+  // Ensure Users into auth.users and public.employees (including Jamshid Sotuvchi)
+  for (const u of TEST_USERS) {
+    try {
+      await db.exec(`
+        INSERT INTO auth.users (id, email, raw_user_meta_data)
+        VALUES (
+          '${u.id}'::uuid,
+          '${u.email}',
+          '{"role": "${u.role}", "organization_id": "${u.organization_id}", "full_name": "${u.full_name}", "is_demo": true}'::jsonb
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+
+        INSERT INTO public.employees (
+          id, user_id, name, full_name, email, role, role_type, department, organization_id, is_active, status
+        )
+        VALUES (
+          '${u.id}'::uuid,
+          '${u.id}'::uuid,
+          '${u.full_name}',
+          '${u.full_name}',
+          '${u.email}',
+          '${u.role}',
+          '${u.role_type || (u.role === 'admin' ? 'director' : u.role === 'sales' ? 'seller' : u.role)}',
+          '${u.department || (u.role === 'admin' ? 'Rahbariyat' : u.role === 'sales' ? 'Savdo' : 'Ishlab chiqarish')}',
+          '${u.organization_id}'::uuid,
+          true,
+          'active'
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          role = EXCLUDED.role,
+          role_type = EXCLUDED.role_type,
+          department = EXCLUDED.department,
+          full_name = EXCLUDED.full_name,
+          name = EXCLUDED.name,
+          organization_id = EXCLUDED.organization_id;
+      `);
+    } catch (err) {
+      console.warn('[SEED-NOTICE] user ensure skipped:', err.message);
+    }
+  }
+
+  // Ensure Finished Products for Sales
+  try {
+    await db.exec(`
+      INSERT INTO public.products (
+        id, name, title, category, weight, proba, stock, quantity, organization_id
+      )
+      VALUES
+        ('66666666-6666-4001-8001-000000000001'::uuid, 'Uzuk Italiya 585 - 14.5g', 'Uzuk Italiya', 'Uzuk', 14.5000, 585.00, 10, 10, '${ORG_GOLDIA_ID}'::uuid),
+        ('66666666-6666-4001-8001-000000000002'::uuid, 'Zanjir Bismark 585 - 22.8g', 'Zanjir Bismark', 'Zanjir', 22.8000, 585.00, 5, 5, '${ORG_GOLDIA_ID}'::uuid),
+        ('66666666-6666-4001-8001-000000000003'::uuid, 'Bilaguzuk Klassik 585 - 35.0g', 'Bilaguzuk Klassik', 'Bilaguzuk', 35.0000, 585.00, 3, 3, '${ORG_GOLDIA_ID}'::uuid),
+        ('66666666-6666-4001-8001-000000000100'::uuid, 'Zargarlik To''plami 585 - 100.0g', 'Zargarlik To''plami', 'Komplekt', 100.0000, 585.00, 10, 10, '${ORG_GOLDIA_ID}'::uuid)
+      ON CONFLICT (id) DO UPDATE SET
+        stock = EXCLUDED.stock,
+        quantity = EXCLUDED.quantity,
+        weight = EXCLUDED.weight,
+        proba = EXCLUDED.proba;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] products ensure skipped:', err.message);
+  }
+
+  // Ensure Demo Customer
+  try {
+    await db.exec(`
+      INSERT INTO public.customers (
+        id, customer_code, contact_name, company_name, phone, organization_id, seller_id
+      )
+      VALUES (
+        '77777777-7777-4001-8001-000000000001'::uuid,
+        'CUST-GOLDIA-01',
+        'Rustam Zargar',
+        'Chorsu Savdo Markazi',
+        '+998901234567',
+        '${ORG_GOLDIA_ID}'::uuid,
+        '11111111-1111-4001-8001-000000000007'::uuid
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        contact_name = EXCLUDED.contact_name,
+        company_name = EXCLUDED.company_name;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] customers ensure skipped:', err.message);
+  }
+
+  // Ensure Daily Gold Rate
+  try {
+    await db.exec(`
+      INSERT INTO public.daily_gold_rates (
+        id, organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed, set_by, notes
+      )
+      VALUES (
+        '55555555-5555-4001-8001-000000000001'::uuid,
+        '${ORG_GOLDIA_ID}'::uuid,
+        current_date,
+        585.00,
+        900000.00,
+        'UZS',
+        true,
+        '11111111-1111-4001-8001-000000000001'::uuid,
+        'Goldia zavodi pilot 585 lom narxi (900,000 UZS/g)'
+      )
+      ON CONFLICT (organization_id, rate_date, proba) DO NOTHING;
+    `);
+  } catch (err) {
+    console.warn('[SEED-NOTICE] daily_gold_rates ensure skipped:', err.message);
+  }
+}
+
 async function seedStagingData(db, force = false) {
+  // Always verify sales demo data exists idempotently
+  await ensureSalesDemoData(db);
+
   if (!force) {
     const metaCheck = await db.query(
       "SELECT value FROM public.local_db_metadata WHERE key = 'initial_seed_completed';"
     );
     if (metaCheck.rows.length > 0) {
-      console.log('[DATABASE-SEED] Persistent database already initialized. Preserving user records and skipping initial seed.');
+      console.log('[DATABASE-SEED] Persistent database verified. Preserving user records and verified idempotent seeds.');
       return;
     }
   }
@@ -420,10 +547,13 @@ async function seedStagingData(db, force = false) {
       VALUES
         ('66666666-6666-4001-8001-000000000001'::uuid, 'Uzuk Italiya 585 - 14.5g', 'Uzuk Italiya', 'Uzuk', 14.5000, 585.00, 10, 10, '${ORG_GOLDIA_ID}'::uuid),
         ('66666666-6666-4001-8001-000000000002'::uuid, 'Zanjir Bismark 585 - 22.8g', 'Zanjir Bismark', 'Zanjir', 22.8000, 585.00, 5, 5, '${ORG_GOLDIA_ID}'::uuid),
-        ('66666666-6666-4001-8001-000000000003'::uuid, 'Bilaguzuk Klassik 585 - 35.0g', 'Bilaguzuk Klassik', 'Bilaguzuk', 35.0000, 585.00, 3, 3, '${ORG_GOLDIA_ID}'::uuid)
+        ('66666666-6666-4001-8001-000000000003'::uuid, 'Bilaguzuk Klassik 585 - 35.0g', 'Bilaguzuk Klassik', 'Bilaguzuk', 35.0000, 585.00, 3, 3, '${ORG_GOLDIA_ID}'::uuid),
+        ('66666666-6666-4001-8001-000000000100'::uuid, 'Zargarlik To''plami 585 - 100.0g', 'Zargarlik To''plami', 'Komplekt', 100.0000, 585.00, 10, 10, '${ORG_GOLDIA_ID}'::uuid)
       ON CONFLICT (id) DO UPDATE SET
         stock = EXCLUDED.stock,
-        quantity = EXCLUDED.quantity;
+        quantity = EXCLUDED.quantity,
+        weight = EXCLUDED.weight,
+        proba = EXCLUDED.proba;
     `);
   } catch (err) {
     console.warn('[SEED-NOTICE] products seed skipped:', err.message);

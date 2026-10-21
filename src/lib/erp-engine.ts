@@ -25,11 +25,13 @@ export type ErpRole =
   | "master"
   | "worker"
   | "accountant"
+  | "seller"
   | "Director"
   | "Production Manager"
   | "Supervisor"
   | "Warehouse"
   | "Accountant"
+  | "Seller"
   | "Worker";
 
 export interface ErpUser {
@@ -379,6 +381,8 @@ const ROLE_PERMISSIONS: Record<ErpRole, ReadonlySet<string>> = {
   Warehouse: new Set(["edit_inventory", "manage_products"]),
   accountant: new Set(["edit_sales", "edit_salary_rate"]),
   Accountant: new Set(["edit_sales", "edit_salary_rate"]),
+  seller: new Set(["edit_sales", "record_sale", "record_client_settlement", "surrender_to_factory"]),
+  Seller: new Set(["edit_sales", "record_sale", "record_client_settlement", "surrender_to_factory"]),
   worker: new Set([]),
   Worker: new Set([]),
 };
@@ -427,14 +431,10 @@ function classifyRoleToken(token?: string | null): ErpRole | null {
   if (lower === "warehouse" || lower === "inventory_manager" || lower === "omborchi") {
     return "Warehouse";
   }
-  if (
-    lower === "accountant" ||
-    lower === "sales" ||
-    lower === "seller" ||
-    lower === "sotuvchi" ||
-    lower === "buxgalter" ||
-    lower === "hisobchi"
-  ) {
+  if (lower === "seller" || lower === "sotuvchi") {
+    return "Seller";
+  }
+  if (lower === "accountant" || lower === "sales" || lower === "buxgalter" || lower === "hisobchi") {
     return "Accountant";
   }
   if (
@@ -535,8 +535,12 @@ export const RBAC = {
   },
   canAccessModule: (role: ErpRole, moduleName: string): boolean => {
     if (!moduleName) return false;
+    const lower = moduleName.toLowerCase();
+    if (role === "seller" || role === "Seller") {
+      return lower === "sales" || lower === "orders" || lower === "dashboard";
+    }
     if (role === "worker" || role === "Worker") {
-      return !RESTRICTED_WORKER_MODULES.has(moduleName.toLowerCase());
+      return !RESTRICTED_WORKER_MODULES.has(lower);
     }
     return Boolean(ROLE_PERMISSIONS[role]);
   },

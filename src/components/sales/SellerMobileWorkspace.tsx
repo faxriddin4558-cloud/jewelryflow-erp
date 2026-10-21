@@ -120,8 +120,12 @@ export function SellerMobileWorkspace() {
         sellerId
           ? supabase.from("seller_gold_accounts").select("*").eq("seller_id", sellerId).maybeSingle()
           : Promise.resolve({ data: null }),
-        supabase.from("customers").select("id, customer_code, contact_name, phone, company_name").order("contact_name", { ascending: true }),
-        supabase.from("client_gold_accounts").select("*, customer:customer_id(id, contact_name, customer_code, phone)"),
+        sellerId && !isAdminOrDir
+          ? supabase.from("customers").select("id, customer_code, contact_name, phone, company_name, seller_id").or(`seller_id.eq.${sellerId},seller_id.is.null`).order("contact_name", { ascending: true })
+          : supabase.from("customers").select("id, customer_code, contact_name, phone, company_name, seller_id").order("contact_name", { ascending: true }),
+        sellerId && !isAdminOrDir
+          ? supabase.from("client_gold_accounts").select("*, customer:customer_id(id, contact_name, customer_code, phone)").eq("seller_id", sellerId)
+          : supabase.from("client_gold_accounts").select("*, customer:customer_id(id, contact_name, customer_code, phone)"),
       ]);
 
       if (ratesRes.data && ratesRes.data.length > 0) {
@@ -158,6 +162,19 @@ export function SellerMobileWorkspace() {
   useEffect(() => {
     void loadSellerWorkspace();
   }, [loadSellerWorkspace]);
+
+  // Telegram Mini App WebView integration
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void } } }).Telegram?.WebApp) {
+      try {
+        const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void } } }).Telegram?.WebApp;
+        tg?.ready();
+        tg?.expand();
+      } catch (err) {
+        console.warn("Telegram WebApp initialization error:", err);
+      }
+    }
+  }, []);
 
   // Switch seller if Director
   const handleSwitchSeller = (sellerId: string) => {
@@ -439,32 +456,32 @@ export function SellerMobileWorkspace() {
         </div>
       )}
 
-      {/* Top Header Card (Mobile-first) */}
-      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-indigo-900 text-white rounded-3xl p-5 shadow-xl">
+      {/* Top Header Card (Mobile-first, high contrast) */}
+      <div className="bg-slate-950 text-white rounded-3xl p-5 shadow-2xl border-2 border-slate-800">
         <div className="flex justify-between items-start gap-2">
           <div>
-            <div className="text-[10px] uppercase font-bold tracking-widest text-blue-200">
+            <div className="text-xs uppercase font-extrabold tracking-widest text-amber-400">
               Sotuvchi Mobil Ish Joyi
             </div>
-            <h1 className="text-xl font-black mt-0.5">
+            <h1 className="text-xl md:text-2xl font-black mt-1 text-white">
               {currentSeller?.name || currentSeller?.full_name || "Sotuvchi"}
             </h1>
-            <div className="text-xs text-blue-200 mt-0.5">
-              Bugungi Lom Kursi: <span className="font-mono font-bold text-amber-300">{activeRatePerGram.toLocaleString()} UZS/g</span>
+            <div className="text-xs text-slate-200 mt-1 font-medium">
+              Bugungi Lom Kursi: <span className="font-mono font-black text-amber-300">{activeRatePerGram.toLocaleString()} UZS/g</span>
             </div>
           </div>
 
           {/* Director simulation selector */}
           {isDirectorViewing && (
             <div className="text-right">
-              <span className="text-[10px] text-blue-200 block mb-1">Sotuvchini tanlash:</span>
+              <span className="text-[11px] text-slate-300 block mb-1 font-bold">Sotuvchini tanlash:</span>
               <select
                 value={currentSeller?.id || ""}
                 onChange={(e) => handleSwitchSeller(e.target.value)}
-                className="bg-white/20 text-white text-xs rounded-xl p-1.5 font-bold outline-none border border-white/20"
+                className="bg-slate-900 text-white text-xs rounded-xl p-2 font-bold outline-none border-2 border-slate-700 focus:border-amber-400"
               >
                 {allSellers.map((s) => (
-                  <option key={s.id} value={s.id} className="text-slate-900">
+                  <option key={s.id} value={s.id} className="bg-slate-900 text-white">
                     {s.name || s.full_name}
                   </option>
                 ))}
@@ -474,74 +491,74 @@ export function SellerMobileWorkspace() {
         </div>
 
         {/* Seller Till Summary Banner */}
-        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/15 text-center">
-          <div className="bg-white/10 rounded-2xl p-2.5">
-            <div className="text-[10px] text-blue-200">Kassamdagi Lom</div>
-            <div className="text-sm font-black font-mono text-amber-300 mt-0.5">
-              {myTillScrap.toFixed(4)} <span className="text-[10px] font-normal text-white">g</span>
+        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800 text-center">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">
+            <div className="text-xs font-bold text-slate-200">Kassamdagi Lom</div>
+            <div className="text-base font-black font-mono text-amber-300 mt-0.5">
+              {myTillScrap.toFixed(4)} <span className="text-xs font-bold text-slate-200">g</span>
             </div>
           </div>
-          <div className="bg-white/10 rounded-2xl p-2.5">
-            <div className="text-[10px] text-blue-200">Kassamdagi Naqd</div>
-            <div className="text-sm font-black font-mono text-emerald-300 mt-0.5">
-              {myTillCash.toLocaleString()} <span className="text-[10px] font-normal text-white">UZS</span>
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">
+            <div className="text-xs font-bold text-slate-200">Kassamdagi Naqd</div>
+            <div className="text-base font-black font-mono text-emerald-400 mt-0.5">
+              {myTillCash.toLocaleString()} <span className="text-[10px] font-bold text-slate-200">UZS</span>
             </div>
           </div>
-          <div className="bg-white/10 rounded-2xl p-2.5">
-            <div className="text-[10px] text-blue-200">Zavod Majburiyati</div>
-            <div className="text-sm font-black font-mono text-rose-300 mt-0.5">
-              {myFactoryObligation.toFixed(4)} <span className="text-[10px] font-normal text-white">g</span>
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">
+            <div className="text-xs font-bold text-slate-200">Zavod Majburiyati</div>
+            <div className="text-base font-black font-mono text-rose-400 mt-0.5">
+              {myFactoryObligation.toFixed(4)} <span className="text-xs font-bold text-slate-200">g</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Touch-Friendly Navigation Tabs */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-200/80 p-1.5 rounded-2xl text-[11px] font-bold text-slate-700">
+      {/* Touch-Friendly Navigation Tabs (Touch targets >= 44px) */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 bg-slate-900 border-2 border-slate-800 p-2 rounded-2xl text-xs font-bold shadow-md">
         <button
           onClick={() => setActiveTab("stock")}
-          className={`py-2 rounded-xl transition ${
-            activeTab === "stock" ? "bg-white text-blue-700 shadow-sm" : "hover:bg-white/50"
+          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+            activeTab === "stock" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
           💎 Mahsulotlar ({availableConsignments.length})
         </button>
         <button
           onClick={() => setActiveTab("sale")}
-          className={`py-2 rounded-xl transition ${
-            activeTab === "sale" ? "bg-white text-blue-700 shadow-sm" : "hover:bg-white/50"
+          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+            activeTab === "sale" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
           🏷️ Nasiya
         </button>
         <button
           onClick={() => setActiveTab("settle")}
-          className={`py-2 rounded-xl transition ${
-            activeTab === "settle" ? "bg-white text-blue-700 shadow-sm" : "hover:bg-white/50"
+          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+            activeTab === "settle" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
           💰 To&apos;lov Olish
         </button>
         <button
           onClick={() => setActiveTab("debts")}
-          className={`py-2 rounded-xl transition ${
-            activeTab === "debts" ? "bg-white text-blue-700 shadow-sm" : "hover:bg-white/50"
+          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+            activeTab === "debts" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
           📒 Qarzlar ({debtorsList.length})
         </button>
         <button
           onClick={() => setActiveTab("customer")}
-          className={`py-2 rounded-xl transition ${
-            activeTab === "customer" ? "bg-white text-blue-700 shadow-sm" : "hover:bg-white/50"
+          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+            activeTab === "customer" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
           ➕ Yangi Mijoz
         </button>
         <button
           onClick={() => setActiveTab("till")}
-          className={`py-2 rounded-xl transition ${
-            activeTab === "till" ? "bg-white text-blue-700 shadow-sm" : "hover:bg-white/50"
+          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+            activeTab === "till" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
           🏦 Kassam
@@ -625,8 +642,9 @@ export function SellerMobileWorkspace() {
           <div className="space-y-3">
             {/* Consignment Selection */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Topshiriladigan Mahsulot:</label>
+              <label htmlFor="saleConsignmentSelect" className="block text-xs font-bold text-slate-700 mb-1">Topshiriladigan Mahsulot:</label>
               <select
+                id="saleConsignmentSelect"
                 value={saleConsignmentId}
                 onChange={(e) => setSaleConsignmentId(e.target.value)}
                 className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs focus:ring-2 focus:ring-blue-500 outline-none"
@@ -644,7 +662,7 @@ export function SellerMobileWorkspace() {
             {/* Customer Selection */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="text-xs font-bold text-slate-700">Mijoz:</label>
+                <label htmlFor="saleCustomerSelect" className="text-xs font-bold text-slate-700">Mijoz:</label>
                 <button
                   type="button"
                   onClick={() => setActiveTab("customer")}
@@ -654,6 +672,7 @@ export function SellerMobileWorkspace() {
                 </button>
               </div>
               <select
+                id="saleCustomerSelect"
                 value={saleCustomerId}
                 onChange={(e) => setSaleCustomerId(e.target.value)}
                 className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs focus:ring-2 focus:ring-blue-500 outline-none"
@@ -670,10 +689,11 @@ export function SellerMobileWorkspace() {
 
             {/* Client Markup Selection — Strictly restricted to active director approved markups */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor="saleClientMarkupSelect" className="block text-xs font-bold text-slate-700 mb-1">
                 Mijozga Sotish Ustamasi (%):
               </label>
               <select
+                id="saleClientMarkupSelect"
                 value={saleClientMarkup}
                 onChange={(e) => setSaleClientMarkup(e.target.value)}
                 className="w-full p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-900 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -758,8 +778,9 @@ export function SellerMobileWorkspace() {
           <div className="space-y-3">
             {/* Customer Selection */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Mijoz:</label>
+              <label htmlFor="settleCustomerSelect" className="block text-xs font-bold text-slate-700 mb-1">Mijoz:</label>
               <select
+                id="settleCustomerSelect"
                 value={settleCustomerId}
                 onChange={(e) => setSettleCustomerId(e.target.value)}
                 className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs focus:ring-2 focus:ring-blue-500 outline-none"
@@ -801,8 +822,9 @@ export function SellerMobileWorkspace() {
             {/* Scrap Gold Input */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Lom Oltin (g):</label>
+                <label htmlFor="settleScrapWeightInput" className="block text-xs font-bold text-slate-700 mb-1">Lom Oltin (g):</label>
                 <input
+                  id="settleScrapWeightInput"
                   type="number"
                   step="0.0001"
                   min="0"
@@ -813,8 +835,9 @@ export function SellerMobileWorkspace() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Proba:</label>
+                <label htmlFor="settleScrapPuritySelect" className="block text-xs font-bold text-slate-700 mb-1">Proba:</label>
                 <select
+                  id="settleScrapPuritySelect"
                   value={settleScrapPurity}
                   onChange={(e) => setSettleScrapPurity(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs"
@@ -828,10 +851,11 @@ export function SellerMobileWorkspace() {
 
             {/* Cash Input */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor="settleCashAmountInput" className="block text-xs font-bold text-slate-700 mb-1">
                 Naqd Pul (UZS) (Kurs: {activeRatePerGram.toLocaleString()} UZS/g):
               </label>
               <input
+                id="settleCashAmountInput"
                 type="number"
                 step="1000"
                 min="0"
@@ -912,8 +936,9 @@ export function SellerMobileWorkspace() {
           ) : (
             debtorsList.map((acc) => {
               const curDebt = Number(acc.current_debt_grams || acc.current_gold_debt_grams || 0);
-              const custName = acc.customer?.contact_name || "Mijoz";
-              const custCode = acc.customer?.customer_code || "KODSIZ";
+              const relatedCustomer = acc.customer || customers.find(c => String(c.id) === String(acc.customer_id));
+              const custName = relatedCustomer?.contact_name || "Mijoz";
+              const custCode = relatedCustomer?.customer_code || "KODSIZ";
 
               return (
                 <div
@@ -924,8 +949,8 @@ export function SellerMobileWorkspace() {
                     <div>
                       <div className="font-bold text-slate-900 text-sm">{custName}</div>
                       <div className="text-[11px] font-mono text-blue-600 font-bold">{custCode}</div>
-                      {acc.customer?.phone && (
-                        <div className="text-xs text-slate-500">{acc.customer.phone}</div>
+                      {relatedCustomer?.phone && (
+                        <div className="text-xs text-slate-500">{relatedCustomer.phone}</div>
                       )}
                     </div>
                     <div className="text-right">

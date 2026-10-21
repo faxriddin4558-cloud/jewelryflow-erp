@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { resolveEmployeeRole, RBAC, type EmployeeRow } from "../erp-engine";
 
 describe("Local Auth & Role Resolution Verification", () => {
-  it("resolves seller and sotuvchi to Accountant (which grants sales permissions)", () => {
+  it("resolves seller and sotuvchi to Seller with minimal sales permissions (isolated from salary/inventory)", () => {
     const sellerEmp: Partial<EmployeeRow> = {
       id: "11111111-1111-4001-8001-000000000007",
       user_id: "11111111-1111-4001-8001-000000000007",
@@ -14,12 +14,25 @@ describe("Local Auth & Role Resolution Verification", () => {
     };
 
     const resolvedRole = resolveEmployeeRole(sellerEmp);
-    expect(resolvedRole).toBe("Accountant");
+    expect(resolvedRole).toBe("Seller");
 
-    // Check RBAC permissions for Accountant
+    // Check RBAC permissions for Seller
     expect(RBAC.hasPermission(resolvedRole, "edit_sales")).toBe(true);
-    expect(RBAC.hasPermission(resolvedRole, "edit_salary_rate")).toBe(true);
+    expect(RBAC.hasPermission(resolvedRole, "record_sale")).toBe(true);
+    expect(RBAC.hasPermission(resolvedRole, "record_client_settlement")).toBe(true);
+    expect(RBAC.hasPermission(resolvedRole, "surrender_to_factory")).toBe(true);
+
+    // Security isolation guards: Seller MUST NOT have accountant salary or inventory rights
+    expect(RBAC.hasPermission(resolvedRole, "edit_salary_rate")).toBe(false);
+    expect(RBAC.hasPermission(resolvedRole, "edit_inventory")).toBe(false);
+    expect(RBAC.hasPermission(resolvedRole, "create_batch")).toBe(false);
+
+    // Module access guards: Seller can access sales/orders but NOT manufacturing/settings
     expect(RBAC.canAccessModule(resolvedRole, "sales")).toBe(true);
+    expect(RBAC.canAccessModule(resolvedRole, "orders")).toBe(true);
+    expect(RBAC.canAccessModule(resolvedRole, "manufacturing")).toBe(false);
+    expect(RBAC.canAccessModule(resolvedRole, "settings")).toBe(false);
+    expect(RBAC.canAccessModule(resolvedRole, "calculator")).toBe(false);
   });
 
   it("resolves director to Director role and grants director permissions", () => {

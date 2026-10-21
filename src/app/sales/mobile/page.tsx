@@ -7,16 +7,16 @@ export default function SalesMobilePage() {
   return (
     <div className="p-3 md:p-6 space-y-4 text-slate-800 max-w-2xl mx-auto">
       {/* Top quick navigation */}
-      <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-200 shadow-sm text-xs">
-        <Link href="/sales" className="text-blue-600 font-bold hover:underline">
+      <div className="flex items-center justify-between bg-slate-900 text-white p-3 rounded-2xl border border-slate-800 shadow-md text-xs">
+        <Link href="/sales" className="text-amber-400 font-bold hover:underline flex items-center gap-1">
           ← Asosiy Savdo
         </Link>
         <div className="flex items-center gap-2">
           <Link
             href="/sales/director"
-            className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-xl border border-amber-200 transition text-[11px]"
+            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl transition text-xs shadow-sm"
           >
-            👑 Direktor
+            👑 Direktor Paneli
           </Link>
         </div>
       </div>

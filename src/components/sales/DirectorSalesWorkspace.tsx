@@ -34,6 +34,7 @@ export function DirectorSalesWorkspace() {
   const [settlements, setSettlements] = useState<GoldSettlementRow[]>([]);
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
+  const [customers, setCustomers] = useState<{ id: string; contact_name: string; customer_code?: string; phone?: string }[]>([]);
 
   // Daily rate form
   const [newRateAmount, setNewRateAmount] = useState<string>("900000");
@@ -89,6 +90,7 @@ export function DirectorSalesWorkspace() {
         ,
         empRes,
         prodRes,
+        custRes,
       ] = await Promise.all([
         supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(20),
         supabase.from("sales_markup_presets").select("*").order("display_order", { ascending: true }),
@@ -97,8 +99,9 @@ export function DirectorSalesWorkspace() {
         supabase.from("client_gold_accounts").select("*, customer:customer_id(id, contact_name, customer_code, phone)"),
         supabase.from("gold_settlements").select("*, customer:customer_id(id, contact_name, customer_code, phone), seller:seller_id(id, name, full_name)").order("created_at", { ascending: false }).limit(50),
         supabase.from("jewelry_sales").select("*, customer:customer_id(id, contact_name, customer_code, phone), seller:seller_id(id, name, full_name)").order("created_at", { ascending: false }).limit(50),
-        supabase.from("employees").select("*").eq("is_active", true),
+        supabase.from("employees").select("*"),
         supabase.from("products").select("*").gt("stock", 0),
+        supabase.from("customers").select("id, contact_name, customer_code, phone"),
       ]);
 
       if (ratesRes.data && ratesRes.data.length > 0) {
@@ -110,13 +113,9 @@ export function DirectorSalesWorkspace() {
       if (sellerAccRes.data) setSellerAccounts(sellerAccRes.data as unknown as SellerGoldAccountRow[]);
       if (clientAccRes.data) setClientAccounts(clientAccRes.data as unknown as ClientGoldAccountRow[]);
       if (settleRes.data) setSettlements(settleRes.data as unknown as GoldSettlementRow[]);
+      if (custRes.data) setCustomers(custRes.data as unknown as { id: string; contact_name: string; customer_code?: string; phone?: string }[]);
       if (empRes.data) {
         setEmployees(empRes.data as EmployeeRow[]);
-        if (!consignSellerId && empRes.data.length > 0) {
-          // Default to first seller or employee
-          const firstSeller = empRes.data.find(e => e.role === "sales" || e.role_type === "seller") || empRes.data[0];
-          setConsignSellerId(String(firstSeller.id));
-        }
       }
       if (prodRes.data) {
         setProducts(prodRes.data as ProductRow[]);
@@ -129,11 +128,43 @@ export function DirectorSalesWorkspace() {
     } catch (err: unknown) {
       notifyError(`Ma'lumotlarni yuklashda xatolik: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [consignProductId, consignSellerId]);
+  }, [consignProductId]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  // Active sellers: strictly exclude director, admin, and management roles
+  const activeSellers = useMemo(() => {
+    return employees.filter(e => {
+      if (e.is_active === false) return false;
+      if (e.employment_status && e.employment_status !== "active") return false;
+      if (e.status && e.status !== "active") return false;
+      const r = (e.role || "").toLowerCase();
+      const rt = (e.role_type || "").toLowerCase();
+      const dept = (e.department || "").toLowerCase();
+      if (
+        r === "admin" ||
+        r === "director" ||
+        rt === "director" ||
+        rt === "admin" ||
+        dept.includes("rahbariyat") ||
+        r === "quality_inspector" ||
+        r === "production_manager" ||
+        r === "inventory_manager"
+      ) {
+        return false;
+      }
+      return (
+        r === "sales" ||
+        r === "seller" ||
+        r === "sotuvchi" ||
+        rt === "seller" ||
+        rt === "sales" ||
+        dept.includes("savdo")
+      );
+    });
+  }, [employees]);
 
   // Factory & Client markups separated
   const factoryPresets = useMemo(() => presets.filter(p => p.type === "factory_markup"), [presets]);
@@ -272,6 +303,11 @@ export function DirectorSalesWorkspace() {
       notifyError("Iltimos, sotuvchi va mahsulotni tanlang!");
       return;
     }
+    const selectedSeller = activeSellers.find(e => String(e.id) === consignSellerId);
+    if (!selectedSeller) {
+      notifyError("Tanlangan xodim sotuvchi emas yoki ruxsati yo'q! Direktor yoki boshqaruv xodimiga mahsulot topshirib bo'lmaydi.");
+      return;
+    }
     const qty = parseInt(consignQty, 10);
     const fPct = parseFloat(consignFactoryMarkup);
     if (!qty || qty <= 0) {
@@ -280,7 +316,6 @@ export function DirectorSalesWorkspace() {
     }
 
     const selectedProd = products.find(p => String(p.id) === consignProductId);
-    const selectedSeller = employees.find(e => String(e.id) === consignSellerId);
 
     setBusy(true);
     try {
@@ -315,6 +350,7 @@ export function DirectorSalesWorkspace() {
 
       notifySuccess(`Konsignatsiya №${data.consignment_no} sotuvchiga muvaffaqiyatli topshirildi!`);
       setConsignNotes("");
+      setConsignSellerId("");
       await loadData();
     } catch (err: unknown) {
       notifyError(`Konsignatsiya topshirishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
@@ -433,34 +469,34 @@ export function DirectorSalesWorkspace() {
       )}
 
       {/* Top Banner & Quick Metrics */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-6 shadow-xl border border-slate-700/50">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
+      <div className="bg-slate-950 text-white rounded-3xl p-6 shadow-2xl border-2 border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
           <div>
-            <div className="text-xs uppercase font-bold tracking-widest text-amber-400 flex items-center gap-2">
+            <div className="text-xs uppercase font-extrabold tracking-widest text-amber-400 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
               Zavod Boshqaruv Markazi
             </div>
-            <h1 className="text-2xl md:text-3xl font-black mt-1">Direktor Savdo & Konsignatsiya Paneli</h1>
-            <p className="text-xs md:text-sm text-slate-300 mt-0.5">
-              Zavod → Sotuvchi → Mijoz zanjiri, dinamik foizlar va qat&apos;iy sof oltin hisobi
+            <h1 className="text-2xl md:text-3xl font-black mt-1 text-white">Direktor Savdo & Konsignatsiya Paneli</h1>
+            <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
+              Zavod → Sotuvchi → Mijoz zanjiri, dinamik foizlar va qat&apos;iy 585 lom oltin hisobi
             </p>
           </div>
 
           {/* Daily Gold Rate Badge */}
-          <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3 px-5 flex items-center gap-4">
+          <div className="bg-slate-900 border-2 border-slate-700 rounded-2xl p-3 px-5 flex items-center gap-4 shadow-lg">
             <div>
-              <div className="text-[11px] text-amber-300 font-semibold uppercase">Bugungi Lom Kursi (585)</div>
+              <div className="text-xs text-amber-300 font-extrabold uppercase">Bugungi Lom Kursi (585)</div>
               <div className="text-xl md:text-2xl font-black font-mono text-white">
                 {dailyRate ? `${Number(dailyRate.rate_per_gram).toLocaleString()} UZS` : "900,000 UZS"}
-                <span className="text-xs font-normal text-slate-300"> / gramm</span>
+                <span className="text-xs font-semibold text-slate-200"> / gramm</span>
               </div>
-              <div className="text-[10px] text-slate-400">
+              <div className="text-[11px] text-slate-300 font-medium">
                 Sana: {dailyRate?.rate_date || new Date().toISOString().split("T")[0]}
               </div>
             </div>
             <button
               onClick={() => setShowRateModal(true)}
-              className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl transition shadow-lg shadow-amber-500/20"
+              className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition shadow-lg shadow-amber-500/20 active:scale-95"
             >
               ⚙️ Yangilash
             </button>
@@ -469,36 +505,36 @@ export function DirectorSalesWorkspace() {
 
         {/* Real-time Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-            <div className="text-slate-400 text-xs font-medium">Sotuvchilardagi Zavod Qarzi</div>
-            <div className="text-xl font-bold font-mono text-amber-300 mt-1">
-              {totalFactoryObligation.toFixed(4)} <span className="text-xs font-normal text-slate-300">g lom</span>
+          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+            <div className="text-slate-200 text-xs font-bold">Sotuvchilardagi Zavod Qarzi</div>
+            <div className="text-2xl font-black font-mono text-amber-300 mt-1">
+              {totalFactoryObligation.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Sotuvchilar qaytarishi shart bo&apos;lgan oltin</div>
+            <div className="text-[11px] text-slate-300 mt-1 font-medium">Sotuvchilar qaytarishi shart bo&apos;lgan oltin</div>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-            <div className="text-slate-400 text-xs font-medium">Sotuvchilar Kassasidagi Lom</div>
-            <div className="text-xl font-bold font-mono text-amber-400 mt-1">
-              {totalSellerTillScrap.toFixed(4)} <span className="text-xs font-normal text-slate-300">g lom</span>
+          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+            <div className="text-slate-200 text-xs font-bold">Sotuvchilar Kassasidagi Lom</div>
+            <div className="text-2xl font-black font-mono text-amber-400 mt-1">
+              {totalSellerTillScrap.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Mijozdan olingan, zavodga berilmagan</div>
+            <div className="text-[11px] text-slate-300 mt-1 font-medium">Mijozdan olingan, zavodga berilmagan</div>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-            <div className="text-slate-400 text-xs font-medium">Sotuvchilar Kassasidagi Naqd Pul</div>
-            <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
-              {totalSellerTillCash.toLocaleString()} <span className="text-xs font-normal text-slate-300">UZS</span>
+          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+            <div className="text-slate-200 text-xs font-bold">Sotuvchilar Kassasidagi Naqd Pul</div>
+            <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
+              {totalSellerTillCash.toLocaleString()} <span className="text-xs font-bold text-slate-100">UZS</span>
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Sotuvchining shaxsiy kassasida yig&apos;ilgan</div>
+            <div className="text-[11px] text-slate-300 mt-1 font-medium">Sotuvchining shaxsiy kassasida yig&apos;ilgan</div>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-            <div className="text-slate-400 text-xs font-medium">Mijozlarning Jami Qarzi</div>
-            <div className="text-xl font-bold font-mono text-rose-300 mt-1">
-              {totalClientDebtGrams.toFixed(4)} <span className="text-xs font-normal text-slate-300">g lom</span>
+          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+            <div className="text-slate-200 text-xs font-bold">Mijozlarning Jami Qarzi</div>
+            <div className="text-2xl font-black font-mono text-rose-400 mt-1">
+              {totalClientDebtGrams.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Barcha sotuvchilar bo&apos;yicha mijozlar qarzi</div>
+            <div className="text-[11px] text-slate-300 mt-1 font-medium">Barcha sotuvchilar bo&apos;yicha mijozlar qarzi</div>
           </div>
         </div>
       </div>
@@ -582,7 +618,9 @@ export function DirectorSalesWorkspace() {
               </div>
             ) : (
               sellerAccounts.map((acc) => {
-                const sellerName = acc.seller?.name || acc.seller?.full_name || "Sotuvchi";
+                const seller = acc.seller || employees.find(e => String(e.id) === String(acc.seller_id));
+                const sellerName = seller?.name || seller?.full_name || "Sotuvchi";
+                const sellerPhone = (seller && "phone" in seller ? (seller as { phone?: string }).phone : undefined) || acc.seller?.phone;
                 const factoryObligation = Number(acc.current_factory_obligation_grams || acc.remaining_factory_gold_due_grams || 0);
                 const tillScrap = Number(acc.seller_till_scrap_grams || 0);
                 const tillCash = Number(acc.seller_till_cash_amount || 0);
@@ -592,7 +630,7 @@ export function DirectorSalesWorkspace() {
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="font-bold text-base text-slate-900">{sellerName}</div>
-                        {acc.seller?.phone && <div className="text-xs text-slate-500">{acc.seller.phone}</div>}
+                        {sellerPhone && <div className="text-xs text-slate-500">{sellerPhone}</div>}
                       </div>
                       <span className="bg-blue-50 text-blue-700 text-[11px] font-bold px-2.5 py-1 rounded-full border border-blue-200">
                         Sotuvchi
@@ -604,7 +642,7 @@ export function DirectorSalesWorkspace() {
                       <div className="text-xl font-black font-mono text-amber-950">
                         {factoryObligation.toFixed(4)} <span className="text-xs font-normal">g lom</span>
                       </div>
-                      <div className="text-[10px] text-amber-700">Zavodga topshirilishi kerak bo&apos;lgan sof qarz</div>
+                      <div className="text-[10px] text-amber-700">Zavodga topshirilishi kerak bo&apos;lgan 585 lom majburiyati</div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-2xl border border-slate-100">
@@ -648,20 +686,28 @@ export function DirectorSalesWorkspace() {
 
             <div className="space-y-3 text-sm">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Sotuvchi:</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Sotuvchi (Faqat faol sotuvchilar):
+                </label>
                 <select
+                  id="consignSellerSelect"
                   value={consignSellerId}
                   onChange={(e) => setConsignSellerId(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-blue-500 outline-none text-xs"
                   required
                 >
-                  <option value="">Sotuvchini tanlang...</option>
-                  {employees.map((emp) => (
+                  <option value="">-- Sotuvchini tanlang (Direktor tanlanmaydi) --</option>
+                  {activeSellers.map((emp) => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.name || emp.full_name} ({emp.role_type || emp.role || "Xodim"})
+                      {emp.name || emp.full_name} ({emp.department || "Savdo"})
                     </option>
                   ))}
                 </select>
+                {activeSellers.length === 0 && (
+                  <p className="text-[11px] text-amber-600 mt-1 font-medium">
+                    Tizimda faol sotuvchi topilmadi.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -854,10 +900,11 @@ export function DirectorSalesWorkspace() {
                   <div className="text-xs text-slate-500">Zavoddan sotuvchiga topshirishda qo&apos;llaniladi</div>
                 </div>
                 <button
+                  id="addFactoryPresetBtn"
                   onClick={() => handleOpenNewPreset("factory_markup")}
                   className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
                 >
-                  + Yangi Foiz
+                  + Yangi Zavod Ustamasi
                 </button>
               </div>
 
@@ -917,10 +964,11 @@ export function DirectorSalesWorkspace() {
                   <div className="text-xs text-slate-500">Sotuvchi mijozga nasiya yozishda faqat bularni tanlay oladi</div>
                 </div>
                 <button
+                  id="addClientPresetBtn"
                   onClick={() => handleOpenNewPreset("client_markup")}
                   className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
                 >
-                  + Yangi Foiz
+                  + Yangi Mijoz Ustamasi
                 </button>
               </div>
 
@@ -951,6 +999,7 @@ export function DirectorSalesWorkspace() {
 
                     <div className="flex items-center gap-2">
                       <button
+                        data-preset-toggle={p.name}
                         onClick={() => handleTogglePresetActive(p)}
                         className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition ${
                           p.is_active
@@ -982,7 +1031,7 @@ export function DirectorSalesWorkspace() {
             <div>
               <h2 className="text-lg font-bold text-slate-900">Mijozlar Umumiy Qarzdorlik Holati</h2>
               <p className="text-xs text-slate-500">
-                Barcha sotuvchilarga tegishli mijozlarning sof oltin qarz va avans hisoblari.
+                Barcha sotuvchilarga tegishli mijozlarning 585 lom oltin qarz va avans hisoblari.
               </p>
             </div>
           </div>
@@ -1001,27 +1050,30 @@ export function DirectorSalesWorkspace() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {clientAccounts.map((c) => (
-                  <tr key={c.customer_id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-2.5 px-3 font-mono font-bold text-blue-700">
-                      {c.customer?.customer_code || "CUST-XXXX"}
-                    </td>
-                    <td className="py-2.5 px-3 font-bold text-slate-900">{c.customer?.contact_name || "Mijoz"}</td>
-                    <td className="py-2.5 px-3 text-slate-600">{c.customer?.phone || "—"}</td>
-                    <td className="py-2.5 px-3 font-mono">{Number(c.total_scrap_paid_grams || 0).toFixed(4)}g</td>
-                    <td className="py-2.5 px-3 font-mono text-emerald-700">
-                      {Number(c.total_cash_paid_amount || 0).toLocaleString()} UZS
-                    </td>
-                    <td className="py-2.5 px-3 font-mono font-black text-rose-600 text-sm">
-                      {Number(c.current_debt_grams || c.current_gold_debt_grams || 0).toFixed(4)}g
-                    </td>
-                    <td className="py-2.5 px-3 font-mono font-bold text-blue-700">
-                      {Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0) > 0
-                        ? `+${Number(c.advance_balance_grams || c.advance_gold_balance_grams).toFixed(4)}g`
-                        : "0.0000g"}
-                    </td>
-                  </tr>
-                ))}
+                {clientAccounts.map((c) => {
+                  const cust = c.customer || customers.find(cu => String(cu.id) === String(c.customer_id));
+                  return (
+                    <tr key={c.customer_id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-2.5 px-3 font-mono font-bold text-blue-700">
+                        {cust?.customer_code || "CUST-XXXX"}
+                      </td>
+                      <td className="py-2.5 px-3 font-bold text-slate-900">{cust?.contact_name || "Mijoz"}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{cust?.phone || "—"}</td>
+                      <td className="py-2.5 px-3 font-mono">{Number(c.total_scrap_paid_grams || 0).toFixed(4)}g</td>
+                      <td className="py-2.5 px-3 font-mono text-emerald-700">
+                        {Number(c.total_cash_paid_amount || 0).toLocaleString()} UZS
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-black text-rose-600 text-sm">
+                        {Number(c.current_debt_grams || c.current_gold_debt_grams || 0).toFixed(4)}g
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-blue-700">
+                        {Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0) > 0
+                          ? `+${Number(c.advance_balance_grams || c.advance_gold_balance_grams).toFixed(4)}g`
+                          : "0.0000g"}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {clientAccounts.length === 0 && (
                   <tr>
                     <td colSpan={7} className="py-6 text-center text-slate-400">
@@ -1055,34 +1107,39 @@ export function DirectorSalesWorkspace() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {settlements.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-2.5 px-3 font-mono font-bold text-blue-700">{s.settlement_no}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        s.direction === "client_to_seller"
-                          ? "bg-purple-100 text-purple-800"
-                          : "bg-emerald-100 text-emerald-800"
-                      }`}>
-                        {s.direction === "client_to_seller" ? "Mijoz → Sotuvchi" : "Sotuvchi → Zavod"}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 font-medium text-slate-800">
-                      {s.customer?.contact_name || s.seller?.name || s.seller?.full_name || "—"}
-                    </td>
-                    <td className="py-2.5 px-3 font-mono">{Number(s.scrap_weight_grams).toFixed(4)}g</td>
-                    <td className="py-2.5 px-3 font-mono text-emerald-700">
-                      {Number(s.cash_paid_amount).toLocaleString()} UZS
-                    </td>
-                    <td className="py-2.5 px-3 font-mono text-slate-500">
-                      {Number(s.gold_rate_applied).toLocaleString()}
-                    </td>
-                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
-                      {Number(s.total_settled_grams).toFixed(4)}g
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-500">{s.settlement_date}</td>
-                  </tr>
-                ))}
+                {settlements.map((s) => {
+                  const cust = s.customer || customers.find(cu => String(cu.id) === String(s.customer_id));
+                  const seller = s.seller || employees.find(e => String(e.id) === String(s.seller_id));
+                  const partyName = cust?.contact_name || seller?.name || seller?.full_name || "—";
+                  return (
+                    <tr key={s.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-2.5 px-3 font-mono font-bold text-blue-700">{s.settlement_no}</td>
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          s.direction === "client_to_seller"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-emerald-100 text-emerald-800"
+                        }`}>
+                          {s.direction === "client_to_seller" ? "Mijoz → Sotuvchi" : "Sotuvchi → Zavod"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-medium text-slate-800">
+                        {partyName}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono">{Number(s.scrap_weight_grams).toFixed(4)}g</td>
+                      <td className="py-2.5 px-3 font-mono text-emerald-700">
+                        {Number(s.cash_paid_amount).toLocaleString()} UZS
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-slate-500">
+                        {Number(s.gold_rate_applied).toLocaleString()}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
+                        {Number(s.total_settled_grams).toFixed(4)}g
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-500">{s.settlement_date}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1283,7 +1340,7 @@ export function DirectorSalesWorkspace() {
               <div>
                 <h3 className="font-bold text-lg text-slate-900">Zavodga Tushumni Qabul Qilish</h3>
                 <div className="text-xs text-slate-500">
-                  Sotuvchi: {surrenderSeller.seller?.name || surrenderSeller.seller?.full_name}
+                  Sotuvchi: {surrenderSeller.seller?.name || surrenderSeller.seller?.full_name || employees.find(e => String(e.id) === String(surrenderSeller.seller_id))?.full_name || "Sotuvchi"}
                 </div>
               </div>
               <button

@@ -79,9 +79,9 @@ async function main() {
       fs.mkdirSync(TEST_RESULTS_DIR, { recursive: true });
     }
 
-    // 4. Start Isolated Staging Supabase Server
+    // 4. Start Isolated Staging Supabase Server (Disposable in-memory PGlite for tests)
     console.log('[STAGING] Booting isolated Supabase staging server on port 54321...');
-    await startStagingServer(54321);
+    await startStagingServer(54321, { isMemory: true });
     console.log('[STAGING] Isolated Supabase staging server ready.');
 
     // 5. Build Next.js with Staging configuration
@@ -111,7 +111,8 @@ async function main() {
     console.log('EXECUTING PLAYWRIGHT BROWSER E2E TESTS');
     console.log('======================================================================\n');
 
-    const playwrightResult = spawn('npx', ['playwright', 'test'], {
+    const extraArgs = process.argv.slice(2);
+    const playwrightResult = spawn('npx', ['playwright', 'test', ...extraArgs], {
       cwd: path.resolve(__dirname, '..'),
       shell: true,
       stdio: 'inherit'
