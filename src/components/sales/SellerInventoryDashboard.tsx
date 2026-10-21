@@ -52,6 +52,8 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts }: Pr
         soldGrams: number;
         availableQty: number;
         availableGrams: number;
+        returnedQty: number;
+        returnedGrams: number;
       }
     > = {};
 
@@ -73,6 +75,8 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts }: Pr
           soldGrams: 0,
           availableQty: 0,
           availableGrams: 0,
+          returnedQty: 0,
+          returnedGrams: 0,
         };
       }
 
@@ -86,6 +90,9 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts }: Pr
       } else if (p.status === "held_by_seller") {
         groups[key].availableQty += 1;
         groups[key].availableGrams = Math.round((groups[key].availableGrams + w) * 10000) / 10000;
+      } else if (p.status === "returned_to_factory") {
+        groups[key].returnedQty += 1;
+        groups[key].returnedGrams = Math.round((groups[key].returnedGrams + w) * 10000) / 10000;
       }
     }
 
@@ -245,10 +252,12 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts }: Pr
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium">
                 {aggregatedInventory.map((item) => {
-                  const isQtyValid = item.availableQty === item.consignedQty - item.soldQty;
+                  const returnedQ = item.returnedQty || 0;
+                  const returnedG = item.returnedGrams || 0;
+                  const isQtyValid = item.availableQty === item.consignedQty - item.soldQty - returnedQ;
                   const isGramsValid =
                     formatGrams(item.availableGrams) ===
-                    formatGrams(item.consignedGrams - item.soldGrams);
+                    formatGrams(Math.max(0, item.consignedGrams - item.soldGrams - returnedG));
                   const isBalanced = isQtyValid && isGramsValid;
 
                   return (

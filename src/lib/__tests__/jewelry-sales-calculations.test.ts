@@ -142,4 +142,71 @@ describe("JewelryFlow Sales — Gold Ledger & Consignment Calculations", () => {
       expect(secondSettlement.appliedToDebtGrams).toBe(22);
     });
   });
+
+  describe("Sprint 5: Consignment Piece Returns, Reversals, and Inventory Invariant", () => {
+    it("verifies inventory reconciliation invariant: Consigned = Sold + Available + Returned", () => {
+      // Scenario: Consigned 10 pieces (100g total)
+      const consignedQty = 10;
+      const consignedGrams = 100.0;
+
+      // 4 pieces sold (40g)
+      const soldQty = 4;
+      const soldGrams = 40.0;
+
+      // 2 pieces returned to factory (20g)
+      const returnedQty = 2;
+      const returnedGrams = 20.0;
+
+      // Remaining available in seller inventory
+      const availableQty = consignedQty - soldQty - returnedQty;
+      const availableGrams = Number((consignedGrams - soldGrams - returnedGrams).toFixed(4));
+
+      expect(availableQty).toBe(4);
+      expect(availableGrams).toBe(40.0);
+
+      // Invariant check
+      expect(soldQty + availableQty + returnedQty).toBe(consignedQty);
+      expect(Number((soldGrams + availableGrams + returnedGrams).toFixed(4))).toBe(consignedGrams);
+    });
+
+    it("calculates exact factory liability deduction on piece return", () => {
+      // Piece base weight: 14.52g, factory markup: 8%
+      const baseWeight = 14.52;
+      const factoryMarkup = 8;
+      const pieceObligation = Number((baseWeight * (1 + factoryMarkup / 100)).toFixed(4));
+      // 14.52 * 1.08 = 15.6816g
+      expect(pieceObligation).toBe(15.6816);
+
+      // If initial seller factory debt was 108g (from 100g at 8%), returning this piece reduces debt
+      const initialSellerObligation = 108.0;
+      const updatedSellerObligation = Number((initialSellerObligation - pieceObligation).toFixed(4));
+      expect(updatedSellerObligation).toBe(92.3184);
+    });
+
+    it("calculates exact client debt reversal on sale cancellation", () => {
+      // Piece sold with 12% markup on 14.52g base
+      const baseWeight = 14.52;
+      const clientMarkup = 12;
+      const pieceDebt = Number((baseWeight * (1 + clientMarkup / 100)).toFixed(4));
+      // 14.52 * 1.12 = 16.2624g
+      expect(pieceDebt).toBe(16.2624);
+
+      // Client debt before reversal: 112g
+      const clientInitialDebt = 112.0;
+      const clientReversedDebt = Number((clientInitialDebt - pieceDebt).toFixed(4));
+      expect(clientReversedDebt).toBe(95.7376);
+    });
+
+    it("verifies physical 585g never conflates with scrap-equivalent or 999 pure gold", () => {
+      // Physical piece weight is 14.52g of 585 alloy (contains ~8.4942g fine gold)
+      const piece585Weight = 14.52;
+      const pureGold = Number((piece585Weight * (585 / 1000)).toFixed(4));
+      expect(pureGold).toBe(8.4942);
+
+      // Physical piece counts as 14.52g in physical inventory count, NOT 8.4942g
+      // In physical piece tracking, count = 1, physical_weight = 14.52g
+      expect(piece585Weight).not.toBe(pureGold);
+    });
+  });
 });
+

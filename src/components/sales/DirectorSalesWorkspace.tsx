@@ -14,6 +14,7 @@ import {
   type EmployeeRow,
   type ProductRow,
   type ConsignmentPieceRow,
+  type JewelrySaleRow,
 } from "@/lib/erp-engine";
 import { SalesReceiptModal, type ReceiptData } from "./SalesReceiptModal";
 import { ScannerDiagnostics } from "./ScannerDiagnostics";
@@ -45,6 +46,7 @@ export function DirectorSalesWorkspace() {
   const [customers, setCustomers] = useState<{ id: string; contact_name: string; customer_code?: string; phone?: string }[]>([]);
   const [models, setModels] = useState<JewelryModelItem[]>([]);
   const [pieces, setPieces] = useState<ConsignmentPieceRow[]>([]);
+  const [sales, setSales] = useState<JewelrySaleRow[]>([]);
 
   // Daily rate form
   const [newRateAmount, setNewRateAmount] = useState<string>("900000");
@@ -97,7 +99,7 @@ export function DirectorSalesWorkspace() {
         sellerAccRes,
         clientAccRes,
         settleRes,
-        ,
+        salesRes,
         empRes,
         prodRes,
         custRes,
@@ -127,6 +129,7 @@ export function DirectorSalesWorkspace() {
       if (sellerAccRes.data) setSellerAccounts(sellerAccRes.data as unknown as SellerGoldAccountRow[]);
       if (clientAccRes.data) setClientAccounts(clientAccRes.data as unknown as ClientGoldAccountRow[]);
       if (settleRes.data) setSettlements(settleRes.data as unknown as GoldSettlementRow[]);
+      if (salesRes.data) setSales(salesRes.data as unknown as JewelrySaleRow[]);
       if (custRes.data) setCustomers(custRes.data as unknown as { id: string; contact_name: string; customer_code?: string; phone?: string }[]);
       if (modelsRes.data) setModels(modelsRes.data as JewelryModelItem[]);
       if (piecesRes.data) setPieces(piecesRes.data as ConsignmentPieceRow[]);
@@ -550,6 +553,15 @@ export function DirectorSalesWorkspace() {
   const totalSellerTillCash = sellerAccounts.reduce((acc, s) => acc + Number(s.seller_till_cash_amount || 0), 0);
   const totalClientDebtGrams = clientAccounts.reduce((acc, c) => acc + Number(c.current_debt_grams || c.current_gold_debt_grams || 0), 0);
 
+  // Authoritative physical inventory and today's sales
+  const todayStr: string = new Date().toISOString().split("T")[0] || "";
+  const availableSellerPieces = pieces.filter(p => p.status === "held_by_seller");
+  const totalSellerPhysicalQty = availableSellerPieces.length;
+  const totalSellerPhysicalGrams = availableSellerPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+  const todaySalesList = sales.filter(s => (s.sale_date === todayStr || Boolean(s.created_at?.startsWith(todayStr))) && s.status !== "reversed");
+  const todaySalesCount = todaySalesList.length;
+  const todaySalesGrams = todaySalesList.reduce((acc, s) => acc + Number(s.base_weight_grams || 0), 0);
+
   return (
     <div className="space-y-6">
       {/* Toast notifications */}
@@ -607,19 +619,35 @@ export function DirectorSalesWorkspace() {
           </div>
         </div>
 
-        {/* Real-time Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
+        {/* Real-time Summary Cards (Priority 5: Authoritative minimal overview) */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 pt-5">
+          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+            <div className="text-slate-200 text-xs font-bold">Sotuvchilardagi Fizik Oltin</div>
+            <div className="text-xl font-black font-mono text-cyan-300 mt-1">
+              {totalSellerPhysicalQty} <span className="text-xs font-bold text-slate-100">dona</span>
+            </div>
+            <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">{totalSellerPhysicalGrams.toFixed(4)} g (585)</div>
+          </div>
+
           <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
             <div className="text-slate-200 text-xs font-bold">Sotuvchilardagi Zavod Qarzi</div>
-            <div className="text-2xl font-black font-mono text-amber-300 mt-1">
+            <div className="text-xl font-black font-mono text-amber-300 mt-1">
               {totalFactoryObligation.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
             </div>
             <div className="text-[11px] text-slate-300 mt-1 font-medium">Sotuvchilar qaytarishi shart bo&apos;lgan oltin</div>
           </div>
 
           <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+            <div className="text-slate-200 text-xs font-bold">Mijozlarning Jami Qarzi</div>
+            <div className="text-xl font-black font-mono text-rose-400 mt-1">
+              {totalClientDebtGrams.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
+            </div>
+            <div className="text-[11px] text-slate-300 mt-1 font-medium">Barcha sotuvchilar bo&apos;yicha mijozlar qarzi</div>
+          </div>
+
+          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
             <div className="text-slate-200 text-xs font-bold">Sotuvchilar Kassasidagi Lom</div>
-            <div className="text-2xl font-black font-mono text-amber-400 mt-1">
+            <div className="text-xl font-black font-mono text-amber-400 mt-1">
               {totalSellerTillScrap.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
             </div>
             <div className="text-[11px] text-slate-300 mt-1 font-medium">Mijozdan olingan, zavodga berilmagan</div>
@@ -627,18 +655,18 @@ export function DirectorSalesWorkspace() {
 
           <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
             <div className="text-slate-200 text-xs font-bold">Sotuvchilar Kassasidagi Naqd Pul</div>
-            <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
+            <div className="text-xl font-black font-mono text-emerald-400 mt-1">
               {totalSellerTillCash.toLocaleString()} <span className="text-xs font-bold text-slate-100">UZS</span>
             </div>
             <div className="text-[11px] text-slate-300 mt-1 font-medium">Sotuvchining shaxsiy kassasida yig&apos;ilgan</div>
           </div>
 
           <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
-            <div className="text-slate-200 text-xs font-bold">Mijozlarning Jami Qarzi</div>
-            <div className="text-2xl font-black font-mono text-rose-400 mt-1">
-              {totalClientDebtGrams.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
+            <div className="text-slate-200 text-xs font-bold">Bugungi Savdolar</div>
+            <div className="text-xl font-black font-mono text-indigo-300 mt-1">
+              {todaySalesCount} <span className="text-xs font-bold text-slate-100">dona</span>
             </div>
-            <div className="text-[11px] text-slate-300 mt-1 font-medium">Barcha sotuvchilar bo&apos;yicha mijozlar qarzi</div>
+            <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">{todaySalesGrams.toFixed(4)} g bazaviy</div>
           </div>
         </div>
       </div>

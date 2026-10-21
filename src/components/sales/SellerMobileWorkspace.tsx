@@ -555,6 +555,32 @@ export function SellerMobileWorkspace() {
     setActiveTab("scan_sale");
   };
 
+  // Return piece to factory
+  const handleReturnPieceToFactory = async (piece: ConsignmentPieceRow) => {
+    const reason = window.prompt(
+      `"${piece.model_name || piece.model_code}" (${piece.weight_grams}g) ni zavodga qaytarish sababi:`,
+      "Vitrinadan olindi / xarid qilinmadi"
+    );
+    if (!reason) return;
+
+    setBusy(true);
+    try {
+      const idempotencyKey = generateIdempotencyKey("ret-piece");
+      const { data, error } = await supabase.rpc("rpc_return_piece_to_factory", {
+        p_piece_id: piece.id,
+        p_notes: reason.trim(),
+        p_idempotency_key: idempotencyKey,
+      });
+      if (error) throw error;
+      notifySuccess(`Dona zavodga qaytarildi va majburiyat ${Number(data.factory_due_deducted_grams).toFixed(4)}g ga kamaytirildi!`);
+      await loadSellerWorkspace();
+    } catch (err: unknown) {
+      notifyError(`Qaytarishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // Confirm Barcode Piece Sale
   const handleConfirmBarcodePieceSale = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1043,12 +1069,23 @@ export function SellerMobileWorkspace() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleQuickSellPiece(p)}
-                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow transition"
-                  >
-                    ⚡ Sotish
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => void handleReturnPieceToFactory(p)}
+                      title="Ushbu donani zavod omboriga qaytarish"
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-2.5 py-2 rounded-xl transition"
+                    >
+                      ↩️ Qaytarish
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickSellPiece(p)}
+                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow transition"
+                    >
+                      ⚡ Sotish
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

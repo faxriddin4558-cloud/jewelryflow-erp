@@ -149,9 +149,19 @@ export function MobileBarcodeScannerModal({
           />
 
           {!cameraActive && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-xs text-slate-400 space-y-2 bg-slate-950/90">
-              <span className="text-2xl">📷</span>
-              <div>{cameraError || "Kamera yuklanmoqda..."}</div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-xs text-slate-300 space-y-2 bg-slate-950/95">
+              <span className="text-3xl">📷</span>
+              <div className="font-bold text-amber-300">
+                {cameraError ? "Kamera Ruxsati Talab Qilinadi" : "Kamera yuklanmoqda..."}
+              </div>
+              {cameraError && (
+                <div className="text-[11px] text-slate-400 max-w-xs space-y-1 leading-relaxed text-left bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                  <div className="font-semibold text-slate-300">Samsung/Android uchun ko&apos;rsatma:</div>
+                  <div>1. Brauzer manzilidagi qulf (🔒) belgisini bosing.</div>
+                  <div>2. &quot;Sayt sozlamalari&quot; → <strong>Kamera</strong> parametrini &quot;Ruxsat berish&quot;ga o&apos;tkazing.</div>
+                  <div className="pt-1 text-amber-400 font-medium">Yoki pastdagi maydonga shtrix-kodni qo&apos;lda kiriting / Skaner 564 ishlating.</div>
+                </div>
+              )}
             </div>
           )}
 

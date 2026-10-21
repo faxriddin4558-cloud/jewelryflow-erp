@@ -32,6 +32,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       navigator.serviceWorker.register("/sw.js").catch(console.error);
     }
 
+    // Telegram Mini App compatibility initialization
+    if (typeof window !== "undefined") {
+      const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void } } }).Telegram?.WebApp;
+      if (tg) {
+        try {
+          tg.ready();
+          tg.expand();
+        } catch {}
+      }
+    }
+
     const unsubscribeRbac = RBAC.subscribe((updatedUser) => {
       setSessionUser(updatedUser);
     });
@@ -162,9 +173,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="uz">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
         <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icon-512x512.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#171923" />
       </head>
       <body className="flex h-screen bg-gray-50 overflow-hidden text-gray-900 font-sans">

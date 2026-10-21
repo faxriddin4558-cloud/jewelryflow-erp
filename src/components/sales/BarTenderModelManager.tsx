@@ -190,7 +190,7 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
                   </div>
                   <div className="font-bold text-sm text-slate-800">{selectedModel.name}</div>
                   <div className="text-xs text-slate-500">
-                    {selectedModel.category || "Серьги"} • {selectedModel.decorations || "Standart"}
+                    {selectedModel.category || "Серьги"} • {selectedModel.decorations || "Standart"} • {selectedModel.gold_purity || 585}°
                   </div>
                   {selectedModel.reference_weight_grams && (
                     <div className="text-xs text-slate-600 font-mono">
@@ -199,8 +199,21 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
                   )}
                 </div>
 
-                <div className="text-[10px] text-center text-slate-400 border-t pt-2">
-                  Scanner 564 bilan o&apos;qiladi • BarTender shabloniga bog&apos;lanadi
+                {/* Existing Linear Barcode Mockup */}
+                <div className="w-full bg-slate-50 border border-dashed border-slate-300 rounded-xl p-2.5 text-center">
+                  <div className="text-[10px] text-slate-500 font-semibold mb-1">
+                    Mavjud Chiziqli Vazn Shtrix-Kodi (O&apos;zgarmaydi):
+                  </div>
+                  <div className="font-mono text-xs tracking-widest text-slate-800 font-black bg-white p-1.5 rounded-lg border border-slate-200">
+                    ||| | |||| | ||| |||| | 14.52 |||
+                  </div>
+                  <div className="text-[10px] text-emerald-700 font-medium mt-1">
+                    ✓ Asl vazn shtrix-kodi saqlanadi, faqat QR qo&apos;shiladi
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-center text-amber-800 bg-amber-50 p-2 rounded-xl border border-amber-200 w-full leading-tight">
+                  <strong>Eslatma:</strong> Zavodning original BarTender shablonini o&apos;chirib yubormang! Avval fayldan nusxa (backup) oling va mahalliy printerda chop etib sinab ko&apos;ring.
                 </div>
               </div>
             ) : (

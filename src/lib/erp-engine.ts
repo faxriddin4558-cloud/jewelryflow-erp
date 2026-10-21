@@ -779,7 +779,8 @@ export interface JewelrySaleRow {
   markup_spread_grams: number;
   settled_gold_grams?: number;
   remaining_gold_grams?: number;
-  status: "open_debt" | "partially_paid" | "fully_paid" | "cancelled" | "active" | "settled";
+  status: "open_debt" | "partially_paid" | "fully_paid" | "cancelled" | "active" | "settled" | "reversed";
+  created_at?: string;
   notes?: string;
   customer?: {
     id: string;

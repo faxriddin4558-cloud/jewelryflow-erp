@@ -12,17 +12,33 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const isLocalPilot =
-    process.env.NEXT_PUBLIC_APP_ENV === "local_offline" ||
-    (process.env.NEXT_PUBLIC_SUPABASE_URL || "").includes("127.0.0.1") ||
-    (process.env.NEXT_PUBLIC_SUPABASE_URL || "").includes("localhost") ||
+  const isProduction =
+    process.env.NEXT_PUBLIC_APP_ENV === "production" ||
     (typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1"));
+      window.location.hostname !== "localhost" &&
+      window.location.hostname !== "127.0.0.1" &&
+      !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("127.0.0.1") &&
+      !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("localhost"));
+
+  const isLocalPilot =
+    !isProduction &&
+    (process.env.NEXT_PUBLIC_APP_ENV === "local_offline" ||
+      (process.env.NEXT_PUBLIC_SUPABASE_URL || "").includes("127.0.0.1") ||
+      (process.env.NEXT_PUBLIC_SUPABASE_URL || "").includes("localhost") ||
+      (typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1")));
 
   const executeSignIn = async (userEmail: string, userPass: string) => {
     setLoading(true);
     setError("");
+
+    // Priority 6: Production Security Guard - Never allow demo credentials in production
+    if (isProduction && (userPass === "GoldiaPassword2026!" || userEmail.endsWith("@goldia.uz"))) {
+      setError("Xavfsizlik: Ishlab chiqarish (Production) tizimida demo parollardan foydalanish qat'iyan taqiqlangan!");
+      setLoading(false);
+      return;
+    }
 
     try {
       const supabase = createSupabaseBrowserClient();
