@@ -52,12 +52,21 @@ function SalesLoginContent() {
     setIsMounted(true);
   }, []);
 
+  const isStaging =
+    isMounted &&
+    typeof window !== "undefined" &&
+    (process.env.NEXT_PUBLIC_APP_ENV === "staging" ||
+      process.env.NEXT_PUBLIC_STAGING_MODE === "true" ||
+      window.location.hostname.includes("vercel.app"));
+
   const isLocalPilot =
     isMounted &&
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1" ||
       process.env.NEXT_PUBLIC_APP_ENV === "local_offline");
+
+  const showDemoSwitcher = isLocalPilot || isStaging;
 
   // Check Telegram WebApp on mount
   useEffect(() => {
@@ -378,6 +387,16 @@ function SalesLoginContent() {
 
         {/* Login Card */}
         <div className="bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-slate-800 shadow-2xl space-y-5">
+          {/* Staging Notice */}
+          {isStaging && (
+            <div className="bg-amber-500/15 border border-amber-500/40 text-amber-300 px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center justify-between">
+              <span>🛡️ STAGING TEST MUHITI • SUN&apos;IY DEMO BAZA</span>
+              <span className="text-[10px] bg-amber-500/30 px-2 py-0.5 rounded text-amber-200 uppercase font-black">
+                Demo
+              </span>
+            </div>
+          )}
+
           {/* Notifications */}
           {errorMessage && (
             <div className="bg-rose-950/80 border border-rose-500/60 text-rose-200 px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-between">
@@ -431,14 +450,16 @@ function SalesLoginContent() {
             </button>
           </form>
 
-          {/* Local Pilot 1-Click Role Switcher */}
-          {isLocalPilot && (
+          {/* Staging / Local Demo 1-Click Role Switcher */}
+          {showDemoSwitcher && (
             <div className="pt-4 border-t border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-400">
-                  Lokal Pilot: 1-Click Rollar
+                  {isStaging ? "Staging Demo: 1-Click Rollar" : "Lokal Pilot: 1-Click Rollar"}
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">Dev/Pilot</span>
+                <span className="text-[10px] text-slate-500 font-mono">
+                  {isStaging ? "Online Staging" : "Dev/Pilot"}
+                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs font-bold">

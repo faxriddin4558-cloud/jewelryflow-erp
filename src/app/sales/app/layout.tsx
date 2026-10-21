@@ -236,6 +236,13 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
   const displayEmail = isMounted ? (currentUser.email || "Lokal sessiya") : "Lokal sessiya";
   const avatarLetter = isMounted && currentUser.name ? currentUser.name.slice(0, 1).toUpperCase() : "U";
 
+  const isStaging =
+    isMounted &&
+    typeof window !== "undefined" &&
+    (process.env.NEXT_PUBLIC_APP_ENV === "staging" ||
+      process.env.NEXT_PUBLIC_STAGING_MODE === "true" ||
+      window.location.hostname.includes("vercel.app"));
+
   return (
     <div className="flex h-screen w-full bg-slate-950 text-slate-100 font-sans overflow-hidden">
       {/* Offline Status Warning Bar */}
@@ -414,6 +421,23 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
       {/* 2. MAIN CONTENT AREA WITH TOP BAR */}
       {/* ========================================================================= */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-900">
+        {/* Staging Notice Bar */}
+        {isStaging && (
+          <div className="bg-amber-500 text-slate-950 px-4 py-1.5 flex items-center justify-between text-xs font-black shadow-md border-b border-amber-600 shrink-0 z-30">
+            <div className="flex items-center gap-2">
+              <span className="bg-slate-950 text-amber-300 text-[10px] uppercase font-black px-1.5 py-0.5 rounded">
+                STAGING DEMO
+              </span>
+              <span className="font-semibold text-slate-950 text-[11px] md:text-xs">
+                Alohida Staging Muhiti • Faqat sun&apos;iy test ma&apos;lumotlari • Real productionga bog&apos;lanmagan
+              </span>
+            </div>
+            <span className="font-mono text-[10px] md:text-xs font-bold text-slate-900 hidden sm:inline">
+              Safe Demo Mode
+            </span>
+          </div>
+        )}
+
         {/* Top Header */}
         <header className="h-14 bg-[#0b1120] border-b border-slate-800 px-4 md:px-6 flex items-center justify-between shrink-0 z-20">
           <div className="flex items-center gap-3">
