@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { generateQrMatrix, renderMatrixToSvg } from "@/lib/qr-generator";
 import {
   generateBarTenderCsv,
   type JewelryModelItem,
   formatGrams,
 } from "@/lib/barcode-scanner-engine";
+import { validateImageFile, compressImageFile } from "@/lib/image-compression";
+import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
 
 interface Props {
   models: JewelryModelItem[];
@@ -17,11 +19,13 @@ interface Props {
     decorations?: string;
     reference_weight_grams?: number;
     gold_purity?: number;
+    primary_image_url?: string;
   }) => Promise<JewelryModelItem | void>;
+  onUpdateModelPhoto?: (modelId: string, photoUrl: string) => Promise<void>;
   isBusy?: boolean;
 }
 
-export function BarTenderModelManager({ models = [], onAddModel, isBusy }: Props) {
+export function BarTenderModelManager({ models = [], onAddModel, onUpdateModelPhoto, isBusy }: Props) {
   const safeModels = models || [];
   const [selectedModel, setSelectedModel] = useState<JewelryModelItem | null>(
     safeModels.length > 0 ? (safeModels[0] ?? null) : null
@@ -38,6 +42,12 @@ export function BarTenderModelManager({ models = [], onAddModel, isBusy }: Props
   const [newDecorations, setNewDecorations] = useState("Дорика");
   const [newWeight, setNewWeight] = useState("14.50");
   const [newPurity, setNewPurity] = useState("585");
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editPhotoInputRef = useRef<HTMLInputElement>(null);
 
   // Keep selection valid as models array updates
   React.useEffect(() => {
@@ -54,7 +64,66 @@ export function BarTenderModelManager({ models = [], onAddModel, isBusy }: Props
     const list = models || [];
     setNewCode(`JF-M-${String(list.length + 1).padStart(4, "0")}`);
     setFormError(null);
+    setPhotoPreview(null);
     setShowAddModal(true);
+  };
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFormError(null);
+    const valResult = validateImageFile(file);
+    if (!valResult.valid) {
+      setFormError(valResult.error || "Rasm fayli yaroqsiz!");
+      return;
+    }
+
+    try {
+      setIsCompressing(true);
+      const compressed = await compressImageFile(file, 800, 0.82);
+      setPhotoPreview(compressed.dataUrl);
+    } catch {
+      setFormError("Rasmni siqishda xatolik yuz berdi");
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
+  const handleEditExistingModelPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedModel || !onUpdateModelPhoto) return;
+
+    const valResult = validateImageFile(file);
+    if (!valResult.valid) {
+      alert(valResult.error || "Rasm fayli yaroqsiz!");
+      return;
+    }
+
+    try {
+      setIsUpdatingPhoto(true);
+      const compressed = await compressImageFile(file, 800, 0.82);
+      const res = await fetch("/api/models/photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dataUrl: compressed.dataUrl,
+          modelCode: selectedModel.model_code,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.url) {
+        throw new Error(json.error || "Rasmni yuklashda xatolik");
+      }
+      await onUpdateModelPhoto(selectedModel.id, json.url);
+      setSelectedModel({ ...selectedModel, primary_image_url: json.url });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`Rasm yangilashda xatolik: ${msg}`);
+    } finally {
+      setIsUpdatingPhoto(false);
+      if (editPhotoInputRef.current) editPhotoInputRef.current.value = "";
+    }
   };
 
   const handleDownloadCsv = () => {
@@ -82,6 +151,24 @@ export function BarTenderModelManager({ models = [], onAddModel, isBusy }: Props
     }
 
     try {
+      let uploadedPhotoUrl: string | undefined = undefined;
+
+      if (photoPreview) {
+        const res = await fetch("/api/models/photo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dataUrl: photoPreview,
+            modelCode: newCode.trim() || "MODEL",
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.url) {
+          throw new Error(json.error || "Rasmni yuklashda server xatosi");
+        }
+        uploadedPhotoUrl = json.url;
+      }
+
       const created = await onAddModel({
         model_code: newCode.trim() ? newCode.trim().toUpperCase() : undefined,
         name: newName.trim(),
@@ -89,11 +176,13 @@ export function BarTenderModelManager({ models = [], onAddModel, isBusy }: Props
         decorations: newDecorations.trim() || undefined,
         reference_weight_grams: parseFloat(newWeight) || undefined,
         gold_purity: parseInt(newPurity, 10) || 585,
+        primary_image_url: uploadedPhotoUrl,
       });
 
       setShowAddModal(false);
       setNewName("");
       setNewDecorations("");
+      setPhotoPreview(null);
       setNewCode(`JF-M-${String(models.length + 2).padStart(4, "0")}`);
       if (created) {
         setSelectedModel(created);
@@ -160,6 +249,7 @@ export function BarTenderModelManager({ models = [], onAddModel, isBusy }: Props
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-900/80 text-slate-400 font-semibold border-b border-slate-800">
                 <tr>
+                  <th className="py-3 px-3">Rasm</th>
                   <th className="py-3 px-4">Model Kodi</th>
                   <th className="py-3 px-4">Nomi</th>
                   <th className="py-3 px-4">Kategoriya</th>
@@ -183,6 +273,14 @@ export function BarTenderModelManager({ models = [], onAddModel, isBusy }: Props
                           : "hover:bg-slate-900/50 text-slate-300"
                       }`}
                     >
+                      <td className="py-2.5 px-3">
+                        <ModelPhotoThumbnail
+                          src={m.primary_image_url}
+                          alt={m.name}
+                          size="xs"
+                          rounded="md"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-mono font-bold text-amber-300">{m.model_code}</td>
                       <td className="py-3 px-4 font-semibold text-white">{m.name}</td>
                       <td className="py-3 px-4">{m.category || "Серьги"}</td>
@@ -213,6 +311,37 @@ export function BarTenderModelManager({ models = [], onAddModel, isBusy }: Props
               >
                 <div className="text-xs uppercase font-extrabold tracking-widest text-slate-600">
                   GOLDIA JEWELRY
+                </div>
+
+                {/* Model Primary Photo */}
+                <div className="flex flex-col items-center gap-2 my-1">
+                  <ModelPhotoThumbnail
+                    src={selectedModel.primary_image_url}
+                    alt={selectedModel.name}
+                    size="lg"
+                    rounded="xl"
+                  />
+                  <input
+                    ref={editPhotoInputRef}
+                    id="editModelPhotoInput"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleEditExistingModelPhoto}
+                  />
+                  {onUpdateModelPhoto && (
+                    <button
+                      type="button"
+                      id="editModelPhotoBtn"
+                      onClick={() => editPhotoInputRef.current?.click()}
+                      disabled={isUpdatingPhoto}
+                      className="text-[10px] text-amber-800 hover:text-amber-950 font-bold bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1 shadow-sm"
+                    >
+                      <span>📷</span>
+                      <span>{isUpdatingPhoto ? "Yuklanmoqda..." : "Rasm qo'shish / almashtirish"}</span>
+                    </button>
+                  )}
                 </div>
 
                 <div
@@ -379,6 +508,69 @@ export function BarTenderModelManager({ models = [], onAddModel, isBusy }: Props
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
                   />
                 </div>
+              </div>
+
+              {/* Product Photo Upload Field */}
+              <div className="space-y-1.5 pt-1 border-t border-slate-800">
+                <div className="flex justify-between items-center">
+                  <label className="font-bold text-slate-300">
+                    Model Rasmi (Ixtiyoriy — Kamera yoki Fayl):
+                  </label>
+                  {isCompressing && (
+                    <span className="text-[10px] text-amber-400 animate-pulse">
+                      Rasm siqilmoqda...
+                    </span>
+                  )}
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  id="newModelPhotoInput"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handlePhotoSelect}
+                />
+
+                {photoPreview ? (
+                  <div className="flex items-center gap-3 bg-slate-950 p-2.5 rounded-2xl border border-slate-700">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photoPreview}
+                      alt="Tanlangan rasm"
+                      className="w-14 h-14 object-cover rounded-xl border border-amber-400/60 shadow-sm"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-emerald-400 font-bold text-xs truncate">
+                        ✓ Rasm yuklashga tayyor
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        Tezkor yuklanish uchun avtomatik siqildi (WebP / 800px)
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      id="removePhotoBtn"
+                      onClick={() => setPhotoPreview(null)}
+                      className="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/60 border border-rose-800 px-2 py-1 rounded-lg"
+                    >
+                      O&apos;chirish
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      id="choosePhotoFileBtn"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1 py-2.5 px-3 bg-slate-950 hover:bg-slate-800 border border-dashed border-slate-700 hover:border-amber-400 rounded-xl text-slate-300 hover:text-white transition flex items-center justify-center gap-2"
+                    >
+                      <span>📷</span>
+                      <span>Kameradan olish yoki Fayl tanlash</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">

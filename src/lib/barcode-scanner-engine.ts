@@ -45,6 +45,7 @@ export interface JewelryModelItem {
   decorations?: string | null;
   reference_weight_grams?: number | null;
   gold_purity?: number | string | null;
+  primary_image_url?: string | null;
   is_active?: boolean;
 }
 
@@ -58,6 +59,7 @@ export interface ScannedPieceItem {
   weightGrams: number; // Exact jewelry base grams (4 decimal places)
   rawBarcode: string;
   scannedAt: number;
+  primary_image_url?: string | null;
 }
 
 export interface DraftScanSession {
@@ -71,6 +73,7 @@ export interface DraftScanSession {
       modelCode: string;
       modelName: string;
       category?: string;
+      primary_image_url?: string | null;
       count: number;
       totalWeightGrams: number;
       pieces: ScannedPieceItem[];
@@ -334,6 +337,7 @@ export function processScannedCode(
       weightGrams: weight,
       rawBarcode: rawInput,
       scannedAt: now,
+      primary_image_url: session.activeModel.primary_image_url || null,
     };
 
     // Add piece to session and update model aggregation
@@ -344,6 +348,7 @@ export function processScannedCode(
       modelCode: mCode,
       modelName: session.activeModel.name,
       category: session.activeModel.category || 'Серьги',
+      primary_image_url: session.activeModel.primary_image_url || null,
       count: 0,
       totalWeightGrams: 0,
       pieces: [],

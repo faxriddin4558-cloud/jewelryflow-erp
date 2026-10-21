@@ -145,6 +145,19 @@ test.describe('8. JewelryFlow Sales — Barcode Inventory, Scanner 564, BarTende
     await page.fill('#newModelDecorations', 'Brilliant');
     await page.fill('#newModelWeight', '18.40');
 
+    // Upload a test photo for Zarina
+    console.log('[STEP 4.1b] Uploading model photo for Zarina...');
+    const testImageBuffer = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkWPjfDwAEfgHzp9B5tAAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    await page.setInputFiles('#newModelPhotoInput', {
+      name: 'zarina-sample.png',
+      mimeType: 'image/png',
+      buffer: testImageBuffer,
+    });
+    await expect(page.locator('text=Rasm yuklashga tayyor')).toBeVisible();
+
     console.log('[STEP 4.2] Submitting new model...');
     await page.click('#submitNewModelBtn');
 
@@ -153,10 +166,14 @@ test.describe('8. JewelryFlow Sales — Barcode Inventory, Scanner 564, BarTende
     await expect(page.locator('text=Zarina').first()).toBeVisible();
     await expect(page.locator('text=JF-M-0002').first()).toBeVisible();
 
+    // Verify Zarina row in table has the thumbnail
+    await expect(page.locator('#model-row-JF-M-0002 img[alt="Zarina"]')).toBeVisible();
+
     // Verify Printable QR card displays Zarina & JF-M-0002
     await expect(page.locator('#activeCardModelName')).toHaveText('Zarina');
     await expect(page.locator('#activeCardModelCode')).toHaveText('JF-M-0002');
     await expect(page.locator('#activeCardQrSvg svg')).toBeVisible();
+    await expect(page.locator('#printableQrCard img[alt="Zarina"]')).toBeVisible();
 
     // -------------------------------------------------------------------------
     // STEP 4.3: Full Browser Reload to verify persistence across reloads
@@ -167,6 +184,7 @@ test.describe('8. JewelryFlow Sales — Barcode Inventory, Scanner 564, BarTende
     await expect(page.locator('text=Zarina').first()).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=JF-M-0002').first()).toBeVisible();
     await expect(page.locator('text=Malika').first()).toBeVisible();
+    await expect(page.locator('#model-row-JF-M-0002 img[alt="Zarina"]')).toBeVisible();
 
     // -------------------------------------------------------------------------
     // STEP 4.4: Verify Zarina can be selected in Scanner 564 Consignment
@@ -179,6 +197,7 @@ test.describe('8. JewelryFlow Sales — Barcode Inventory, Scanner 564, BarTende
 
     await expect(page.locator('#activeModelName')).toHaveText('Zarina');
     await expect(page.locator('#activeModelCode')).toHaveText('JF-M-0002');
+    await expect(page.locator('img[alt="Zarina"]').first()).toBeVisible();
 
     // -------------------------------------------------------------------------
     // STEP 5: Seller Mobile Workspace — Barcode Sale

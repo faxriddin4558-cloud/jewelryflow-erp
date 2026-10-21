@@ -518,6 +518,7 @@ export function DirectorSalesWorkspace() {
     decorations?: string;
     reference_weight_grams?: number;
     gold_purity?: number;
+    primary_image_url?: string;
   }): Promise<JewelryModelItem> => {
     setBusy(true);
     try {
@@ -529,6 +530,7 @@ export function DirectorSalesWorkspace() {
         p_reference_weight_grams: modelData.reference_weight_grams || null,
         p_purity: String(modelData.gold_purity || 585),
         p_model_code: modelData.model_code || null,
+        p_primary_image_url: modelData.primary_image_url || null,
       });
 
       if (error) {
@@ -543,6 +545,7 @@ export function DirectorSalesWorkspace() {
             reference_weight_grams: modelData.reference_weight_grams,
             gold_purity: String(modelData.gold_purity || 585),
             proba: modelData.gold_purity || 585,
+            primary_image_url: modelData.primary_image_url || null,
             is_active: true,
           },
         ]).select().single();
@@ -561,6 +564,32 @@ export function DirectorSalesWorkspace() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       notifyError(`Model qo'shishda xatolik: ${msg}`);
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleUpdateModelPhoto = async (modelId: string, photoUrl: string): Promise<void> => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("rpc_update_jewelry_model_photo", {
+        p_model_id: modelId,
+        p_primary_image_url: photoUrl,
+      });
+      if (error) {
+        // Fallback direct update
+        const { error: updErr } = await supabase
+          .from("jewelry_models")
+          .update({ primary_image_url: photoUrl })
+          .eq("id", modelId);
+        if (updErr) throw updErr;
+      }
+      notifySuccess("Model rasmi muvaffaqiyatli saqlandi!");
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notifyError(`Rasm saqlashda xatolik: ${msg}`);
       throw err;
     } finally {
       setBusy(false);
@@ -1365,6 +1394,7 @@ export function DirectorSalesWorkspace() {
           pieces={pieces}
           sellers={activeSellers}
           sellerAccounts={sellerAccounts}
+          models={models}
         />
       )}
 
@@ -1373,6 +1403,7 @@ export function DirectorSalesWorkspace() {
         <BarTenderModelManager
           models={models}
           onAddModel={handleAddNewModel}
+          onUpdateModelPhoto={handleUpdateModelPhoto}
           isBusy={busy}
         />
       )}

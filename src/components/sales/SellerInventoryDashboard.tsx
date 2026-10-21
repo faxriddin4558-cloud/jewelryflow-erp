@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { formatGrams } from "@/lib/barcode-scanner-engine";
+import { formatGrams, type JewelryModelItem } from "@/lib/barcode-scanner-engine";
 import type { ConsignmentPieceRow, SellerGoldAccountRow } from "@/lib/erp-engine";
+import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
 
 interface SellerItem {
   id: string;
@@ -15,9 +16,10 @@ interface Props {
   pieces: ConsignmentPieceRow[];
   sellers: SellerItem[];
   sellerAccounts: SellerGoldAccountRow[];
+  models?: JewelryModelItem[];
 }
 
-export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts }: Props) {
+export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, models }: Props) {
   const [selectedSellerFilter, setSelectedSellerFilter] = useState("all");
   const [modelSearch, setModelSearch] = useState("");
 
@@ -46,6 +48,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts }: Pr
         modelCode: string;
         modelName: string;
         category?: string;
+        primaryImageUrl?: string | null;
         consignedQty: number;
         consignedGrams: number;
         soldQty: number;
@@ -63,12 +66,18 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts }: Pr
       const key = `${p.seller_id}_${p.model_code}`;
 
       if (!groups[key]) {
+        const modelObj = models?.find(
+          (m) => m.model_code === p.model_code || m.id === p.model_id
+        );
+        const imgUrl = p.primary_image_url || p.model?.primary_image_url || modelObj?.primary_image_url || null;
+
         groups[key] = {
           sellerId: p.seller_id,
           sellerName: sName,
           modelCode: p.model_code,
           modelName: p.model_name,
           category: p.category,
+          primaryImageUrl: imgUrl,
           consignedQty: 0,
           consignedGrams: 0,
           soldQty: 0,
@@ -97,7 +106,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts }: Pr
     }
 
     return Object.values(groups);
-  }, [filteredPieces, sellers]);
+  }, [filteredPieces, sellers, models]);
 
   // Overall totals
   const totals = useMemo(() => {
@@ -241,6 +250,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts }: Pr
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-900/80 text-slate-400 font-semibold border-b border-slate-800">
                 <tr>
+                  <th className="py-3 px-3">Rasm</th>
                   <th className="py-3 px-4">Sotuvchi</th>
                   <th className="py-3 px-4">Model Kodi</th>
                   <th className="py-3 px-4">Model Nomi</th>
@@ -262,6 +272,14 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts }: Pr
 
                   return (
                     <tr key={`${item.sellerId}_${item.modelCode}`} className="hover:bg-slate-900/50">
+                      <td className="py-2 px-3">
+                        <ModelPhotoThumbnail
+                          src={item.primaryImageUrl}
+                          alt={item.modelName}
+                          size="xs"
+                          rounded="md"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-bold text-white">{item.sellerName}</td>
                       <td className="py-3 px-4 font-mono text-amber-300">{item.modelCode}</td>
                       <td className="py-3 px-4 text-slate-300">{item.modelName}</td>

@@ -17,6 +17,7 @@ import {
   DEFAULT_SCANNER_CONFIG,
 } from "@/lib/barcode-scanner-engine";
 import { GoldEngine } from "@/lib/erp-engine";
+import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
 
 interface SellerItem {
   id: string;
@@ -331,22 +332,28 @@ export function ScannerConsignmentSection({
       <div className="bg-slate-950 border-2 border-amber-400/50 rounded-3xl p-6 text-white space-y-4 shadow-2xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-amber-500/20 border border-amber-400 rounded-2xl flex items-center justify-center text-2xl">
-              🎯
-            </div>
+            <ModelPhotoThumbnail
+              src={session.activeModel?.primary_image_url}
+              alt={session.activeModel?.name || "Faol Model"}
+              size="lg"
+              rounded="2xl"
+              className="border-amber-400 shadow-md"
+            />
             <div>
               <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
                 Hozirgi Faol Model:
               </div>
               {session.activeModel ? (
-                <div id="activeModelDisplay" className="text-lg font-black text-amber-300 flex items-center gap-2">
-                  <span id="activeModelName">{session.activeModel.name}</span>
-                  <span id="activeModelCode" className="font-mono text-xs px-2 py-0.5 bg-amber-950 text-amber-200 border border-amber-800 rounded">
-                    {session.activeModel.model_code}
-                  </span>
-                  <span className="text-xs font-normal text-slate-400">
-                    ({session.activeModel.category || "Серьги"})
-                  </span>
+                <div id="activeModelDisplay" className="space-y-0.5">
+                  <div className="text-lg font-black text-amber-300 flex items-center gap-2">
+                    <span id="activeModelName">{session.activeModel.name}</span>
+                    <span id="activeModelCode" className="font-mono text-xs px-2 py-0.5 bg-amber-950 text-amber-200 border border-amber-800 rounded">
+                      {session.activeModel.model_code}
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-300">
+                    {session.activeModel.category || "Серьги"} • {session.activeModel.decorations || "Standart"} • {session.activeModel.gold_purity || 585}°
+                  </div>
                 </div>
               ) : (
                 <div className="text-sm font-bold text-rose-300">
@@ -467,11 +474,19 @@ export function ScannerConsignmentSection({
                 {Object.values(session.byModel).map((grp) => (
                   <div
                     key={grp.modelCode}
-                    className="flex justify-between items-center py-1 border-b border-slate-800"
+                    className="flex justify-between items-center py-1.5 border-b border-slate-800"
                   >
-                    <div>
-                      <div className="font-bold">{grp.modelName}</div>
-                      <div className="text-[10px] text-slate-500 font-mono">{grp.modelCode}</div>
+                    <div className="flex items-center gap-2">
+                      <ModelPhotoThumbnail
+                        src={grp.primary_image_url}
+                        alt={grp.modelName}
+                        size="xs"
+                        rounded="md"
+                      />
+                      <div>
+                        <div className="font-bold">{grp.modelName}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{grp.modelCode}</div>
+                      </div>
                     </div>
                     <div className="text-right font-mono">
                       <div className="font-bold text-amber-300">{grp.count} dona</div>
@@ -510,6 +525,7 @@ export function ScannerConsignmentSection({
                   <thead className="bg-slate-900/80 text-slate-400 font-semibold border-b border-slate-800 sticky top-0">
                     <tr>
                       <th className="py-2.5 px-3">#</th>
+                      <th className="py-2.5 px-3">Rasm</th>
                       <th className="py-2.5 px-3">Model</th>
                       <th className="py-2.5 px-3">Model Kodi</th>
                       <th className="py-2.5 px-3">Asl Vazn (585)</th>
@@ -521,6 +537,14 @@ export function ScannerConsignmentSection({
                     {session.pieces.map((p, idx) => (
                       <tr key={p.id} className="hover:bg-slate-900/50">
                         <td className="py-2.5 px-3 text-slate-500 font-mono">{idx + 1}</td>
+                        <td className="py-2 px-3">
+                          <ModelPhotoThumbnail
+                            src={p.primary_image_url}
+                            alt={p.modelName}
+                            size="xs"
+                            rounded="md"
+                          />
+                        </td>
                         <td className="py-2.5 px-3 font-bold text-white">{p.modelName}</td>
                         <td className="py-2.5 px-3 font-mono text-amber-300">{p.modelCode}</td>
                         <td className="py-2.5 px-3 font-mono font-bold text-emerald-400 text-sm">

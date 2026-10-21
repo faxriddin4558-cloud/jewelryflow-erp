@@ -710,6 +710,7 @@ export interface SellerConsignmentRow {
   factory_remaining_gold_grams?: number;
   sold_quantity?: number;
   status: "held_by_seller" | "partially_sold" | "fully_sold" | "returned_to_factory" | "closed" | "consigned" | "sold" | "returned" | "partial_return";
+  primary_image_url?: string | null;
   issued_at?: string;
   sold_at?: string;
   returned_at?: string;
@@ -722,6 +723,7 @@ export interface SellerConsignmentRow {
     category?: string;
     purity?: number;
     raw_barcode?: string;
+    primary_image_url?: string | null;
   }>;
   seller?: {
     id: string;
@@ -746,6 +748,7 @@ export interface ConsignmentPieceRow {
   sale_id?: string | null;
   sold_at?: string | null;
   raw_barcode?: string | null;
+  primary_image_url?: string | null;
   notes?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -755,6 +758,7 @@ export interface ConsignmentPieceRow {
     model_code: string;
     category?: string;
     decorations?: string;
+    primary_image_url?: string | null;
   };
 }
 

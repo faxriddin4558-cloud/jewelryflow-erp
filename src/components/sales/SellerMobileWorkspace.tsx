@@ -24,6 +24,7 @@ import {
   DEFAULT_SCANNER_CONFIG,
   type JewelryModelItem,
 } from "@/lib/barcode-scanner-engine";
+import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
 
 interface CustomerItem {
   id: string;
@@ -897,18 +898,31 @@ export function SellerMobileWorkspace() {
 
             {/* Matched Piece Card */}
             {matchedPiece ? (
-              <div id="matchedPieceCard" className="bg-emerald-950/60 border-2 border-emerald-500/60 rounded-2xl p-3.5 space-y-1 text-xs">
+              <div id="matchedPieceCard" className="bg-emerald-950/60 border-2 border-emerald-500/60 rounded-2xl p-3.5 space-y-2 text-xs">
                 <div className="flex justify-between items-center text-emerald-300 font-bold">
                   <span>✅ Omboringizdagi Mahsulot Topildi:</span>
                   <span className="font-mono bg-emerald-900/60 px-2 py-0.5 rounded text-[10px]">{matchedPiece.id.slice(0, 8)}...</span>
                 </div>
-                <div className="text-white font-extrabold text-sm">
-                  {matchedPiece.category || "Zargarlik"} — {matchedPiece.model_name || matchedPiece.model_code}
-                </div>
-                <div className="flex gap-4 text-slate-300 font-mono text-[11px] pt-1">
-                  <span>Proba: <strong className="text-amber-300">{matchedPiece.purity}°</strong></span>
-                  <span>Aniq Vazn: <strong id="matchedPieceWeight" className="text-emerald-300">{Number(matchedPiece.weight_grams).toFixed(4)} g</strong></span>
-                  <span>Model: <strong className="text-white">{matchedPiece.model_code}</strong></span>
+                <div className="flex items-center gap-3">
+                  <ModelPhotoThumbnail
+                    src={
+                      matchedPiece.primary_image_url ||
+                      models.find((m) => m.model_code === matchedPiece.model_code || m.id === matchedPiece.model_id)?.primary_image_url
+                    }
+                    alt={matchedPiece.model_name || matchedPiece.model_code}
+                    size="md"
+                    rounded="xl"
+                  />
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="text-white font-extrabold text-sm truncate">
+                      {matchedPiece.category || "Zargarlik"} — {matchedPiece.model_name || matchedPiece.model_code}
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 text-slate-300 font-mono text-[11px] pt-0.5">
+                      <span>Proba: <strong className="text-amber-300">{matchedPiece.purity}°</strong></span>
+                      <span>Aniq Vazn: <strong id="matchedPieceWeight" className="text-emerald-300">{Number(matchedPiece.weight_grams).toFixed(4)} g</strong></span>
+                      <span>Model: <strong className="text-white">{matchedPiece.model_code}</strong></span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -1045,49 +1059,65 @@ export function SellerMobileWorkspace() {
             </div>
           ) : (
             <div className="space-y-2">
-              {availablePieces.map((p) => (
-                <div
-                  key={p.id}
-                  data-piece-id={p.id}
-                  className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm flex items-center justify-between hover:border-amber-400 transition"
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 text-sm">
-                        {p.category || "Zargarlik"} — {p.model_name || p.model_code}
-                      </span>
-                      <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        {p.purity || 585}°
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-500">
-                      <span className="font-mono text-slate-600 font-semibold">{p.model_code}</span>
-                      <span>•</span>
-                      <span className="font-mono font-black text-slate-900 text-sm">
-                        {Number(p.weight_grams).toFixed(4)} g
-                      </span>
-                    </div>
-                  </div>
+              {availablePieces.map((p) => {
+                const modelObj = models.find(
+                  (m) => m.model_code === p.model_code || m.id === p.model_id
+                );
+                const photoUrl =
+                  p.primary_image_url || modelObj?.primary_image_url;
 
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => void handleReturnPieceToFactory(p)}
-                      title="Ushbu donani zavod omboriga qaytarish"
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-2.5 py-2 rounded-xl transition"
-                    >
-                      ↩️ Qaytarish
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickSellPiece(p)}
-                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow transition"
-                    >
-                      ⚡ Sotish
-                    </button>
+                return (
+                  <div
+                    key={p.id}
+                    data-piece-id={p.id}
+                    className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm flex items-center justify-between hover:border-amber-400 transition gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <ModelPhotoThumbnail
+                        src={photoUrl}
+                        alt={p.model_name || p.model_code}
+                        size="sm"
+                        rounded="xl"
+                      />
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-sm truncate">
+                            {p.category || "Zargarlik"} — {p.model_name || p.model_code}
+                          </span>
+                          <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                            {p.purity || 585}°
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-slate-500">
+                          <span className="font-mono text-slate-600 font-semibold">{p.model_code}</span>
+                          <span>•</span>
+                          <span className="font-mono font-black text-slate-900 text-sm">
+                            {Number(p.weight_grams).toFixed(4)} g
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => void handleReturnPieceToFactory(p)}
+                        title="Ushbu donani zavod omboriga qaytarish"
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-2.5 py-2 rounded-xl transition"
+                      >
+                        ↩️ Qaytarish
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickSellPiece(p)}
+                        className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow transition"
+                      >
+                        ⚡ Sotish
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1115,14 +1145,25 @@ export function SellerMobileWorkspace() {
                 key={c.id}
                 className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm space-y-3 hover:border-blue-400 transition"
               >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-bold text-slate-900 text-sm">{c.product_name || c.item_name}</div>
-                    <div className="text-[11px] font-mono text-blue-600 font-bold mt-0.5">
-                      {c.consignment_no}
+                <div className="flex justify-between items-start gap-3">
+                  <div className="flex items-center gap-3">
+                    <ModelPhotoThumbnail
+                      src={
+                        c.primary_image_url ||
+                        models.find((m) => m.name === c.product_name || m.model_code === c.item_name)?.primary_image_url
+                      }
+                      alt={c.product_name || c.item_name || "Mahsulot"}
+                      size="sm"
+                      rounded="xl"
+                    />
+                    <div>
+                      <div className="font-bold text-slate-900 text-sm">{c.product_name || c.item_name}</div>
+                      <div className="text-[11px] font-mono text-blue-600 font-bold mt-0.5">
+                        {c.consignment_no}
+                      </div>
                     </div>
                   </div>
-                  <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
                     {c.proba || 585}° proba
                   </span>
                 </div>
