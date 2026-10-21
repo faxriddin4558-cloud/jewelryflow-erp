@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import {
   supabase,
   GoldEngine,
@@ -10,8 +11,14 @@ import {
   type ProductRow,
   type OrderRow,
 } from "@/lib/erp-engine";
+import { DirectorSalesWorkspace } from "@/components/sales/DirectorSalesWorkspace";
+import { SellerMobileWorkspace } from "@/components/sales/SellerMobileWorkspace";
 
 export default function SalesPage() {
+  const [salesView, setSalesView] = useState<"director" | "seller_mobile" | "classic_pos">(() => {
+    const role = (RBAC.getCurrentUser()?.role || "").toLowerCase();
+    return role === "seller" || role === "worker" ? "seller_mobile" : "director";
+  });
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -267,21 +274,99 @@ export default function SalesPage() {
   } = GoldEngine.calculateFinancialSummary(sales, orders);
 
   return (
-    <div className="p-4 md:p-8 text-slate-800 space-y-6">
-      <div className="flex flex-wrap justify-between items-center gap-4">
-        <h1 className="text-2xl font-bold text-slate-900">
-          Sotuv, Kassa va Qarzlar (Vitrina bilan bog&apos;langan)
-        </h1>
-        <div className="flex gap-3 text-xs">
-          <div className="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl">
-            Kassa Balans:{" "}
-            <b className="text-emerald-900 text-sm">{(totalIn - totalOut).toLocaleString()} so&apos;m</b>
+    <div className="p-3 md:p-8 text-slate-800 space-y-6 max-w-7xl mx-auto">
+      {/* Sales Navigation Bar & View Switcher */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 md:p-4 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-600 text-white flex items-center justify-center font-bold text-base shadow-md shadow-amber-500/20">
+            💰
           </div>
-          <div className="bg-red-50 border border-red-200 px-4 py-2 rounded-xl">
-            Qarzlar: <b className="text-red-900 text-sm">{totalDebt.toLocaleString()} so&apos;m</b>
+          <div>
+            <h1 className="text-base md:text-lg font-black text-slate-900 leading-tight">
+              JewelryFlow Savdo & Kassa
+            </h1>
+            <p className="text-[11px] text-slate-500 hidden sm:block">
+              Konsignatsiya, sof oltin majburiyatlari va mobil savdo tizimi
+            </p>
           </div>
         </div>
+
+        {/* View Switcher Pills */}
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl text-xs font-bold">
+          <button
+            onClick={() => setSalesView("director")}
+            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 ${
+              salesView === "director"
+                ? "bg-amber-500 text-slate-950 shadow-md font-black"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <span>👑</span>
+            <span>Direktor Paneli</span>
+          </button>
+          <button
+            onClick={() => setSalesView("seller_mobile")}
+            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 ${
+              salesView === "seller_mobile"
+                ? "bg-blue-600 text-white shadow-md font-black"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <span>📱</span>
+            <span>Sotuvchi Mobil</span>
+          </button>
+          <button
+            onClick={() => setSalesView("classic_pos")}
+            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 ${
+              salesView === "classic_pos"
+                ? "bg-slate-800 text-white shadow-md font-black"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <span>🏪</span>
+            <span>Klassik Vitrina</span>
+          </button>
+        </div>
+
+        <div className="hidden lg:flex items-center gap-2 text-xs">
+          <Link
+            href="/sales/director"
+            className="text-amber-800 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded-xl border border-amber-200 transition font-bold"
+          >
+            /sales/director ↗
+          </Link>
+          <Link
+            href="/sales/mobile"
+            className="text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-xl border border-blue-200 transition font-bold"
+          >
+            /sales/mobile ↗
+          </Link>
+        </div>
       </div>
+
+      {/* Render Director Workspace */}
+      {salesView === "director" && <DirectorSalesWorkspace />}
+
+      {/* Render Seller Mobile Workspace */}
+      {salesView === "seller_mobile" && <SellerMobileWorkspace />}
+
+      {/* Render Classic Vitrina / POS */}
+      {salesView === "classic_pos" && (
+        <div className="space-y-6">
+          <div className="flex flex-wrap justify-between items-center gap-4">
+            <h2 className="text-xl font-bold text-slate-900">
+              Klassik Vitrina va Naqd Kassa
+            </h2>
+            <div className="flex gap-3 text-xs">
+              <div className="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl">
+                Kassa Balans:{" "}
+                <b className="text-emerald-900 text-sm">{(totalIn - totalOut).toLocaleString()} so&apos;m</b>
+              </div>
+              <div className="bg-red-50 border border-red-200 px-4 py-2 rounded-xl">
+                Qarzlar: <b className="text-red-900 text-sm">{totalDebt.toLocaleString()} so&apos;m</b>
+              </div>
+            </div>
+          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <form
@@ -554,6 +639,8 @@ export default function SalesPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>

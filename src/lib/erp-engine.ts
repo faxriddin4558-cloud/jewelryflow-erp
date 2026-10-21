@@ -668,6 +668,192 @@ export interface GoldSettlementCalc {
   remainingDebtGrams: number;
 }
 
+export interface SalesMarkupPresetRow {
+  id: string;
+  organization_id?: string;
+  type: "factory_markup" | "client_markup";
+  name: string;
+  percentage: number;
+  is_active: boolean;
+  is_default: boolean;
+  display_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SellerConsignmentRow {
+  id: string;
+  organization_id?: string;
+  consignment_no?: string;
+  seller_id: string;
+  product_id?: string | null;
+  product_name?: string;
+  item_name?: string;
+  quantity?: number;
+  base_weight_grams: number;
+  proba?: number;
+  purity?: number;
+  factory_markup_pct: number;
+  factory_gold_due_grams: number;
+  factory_settled_gold_grams?: number;
+  factory_remaining_gold_grams?: number;
+  sold_quantity?: number;
+  status: "held_by_seller" | "partially_sold" | "fully_sold" | "returned_to_factory" | "closed" | "consigned" | "sold" | "returned" | "partial_return";
+  issued_at?: string;
+  sold_at?: string;
+  returned_at?: string;
+  notes?: string;
+  seller?: {
+    id: string;
+    name?: string;
+    full_name?: string;
+    phone?: string;
+  };
+}
+
+export interface JewelrySaleRow {
+  id: string;
+  organization_id?: string;
+  sale_no?: string;
+  consignment_id?: string;
+  customer_id: string;
+  seller_id: string;
+  product_id?: string | null;
+  product_name?: string;
+  quantity?: number;
+  sale_date: string;
+  base_weight_grams: number;
+  proba?: number;
+  purity?: number;
+  factory_markup_pct: number;
+  factory_gold_due_grams: number;
+  client_markup_pct: number;
+  client_gold_due_grams: number;
+  markup_spread_grams: number;
+  settled_gold_grams?: number;
+  remaining_gold_grams?: number;
+  status: "open_debt" | "partially_paid" | "fully_paid" | "cancelled" | "active" | "settled";
+  notes?: string;
+  customer?: {
+    id: string;
+    contact_name?: string;
+    customer_code?: string;
+    full_name?: string;
+    phone?: string;
+    passport_or_pinfl?: string;
+    permanent_code?: string;
+  };
+  seller?: {
+    id: string;
+    name?: string;
+    full_name?: string;
+  };
+  consignment?: SellerConsignmentRow;
+}
+
+export interface GoldSettlementRow {
+  id: string;
+  organization_id?: string;
+  settlement_no?: string;
+  direction?: "client_to_seller" | "seller_to_factory";
+  settlement_type?: "client_settlement" | "seller_to_factory";
+  customer_id?: string | null;
+  seller_id?: string | null;
+  sale_id?: string | null;
+  consignment_id?: string | null;
+  settlement_date: string;
+  daily_rate_id?: string | null;
+  gold_rate_applied?: number;
+  rate_per_gram?: number;
+  scrap_weight_grams?: number;
+  scrap_gold_weight_grams?: number;
+  scrap_proba?: number;
+  scrap_purity?: number;
+  cash_paid_amount?: number;
+  cash_amount?: number;
+  currency?: string;
+  cash_equivalent_grams?: number;
+  cash_gold_equivalent_grams?: number;
+  total_settled_grams?: number;
+  total_gold_settled_grams?: number;
+  applied_to_debt_grams?: number;
+  excess_gold_grams?: number;
+  previous_debt_grams: number;
+  remaining_debt_grams: number;
+  advance_gold_balance_grams?: number;
+  confirmed_by_director?: boolean;
+  notes?: string;
+  customer?: {
+    id: string;
+    contact_name?: string;
+    customer_code?: string;
+    full_name?: string;
+    phone?: string;
+    permanent_code?: string;
+  };
+  seller?: {
+    id: string;
+    name?: string;
+    full_name?: string;
+  };
+}
+
+export interface ClientGoldAccountRow {
+  id?: string;
+  organization_id?: string;
+  customer_id: string;
+  seller_id?: string;
+  total_scrap_paid_grams?: number;
+  total_cash_paid_amount?: number;
+  total_cash_equiv_grams?: number;
+  total_settled_grams?: number;
+  total_gold_debt_grams?: number;
+  total_gold_settled_grams?: number;
+  current_debt_grams?: number;
+  current_gold_debt_grams?: number;
+  advance_balance_grams?: number;
+  advance_gold_balance_grams?: number;
+  customer?: {
+    id: string;
+    contact_name?: string;
+    customer_code?: string;
+    full_name?: string;
+    phone?: string;
+    passport_or_pinfl?: string;
+    permanent_code?: string;
+  };
+}
+
+export interface SellerGoldAccountRow {
+  id?: string;
+  organization_id?: string;
+  seller_id: string;
+  total_consigned_weight_grams?: number;
+  total_factory_gold_due_grams?: number;
+  total_factory_settled_gold_grams?: number;
+  settled_factory_gold_grams?: number;
+  current_factory_obligation_grams?: number;
+  remaining_factory_gold_due_grams?: number;
+  total_client_debt_grams?: number;
+  seller_till_scrap_grams?: number;
+  seller_till_cash_amount?: number;
+  seller?: {
+    id: string;
+    name?: string;
+    full_name?: string;
+    phone?: string;
+  };
+}
+
+export interface DailyGoldRateRow {
+  id: string;
+  rate_per_gram: number;
+  currency: string;
+  rate_date: string;
+  is_active: boolean;
+  notes?: string;
+}
+
 export const GoldEngine = {
   /**
    * Standard 2-decimal Fine Gold display helper (preserved for backward compatibility).

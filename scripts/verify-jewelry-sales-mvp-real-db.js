@@ -387,9 +387,76 @@ async function runRealDbSalesVerification() {
     }
     console.log('  * [IDEMPOTENCY PROOF] Duplicate submission safely returned cached response without double write.');
 
+    // ------------------------------------------------------------------------
+    // STEP 11: Dynamic Markup Presets (Director CRUD & Active Dropdowns)
+    // ------------------------------------------------------------------------
+    console.log('\n[STEP 11] Verifying Dynamic Markup Presets (Director CRUD)...');
+    await setUserContext(db, DIRECTOR_ID, 'admin');
+
+    // Add custom factory markup: 14%
+    const addFactoryRes = await db.query(`
+      SELECT public.rpc_manage_sales_markup_preset(
+        p_type := 'factory_markup',
+        p_name := 'Zavod 14% (Katta Partiya)',
+        p_percentage := 14.0,
+        p_is_active := true,
+        p_is_default := false
+      ) as res;
+    `);
+    console.log('  * Custom factory markup added:', addFactoryRes.rows[0].res);
+
+    // Add custom client markup: 18% & 25% & custom 22%
+    const addClientRes = await db.query(`
+      SELECT public.rpc_manage_sales_markup_preset(
+        p_type := 'client_markup',
+        p_name := 'Mijoz 22% (Premium)',
+        p_percentage := 22.0,
+        p_is_active := true,
+        p_is_default := false
+      ) as res;
+    `);
+    console.log('  * Custom client markup added:', addClientRes.rows[0].res);
+
+    // Switch to seller role to retrieve active markups
+    await setUserContext(db, SELLER_ID, 'sales');
+    const activeMarkupsRes = await db.query(`
+      SELECT public.rpc_get_active_sales_markups('client_markup') as res;
+    `);
+    const activeList = activeMarkupsRes.rows[0].res;
+    console.log('  * Active client markups available to seller count:', activeList.length);
+    const has22 = activeList.some(m => Number(m.percentage) === 22);
+    if (!has22) {
+      throw new Error('Newly created dynamic markup 22% not found in active markups list!');
+    }
+    console.log('  * [DYNAMIC MARKUP PROOF] Seller successfully retrieved active director-approved markups.');
+
+    // ------------------------------------------------------------------------
+    // STEP 12: Historical Immutability Guard
+    // ------------------------------------------------------------------------
+    console.log('\n[STEP 12] Verifying Historical Immutability (Past Sales Untouched)...');
+    // Director updates or deactivates a preset
+    await setUserContext(db, DIRECTOR_ID, 'admin');
+    await db.query(`
+      UPDATE public.sales_markup_presets
+      SET percentage = 99.0, is_active = false
+      WHERE percentage = 12.0 AND type = 'client_markup' AND organization_id = '${ORG_GOLDIA_ID}';
+    `);
+
+    // Verify historical sale records still have original 12% and spread
+    const pastSaleCheck = await db.query(`
+      SELECT client_markup_pct, factory_markup_pct, markup_spread_grams
+      FROM public.jewelry_sales
+      WHERE id = '${saleId}';
+    `);
+    const sRow = pastSaleCheck.rows[0];
+    if (Number(sRow.client_markup_pct) !== 12.0 || Number(sRow.markup_spread_grams) !== 4.0) {
+      throw new Error(`Historical sale was mutated! Expected 12% / 4g, got: ${JSON.stringify(sRow)}`);
+    }
+    console.log('  * [HISTORICAL IMMUTABILITY PROOF] Existing sale preserved original 12.00% markup and 4.0000g spread.');
+
     console.log('\n======================================================================');
     console.log('ALL JEWELRY SALES MVP REAL DATABASE TESTS PASSED (100%)');
-    console.log('All 12 user requirements & math formulas verified on real PostgreSQL.');
+    console.log('All 12 user requirements & dynamic markup presets verified on PostgreSQL.');
     console.log('======================================================================\n');
   } catch (err) {
     console.error('\n[FATAL ERROR] Sales verification failed:', err);
