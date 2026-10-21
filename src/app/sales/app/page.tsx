@@ -72,11 +72,26 @@ export default function SalesDashboardPage() {
   const availableSellerPieces = pieces.filter((p) => p.status === "held_by_seller");
   const totalPhysicalGrams = availableSellerPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
 
+  const managerStockPieces = pieces.filter((p) => p.status === "in_manager_stock" || p.status === "returned_to_manager");
+  const managerStockGrams = managerStockPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+
+  const soldPieces = pieces.filter((p) => p.status === "sold");
+  const soldPhysicalGrams = soldPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+
+  const returnedPieces = pieces.filter((p) => p.status === "returned_to_factory");
+  const returnedPhysicalGrams = returnedPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+
+  const totalPhysicalBaseGrams = managerStockGrams + totalPhysicalGrams + soldPhysicalGrams + returnedPhysicalGrams;
+
+  const totalSellerObligation = sellerAccounts.reduce(
+    (acc, s) => acc + Math.abs(Number(s.market_debt_balance_grams || s.current_factory_obligation_grams || 0)),
+    0
+  );
+
   const managerScrap = Number(managerVault?.manager_scrap_grams ?? managerVault?.vault_scrap_gold_grams ?? 0);
   const managerCash = Number(managerVault?.manager_cash_amount ?? managerVault?.vault_cash_amount ?? 0);
   const managerRefined = Number(managerVault?.manager_refined_gold_grams ?? managerVault?.vault_refined_gold_grams ?? 0);
   const currentRate = Number(dailyRate?.rate_per_gram || 900000);
-
 
   // Cash equivalents
   const cashEquivalentInGrams = (totalSellerTillCash + managerCash) / currentRate;
@@ -162,35 +177,115 @@ export default function SalesDashboardPage() {
         </div>
       </div>
 
-      {/* 3. The Master Live Reconciliation Equation Card */}
-      <div className="bg-slate-900 border-2 border-emerald-500/40 rounded-3xl p-6 shadow-xl space-y-4">
+      {/* 3A. Physical Inventory Balance (585g Pure Base Weight - Section 17) */}
+      <div className="bg-slate-900 border-2 border-cyan-500/30 rounded-3xl p-6 shadow-xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
-            <span className="text-xl">⚖️</span>
-            <h2 className="font-black text-white text-base md:text-lg">
-              Boshqaruvchi Global Rekonsilyatsiya Formulari (Master Invariant)
-            </h2>
+            <span className="text-xl">💎</span>
+            <div>
+              <h2 className="font-black text-white text-base md:text-lg">
+                Fizik Tovar Balansi (585g Bazaviy Sof Vazn)
+              </h2>
+              <p className="text-xs text-slate-400">
+                Ustamalarsiz sof fizik grammlar saqlanish qonuni
+              </p>
+            </div>
           </div>
-          <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-black px-3 py-1 rounded-xl flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            BALANS TO&apos;LIQ MOS (0.0000g farq)
+          <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-black px-3 py-1 rounded-xl flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            FIZIK VAZN TO&apos;LIQ SAQLANGAN (0.0000g farq)
           </span>
         </div>
 
         <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 font-mono text-xs md:text-sm text-slate-200 space-y-2">
-          <div className="text-amber-400 font-bold text-xs uppercase tracking-wider">
-            Zavod Majburiyati (108.0g) ≡ Aktivlar Jamlanmasi:
+          <div className="text-cyan-400 font-bold text-xs uppercase tracking-wider">
+            Zavoddan Qabul Qilingan ({totalPhysicalBaseGrams.toFixed(4)}g) ≡ Joylashuv Bo&apos;yicha Fizik Ta&apos;minot:
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs md:text-base font-black">
-            <span className="text-amber-400">{totalFactoryObligation.toFixed(4)}g</span>
+            <span className="text-cyan-400">{totalPhysicalBaseGrams.toFixed(4)}g</span>
             <span className="text-slate-500">=</span>
-            <span className="text-cyan-400">{totalPhysicalGrams.toFixed(4)}g (Tovarlar)</span>
+            <span className="text-blue-400">{managerStockGrams.toFixed(4)}g (Menejer Seyfida)</span>
             <span className="text-slate-500">+</span>
-            <span className="text-amber-300">{(totalSellerTillScrap + managerScrap).toFixed(4)}g (Lom)</span>
+            <span className="text-amber-300">{totalPhysicalGrams.toFixed(4)}g (Sotuvchilarda Unsold)</span>
             <span className="text-slate-500">+</span>
-            <span className="text-emerald-400">{cashEquivalentInGrams.toFixed(4)}g eq (Naqd pul)</span>
-            <span className="text-slate-500">+</span>
-            <span className="text-purple-300">{managerRefined.toFixed(4)}g (Sof 995)</span>
+            <span className="text-emerald-400">{soldPhysicalGrams.toFixed(4)}g (Mijozga Sotilgan)</span>
+            {returnedPhysicalGrams > 0 && (
+              <>
+                <span className="text-slate-500">+</span>
+                <span className="text-purple-300">{returnedPhysicalGrams.toFixed(4)}g (Zavodga Qaytarilgan)</span>
+              </>
+            )}
+          </div>
+          <div className="text-[11px] text-slate-400">
+            Jami dona: {pieces.length} ta (Seyfda: {managerStockPieces.length}, Sotuvchilarda: {availableSellerPieces.length}, Sotilgan: {soldPieces.length})
+          </div>
+        </div>
+      </div>
+
+      {/* 3B. 3-Tier Financial Obligations & Liquid Treasury (Section 17) */}
+      <div className="bg-slate-900 border-2 border-amber-500/30 rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">⚖️</span>
+            <div>
+              <h2 className="font-black text-white text-base md:text-lg">
+                3 Darajali Moliyaviy Majburiyatlar & G&apos;azna Aktivlari
+              </h2>
+              <p className="text-xs text-slate-400">
+                Alohida hisoblanuvchi qarz qatlamlari va likvid vositalar
+              </p>
+            </div>
+          </div>
+          <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-black px-3 py-1 rounded-xl flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+            3-QATLAMLI HISOB
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
+            <div className="text-amber-400 text-xs font-black uppercase">1-Daraja: Zavod Majburiyati (8%)</div>
+            <div className="text-lg font-black font-mono text-amber-300">
+              {totalFactoryObligation.toFixed(4)} g
+            </div>
+            <p className="text-[11px] text-slate-400 leading-tight">
+              Menejerning zavod oldidagi qarzi. Faqat afinaj qilingan sof quyma yoki 585 lom topshirilganda kamayadi.
+            </p>
+          </div>
+
+          <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
+            <div className="text-blue-400 text-xs font-black uppercase">2-Daraja: Sotuvchilar Mas&apos;uliyati (12%)</div>
+            <div className="text-lg font-black font-mono text-blue-300">
+              {totalSellerObligation.toFixed(4)} g
+            </div>
+            <p className="text-[11px] text-slate-400 leading-tight">
+              Sotuvchilar tovar va to&apos;lovlar uchun javobgar (bozor qarzi). Faqat tushum menejerga topshirilganda kamayadi.
+            </p>
+          </div>
+
+          <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
+            <div className="text-rose-400 text-xs font-black uppercase">3-Daraja: Mijozlar Nasiyasi (12-15%)</div>
+            <div className="text-lg font-black font-mono text-rose-300">
+              {totalClientDebtGrams.toFixed(4)} g
+            </div>
+            <p className="text-[11px] text-slate-400 leading-tight">
+              Mijozlarning sotuvchilar oldidagi 585 oltin qarzi. Mijoz to&apos;lov qilganda kamayadi.
+            </p>
+          </div>
+        </div>
+
+        {/* Liquid Treasury Bar */}
+        <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 font-bold text-slate-300">
+            <span>🏦 Likvid G&apos;azna:</span>
+            <span className="font-mono text-amber-300">{(totalSellerTillScrap + managerScrap).toFixed(4)}g lom</span>
+            <span className="text-slate-500">|</span>
+            <span className="font-mono text-emerald-400">{(totalSellerTillCash + managerCash).toLocaleString()} UZS naqd</span>
+            <span className="text-slate-500">|</span>
+            <span className="font-mono text-purple-300">{managerRefined.toFixed(4)}g sof quyma (995)</span>
+          </div>
+          <div className="text-[11px] text-slate-400 font-mono">
+            Naqd pul oltin ekvivalenti (~{cashEquivalentInGrams.toFixed(4)}g @ {currentRate.toLocaleString()} UZS/g)
           </div>
         </div>
       </div>

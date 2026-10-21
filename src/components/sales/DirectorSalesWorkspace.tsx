@@ -28,6 +28,7 @@ import { ScannerConsignmentSection } from "./ScannerConsignmentSection";
 import { SellerInventoryDashboard } from "./SellerInventoryDashboard";
 import { SheetsImportSection } from "./SheetsImportSection";
 import { TelegramUsersSection } from "./TelegramUsersSection";
+import { SellerReconciliationModal } from "./SellerReconciliationModal";
 import { type JewelryModelItem } from "@/lib/barcode-scanner-engine";
 
 export type DirectorSalesTab =
@@ -126,6 +127,10 @@ export function DirectorSalesWorkspace({
   const [newRateDate, setNewRateDate] = useState<string>(() => (new Date().toISOString().split("T")[0] as string));
   const [newRateNotes, setNewRateNotes] = useState<string>("");
   const [showRateModal, setShowRateModal] = useState(false);
+
+  // 7-Step Seller Reconciliation Modal
+  const [reconModalOpen, setReconModalOpen] = useState(false);
+  const [selectedReconSeller, setSelectedReconSeller] = useState<{ id: string; name: string } | null>(null);
 
   // Dynamic Markup Preset form
   const [presetModalOpen, setPresetModalOpen] = useState(false);
@@ -1593,12 +1598,23 @@ export function DirectorSalesWorkspace({
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleOpenSurrender(acc)}
-                      className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
-                    >
-                      <span>📥</span> Zavodga Tushumni Qabul Qilish (Bozor Qarzi)
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          setSelectedReconSeller({ id: acc.seller_id, name: sellerName });
+                          setReconModalOpen(true);
+                        }}
+                        className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center justify-center gap-1.5"
+                      >
+                        <span>📋</span> Rekonsilyatsiya (A-G)
+                      </button>
+                      <button
+                        onClick={() => handleOpenSurrender(acc)}
+                        className="py-2 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+                      >
+                        <span>📥</span> Qabul Qilish
+                      </button>
+                    </div>
                   </div>
                 );
               })
@@ -2495,6 +2511,7 @@ export function DirectorSalesWorkspace({
           sellers={activeSellers}
           sellerAccounts={sellerAccounts}
           models={models}
+          onRefresh={loadData}
         />
       )}
 
@@ -2810,6 +2827,19 @@ export function DirectorSalesWorkspace({
 
       {/* RECEIPT MODAL */}
       <SalesReceiptModal data={receiptData} onClose={() => setReceiptData(null)} />
+
+      {/* 7-STEP SELLER RECONCILIATION MODAL (A-G) */}
+      {selectedReconSeller && (
+        <SellerReconciliationModal
+          sellerId={selectedReconSeller.id}
+          sellerName={selectedReconSeller.name}
+          isOpen={reconModalOpen}
+          onClose={() => {
+            setReconModalOpen(false);
+            setSelectedReconSeller(null);
+          }}
+        />
+      )}
     </div>
   );
 }
