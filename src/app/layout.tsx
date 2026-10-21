@@ -134,6 +134,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   };
 
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/reset-password");
+  const isDedicatedSales = pathname.startsWith("/sales/app") || pathname.startsWith("/sales/login");
+  const isStandalonePage = isAuthPage || isDedicatedSales;
 
   const menuGroups = [
     { title: "", items: [{ name: "Asosiy panel", path: "/", icon: "📊" }] },
@@ -183,7 +185,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="flex h-screen bg-gray-50 overflow-hidden text-gray-900 font-sans">
         <QueryClientProvider client={queryClient}>
-          {isAuthPage ? (
+          {isStandalonePage ? (
             <div className="flex-1 overflow-y-auto w-full bg-gray-50">{children}</div>
           ) : (
             <>

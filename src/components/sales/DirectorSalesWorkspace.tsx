@@ -26,12 +26,44 @@ import { ScannerDiagnostics } from "./ScannerDiagnostics";
 import { BarTenderModelManager } from "./BarTenderModelManager";
 import { ScannerConsignmentSection } from "./ScannerConsignmentSection";
 import { SellerInventoryDashboard } from "./SellerInventoryDashboard";
+import { SheetsImportSection } from "./SheetsImportSection";
+import { TelegramUsersSection } from "./TelegramUsersSection";
 import { type JewelryModelItem } from "@/lib/barcode-scanner-engine";
 
-export function DirectorSalesWorkspace() {
-  const [activeTab, setActiveTab] = useState<
-    "factory" | "sellers" | "scanner_consign" | "seller_stock" | "vault" | "models" | "consign" | "presets" | "clients" | "history" | "diagnostics"
-  >("sellers");
+export type DirectorSalesTab =
+  | "factory"
+  | "sellers"
+  | "scanner_consign"
+  | "seller_stock"
+  | "vault"
+  | "models"
+  | "consign"
+  | "presets"
+  | "clients"
+  | "history"
+  | "diagnostics"
+  | "sheets_import"
+  | "users";
+
+export interface DirectorSalesWorkspaceProps {
+  initialTab?: DirectorSalesTab;
+  hideTopBanner?: boolean;
+  hideTabBar?: boolean;
+}
+
+export function DirectorSalesWorkspace({
+  initialTab = "sellers",
+  hideTopBanner = false,
+  hideTabBar = false,
+}: DirectorSalesWorkspaceProps = {}) {
+  const [activeTab, setActiveTab] = useState<DirectorSalesTab>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
 
   // State
   const [busy, setBusy] = useState(false);
@@ -865,205 +897,230 @@ export function DirectorSalesWorkspace() {
       )}
 
       {/* Top Banner & Quick Metrics */}
-      <div className="bg-slate-950 text-white rounded-3xl p-6 shadow-2xl border-2 border-slate-800">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
-          <div>
-            <div className="text-xs uppercase font-extrabold tracking-widest text-amber-400 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-              Zavod Boshqaruv Markazi
-            </div>
-            <h1 className="text-2xl md:text-3xl font-black mt-1 text-white">Direktor Savdo & Konsignatsiya Paneli</h1>
-            <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-              Zavod → Sotuvchi → Mijoz zanjiri, dinamik foizlar va qat&apos;iy 585 lom oltin hisobi
-            </p>
-          </div>
-
-          {/* Daily Gold Rate Badge */}
-          <div className="bg-slate-900 border-2 border-slate-700 rounded-2xl p-3 px-5 flex items-center gap-4 shadow-lg">
+      {!hideTopBanner && (
+        <div className="bg-slate-950 text-white rounded-3xl p-6 shadow-2xl border-2 border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
             <div>
-              <div className="text-xs text-amber-300 font-extrabold uppercase">Bugungi Lom Kursi (585)</div>
-              <div className="text-xl md:text-2xl font-black font-mono text-white">
-                {dailyRate ? `${Number(dailyRate.rate_per_gram).toLocaleString()} UZS` : "900,000 UZS"}
-                <span className="text-xs font-semibold text-slate-200"> / gramm</span>
+              <div className="text-xs uppercase font-extrabold tracking-widest text-amber-400 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                Zavod Boshqaruv Markazi
               </div>
-              <div className="text-[11px] text-slate-300 font-medium">
-                Sana: {dailyRate?.rate_date || new Date().toISOString().split("T")[0]}
-              </div>
+              <h1 className="text-2xl md:text-3xl font-black mt-1 text-white">Direktor Savdo & Konsignatsiya Paneli</h1>
+              <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
+                Zavod → Sotuvchi → Mijoz zanjiri, dinamik foizlar va qat&apos;iy 585 lom oltin hisobi
+              </p>
             </div>
-            <button
-              onClick={() => setShowRateModal(true)}
-              className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition shadow-lg shadow-amber-500/20 active:scale-95"
-            >
-              ⚙️ Yangilash
-            </button>
+
+            {/* Daily Gold Rate Badge */}
+            <div className="bg-slate-900 border-2 border-slate-700 rounded-2xl p-3 px-5 flex items-center gap-4 shadow-lg">
+              <div>
+                <div className="text-xs text-amber-300 font-extrabold uppercase">Bugungi Lom Kursi (585)</div>
+                <div className="text-xl md:text-2xl font-black font-mono text-white">
+                  {dailyRate ? `${Number(dailyRate.rate_per_gram).toLocaleString()} UZS` : "900,000 UZS"}
+                  <span className="text-xs font-semibold text-slate-200"> / gramm</span>
+                </div>
+                <div className="text-[11px] text-slate-300 font-medium">
+                  Sana: {dailyRate?.rate_date || new Date().toISOString().split("T")[0]}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRateModal(true)}
+                className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition shadow-lg shadow-amber-500/20 active:scale-95"
+              >
+                ⚙️ Yangilash
+              </button>
+            </div>
+          </div>
+
+          {/* Real-time Summary Cards (Priority 5: Authoritative minimal overview) */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 pt-5">
+            <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+              <div className="text-slate-200 text-xs font-bold">Sotuvchilardagi Fizik Oltin</div>
+              <div className="text-xl font-black font-mono text-cyan-300 mt-1">
+                {totalSellerPhysicalQty} <span className="text-xs font-bold text-slate-100">dona</span>
+              </div>
+              <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">{totalSellerPhysicalGrams.toFixed(4)} g (585)</div>
+            </div>
+
+            <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+              <div className="text-slate-200 text-xs font-bold">Sotuvchilardagi Zavod Qarzi</div>
+              <div className="text-xl font-black font-mono text-amber-300 mt-1">
+                {totalFactoryObligation.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
+              </div>
+              <div className="text-[11px] text-slate-300 mt-1 font-medium">Sotuvchilar qaytarishi shart bo&apos;lgan oltin</div>
+            </div>
+
+            <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+              <div className="text-slate-200 text-xs font-bold">Mijozlarning Jami Qarzi</div>
+              <div className="text-xl font-black font-mono text-rose-400 mt-1">
+                {totalClientDebtGrams.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
+              </div>
+              <div className="text-[11px] text-slate-300 mt-1 font-medium">Barcha sotuvchilar bo&apos;yicha mijozlar qarzi</div>
+            </div>
+
+            <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+              <div className="text-slate-200 text-xs font-bold">Sotuvchilar Kassasidagi Lom</div>
+              <div className="text-xl font-black font-mono text-amber-400 mt-1">
+                {totalSellerTillScrap.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
+              </div>
+              <div className="text-[11px] text-slate-300 mt-1 font-medium">Mijozdan olingan, zavodga berilmagan</div>
+            </div>
+
+            <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+              <div className="text-slate-200 text-xs font-bold">Sotuvchilar Kassasidagi Naqd Pul</div>
+              <div className="text-xl font-black font-mono text-emerald-400 mt-1">
+                {totalSellerTillCash.toLocaleString()} <span className="text-xs font-bold text-slate-100">UZS</span>
+              </div>
+              <div className="text-[11px] text-slate-300 mt-1 font-medium">Sotuvchining shaxsiy kassasida yig&apos;ilgan</div>
+            </div>
+
+            <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
+              <div className="text-slate-200 text-xs font-bold">Bugungi Savdolar</div>
+              <div className="text-xl font-black font-mono text-indigo-300 mt-1">
+                {todaySalesCount} <span className="text-xs font-bold text-slate-100">dona</span>
+              </div>
+              <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">{todaySalesGrams.toFixed(4)} g bazaviy</div>
+            </div>
           </div>
         </div>
-
-        {/* Real-time Summary Cards (Priority 5: Authoritative minimal overview) */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 pt-5">
-          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
-            <div className="text-slate-200 text-xs font-bold">Sotuvchilardagi Fizik Oltin</div>
-            <div className="text-xl font-black font-mono text-cyan-300 mt-1">
-              {totalSellerPhysicalQty} <span className="text-xs font-bold text-slate-100">dona</span>
-            </div>
-            <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">{totalSellerPhysicalGrams.toFixed(4)} g (585)</div>
-          </div>
-
-          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
-            <div className="text-slate-200 text-xs font-bold">Sotuvchilardagi Zavod Qarzi</div>
-            <div className="text-xl font-black font-mono text-amber-300 mt-1">
-              {totalFactoryObligation.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
-            </div>
-            <div className="text-[11px] text-slate-300 mt-1 font-medium">Sotuvchilar qaytarishi shart bo&apos;lgan oltin</div>
-          </div>
-
-          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
-            <div className="text-slate-200 text-xs font-bold">Mijozlarning Jami Qarzi</div>
-            <div className="text-xl font-black font-mono text-rose-400 mt-1">
-              {totalClientDebtGrams.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
-            </div>
-            <div className="text-[11px] text-slate-300 mt-1 font-medium">Barcha sotuvchilar bo&apos;yicha mijozlar qarzi</div>
-          </div>
-
-          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
-            <div className="text-slate-200 text-xs font-bold">Sotuvchilar Kassasidagi Lom</div>
-            <div className="text-xl font-black font-mono text-amber-400 mt-1">
-              {totalSellerTillScrap.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
-            </div>
-            <div className="text-[11px] text-slate-300 mt-1 font-medium">Mijozdan olingan, zavodga berilmagan</div>
-          </div>
-
-          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
-            <div className="text-slate-200 text-xs font-bold">Sotuvchilar Kassasidagi Naqd Pul</div>
-            <div className="text-xl font-black font-mono text-emerald-400 mt-1">
-              {totalSellerTillCash.toLocaleString()} <span className="text-xs font-bold text-slate-100">UZS</span>
-            </div>
-            <div className="text-[11px] text-slate-300 mt-1 font-medium">Sotuvchining shaxsiy kassasida yig&apos;ilgan</div>
-          </div>
-
-          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
-            <div className="text-slate-200 text-xs font-bold">Bugungi Savdolar</div>
-            <div className="text-xl font-black font-mono text-indigo-300 mt-1">
-              {todaySalesCount} <span className="text-xs font-bold text-slate-100">dona</span>
-            </div>
-            <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">{todaySalesGrams.toFixed(4)} g bazaviy</div>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Main Tabs Navigation */}
-      <div className="flex border-b border-slate-200 overflow-x-auto gap-2 text-sm font-bold text-slate-600">
-        <button
-          onClick={() => setActiveTab("factory")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "factory"
-              ? "border-amber-600 text-amber-600 font-black"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>🏭</span> Zavod Bilan
-        </button>
-        <button
-          onClick={() => setActiveTab("sellers")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "sellers"
-              ? "border-blue-600 text-blue-600 font-black"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>👥</span> Sotuvchilar Balansi & Bozor Qarzi
-        </button>
-        <button
-          onClick={() => setActiveTab("vault")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "vault"
-              ? "border-emerald-600 text-emerald-600 font-black"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>💰</span> Kassa & Afinaj
-        </button>
-        <button
-          onClick={() => setActiveTab("scanner_consign")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "scanner_consign"
-              ? "border-amber-500 text-amber-500 font-black"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>⚡</span> Skaner 564 Konsignatsiya
-        </button>
-        <button
-          onClick={() => setActiveTab("seller_stock")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "seller_stock"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>📊</span> Sotuvchilar Ombori (Donalar)
-        </button>
-        <button
-          onClick={() => setActiveTab("models")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "models"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>🏷️</span> BarTender Modellar
-        </button>
-        <button
-          onClick={() => setActiveTab("consign")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "consign"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>📦</span> Mahsulot Topshirish (Klassik)
-        </button>
-        <button
-          onClick={() => setActiveTab("presets")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "presets"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>⚙️</span> Dinamik Foizlar Boshqaruvi
-        </button>
-        <button
-          onClick={() => setActiveTab("clients")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "clients"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>📒</span> Mijozlar Qarzi
-        </button>
-        <button
-          onClick={() => setActiveTab("history")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "history"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>📑</span> Tushumlar & Qaytimlar Tarixi
-        </button>
-        <button
-          onClick={() => setActiveTab("diagnostics")}
-          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === "diagnostics"
-              ? "border-amber-600 text-amber-600 font-bold"
-              : "border-transparent hover:text-slate-900"
-          }`}
-        >
-          <span>🔍</span> Skaner Diagnostikasi
-        </button>
-      </div>
+      {!hideTabBar && (
+        <div className="flex border-b border-slate-200 overflow-x-auto gap-2 text-sm font-bold text-slate-600">
+          <button
+            onClick={() => setActiveTab("factory")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "factory"
+                ? "border-amber-600 text-amber-600 font-black"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>🏭</span> Zavod Bilan
+          </button>
+          <button
+            onClick={() => setActiveTab("sellers")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "sellers"
+                ? "border-blue-600 text-blue-600 font-black"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>👥</span> Sotuvchilar Balansi & Bozor Qarzi
+          </button>
+          <button
+            onClick={() => setActiveTab("vault")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "vault"
+                ? "border-emerald-600 text-emerald-600 font-black"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>💰</span> Kassa & Afinaj
+          </button>
+          <button
+            onClick={() => setActiveTab("scanner_consign")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "scanner_consign"
+                ? "border-amber-500 text-amber-500 font-black"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>⚡</span> Skaner 564 Konsignatsiya
+          </button>
+          <button
+            onClick={() => setActiveTab("seller_stock")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "seller_stock"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>📊</span> Sotuvchilar Ombori (Donalar)
+          </button>
+          <button
+            onClick={() => setActiveTab("models")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "models"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>🏷️</span> BarTender Modellar
+          </button>
+          <button
+            onClick={() => setActiveTab("consign")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "consign"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>📦</span> Mahsulot Topshirish (Klassik)
+          </button>
+          <button
+            onClick={() => setActiveTab("presets")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "presets"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>⚙️</span> Dinamik Foizlar
+          </button>
+          <button
+            onClick={() => setActiveTab("clients")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "clients"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>📒</span> Mijozlar Qarzi
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "history"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>📑</span> Tushumlar & Tarix
+          </button>
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "users"
+                ? "border-indigo-600 text-indigo-600 font-bold"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>👤</span> Xodimlar & Telegram
+          </button>
+          <button
+            onClick={() => setActiveTab("sheets_import")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "sheets_import"
+                ? "border-emerald-600 text-emerald-600 font-bold"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>📥</span> Sheets Import
+          </button>
+          <button
+            onClick={() => setActiveTab("diagnostics")}
+            className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === "diagnostics"
+                ? "border-amber-600 text-amber-600 font-bold"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <span>🔍</span> Diagnostika
+          </button>
+        </div>
+      )}
+
 
       {/* TAB 0: FACTORY ACCOUNTING ("Zavod Bilan") */}
       {activeTab === "factory" && (
@@ -2453,6 +2510,13 @@ export function DirectorSalesWorkspace() {
 
       {/* TAB 9: SCANNER 564 DIAGNOSTICS */}
       {activeTab === "diagnostics" && <ScannerDiagnostics />}
+
+      {/* TAB 10: USER MANAGEMENT & TELEGRAM */}
+      {activeTab === "users" && <TelegramUsersSection />}
+
+      {/* TAB 11: GOOGLE SHEETS IMPORT */}
+      {activeTab === "sheets_import" && <SheetsImportSection />}
+
 
       {/* MODAL 1: DAILY SCRAP RATE */}
       {showRateModal && (

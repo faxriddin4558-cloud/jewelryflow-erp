@@ -44,16 +44,22 @@ export async function updateSupabaseSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/reset-password");
+  const isAuthRoute =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/sales/login");
+
   const isPublicAsset =
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/webhooks") ||
+    pathname.startsWith("/api/sales/telegram") ||
+    pathname.startsWith("/api/sales/import") ||
     pathname === "/manifest.json" ||
     pathname === "/sw.js";
 
   if (!user && !isAuthRoute && !isPublicAsset) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/login";
+    redirectUrl.pathname = pathname.startsWith("/sales/app") ? "/sales/login" : "/login";
     redirectUrl.searchParams.set("redirectedFrom", pathname);
     return NextResponse.redirect(redirectUrl);
   }
@@ -63,12 +69,15 @@ export async function updateSupabaseSession(request: NextRequest) {
     const safeTarget =
       redirectFrom && redirectFrom.startsWith("/") && !redirectFrom.startsWith("//")
         ? redirectFrom
+        : pathname.startsWith("/sales/login")
+        ? "/sales/app"
         : "/";
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = safeTarget;
     redirectUrl.searchParams.delete("redirectedFrom");
     return NextResponse.redirect(redirectUrl);
   }
+
 
   return response;
 }

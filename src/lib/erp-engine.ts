@@ -266,7 +266,48 @@ export interface EmployeeRow {
   salary_type?: string;
   rate?: number | string;
   balance?: number | string;
+  telegram_user_id?: string;
+  telegram_username?: string;
+  telegram_linked_at?: string;
+  telegram_link_code?: string;
+  telegram_link_expires_at?: string;
 }
+
+export interface SalesLoginAuditRow {
+  id?: string;
+  organization_id?: string;
+  employee_id?: string;
+  user_id?: string;
+  email?: string;
+  role: string;
+  login_method: "password" | "telegram" | "local_demo" | "token" | string;
+  telegram_user_id?: string;
+  ip_address?: string;
+  user_agent?: string;
+  status: "success" | "failed" | "blocked";
+  failure_reason?: string;
+  created_at: string;
+  employee?: { full_name?: string; name?: string };
+}
+
+export interface SheetsImportBatchRow {
+  id?: string;
+  organization_id?: string;
+  batch_no: string;
+  sheet_name: string;
+  imported_by?: string;
+  total_rows: number;
+  valid_rows: number;
+  skipped_rows: number;
+  total_weight_g: number;
+  total_cash_amount: number;
+  is_opening_balance: boolean;
+  status: string;
+  notes?: string;
+  raw_data_json?: unknown;
+  created_at: string;
+}
+
 
 export interface SalaryLedgerRow {
   id?: string;
@@ -895,8 +936,15 @@ export interface SellerGoldAccountRow {
   seller_owes_manager_g?: number;
   manager_owes_seller_g?: number;
   bozor_qarzi_signed_g?: number;
+  market_debt_balance_grams?: number;
   seller?: {
     id: string;
+    name?: string;
+    full_name?: string;
+    phone?: string;
+  };
+  employee?: {
+    id?: string;
     name?: string;
     full_name?: string;
     phone?: string;
@@ -933,6 +981,9 @@ export interface ManagerVaultAccountRow {
   total_factory_obligation_g: number;
   total_factory_handed_over_g: number;
   current_factory_obligation_g: number;
+  vault_scrap_gold_grams?: number;
+  vault_cash_amount?: number;
+  vault_refined_gold_grams?: number;
   updated_at?: string;
 }
 
