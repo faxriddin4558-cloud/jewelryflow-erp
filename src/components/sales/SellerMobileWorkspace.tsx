@@ -744,7 +744,7 @@ export function SellerMobileWorkspace() {
             activeTab === "stock" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
-          💎 Partiyalar ({availableConsignments.length})
+          💎 Mahsulotlar ({availableConsignments.length})
         </button>
         <button
           id="tabSale"

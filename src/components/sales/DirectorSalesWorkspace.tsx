@@ -703,7 +703,7 @@ export function DirectorSalesWorkspace() {
               : "border-transparent hover:text-slate-900"
           }`}
         >
-          <span>⚙️</span> Dinamik Foizlar
+          <span>⚙️</span> Dinamik Foizlar Boshqaruvi
         </button>
         <button
           onClick={() => setActiveTab("clients")}
@@ -723,7 +723,7 @@ export function DirectorSalesWorkspace() {
               : "border-transparent hover:text-slate-900"
           }`}
         >
-          <span>📑</span> Tarix
+          <span>📑</span> Tushumlar & Qaytimlar Tarixi
         </button>
         <button
           onClick={() => setActiveTab("diagnostics")}
