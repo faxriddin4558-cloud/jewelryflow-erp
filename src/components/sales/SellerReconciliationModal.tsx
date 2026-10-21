@@ -140,10 +140,10 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                 <div>
                   <div>
                     {data.section_g.is_reconciled
-                      ? "Barcha moddiy va moliyaviy hisoblar 100% mutanosib (0.0000g farq)"
-                      : `DIQQAT: Hisob-kitobda ${Number(data.section_g.discrepancy_grams).toFixed(4)}g nomutanosiblik aniqlandi!`}
+                      ? "Barcha moddiy va moliyaviy hisoblar 100% mutanosib (0.00 g farq)"
+                      : `DIQQAT: Hisob-kitobda ${formatScreenGrams(data.section_g.discrepancy_grams, 2)} nomutanosiblik aniqlandi!`}
                   </div>
-                  <div className="text-[11px] font-normal opacity-80 mt-0.5">
+                  <div className="text-[11px] font-normal text-[#CBD5E1] mt-0.5">
                     Asl konsignatsiyalar, qaytarilgan tovarlar va topshirilgan to&apos;lovlar bo&apos;yicha tekshirildi.
                   </div>
                 </div>

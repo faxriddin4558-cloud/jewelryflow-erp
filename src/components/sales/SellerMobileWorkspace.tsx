@@ -575,7 +575,7 @@ export function SellerMobileWorkspace() {
         p_idempotency_key: idempotencyKey,
       });
       if (error) throw error;
-      notifySuccess(`Dona zavodga qaytarildi va majburiyat ${Number(data.factory_due_deducted_grams).toFixed(4)}g ga kamaytirildi!`);
+      notifySuccess(`Dona zavodga qaytarildi va majburiyat ${formatScreenGrams(data.factory_due_deducted_grams, 2)} ga kamaytirildi!`);
       await loadSellerWorkspace();
     } catch (err: unknown) {
       notifyError(`Qaytarishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
@@ -727,23 +727,27 @@ export function SellerMobileWorkspace() {
         {/* Seller Till Summary Banner */}
         <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800 text-center">
           <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">
-            <div className="text-xs font-bold text-slate-200">Kassamdagi Lom</div>
+            <div className="text-xs font-bold text-[#CBD5E1]">Kassamdagi Lom</div>
             <div className="text-base font-black font-mono text-amber-300 mt-0.5">
-              {myTillScrap.toFixed(4)} <span className="text-xs font-bold text-slate-200">g</span>
+              {formatScreenGrams(myTillScrap, 2)}
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">
-            <div className="text-xs font-bold text-slate-200">Kassamdagi Naqd</div>
+            <div className="text-xs font-bold text-[#CBD5E1]">Kassamdagi Naqd</div>
             <div className="text-base font-black font-mono text-emerald-400 mt-0.5">
-              {myTillCash.toLocaleString()} <span className="text-[10px] font-bold text-slate-200">UZS</span>
+              {formatScreenUZS(myTillCash)}
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">
-            <div className="text-xs font-bold text-slate-200">Bozor Qarzi</div>
+            <div className="text-xs font-bold text-[#CBD5E1]">Bozor Qarzi</div>
             <div className={`text-base font-black font-mono mt-0.5 ${
-              myBozorQarzi < 0 ? "text-rose-400" : myBozorQarzi > 0 ? "text-emerald-400" : "text-slate-200"
+              myBozorQarzi < 0 ? "text-rose-400" : myBozorQarzi > 0 ? "text-emerald-400" : "text-[#F8FAFC]"
             }`}>
-              {myBozorQarzi > 0 ? "+" : ""}{myBozorQarzi.toFixed(4)} <span className="text-xs font-bold text-slate-200">g</span>
+              {myBozorQarzi < 0
+                ? `-${formatScreenGrams(Math.abs(myBozorQarzi), 2)}`
+                : myBozorQarzi > 0
+                ? `+${formatScreenGrams(myBozorQarzi, 2)}`
+                : formatScreenGrams(0, 2)}
             </div>
           </div>
         </div>
@@ -924,7 +928,7 @@ export function SellerMobileWorkspace() {
                     </div>
                     <div className="flex flex-wrap gap-x-3 text-slate-300 font-mono text-[11px] pt-0.5">
                       <span>Proba: <strong className="text-amber-300">{matchedPiece.purity}°</strong></span>
-                      <span>Aniq Vazn: <strong id="matchedPieceWeight" className="text-emerald-300">{Number(matchedPiece.weight_grams).toFixed(4)} g</strong></span>
+                      <span>Aniq Vazn: <strong id="matchedPieceWeight" className="text-emerald-300">{formatScreenGrams(matchedPiece.weight_grams, 2)}</strong></span>
                       <span>Model: <strong className="text-white">{matchedPiece.model_code}</strong></span>
                     </div>
                   </div>
@@ -938,19 +942,19 @@ export function SellerMobileWorkspace() {
           </div>
 
           {/* Sale Confirmation Form */}
-          <form onSubmit={handleConfirmBarcodePieceSale} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-900 text-sm">Xaridor va Savdo Shartlari</h3>
+          <form onSubmit={handleConfirmBarcodePieceSale} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-[#0F172A]">
+            <h3 className="font-bold text-[#0F172A] text-sm">Xaridor va Savdo Shartlari</h3>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#475569] mb-1">
                   Xaridor Mijozni Tanlang: <span className="text-rose-500">*</span>
                 </label>
                 <select
                   id="scanSaleCustomerSelect"
                   value={scanCustomerId}
                   onChange={(e) => setScanCustomerId(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 outline-none"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-[#0F172A] focus:border-amber-500 outline-none"
                   required
                 >
                   <option value="">— Mijozni tanlang —</option>
@@ -963,7 +967,7 @@ export function SellerMobileWorkspace() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#475569] mb-1">
                   Mijozga Sotish Ustama Foizi (%): <span className="text-rose-500">*</span>
                 </label>
                 <div className="flex gap-2 mb-2 flex-wrap">
@@ -975,7 +979,7 @@ export function SellerMobileWorkspace() {
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                         scanClientMarkup === String(p.percentage)
                           ? "bg-amber-600 text-white shadow-sm"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          : "bg-slate-100 text-[#475569] hover:bg-slate-200"
                       }`}
                     >
                       +{p.percentage}%
@@ -990,7 +994,7 @@ export function SellerMobileWorkspace() {
                   max="100"
                   value={scanClientMarkup}
                   onChange={(e) => setScanClientMarkup(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-[#0F172A]"
                   required
                 />
               </div>
@@ -1000,20 +1004,20 @@ export function SellerMobileWorkspace() {
                 <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-3.5 space-y-2 text-xs">
                   <div className="font-bold text-amber-900 border-b border-amber-200 pb-1 flex justify-between">
                     <span>Hisob-kitob (Asl Mahsulot Grammidan):</span>
-                    <span className="font-mono text-amber-800">{livePieceSaleCalc.baseWeightGrams.toFixed(4)} g</span>
+                    <span className="font-mono text-amber-800">{formatScreenGrams(livePieceSaleCalc.baseWeightGrams, 2)}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div>
-                      <span className="text-slate-500 block">Zavod Majburiyati (+{livePieceSaleCalc.factoryMarkupPct}%):</span>
-                      <span className="font-mono font-bold text-slate-800">{livePieceSaleCalc.factoryGoldDueGrams.toFixed(4)} g</span>
+                      <span className="text-[#475569] block">Zavod Majburiyati (+{livePieceSaleCalc.factoryMarkupPct}%):</span>
+                      <span className="font-mono font-bold text-[#0F172A]">{formatScreenGrams(livePieceSaleCalc.factoryGoldDueGrams, 2)}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">Mijoz Qarzi (+{livePieceSaleCalc.clientMarkupPct}%):</span>
-                      <span id="liveClientDueGrams" className="font-mono font-bold text-blue-700">{livePieceSaleCalc.clientGoldDueGrams.toFixed(4)} g</span>
+                      <span className="text-[#475569] block">Mijoz Qarzi (+{livePieceSaleCalc.clientMarkupPct}%):</span>
+                      <span id="liveClientDueGrams" className="font-mono font-bold text-blue-700">{formatScreenGrams(livePieceSaleCalc.clientGoldDueGrams, 2)}</span>
                     </div>
                     <div className="col-span-2 pt-1 border-t border-amber-200/60 flex justify-between">
-                      <span className="text-slate-600">Ustama Farqi:</span>
-                      <span className="font-mono font-bold text-amber-900">+{livePieceSaleCalc.markupSpreadGrams.toFixed(4)} g</span>
+                      <span className="text-[#475569]">Ustama Farqi:</span>
+                      <span className="font-mono font-bold text-amber-900">+{formatScreenGrams(livePieceSaleCalc.markupSpreadGrams, 2)}</span>
                     </div>
                   </div>
                 </div>
@@ -1050,15 +1054,15 @@ export function SellerMobileWorkspace() {
       {activeTab === "pieces" && (
         <div className="space-y-3">
           <div className="flex justify-between items-center px-1">
-            <h2 className="text-base font-bold text-slate-800">Vitrinamdagi Donalar Ro&apos;yxati</h2>
-            <span id="piecesCountBadge" className="text-xs text-slate-500 font-medium">Jami: {availablePieces.length} dona</span>
+            <h2 className="text-base font-bold text-[#F8FAFC]">Vitrinamdagi Donalar Ro&apos;yxati</h2>
+            <span id="piecesCountBadge" className="text-xs text-[#CBD5E1] font-medium">Jami: {availablePieces.length} dona</span>
           </div>
 
           {availablePieces.length === 0 ? (
-            <div className="bg-white p-8 rounded-3xl border text-center text-slate-500 space-y-2">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center text-[#475569] space-y-2 text-[#0F172A]">
               <div className="text-3xl">📦</div>
-              <div className="font-bold text-sm">Hozirda sizning hisobingizda dona mahsulotlar yo&apos;q</div>
-              <p className="text-xs text-slate-400">
+              <div className="font-bold text-sm text-[#0F172A]">Hozirda sizning hisobingizda dona mahsulotlar yo&apos;q</div>
+              <p className="text-xs text-[#475569]">
                 Direktor &quot;Shtrix-kodli Mahsulot Topshirish&quot; orqali sizga mahsulot yuklaganda bu yerda paydo bo&apos;ladi.
               </p>
             </div>
@@ -1075,7 +1079,7 @@ export function SellerMobileWorkspace() {
                   <div
                     key={p.id}
                     data-piece-id={p.id}
-                    className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm flex items-center justify-between hover:border-amber-400 transition gap-3"
+                    className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm flex items-center justify-between hover:border-amber-400 transition gap-3 text-[#0F172A]"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <ModelPhotoThumbnail
@@ -1086,18 +1090,18 @@ export function SellerMobileWorkspace() {
                       />
                       <div className="space-y-0.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 text-sm truncate">
+                          <span className="font-bold text-[#0F172A] text-sm truncate">
                             {p.category || "Zargarlik"} — {p.model_name || p.model_code}
                           </span>
                           <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
                             {p.purity || 585}°
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-slate-500">
-                          <span className="font-mono text-slate-600 font-semibold">{p.model_code}</span>
+                        <div className="flex items-center gap-3 text-xs text-[#475569]">
+                          <span className="font-mono text-[#475569] font-semibold">{p.model_code}</span>
                           <span>•</span>
-                          <span className="font-mono font-black text-slate-900 text-sm">
-                            {Number(p.weight_grams).toFixed(4)} g
+                          <span className="font-mono font-black text-[#0F172A] text-sm">
+                            {formatScreenGrams(p.weight_grams, 2)}
                           </span>
                         </div>
                       </div>
@@ -1108,7 +1112,7 @@ export function SellerMobileWorkspace() {
                         type="button"
                         onClick={() => void handleReturnPieceToFactory(p)}
                         title="Ushbu donani zavod omboriga qaytarish"
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-2.5 py-2 rounded-xl transition"
+                        className="bg-slate-100 hover:bg-slate-200 text-[#0F172A] font-bold text-xs px-2.5 py-2 rounded-xl transition"
                       >
                         ↩️ Qaytarish
                       </button>
@@ -1132,15 +1136,15 @@ export function SellerMobileWorkspace() {
       {activeTab === "stock" && (
         <div className="space-y-3">
           <div className="flex justify-between items-center px-1">
-            <h2 className="text-base font-bold text-slate-800">O&apos;zimdagi Mahsulotlar (Vitrina)</h2>
-            <span className="text-xs text-slate-500 font-medium">Jami: {availableConsignments.length} dona</span>
+            <h2 className="text-base font-bold text-[#F8FAFC]">O&apos;zimdagi Mahsulotlar (Vitrina)</h2>
+            <span className="text-xs text-[#CBD5E1] font-medium">Jami: {availableConsignments.length} dona</span>
           </div>
 
           {availableConsignments.length === 0 ? (
-            <div className="bg-white p-8 rounded-3xl border text-center text-slate-500 space-y-2">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center text-[#475569] space-y-2 text-[#0F172A]">
               <div className="text-3xl">📦</div>
-              <div className="font-bold text-sm">Hozirda sizga topshirilgan mahsulot yo&apos;q</div>
-              <p className="text-xs text-slate-400">
+              <div className="font-bold text-sm text-[#0F172A]">Hozirda sizga topshirilgan mahsulot yo&apos;q</div>
+              <p className="text-xs text-[#475569]">
                 Direktor panel orqali sizga mahsulot topshirishi bilan bu yerda ko&apos;rinadi.
               </p>
             </div>
@@ -1148,7 +1152,7 @@ export function SellerMobileWorkspace() {
             availableConsignments.map((c) => (
               <div
                 key={c.id}
-                className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm space-y-3 hover:border-blue-400 transition"
+                className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm space-y-3 hover:border-blue-400 transition text-[#0F172A]"
               >
                 <div className="flex justify-between items-start gap-3">
                   <div className="flex items-center gap-3">
@@ -1162,7 +1166,7 @@ export function SellerMobileWorkspace() {
                       rounded="xl"
                     />
                     <div>
-                      <div className="font-bold text-slate-900 text-sm">{c.product_name || c.item_name}</div>
+                      <div className="font-bold text-[#0F172A] text-sm">{c.product_name || c.item_name}</div>
                       <div className="text-[11px] font-mono text-blue-600 font-bold mt-0.5">
                         {c.consignment_no}
                       </div>
@@ -1175,16 +1179,16 @@ export function SellerMobileWorkspace() {
 
                 <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-2xl text-center text-xs">
                   <div>
-                    <span className="text-slate-500 block text-[10px]">Asl Vazn</span>
-                    <span className="font-mono font-bold text-slate-800">{Number(c.base_weight_grams).toFixed(4)} g</span>
+                    <span className="text-[#475569] block text-[10px]">Asl Vazn</span>
+                    <span className="font-mono font-bold text-[#0F172A]">{formatScreenGrams(c.base_weight_grams, 2)}</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-[10px]">Zavod Ustamasi</span>
+                    <span className="text-[#475569] block text-[10px]">Zavod Ustamasi</span>
                     <span className="font-mono font-bold text-amber-700">+{c.factory_markup_pct}%</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-[10px]">Zavod Majburiyati</span>
-                    <span className="font-mono font-bold text-slate-900">{Number(c.factory_gold_due_grams).toFixed(4)} g</span>
+                    <span className="text-[#475569] block text-[10px]">Zavod Majburiyati</span>
+                    <span className="font-mono font-bold text-[#0F172A]">{formatScreenGrams(c.factory_gold_due_grams, 2)}</span>
                   </div>
                 </div>
 
@@ -1204,11 +1208,11 @@ export function SellerMobileWorkspace() {
       {activeTab === "sale" && (
         <form
           onSubmit={(e) => void handleRecordSale(e)}
-          className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-sm"
+          className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-sm text-[#0F172A]"
         >
           <div>
-            <h2 className="text-base font-bold text-slate-900">Mijozga Nasiyaga Mahsulot Sotish</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-base font-bold text-[#0F172A]">Mijozga Nasiyaga Mahsulot Sotish</h2>
+            <p className="text-xs text-[#475569]">
               Faqat direktor tasdiqlagan foizlar tanlanadi. Asl vazndan alohida hisoblanadi.
             </p>
           </div>
@@ -1216,18 +1220,18 @@ export function SellerMobileWorkspace() {
           <div className="space-y-3">
             {/* Consignment Selection */}
             <div>
-              <label htmlFor="saleConsignmentSelect" className="block text-xs font-bold text-slate-700 mb-1">Topshiriladigan Mahsulot:</label>
+              <label htmlFor="saleConsignmentSelect" className="block text-xs font-bold text-[#475569] mb-1">Topshiriladigan Mahsulot:</label>
               <select
                 id="saleConsignmentSelect"
                 value={saleConsignmentId}
                 onChange={(e) => setSaleConsignmentId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs text-[#0F172A] focus:ring-2 focus:ring-blue-500 outline-none"
                 required
               >
                 <option value="">Mahsulotni tanlang...</option>
                 {availableConsignments.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.product_name || c.item_name} ({Number(c.base_weight_grams).toFixed(4)}g, {c.proba || 585}°) — Zavod: +{c.factory_markup_pct}%
+                    {c.product_name || c.item_name} ({formatScreenGrams(c.base_weight_grams, 2)}, {c.proba || 585}°) — Zavod: +{c.factory_markup_pct}%
                   </option>
                 ))}
               </select>
@@ -1236,7 +1240,7 @@ export function SellerMobileWorkspace() {
             {/* Customer Selection */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label htmlFor="saleCustomerSelect" className="text-xs font-bold text-slate-700">Mijoz:</label>
+                <label htmlFor="saleCustomerSelect" className="text-xs font-bold text-[#475569]">Mijoz:</label>
                 <button
                   type="button"
                   onClick={() => setActiveTab("customer")}
@@ -1249,7 +1253,7 @@ export function SellerMobileWorkspace() {
                 id="saleCustomerSelect"
                 value={saleCustomerId}
                 onChange={(e) => setSaleCustomerId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs text-[#0F172A] focus:ring-2 focus:ring-blue-500 outline-none"
                 required
               >
                 <option value="">Mijozni tanlang...</option>
@@ -1263,7 +1267,7 @@ export function SellerMobileWorkspace() {
 
             {/* Client Markup Selection — Strictly restricted to active director approved markups */}
             <div>
-              <label htmlFor="saleClientMarkupSelect" className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor="saleClientMarkupSelect" className="block text-xs font-bold text-[#475569] mb-1">
                 Mijozga Sotish Ustamasi (%):
               </label>
               <select
@@ -1288,25 +1292,25 @@ export function SellerMobileWorkspace() {
                 </div>
 
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-600">Asl Mahsulot Vazni:</span>
-                  <span className="font-mono font-bold text-slate-900">{liveSaleCalc.baseWeightGrams.toFixed(4)} g</span>
+                  <span className="text-[#475569]">Asl Mahsulot Vazni:</span>
+                  <span className="font-mono font-bold text-[#0F172A]">{formatScreenGrams(liveSaleCalc.baseWeightGrams, 2)}</span>
                 </div>
 
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-600">Zavod Majburiyati (+{liveSaleCalc.factoryMarkupPct}%):</span>
-                  <span className="font-mono font-bold text-slate-800">{liveSaleCalc.factoryGoldDueGrams.toFixed(4)} g</span>
+                  <span className="text-[#475569]">Zavod Majburiyati (+{liveSaleCalc.factoryMarkupPct}%):</span>
+                  <span className="font-mono font-bold text-[#0F172A]">{formatScreenGrams(liveSaleCalc.factoryGoldDueGrams, 2)}</span>
                 </div>
 
                 <div className="border-t border-amber-200/80 pt-2 flex justify-between text-sm">
                   <span className="font-bold text-amber-950">Mijozning Oltin Qarzi (+{liveSaleCalc.clientMarkupPct}%):</span>
                   <span className="font-mono font-black text-amber-950 text-base">
-                    {liveSaleCalc.clientGoldDueGrams.toFixed(4)} g lom
+                    {formatScreenGrams(liveSaleCalc.clientGoldDueGrams, 2)}
                   </span>
                 </div>
 
-                <div className="flex justify-between text-xs text-slate-500 italic pt-1 border-t border-amber-200/50">
+                <div className="flex justify-between text-xs text-[#475569] italic pt-1 border-t border-amber-200/50">
                   <span>Hisob-kitobdagi farq (Spread):</span>
-                  <span className="font-mono font-semibold">+{liveSaleCalc.markupSpreadGrams.toFixed(4)} g</span>
+                  <span className="font-mono font-semibold">+{formatScreenGrams(liveSaleCalc.markupSpreadGrams, 2)}</span>
                 </div>
                 <div className="text-[10px] text-amber-700 italic">
                   * Eslatma: Foizlar ketma-ket ko&apos;paytirilmaydi. Farq faqat hisob-kitobdagi tafovut bo&apos;lib, shaxsiy foyda emas.
@@ -1315,13 +1319,13 @@ export function SellerMobileWorkspace() {
             )}
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Izoh (ixtiyoriy):</label>
+              <label className="block text-xs font-bold text-[#475569] mb-1">Izoh (ixtiyoriy):</label>
               <input
                 type="text"
                 placeholder="To'lov muddati yoki shartlar..."
                 value={saleNotes}
                 onChange={(e) => setSaleNotes(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A]"
               />
             </div>
 
@@ -1340,11 +1344,11 @@ export function SellerMobileWorkspace() {
       {activeTab === "settle" && (
         <form
           onSubmit={(e) => void handleRecordSettlement(e)}
-          className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-sm"
+          className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-sm text-[#0F172A]"
         >
           <div>
-            <h2 className="text-base font-bold text-slate-900">Mijozdan To&apos;lov (Lom yoki Pul) Qabul Qilish</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-base font-bold text-[#0F172A]">Mijozdan To&apos;lov (Lom yoki Pul) Qabul Qilish</h2>
+            <p className="text-xs text-[#475569]">
               Qoida 5: To&apos;lov to&apos;g&apos;ridan-to&apos;g&apos;ri sizning kassangizga kiradi. Naqd pul kurs bo&apos;yicha lomga aylanadi.
             </p>
           </div>
@@ -1352,12 +1356,12 @@ export function SellerMobileWorkspace() {
           <div className="space-y-3">
             {/* Customer Selection */}
             <div>
-              <label htmlFor="settleCustomerSelect" className="block text-xs font-bold text-slate-700 mb-1">Mijoz:</label>
+              <label htmlFor="settleCustomerSelect" className="block text-xs font-bold text-[#475569] mb-1">Mijoz:</label>
               <select
                 id="settleCustomerSelect"
                 value={settleCustomerId}
                 onChange={(e) => setSettleCustomerId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs text-[#0F172A] focus:ring-2 focus:ring-blue-500 outline-none"
                 required
               >
                 <option value="">To&apos;lov qiluvchi mijozni tanlang...</option>
@@ -1366,7 +1370,7 @@ export function SellerMobileWorkspace() {
                   const debt = Number(acc?.current_debt_grams || acc?.current_gold_debt_grams || 0);
                   return (
                     <option key={cust.id} value={cust.id}>
-                      {cust.contact_name} ({cust.customer_code || "KODSIZ"}) {debt > 0 ? `• Qarz: ${debt.toFixed(4)}g` : "• Qarzsiz"}
+                      {cust.contact_name} ({cust.customer_code || "KODSIZ"}) {debt > 0 ? `• Qarz: ${formatScreenGrams(debt, 2)}` : "• Qarzsiz"}
                     </option>
                   );
                 })}
@@ -1377,16 +1381,16 @@ export function SellerMobileWorkspace() {
             {settleCustomerId && (
               <div className="bg-slate-50 border p-3 rounded-2xl flex justify-between items-center text-xs">
                 <div>
-                  <span className="text-slate-500 block">Mijozning Joriy Qarzi:</span>
+                  <span className="text-[#475569] block">Mijozning Joriy Qarzi:</span>
                   <span className="font-mono font-bold text-rose-600 text-sm">
-                    {previousDebtForSettle.toFixed(4)} g lom
+                    {formatScreenGrams(previousDebtForSettle, 2)}
                   </span>
                 </div>
                 {Number(customerDebtAccount?.advance_balance_grams || customerDebtAccount?.advance_gold_balance_grams || 0) > 0 && (
                   <div className="text-right">
-                    <span className="text-slate-500 block">Avans Balansi:</span>
+                    <span className="text-[#475569] block">Avans Balansi:</span>
                     <span className="font-mono font-bold text-blue-600">
-                      +{Number(customerDebtAccount?.advance_balance_grams || customerDebtAccount?.advance_gold_balance_grams).toFixed(4)} g
+                      +{formatScreenGrams(customerDebtAccount?.advance_balance_grams || customerDebtAccount?.advance_gold_balance_grams, 2)}
                     </span>
                   </div>
                 )}
@@ -1396,25 +1400,25 @@ export function SellerMobileWorkspace() {
             {/* Scrap Gold Input */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label htmlFor="settleScrapWeightInput" className="block text-xs font-bold text-slate-700 mb-1">Lom Oltin (g):</label>
+                <label htmlFor="settleScrapWeightInput" className="block text-xs font-bold text-[#475569] mb-1">Lom Oltin (g):</label>
                 <input
                   id="settleScrapWeightInput"
                   type="number"
                   step="0.0001"
                   min="0"
-                  placeholder="0.0000"
+                  placeholder="0.00"
                   value={settleScrapWeight}
                   onChange={(e) => setSettleScrapWeight(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold text-amber-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold text-[#0F172A]"
                 />
               </div>
               <div>
-                <label htmlFor="settleScrapPuritySelect" className="block text-xs font-bold text-slate-700 mb-1">Proba:</label>
+                <label htmlFor="settleScrapPuritySelect" className="block text-xs font-bold text-[#475569] mb-1">Proba:</label>
                 <select
                   id="settleScrapPuritySelect"
                   value={settleScrapPurity}
                   onChange={(e) => setSettleScrapPurity(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-semibold"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A] font-semibold"
                 >
                   <option value="585">585 proba</option>
                   <option value="750">750 proba</option>
@@ -1425,7 +1429,7 @@ export function SellerMobileWorkspace() {
 
             {/* Cash Input */}
             <div>
-              <label htmlFor="settleCashAmountInput" className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor="settleCashAmountInput" className="block text-xs font-bold text-[#475569] mb-1">
                 Naqd Pul (UZS) (Kurs: {activeRatePerGram.toLocaleString()} UZS/g):
               </label>
               <input
@@ -1445,40 +1449,40 @@ export function SellerMobileWorkspace() {
               <div className="text-[11px] font-bold text-emerald-900 uppercase">
                 Avtomatik Kalkulyator (Jonli):
               </div>
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-[#475569]">
                 <span>Naqd pulning lom ekvivalenti:</span>
                 <span className="font-mono font-bold text-emerald-800">
-                  {liveSettleCalc.cashEquivalentGrams.toFixed(4)} g
+                  {formatScreenGrams(liveSettleCalc.cashEquivalentGrams, 2)}
                 </span>
               </div>
-              <div className="flex justify-between font-bold text-slate-900 border-t border-emerald-200/80 pt-1">
+              <div className="flex justify-between font-bold text-[#0F172A] border-t border-emerald-200/80 pt-1">
                 <span>Jami To&apos;lanayotgan Lom:</span>
                 <span className="font-mono text-sm text-emerald-950">
-                  {liveSettleCalc.totalSettledGrams.toFixed(4)} g
+                  {formatScreenGrams(liveSettleCalc.totalSettledGrams, 2)}
                 </span>
               </div>
-              <div className="flex justify-between text-slate-700 pt-1 border-t border-emerald-200/50">
+              <div className="flex justify-between text-[#475569] pt-1 border-t border-emerald-200/50">
                 <span>Qoladigan Qarz:</span>
                 <span className={`font-mono font-bold ${liveSettleCalc.remainingDebtGrams > 0 ? "text-rose-600" : "text-emerald-700"}`}>
-                  {liveSettleCalc.remainingDebtGrams.toFixed(4)} g
+                  {formatScreenGrams(liveSettleCalc.remainingDebtGrams, 2)}
                 </span>
               </div>
               {liveSettleCalc.excessGoldGrams > 0 && (
                 <div className="flex justify-between font-bold text-blue-700 bg-blue-50/80 p-2 rounded-xl">
                   <span>Ortiqcha Qaytim (Avans saqlanadi):</span>
-                  <span className="font-mono">+{liveSettleCalc.excessGoldGrams.toFixed(4)} g</span>
+                  <span className="font-mono">+{formatScreenGrams(liveSettleCalc.excessGoldGrams, 2)}</span>
                 </div>
               )}
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Izoh (ixtiyoriy):</label>
+              <label className="block text-xs font-bold text-[#475569] mb-1">Izoh (ixtiyoriy):</label>
               <input
                 type="text"
                 placeholder="To'lov izohi..."
                 value={settleNotes}
                 onChange={(e) => setSettleNotes(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A]"
               />
             </div>
 
@@ -1497,15 +1501,15 @@ export function SellerMobileWorkspace() {
       {activeTab === "debts" && (
         <div className="space-y-3">
           <div className="flex justify-between items-center px-1">
-            <h2 className="text-base font-bold text-slate-800">Qarz Daftari (Kim qancha berishi kerak)</h2>
+            <h2 className="text-base font-bold text-[#F8FAFC]">Qarz Daftari (Kim qancha berishi kerak)</h2>
             <span className="text-xs text-rose-600 font-bold">Qarzdorlar: {debtorsList.length} nafar</span>
           </div>
 
           {debtorsList.length === 0 ? (
-            <div className="bg-white p-8 rounded-3xl border text-center text-slate-500 space-y-2">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center text-[#475569] space-y-2 text-[#0F172A]">
               <div className="text-3xl">🎉</div>
-              <div className="font-bold text-sm">Hozircha faol qarzdorlar yo&apos;q</div>
-              <p className="text-xs text-slate-400">Barcha mijozlar o&apos;z vaqtida hisob-kitob qilgan.</p>
+              <div className="font-bold text-sm text-[#0F172A]">Hozircha faol qarzdorlar yo&apos;q</div>
+              <p className="text-xs text-[#475569]">Barcha mijozlar o&apos;z vaqtida hisob-kitob qilgan.</p>
             </div>
           ) : (
             debtorsList.map((acc) => {
@@ -1517,20 +1521,20 @@ export function SellerMobileWorkspace() {
               return (
                 <div
                   key={acc.customer_id}
-                  className="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3 hover:border-rose-300 transition"
+                  className="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3 hover:border-rose-300 transition text-[#0F172A]"
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="font-bold text-slate-900 text-sm">{custName}</div>
+                      <div className="font-bold text-[#0F172A] text-sm">{custName}</div>
                       <div className="text-[11px] font-mono text-blue-600 font-bold">{custCode}</div>
                       {relatedCustomer?.phone && (
-                        <div className="text-xs text-slate-500">{relatedCustomer.phone}</div>
+                        <div className="text-xs text-[#475569]">{relatedCustomer.phone}</div>
                       )}
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] text-slate-400 block">Qarzi</span>
+                      <span className="text-[10px] text-[#475569] block">Qarzi</span>
                       <span className="text-base font-black font-mono text-rose-600">
-                        {curDebt.toFixed(4)} g
+                        {formatScreenGrams(curDebt, 2)}
                       </span>
                     </div>
                   </div>
@@ -1552,11 +1556,11 @@ export function SellerMobileWorkspace() {
       {activeTab === "customer" && (
         <form
           onSubmit={(e) => void handleRegisterCustomer(e)}
-          className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-sm"
+          className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-sm text-[#0F172A]"
         >
           <div>
-            <h2 className="text-base font-bold text-slate-900">Yangi Mijoz Qo&apos;shish</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-base font-bold text-[#0F172A]">Yangi Mijoz Qo&apos;shish</h2>
+            <p className="text-xs text-[#475569]">
               Har bir mijozga avtomatik tarzda takrorlanmas doimiy kod (CUST-XXXXXX) beriladi.
             </p>
           </div>
@@ -1569,30 +1573,30 @@ export function SellerMobileWorkspace() {
 
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Ism Familiya (F.I.O):</label>
+              <label className="block text-xs font-bold text-[#475569] mb-1">Ism Familiya (F.I.O):</label>
               <input
                 type="text"
                 placeholder="Masalan: Sardor Rustamov"
                 value={newCustName}
                 onChange={(e) => setNewCustName(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-[#0F172A]"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Telefon Raqami:</label>
+              <label className="block text-xs font-bold text-[#475569] mb-1">Telefon Raqami:</label>
               <input
                 type="text"
                 placeholder="+998 90 123 45 67"
                 value={newCustPhone}
                 onChange={(e) => setNewCustPhone(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-900"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-[#0F172A]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-[#475569] mb-1">
                 Kompaniya / Pasport yoki PINFL:
               </label>
               <input
@@ -1600,7 +1604,7 @@ export function SellerMobileWorkspace() {
                 placeholder="Pasport seriya yoki do'kon nomi..."
                 value={newCustCompany}
                 onChange={(e) => setNewCustCompany(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A]"
               />
             </div>
 
@@ -1618,16 +1622,16 @@ export function SellerMobileWorkspace() {
       {/* TAB 6: SELLER TILL STATUS & HISTORY */}
       {activeTab === "till" && (
         <div className="space-y-4">
-          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Mening Kassam va Bozor Qarzi (Boshqaruvchi Oldidagi Majburiyat)</h2>
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-[#0F172A]">
+            <h2 className="text-base font-bold text-[#0F172A]">Mening Kassam va Bozor Qarzi (Boshqaruvchi Oldidagi Majburiyat)</h2>
 
             {/* Signed Bozor Qarzi Card */}
             <div className={`p-4 rounded-2xl border space-y-1 ${
               myBozorQarzi < 0
-                ? "bg-rose-50 border-rose-200 text-rose-950"
+                ? "bg-rose-50 border-rose-200 text-[#B91C1C]"
                 : myBozorQarzi > 0
-                ? "bg-emerald-50 border-emerald-200 text-emerald-950"
-                : "bg-slate-50 border-slate-200 text-slate-800"
+                ? "bg-emerald-50 border-emerald-200 text-[#047857]"
+                : "bg-slate-50 border-slate-200 text-[#0F172A]"
             }`}>
               <div className="flex justify-between items-center text-xs font-bold">
                 <span>Bozor Qarzi:</span>
@@ -1636,7 +1640,7 @@ export function SellerMobileWorkspace() {
                     ? "bg-rose-200 text-rose-800"
                     : myBozorQarzi > 0
                     ? "bg-emerald-200 text-emerald-800"
-                    : "bg-slate-200 text-slate-700"
+                    : "bg-slate-200 text-[#0F172A]"
                 }`}>
                   {myBozorQarzi < 0
                     ? "Qarzingiz bor (-)"
@@ -1646,13 +1650,17 @@ export function SellerMobileWorkspace() {
                 </span>
               </div>
               <div className="text-2xl font-black font-mono">
-                {myBozorQarzi > 0 ? "+" : ""}{myBozorQarzi.toFixed(4)} <span className="text-xs font-normal">g</span>
-              </div>
-              <div className="text-[11px] opacity-80">
                 {myBozorQarzi < 0
-                  ? `Boshqaruvchiga ${Math.abs(myBozorQarzi).toFixed(4)} g lom qaytarishingiz kerak.`
+                  ? `-${formatScreenGrams(Math.abs(myBozorQarzi), 2)}`
                   : myBozorQarzi > 0
-                  ? `Boshqaruvchi sizga ${myBozorQarzi.toFixed(4)} g ortiqcha tushum (avans) uchun qarzdor.`
+                  ? `+${formatScreenGrams(myBozorQarzi, 2)}`
+                  : formatScreenGrams(0, 2)}
+              </div>
+              <div className="text-[11px] text-[#475569]">
+                {myBozorQarzi < 0
+                  ? `Boshqaruvchiga ${formatScreenGrams(Math.abs(myBozorQarzi), 2)} lom qaytarishingiz kerak.`
+                  : myBozorQarzi > 0
+                  ? `Boshqaruvchi sizga ${formatScreenGrams(myBozorQarzi, 2)} ortiqcha tushum (avans) uchun qarzdor.`
                   : "Barcha hisob-kitoblar to'liq yopilgan."}
               </div>
             </div>
@@ -1661,7 +1669,7 @@ export function SellerMobileWorkspace() {
               <div className="flex justify-between items-center p-3 bg-amber-50 rounded-2xl border border-amber-200">
                 <span className="font-bold text-amber-900">Kassamdagi Lom Oltin:</span>
                 <span className="font-mono font-black text-amber-950 text-base">
-                  {formatScreenGrams(myTillScrap)}
+                  {formatScreenGrams(myTillScrap, 2)}
                 </span>
               </div>
 
@@ -1673,32 +1681,32 @@ export function SellerMobileWorkspace() {
               </div>
             </div>
 
-            <div className="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-2xl border">
+            <div className="text-[11px] text-[#475569] bg-slate-50 p-3 rounded-2xl border">
               ℹ️ Qoida 5: Mijoz to&apos;lagan lom yoki naqd pul sizning kassangizda saqlanadi. Boshqaruvchi sizdan ushbu lom yoki pulni qabul qilib olgandagina bozor qarzingiz kamayadi.
             </div>
           </div>
 
           {/* Recent Sales History */}
-          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-            <h3 className="font-bold text-slate-900 text-sm">Oxirgi Savdolarim Tarixi</h3>
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3 text-[#0F172A]">
+            <h3 className="font-bold text-[#0F172A] text-sm">Oxirgi Savdolarim Tarixi</h3>
 
             <div className="space-y-2">
               {mySales.map((s) => (
                 <div key={s.id} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
                   <div>
-                    <div className="font-bold text-slate-900">{s.customer?.contact_name || "Mijoz"}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{s.sale_no} • {s.sale_date}</div>
+                    <div className="font-bold text-[#0F172A]">{s.customer?.contact_name || "Mijoz"}</div>
+                    <div className="text-[10px] text-[#475569] font-mono">{s.sale_no} • {s.sale_date}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-mono font-bold text-slate-800">
-                      {Number(s.client_gold_due_grams).toFixed(4)} g
+                    <div className="font-mono font-bold text-[#0F172A]">
+                      {formatScreenGrams(s.client_gold_due_grams, 2)}
                     </div>
                     <div className="text-[10px] text-indigo-600 font-semibold">+{s.client_markup_pct}% ustama</div>
                   </div>
                 </div>
               ))}
               {mySales.length === 0 && (
-                <div className="text-center py-4 text-xs text-slate-400">
+                <div className="text-center py-4 text-xs text-[#475569]">
                   Hozircha savdolar tarixi yo&apos;q.
                 </div>
               )}

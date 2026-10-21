@@ -5,7 +5,7 @@ import { generateQrMatrix, renderMatrixToSvg } from "@/lib/qr-generator";
 import {
   generateBarTenderCsv,
   type JewelryModelItem,
-  formatGrams,
+  formatScreenGrams,
 } from "@/lib/barcode-scanner-engine";
 import { validateImageFile, compressImageFile } from "@/lib/image-compression";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
@@ -287,7 +287,7 @@ export function BarTenderModelManager({ models = [], onAddModel, onUpdateModelPh
                       <td className="py-3 px-4 font-mono">{m.gold_purity || 585}°</td>
                       <td className="py-3 px-4">{m.decorations || "Standart"}</td>
                       <td className="py-3 px-4 font-mono text-slate-400">
-                        {m.reference_weight_grams ? `~${formatGrams(m.reference_weight_grams)} g` : "—"}
+                        {m.reference_weight_grams ? `~${formatScreenGrams(m.reference_weight_grams, 2)}` : "—"}
                       </td>
                     </tr>
                   );
@@ -307,9 +307,9 @@ export function BarTenderModelManager({ models = [], onAddModel, onUpdateModelPh
             {selectedModel ? (
               <div
                 id="printableQrCard"
-                className="bg-white text-slate-900 rounded-2xl p-5 space-y-3 shadow-lg border border-slate-300 flex flex-col items-center"
+                className="bg-white text-[#0F172A] rounded-2xl p-5 space-y-3 shadow-lg border border-slate-300 flex flex-col items-center"
               >
-                <div className="text-xs uppercase font-extrabold tracking-widest text-slate-600">
+                <div className="text-xs uppercase font-extrabold tracking-widest text-[#475569]">
                   GOLDIA JEWELRY
                 </div>
 
@@ -351,26 +351,26 @@ export function BarTenderModelManager({ models = [], onAddModel, onUpdateModelPh
                 />
 
                 <div className="space-y-1 text-center font-sans">
-                  <div id="activeCardModelCode" className="font-mono text-base font-black text-slate-950 tracking-wider">
+                  <div id="activeCardModelCode" className="font-mono text-base font-black text-[#0F172A] tracking-wider">
                     {selectedModel.model_code}
                   </div>
-                  <div id="activeCardModelName" className="font-bold text-sm text-slate-800">{selectedModel.name}</div>
-                  <div className="text-xs text-slate-500">
+                  <div id="activeCardModelName" className="font-bold text-sm text-[#0F172A]">{selectedModel.name}</div>
+                  <div className="text-xs text-[#475569]">
                     {selectedModel.category || "Серьги"} • {selectedModel.decorations || "Standart"} • {selectedModel.gold_purity || 585}°
                   </div>
                   {selectedModel.reference_weight_grams && (
-                    <div className="text-xs text-slate-600 font-mono">
-                      Mo&apos;ljal: ~{formatGrams(selectedModel.reference_weight_grams)} g
+                    <div className="text-xs text-[#475569] font-mono">
+                      Mo&apos;ljal: ~{formatScreenGrams(selectedModel.reference_weight_grams, 2)}
                     </div>
                   )}
                 </div>
 
                 {/* Existing Linear Barcode Mockup */}
                 <div className="w-full bg-slate-50 border border-dashed border-slate-300 rounded-xl p-2.5 text-center">
-                  <div className="text-[10px] text-slate-500 font-semibold mb-1">
+                  <div className="text-[10px] text-[#475569] font-semibold mb-1">
                     Mavjud Chiziqli Vazn Shtrix-Kodi (O&apos;zgarmaydi):
                   </div>
-                  <div className="font-mono text-xs tracking-widest text-slate-800 font-black bg-white p-1.5 rounded-lg border border-slate-200">
+                  <div className="font-mono text-xs tracking-widest text-[#0F172A] font-black bg-white p-1.5 rounded-lg border border-slate-200">
                     ||| | |||| | ||| |||| | 14.52 |||
                   </div>
                   <div className="text-[10px] text-emerald-700 font-medium mt-1">

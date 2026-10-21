@@ -327,7 +327,7 @@ export function CustomerLedgerAndSheetsSection() {
 
       setMessage({
         type: "success",
-        text: `To'lov qabul qilindi! (${targetCustomer.contact_name}): Jami yopildi ${Number(data.total_settled_grams).toFixed(4)}g. Qoldiq qarz: ${Number(data.remaining_debt_grams).toFixed(4)}g.`,
+        text: `To'lov qabul qilindi! (${targetCustomer.contact_name}): Jami yopildi ${formatScreenGrams(data.total_settled_grams, 2)}. Qoldiq qarz: ${formatScreenGrams(data.remaining_debt_grams, 2)}.`,
       });
 
       setPaymentModalOpen(false);
@@ -365,7 +365,7 @@ export function CustomerLedgerAndSheetsSection() {
 
       setMessage({
         type: "success",
-        text: `Savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${data.model_name} (${Number(data.weight_grams).toFixed(4)}g @ ${data.client_markup_pct}%). Qarz yozildi: ${Number(data.client_gold_due_grams).toFixed(4)}g.`,
+        text: `Savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${data.model_name} (${formatScreenGrams(data.weight_grams, 2)} @ ${data.client_markup_pct}%). Qarz yozildi: ${formatScreenGrams(data.client_gold_due_grams, 2)}.`,
       });
 
       setSaleModalOpen(false);

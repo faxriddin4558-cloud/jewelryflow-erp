@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { formatGrams, type JewelryModelItem } from "@/lib/barcode-scanner-engine";
+import { formatGrams, formatScreenGrams, type JewelryModelItem } from "@/lib/barcode-scanner-engine";
 import { supabase, type ConsignmentPieceRow, type SellerGoldAccountRow } from "@/lib/erp-engine";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
 
@@ -280,7 +280,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
               Topshirilgan (Jami)
             </div>
             <div className="text-xl font-black text-amber-300 font-mono">
-              {totals.consignedQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatGrams(totals.consignedGrams)}g</span>
+              {totals.consignedQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatScreenGrams(totals.consignedGrams, 2)}</span>
             </div>
           </div>
 
@@ -289,7 +289,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
               Hozirgi Ombor Qoldig&apos;i
             </div>
             <div className="text-xl font-black text-emerald-400 font-mono">
-              {totals.availableQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatGrams(totals.availableGrams)}g</span>
+              {totals.availableQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatScreenGrams(totals.availableGrams, 2)}</span>
             </div>
           </div>
 
@@ -298,7 +298,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
               Mijozlarga Sotilgan
             </div>
             <div className="text-xl font-black text-cyan-300 font-mono">
-              {totals.soldQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatGrams(totals.soldGrams)}g</span>
+              {totals.soldQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatScreenGrams(totals.soldGrams, 2)}</span>
             </div>
           </div>
 
@@ -307,7 +307,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
               Menejerga Qaytarilgan
             </div>
             <div className="text-xl font-black text-amber-400 font-mono">
-              {totals.returnedQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatGrams(totals.returnedGrams)}g</span>
+              {totals.returnedQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatScreenGrams(totals.returnedGrams, 2)}</span>
             </div>
           </div>
         </div>
@@ -327,7 +327,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
 
       {/* VIEW 1: PIECE-LEVEL INVENTORY (EXACT PHYSICAL ITEMS) */}
       {viewMode === "pieces" && (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-white space-y-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-[#F8FAFC] space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
               Aniq Jismoniy Donalar Ro&apos;yxati ({filteredPieces.length})
@@ -344,7 +344,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-900/80 text-slate-400 font-semibold border-b border-slate-800">
+                <thead className="bg-slate-900/80 text-[#CBD5E1] font-semibold border-b border-slate-800">
                   <tr>
                     <th className="py-3 px-3">Rasm</th>
                     <th className="py-3 px-3">Model</th>
@@ -374,13 +374,13 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
                             rounded="md"
                           />
                         </td>
-                        <td className="py-2.5 px-3 font-bold text-white">
+                        <td className="py-2.5 px-3 font-bold text-[#F8FAFC]">
                           {p.model_name}
-                          <div className="text-[10px] text-slate-500">{p.category || "Buyum"}</div>
+                          <div className="text-[10px] text-slate-400">{p.category || "Buyum"}</div>
                         </td>
                         <td className="py-2.5 px-3 font-mono text-amber-400">{p.model_code}</td>
                         <td className="py-2.5 px-3 font-mono font-bold text-emerald-400 text-sm">
-                          {Number(p.weight_grams).toFixed(4)} g
+                          {formatScreenGrams(p.weight_grams, 2)}
                         </td>
                         <td className="py-2.5 px-3 font-mono text-slate-300">{p.purity || 585}</td>
                         <td className="py-2.5 px-3 text-slate-300">
@@ -430,7 +430,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
 
       {/* VIEW 2: AGGREGATED VIEW (MODEL-LEVEL) */}
       {viewMode === "aggregated" && (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-white space-y-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-[#F8FAFC] space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
               Sotuvchi va Model Bo&apos;yicha Qoldiqlar ({aggregatedInventory.length})
@@ -447,7 +447,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-900/80 text-slate-400 font-semibold border-b border-slate-800">
+                <thead className="bg-slate-900/80 text-[#CBD5E1] font-semibold border-b border-slate-800">
                   <tr>
                     <th className="py-3 px-3">Rasm</th>
                     <th className="py-3 px-4">Sotuvchi</th>
@@ -479,17 +479,17 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
                             rounded="md"
                           />
                         </td>
-                        <td className="py-3 px-4 font-bold text-white">{item.sellerName}</td>
+                        <td className="py-3 px-4 font-bold text-[#F8FAFC]">{item.sellerName}</td>
                         <td className="py-3 px-4 font-mono text-amber-300">{item.modelCode}</td>
                         <td className="py-3 px-4 text-slate-300">{item.modelName}</td>
                         <td className="py-3 px-4 font-mono text-amber-200">
-                          {item.consignedQty} dona ({formatGrams(item.consignedGrams)} g)
+                          {item.consignedQty} dona ({formatScreenGrams(item.consignedGrams, 2)})
                         </td>
                         <td className="py-3 px-4 font-mono text-cyan-200">
-                          {item.soldQty} dona ({formatGrams(item.soldGrams)} g)
+                          {item.soldQty} dona ({formatScreenGrams(item.soldGrams, 2)})
                         </td>
                         <td className="py-3 px-4 font-mono font-bold text-emerald-400 text-sm">
-                          {item.availableQty} dona ({formatGrams(item.availableGrams)} g)
+                          {item.availableQty} dona ({formatScreenGrams(item.availableGrams, 2)})
                         </td>
                         <td className="py-3 px-4 text-center">
                           {isBalanced ? (

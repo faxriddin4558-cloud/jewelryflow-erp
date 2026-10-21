@@ -11,6 +11,7 @@ import {
   loadSessionFromStorage,
   clearSessionFromStorage,
   formatGrams,
+  formatScreenGrams,
   type DraftScanSession,
   type JewelryModelItem,
   type Scanner564Config,
@@ -80,7 +81,7 @@ export function ScannerConsignmentSection({
     if (saved && saved.pieces && saved.pieces.length > 0) {
       setSession(saved);
       setStatusNotice({
-        text: `Avvalgi qoralama tiklandi (${saved.pieces.length} dona, ${formatGrams(saved.totalWeightGrams)}g)`,
+        text: `Avvalgi qoralama tiklandi (${saved.pieces.length} dona, ${formatScreenGrams(saved.totalWeightGrams, 2)})`,
         type: "info",
       });
     }
@@ -444,30 +445,28 @@ export function ScannerConsignmentSection({
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-white space-y-3">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-[#F8FAFC] space-y-3">
+            <div className="text-xs text-[#CBD5E1] uppercase tracking-wider font-semibold">
               Jami Asl Vazn (585)
             </div>
-            <div id="draftTotalWeight" className="text-3xl font-black text-white font-mono">
-              {formatGrams(session.totalWeightGrams)}{" "}
-              <span className="text-base font-normal text-slate-400">g</span>
+            <div id="draftTotalWeight" className="text-3xl font-black text-[#F8FAFC] font-mono">
+              {formatScreenGrams(session.totalWeightGrams, 2)}
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-white space-y-3">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-[#F8FAFC] space-y-3">
+            <div className="text-xs text-[#CBD5E1] uppercase tracking-wider font-semibold">
               Zavod Majburiyati (+{fPct}%)
             </div>
             <div id="draftFactoryDue" className="text-3xl font-black text-emerald-400 font-mono">
-              {formatGrams(calc.factoryGoldDueGrams)}{" "}
-              <span className="text-base font-normal text-slate-400">g lom</span>
+              {formatScreenGrams(calc.factoryGoldDueGrams, 2)}
             </div>
           </div>
 
           {/* Model Breakdown */}
           {Object.keys(session.byModel).length > 0 && (
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-white space-y-3 text-xs">
-              <div className="font-bold text-slate-300 uppercase tracking-wider">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-[#F8FAFC] space-y-3 text-xs">
+              <div className="font-bold text-[#CBD5E1] uppercase tracking-wider">
                 Modellar Bo&apos;yicha Taqsimot:
               </div>
               <div className="space-y-2">
@@ -485,12 +484,12 @@ export function ScannerConsignmentSection({
                       />
                       <div>
                         <div className="font-bold">{grp.modelName}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{grp.modelCode}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{grp.modelCode}</div>
                       </div>
                     </div>
                     <div className="text-right font-mono">
                       <div className="font-bold text-amber-300">{grp.count} dona</div>
-                      <div className="text-slate-400">{formatGrams(grp.totalWeightGrams)} g</div>
+                      <div className="text-slate-400">{formatScreenGrams(grp.totalWeightGrams, 2)}</div>
                     </div>
                   </div>
                 ))}
@@ -522,7 +521,7 @@ export function ScannerConsignmentSection({
             ) : (
               <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950 max-h-[420px] overflow-y-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900/80 text-slate-400 font-semibold border-b border-slate-800 sticky top-0">
+                  <thead className="bg-slate-900/80 text-[#CBD5E1] font-semibold border-b border-slate-800 sticky top-0">
                     <tr>
                       <th className="py-2.5 px-3">#</th>
                       <th className="py-2.5 px-3">Rasm</th>
@@ -536,7 +535,7 @@ export function ScannerConsignmentSection({
                   <tbody className="divide-y divide-slate-800/60 font-medium">
                     {session.pieces.map((p, idx) => (
                       <tr key={p.id} className="hover:bg-slate-900/50">
-                        <td className="py-2.5 px-3 text-slate-500 font-mono">{idx + 1}</td>
+                        <td className="py-2.5 px-3 text-slate-400 font-mono">{idx + 1}</td>
                         <td className="py-2 px-3">
                           <ModelPhotoThumbnail
                             src={p.primary_image_url}
@@ -545,10 +544,10 @@ export function ScannerConsignmentSection({
                             rounded="md"
                           />
                         </td>
-                        <td className="py-2.5 px-3 font-bold text-white">{p.modelName}</td>
+                        <td className="py-2.5 px-3 font-bold text-[#F8FAFC]">{p.modelName}</td>
                         <td className="py-2.5 px-3 font-mono text-amber-300">{p.modelCode}</td>
                         <td className="py-2.5 px-3 font-mono font-bold text-emerald-400 text-sm">
-                          {formatGrams(p.weightGrams)} g
+                          {formatScreenGrams(p.weightGrams, 2)}
                         </td>
                         <td className="py-2.5 px-3 font-mono text-slate-400">{p.rawBarcode}</td>
                         <td className="py-2.5 px-3 text-right">
@@ -588,7 +587,7 @@ export function ScannerConsignmentSection({
               <span>✓</span>
               {isBusy
                 ? "Tasdiqlanmoqda..."
-                : `Konsignatsiyani Tasdiqlash (${session.totalPieces} dona, ${formatGrams(session.totalWeightGrams)}g)`}
+                : `Konsignatsiyani Tasdiqlash (${session.totalPieces} dona, ${formatScreenGrams(session.totalWeightGrams, 2)})`}
             </button>
           </div>
         </div>

@@ -30,7 +30,11 @@ import { SellerInventoryDashboard } from "./SellerInventoryDashboard";
 import { SheetsImportSection } from "./SheetsImportSection";
 import { TelegramUsersSection } from "./TelegramUsersSection";
 import { SellerReconciliationModal } from "./SellerReconciliationModal";
-import { type JewelryModelItem } from "@/lib/barcode-scanner-engine";
+import {
+  formatScreenGrams,
+  formatScreenUZS,
+  type JewelryModelItem,
+} from "@/lib/barcode-scanner-engine";
 
 export type DirectorSalesTab =
   | "factory"
@@ -1169,14 +1173,14 @@ export function DirectorSalesWorkspace({
           {/* Header & Metrics */}
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-black text-slate-900">Zavod Bilan Hisob-Kitob (1-Zanjir)</h2>
-              <p className="text-xs text-slate-500">
+              <h2 className="text-xl font-black text-[#F8FAFC]">Zavod Bilan Hisob-Kitob (1-Zanjir)</h2>
+              <p className="text-xs text-[#CBD5E1]">
                 Sheets &quot;Zavod bilan&quot; varaqasi pariteti: Zavoddan tovar qabul qilish va zavodga oltin topshirish. Faqat zavodga topshirilgan oltin zavod qarzini kamaytiradi.
               </p>
             </div>
             <button
               onClick={() => void loadData()}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-[#F8FAFC] border border-slate-700 text-xs font-semibold rounded-xl transition"
             >
               🔄 Yangilash
             </button>
@@ -1185,50 +1189,50 @@ export function DirectorSalesWorkspace({
           {/* Metric Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-slate-900 text-white p-4 rounded-3xl border border-slate-800 shadow-sm">
-              <div className="text-xs font-bold text-slate-400">Jami Qabul Qilingan Tovar</div>
+              <div className="text-xs font-bold text-[#CBD5E1]">Jami Qabul Qilingan Tovar</div>
               <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
-                {factoryReceipts.reduce((sum, r) => sum + Number(r.original_physical_g || 0), 0).toFixed(4)} <span className="text-xs font-normal">g fizik</span>
+                {formatScreenGrams(factoryReceipts.reduce((sum, r) => sum + Number(r.original_physical_g || 0), 0))} <span className="text-xs font-normal">fizik</span>
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">{factoryReceipts.length} ta kvitansiya</div>
+              <div className="text-[11px] text-[#CBD5E1] mt-1">{factoryReceipts.length} ta kvitansiya</div>
             </div>
 
-            <div className="bg-amber-950/80 text-white p-4 rounded-3xl border border-amber-800/80 shadow-sm">
-              <div className="text-xs font-bold text-amber-300">Zavod Oldidagi Majburiyat</div>
+            <div className="bg-amber-950 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
+              <div className="text-xs font-bold text-amber-200">Zavod Oldidagi Majburiyat</div>
               <div className="text-2xl font-black font-mono text-amber-400 mt-1">
-                {factoryReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0).toFixed(4)} <span className="text-xs font-normal">g 585</span>
+                {formatScreenGrams(factoryReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0))} <span className="text-xs font-normal">585</span>
               </div>
-              <div className="text-[11px] text-amber-300/80 mt-1">Ustama foizlari bilan hisoblangan</div>
+              <div className="text-[11px] text-amber-200 mt-1">Ustama foizlari bilan hisoblangan</div>
             </div>
 
-            <div className="bg-emerald-950/80 text-white p-4 rounded-3xl border border-emerald-800/80 shadow-sm">
-              <div className="text-xs font-bold text-emerald-300">Zavodga Qaytarilgan Oltin</div>
+            <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
+              <div className="text-xs font-bold text-emerald-200">Zavodga Qaytarilgan Oltin</div>
               <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
-                {Number(managerVault?.total_factory_handed_over_g || factoryHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0)).toFixed(4)} <span className="text-xs font-normal">g 585 eq</span>
+                {formatScreenGrams(Number(managerVault?.total_factory_handed_over_g || factoryHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0)))} <span className="text-xs font-normal">585 eq</span>
               </div>
-              <div className="text-[11px] text-emerald-300/80 mt-1">{factoryHandovers.length} ta topshirish hujjati</div>
+              <div className="text-[11px] text-emerald-200 mt-1">{factoryHandovers.length} ta topshirish hujjati</div>
             </div>
 
-            <div className="bg-rose-950/80 text-white p-4 rounded-3xl border border-rose-800/80 shadow-sm">
-              <div className="text-xs font-bold text-rose-300">Hozirgi Sof Zavod Qarzi</div>
+            <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm">
+              <div className="text-xs font-bold text-rose-200">Hozirgi Sof Zavod Qarzi</div>
               <div className="text-2xl font-black font-mono text-rose-400 mt-1">
-                {Number(managerVault?.current_factory_obligation_g ?? (
+                {formatScreenGrams(Number(managerVault?.current_factory_obligation_g ?? (
                   factoryReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0) -
                   factoryHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0)
-                )).toFixed(4)} <span className="text-xs font-normal">g 585</span>
+                )))} <span className="text-xs font-normal">585</span>
               </div>
-              <div className="text-[11px] text-rose-300/80 mt-1">Zavod oldidagi toza qoldiq qarz</div>
+              <div className="text-[11px] text-rose-200 mt-1">Zavod oldidagi toza qoldiq qarz</div>
             </div>
           </div>
 
           {/* Subview Segmented Control for Factory Accounting */}
-          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit text-xs font-bold">
+          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-900 border border-slate-800 rounded-2xl w-fit text-xs font-bold">
             <button
               type="button"
               onClick={() => setActiveFactorySection("all")}
               className={`px-3 py-1.5 rounded-xl transition ${
                 activeFactorySection === "all"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-slate-800 text-[#F8FAFC] shadow-sm border border-slate-700"
+                  : "text-[#CBD5E1] hover:text-[#F8FAFC]"
               }`}
             >
               📋 Barchasi (Kirim & Chiqim)
@@ -1239,7 +1243,7 @@ export function DirectorSalesWorkspace({
               className={`px-3 py-1.5 rounded-xl transition ${
                 activeFactorySection === "receive"
                   ? "bg-amber-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
+                  : "text-[#CBD5E1] hover:text-[#F8FAFC]"
               }`}
             >
               📥 Faqat Zavoddan Qabul (Kirim)
@@ -1250,7 +1254,7 @@ export function DirectorSalesWorkspace({
               className={`px-3 py-1.5 rounded-xl transition ${
                 activeFactorySection === "handover"
                   ? "bg-emerald-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
+                  : "text-[#CBD5E1] hover:text-[#F8FAFC]"
               }`}
             >
               🚚 Faqat Zavodga Topshirish (Chiqim)
@@ -1262,50 +1266,50 @@ export function DirectorSalesWorkspace({
             {(activeFactorySection === "all" || activeFactorySection === "receive") && (
               <form
                 onSubmit={(e) => void handleCreateFactoryReceipt(e)}
-                className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
+                className="bg-white text-[#0F172A] p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
               >
                 <div className="border-b pb-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
                     Varaqa: &quot;Zavod bilan&quot; Kirim
                   </span>
-                  <h3 className="text-lg font-black text-slate-900 mt-2">Zavoddan Tovar Qabul Qilish</h3>
-                  <p className="text-xs text-slate-500">
+                  <h3 className="text-lg font-black text-[#0F172A] mt-2">Zavoddan Tovar Qabul Qilish</h3>
+                  <p className="text-xs text-[#475569]">
                     Zavoddan kelgan partiyani fizik vazni va zavod ustama foizi bilan qabul qilish.
                   </p>
                 </div>
 
                 <div className="space-y-3 text-sm">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Mahsulot Nomi / Partiya Tavsifi:</label>
+                    <label className="block text-xs font-bold text-[#475569] mb-1">Mahsulot Nomi / Partiya Tavsifi:</label>
                     <input
                       type="text"
                       placeholder="Masalan: Malika sirg'a partiyasi, zanjir..."
                       value={rcpProductName}
                       onChange={(e) => setRcpProductName(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-[#0F172A] placeholder:text-[#475569]"
                       required
                     />
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Fizik Vazn (g):</label>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Fizik Vazn (g):</label>
                       <input
                         type="number"
                         step="0.0001"
                         min="0.0001"
                         value={rcpWeight}
                         onChange={(e) => setRcpWeight(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Proba:</label>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Proba:</label>
                       <select
                         value={rcpPurity}
                         onChange={(e) => setRcpPurity(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold text-slate-900"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold text-[#0F172A]"
                       >
                         <option value="585">585 (Asosiy)</option>
                         <option value="750">750</option>
@@ -1313,7 +1317,7 @@ export function DirectorSalesWorkspace({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Zavod Foizi (%):</label>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Zavod Foizi (%):</label>
                       <input
                         type="number"
                         step="0.1"
@@ -1327,29 +1331,29 @@ export function DirectorSalesWorkspace({
                   </div>
 
                   {/* Live Preview */}
-                  <div className="bg-amber-50/70 p-3 rounded-2xl border border-amber-200 text-xs space-y-1 font-mono">
-                    <div className="flex justify-between text-amber-900">
+                  <div className="bg-amber-50 p-3 rounded-2xl border border-amber-200 text-xs space-y-1 font-mono text-[#0F172A]">
+                    <div className="flex justify-between text-[#475569]">
                       <span>Fizik vazn:</span>
-                      <span className="font-bold">{parseFloat(rcpWeight) || 0} g</span>
+                      <span className="font-bold text-[#0F172A]">{formatScreenGrams(parseFloat(rcpWeight) || 0)}</span>
                     </div>
-                    <div className="flex justify-between text-amber-900">
+                    <div className="flex justify-between text-[#475569]">
                       <span>Zavod ustamasi ({parseFloat(rcpMarkup) || 0}%):</span>
-                      <span className="font-bold">{((parseFloat(rcpWeight) || 0) * ((parseFloat(rcpMarkup) || 0) / 100)).toFixed(4)} g</span>
+                      <span className="font-bold text-amber-800">{formatScreenGrams((parseFloat(rcpWeight) || 0) * ((parseFloat(rcpMarkup) || 0) / 100))}</span>
                     </div>
-                    <div className="flex justify-between text-amber-950 font-black border-t border-amber-300 pt-1 text-sm">
+                    <div className="flex justify-between text-[#0F172A] font-black border-t border-amber-300 pt-1 text-sm">
                       <span>Zavod Majburiyati:</span>
-                      <span>{((parseFloat(rcpWeight) || 0) * (1 + (parseFloat(rcpMarkup) || 0) / 100)).toFixed(4)} g</span>
+                      <span className="text-amber-900">{formatScreenGrams((parseFloat(rcpWeight) || 0) * (1 + (parseFloat(rcpMarkup) || 0) / 100))}</span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Izoh / Nakladnoy №:</label>
+                    <label className="block text-xs font-bold text-[#475569] mb-1">Izoh / Nakladnoy №:</label>
                     <input
                       type="text"
                       placeholder="Zavod nakladnoyi, sana yoki eslatma..."
                       value={rcpNotes}
                       onChange={(e) => setRcpNotes(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A] placeholder:text-[#475569]"
                     />
                   </div>
                 </div>
@@ -1368,25 +1372,25 @@ export function DirectorSalesWorkspace({
             {(activeFactorySection === "all" || activeFactorySection === "handover") && (
               <form
                 onSubmit={(e) => void handleCreateFactoryHandover(e)}
-                className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
+                className="bg-white text-[#0F172A] p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
               >
                 <div className="border-b pb-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                     Qarzni Yopish Hujjati
                   </span>
-                  <h3 className="text-lg font-black text-slate-900 mt-2">Zavodga Oltin Topshirish</h3>
-                  <p className="text-xs text-slate-500">
+                  <h3 className="text-lg font-black text-[#0F172A] mt-2">Zavodga Oltin Topshirish</h3>
+                  <p className="text-xs text-[#475569]">
                     Afinaj qilingan toza oltin, xarid qilingan oltin yoki lomni zavodga topshirish. Faqat ushbu amal zavod qarzini kamaytiradi.
                   </p>
                 </div>
 
                 <div className="space-y-3 text-sm">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Topshirilayotgan Oltin Manbasi:</label>
+                    <label className="block text-xs font-bold text-[#475569] mb-1">Topshirilayotgan Oltin Manbasi:</label>
                     <select
                       value={hndSourceType}
                       onChange={(e) => setHndSourceType(e.target.value as "refined_gold" | "purchased_gold" | "scrap_gold")}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-[#0F172A]"
                     >
                       <option value="refined_gold">Afinaj qilingan toza oltin (995/999.9)</option>
                       <option value="purchased_gold">Bozordan naqdga olingan oltin</option>
@@ -1396,20 +1400,20 @@ export function DirectorSalesWorkspace({
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Fizik Vazn (g):</label>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Fizik Vazn (g):</label>
                       <input
                         type="number"
                         step="0.0001"
                         min="0.0001"
                         value={hndWeight}
                         onChange={(e) => setHndWeight(e.target.value)}
-                        placeholder="0.0000"
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
+                        placeholder="0.00"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Probasi:</label>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Probasi:</label>
                       <input
                         type="number"
                         step="1"
@@ -1417,43 +1421,43 @@ export function DirectorSalesWorkspace({
                         max="1000"
                         value={hndProba}
                         onChange={(e) => setHndProba(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                         required
                       />
                     </div>
                   </div>
 
                   {/* Live Preview */}
-                  <div className="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono">
-                    <div className="flex justify-between text-emerald-900">
+                  <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono text-[#0F172A]">
+                    <div className="flex justify-between text-[#475569]">
                       <span>Topshirilayotgan vazn:</span>
-                      <span className="font-bold">{parseFloat(hndWeight) || 0} g ({parseFloat(hndProba) || 585} proba)</span>
+                      <span className="font-bold text-[#0F172A]">{formatScreenGrams(parseFloat(hndWeight) || 0)} ({parseFloat(hndProba) || 585} proba)</span>
                     </div>
-                    <div className="flex justify-between text-emerald-950 font-black border-t border-emerald-300 pt-1 text-sm">
+                    <div className="flex justify-between text-[#0F172A] font-black border-t border-emerald-300 pt-1 text-sm">
                       <span>585 Ekvivalenti (Qarz kamayishi):</span>
-                      <span>{(((parseFloat(hndWeight) || 0) * (parseFloat(hndProba) || 585)) / 585.0).toFixed(4)} g</span>
+                      <span className="text-[#047857]">{formatScreenGrams(((parseFloat(hndWeight) || 0) * (parseFloat(hndProba) || 585)) / 585.0)}</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Zavod Qabul Qiluvchi:</label>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Zavod Qabul Qiluvchi:</label>
                       <input
                         type="text"
                         value={hndRecipient}
                         onChange={(e) => setHndRecipient(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-[#0F172A] placeholder:text-[#475569]"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Izoh:</label>
                       <input
                         type="text"
                         placeholder="Tilxat yoki akt raqami..."
                         value={hndNotes}
                         onChange={(e) => setHndNotes(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-[#0F172A] placeholder:text-[#475569]"
                       />
                     </div>
                   </div>
@@ -1473,36 +1477,36 @@ export function DirectorSalesWorkspace({
           {/* Tables: Factory Receipts & Handovers */}
           <div className="space-y-4">
             {(activeFactorySection === "all" || activeFactorySection === "receive") && (
-              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-                <h3 className="font-bold text-slate-900 text-sm">Zavoddan Kelgan Tovarlar Ro&apos;yxati (&quot;Zavod bilan&quot;)</h3>
+              <div className="bg-white text-[#0F172A] p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <h3 className="font-bold text-[#0F172A] text-sm">Zavoddan Kelgan Tovarlar Ro&apos;yxati (&quot;Zavod bilan&quot;)</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 text-slate-700 border-b font-bold">
+                    <thead className="bg-slate-50 text-[#475569] border-b font-bold">
                       <tr>
                         <th className="p-2.5">Kvitansiya №</th>
                         <th className="p-2.5">Sana</th>
                         <th className="p-2.5">Mahsulot Nomi</th>
-                        <th className="p-2.5 text-right">Fizik Vazn (g)</th>
+                        <th className="p-2.5 text-right">Fizik Vazn</th>
                         <th className="p-2.5 text-right">Proba</th>
                         <th className="p-2.5 text-right">Zavod %</th>
-                        <th className="p-2.5 text-right">Zavod Majburiyati (g)</th>
-                        <th className="p-2.5 text-right">Qoldiq Vazn (g)</th>
+                        <th className="p-2.5 text-right">Zavod Majburiyati</th>
+                        <th className="p-2.5 text-right">Qoldiq Vazn</th>
                         <th className="p-2.5 text-center">Holati</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y font-mono">
                       {factoryReceipts.map((r) => (
                         <tr key={r.id} className="hover:bg-slate-50">
-                          <td className="p-2.5 font-bold text-slate-900">{r.receipt_no}</td>
-                          <td className="p-2.5 text-slate-600">{r.receipt_date}</td>
-                          <td className="p-2.5 font-sans font-medium text-slate-800">{r.product_name}</td>
-                          <td className="p-2.5 text-right font-bold">{Number(r.original_physical_g).toFixed(4)}</td>
-                          <td className="p-2.5 text-right">{r.proba}</td>
+                          <td className="p-2.5 font-bold text-[#0F172A]">{r.receipt_no}</td>
+                          <td className="p-2.5 text-[#475569]">{r.receipt_date}</td>
+                          <td className="p-2.5 font-sans font-medium text-[#0F172A]">{r.product_name}</td>
+                          <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(r.original_physical_g)}</td>
+                          <td className="p-2.5 text-right text-[#475569]">{r.proba}</td>
                           <td className="p-2.5 text-right text-amber-700 font-bold">+{r.factory_markup_pct}%</td>
-                          <td className="p-2.5 text-right font-black text-amber-900">{Number(r.factory_obligation_g).toFixed(4)}</td>
-                          <td className="p-2.5 text-right text-slate-600">{Number(r.available_physical_g).toFixed(4)}</td>
+                          <td className="p-2.5 text-right font-black text-amber-900">{formatScreenGrams(r.factory_obligation_g)}</td>
+                          <td className="p-2.5 text-right text-[#475569]">{formatScreenGrams(r.available_physical_g)}</td>
                           <td className="p-2.5 text-center font-sans">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-[#0F172A]">
                               {r.status}
                             </span>
                           </td>
@@ -1510,7 +1514,7 @@ export function DirectorSalesWorkspace({
                       ))}
                       {factoryReceipts.length === 0 && (
                         <tr>
-                          <td colSpan={9} className="p-6 text-center text-slate-400 font-sans">
+                          <td colSpan={9} className="p-6 text-center text-[#475569] font-sans">
                             Hozircha zavoddan tovar kirimi mavjud emas.
                           </td>
                         </tr>
@@ -1522,18 +1526,18 @@ export function DirectorSalesWorkspace({
             )}
 
             {(activeFactorySection === "all" || activeFactorySection === "handover") && (
-              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-                <h3 className="font-bold text-slate-900 text-sm">Zavodga Topshirilgan Oltinlar Tarixi (Qarz Qoplamasi)</h3>
+              <div className="bg-white text-[#0F172A] p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <h3 className="font-bold text-[#0F172A] text-sm">Zavodga Topshirilgan Oltinlar Tarixi (Qarz Qoplamasi)</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 text-slate-700 border-b font-bold">
+                    <thead className="bg-slate-50 text-[#475569] border-b font-bold">
                       <tr>
                         <th className="p-2.5">Hujjat №</th>
                         <th className="p-2.5">Sana</th>
                         <th className="p-2.5">Manba Turi</th>
-                        <th className="p-2.5 text-right">Fizik Vazn (g)</th>
+                        <th className="p-2.5 text-right">Fizik Vazn</th>
                         <th className="p-2.5 text-right">Proba</th>
-                        <th className="p-2.5 text-right">585 Ekvivalenti (g)</th>
+                        <th className="p-2.5 text-right">585 Ekvivalenti</th>
                         <th className="p-2.5">Qabul Qiluvchi</th>
                         <th className="p-2.5">Izoh</th>
                       </tr>
@@ -1541,21 +1545,21 @@ export function DirectorSalesWorkspace({
                     <tbody className="divide-y font-mono">
                       {factoryHandovers.map((h) => (
                         <tr key={h.id} className="hover:bg-slate-50">
-                          <td className="p-2.5 font-bold text-slate-900">{h.handover_no}</td>
-                          <td className="p-2.5 text-slate-600">{h.handover_date}</td>
-                          <td className="p-2.5 font-sans font-medium text-slate-800">
+                          <td className="p-2.5 font-bold text-[#0F172A]">{h.handover_no}</td>
+                          <td className="p-2.5 text-[#475569]">{h.handover_date}</td>
+                          <td className="p-2.5 font-sans font-medium text-[#0F172A]">
                             {h.source_type === "refined_gold" ? "Afinaj toza oltin" : h.source_type === "purchased_gold" ? "Bozordan xarid" : "Lom oltin"}
                           </td>
-                          <td className="p-2.5 text-right font-bold">{Number(h.physical_weight_g).toFixed(4)}</td>
-                          <td className="p-2.5 text-right">{h.proba}</td>
-                          <td className="p-2.5 text-right font-black text-emerald-700">{Number(h.agreed_equivalent_g).toFixed(4)}</td>
-                          <td className="p-2.5 font-sans text-slate-700">{h.factory_recipient}</td>
-                          <td className="p-2.5 font-sans text-slate-500">{h.notes || "—"}</td>
+                          <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(h.physical_weight_g)}</td>
+                          <td className="p-2.5 text-right text-[#475569]">{h.proba}</td>
+                          <td className="p-2.5 text-right font-black text-[#047857]">{formatScreenGrams(h.agreed_equivalent_g)}</td>
+                          <td className="p-2.5 font-sans text-[#0F172A]">{h.factory_recipient}</td>
+                          <td className="p-2.5 font-sans text-[#475569]">{h.notes || "—"}</td>
                         </tr>
                       ))}
                       {factoryHandovers.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="p-6 text-center text-slate-400 font-sans">
+                          <td colSpan={8} className="p-6 text-center text-[#475569] font-sans">
                             Hozircha zavodga topshirilgan oltinlar tarixi mavjud emas.
                           </td>
                         </tr>
@@ -1574,14 +1578,14 @@ export function DirectorSalesWorkspace({
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-bold text-slate-800">Sotuvchilar Balansi va Bozor Qarzi (2-Zanjir)</h2>
-              <p className="text-xs text-slate-500">
+              <h2 className="text-lg font-bold text-[#F8FAFC]">Sotuvchilar Balansi va Bozor Qarzi (2-Zanjir)</h2>
+              <p className="text-xs text-[#CBD5E1]">
                 Sheets &quot;Bozor qarzi&quot; konvensiyasi: (-) Sotuvchi bizga qarzdor, (+) Biz sotuvchiga qarzdormiz. Mijoz to&apos;lovi sotuvchi kassasida saqlanadi.
               </p>
             </div>
             <button
               onClick={() => void loadData()}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-[#F8FAFC] border border-slate-700 text-xs font-semibold rounded-xl transition"
             >
               🔄 Yangilash
             </button>
@@ -1589,7 +1593,7 @@ export function DirectorSalesWorkspace({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {sellerAccounts.length === 0 ? (
-              <div className="col-span-full bg-white p-8 rounded-2xl border text-center text-slate-500">
+              <div className="col-span-full bg-slate-900 border border-slate-800 p-8 rounded-2xl text-center text-[#CBD5E1]">
                 Hozircha sotuvchilar hisobida tranzaksiya mavjud emas. Mahsulot topshirilgach paydo bo&apos;ladi.
               </div>
             ) : (
@@ -1603,11 +1607,11 @@ export function DirectorSalesWorkspace({
                 const bozorQarzi = acc.bozor_qarzi_signed_g !== undefined ? Number(acc.bozor_qarzi_signed_g) : -factoryObligation;
 
                 return (
-                  <div key={acc.seller_id} className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4 hover:shadow-md transition">
+                  <div key={acc.seller_id} className="bg-white text-[#0F172A] rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4 hover:shadow-md transition">
                     <div className="flex justify-between items-start">
                       <div>
-                        <div className="font-bold text-base text-slate-900">{sellerName}</div>
-                        {sellerPhone && <div className="text-xs text-slate-500">{sellerPhone}</div>}
+                        <div className="font-bold text-base text-[#0F172A]">{sellerName}</div>
+                        {sellerPhone && <div className="text-xs text-[#475569]">{sellerPhone}</div>}
                       </div>
                       <span className="bg-blue-50 text-blue-700 text-[11px] font-bold px-2.5 py-1 rounded-full border border-blue-200">
                         Sotuvchi
@@ -1617,19 +1621,21 @@ export function DirectorSalesWorkspace({
                     {/* Signed Bozor Qarzi Card */}
                     <div className={`p-4 rounded-2xl border space-y-1 ${
                       bozorQarzi < 0
-                        ? "bg-rose-50/80 border-rose-200 text-rose-950"
+                        ? "bg-rose-50 border-rose-200 text-[#B91C1C]"
                         : bozorQarzi > 0
-                        ? "bg-emerald-50/80 border-emerald-200 text-emerald-950"
-                        : "bg-slate-50 border-slate-200 text-slate-800"
+                        ? "bg-emerald-50 border-emerald-200 text-[#047857]"
+                        : "bg-slate-50 border-slate-200 text-[#0F172A]"
                     }`}>
                       <div className="flex justify-between items-center text-xs font-bold">
-                        <span>Bozor Qarzi (Boshqaruvchi hisobi):</span>
+                        <span className={bozorQarzi < 0 ? "text-[#B91C1C]" : bozorQarzi > 0 ? "text-[#047857]" : "text-[#0F172A]"}>
+                          Bozor Qarzi (Boshqaruvchi hisobi):
+                        </span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
                           bozorQarzi < 0
-                            ? "bg-rose-200 text-rose-800"
+                            ? "bg-rose-200 text-[#B91C1C]"
                             : bozorQarzi > 0
-                            ? "bg-emerald-200 text-emerald-800"
-                            : "bg-slate-200 text-slate-700"
+                            ? "bg-emerald-200 text-[#047857]"
+                            : "bg-slate-200 text-[#0F172A]"
                         }`}>
                           {bozorQarzi < 0
                             ? "Sotuvchi qarzdor (-)"
@@ -1638,44 +1644,45 @@ export function DirectorSalesWorkspace({
                             : "Hisob teng (0)"}
                         </span>
                       </div>
-                      <div className="text-2xl font-black font-mono">
+                      <div className={`text-2xl font-black font-mono ${
+                        bozorQarzi < 0 ? "text-[#B91C1C]" : bozorQarzi > 0 ? "text-[#047857]" : "text-[#0F172A]"
+                      }`}>
                         {bozorQarzi > 0 ? "+" : ""}
-                        {bozorQarzi.toFixed(4)}{" "}
-                        <span className="text-xs font-normal">g</span>
+                        {formatScreenGrams(bozorQarzi, 2)}
                       </div>
-                      <div className="text-[11px] opacity-80">
+                      <div className="text-[11px] text-[#475569] font-medium">
                         {bozorQarzi < 0
-                          ? `Sotuvchi boshqaruvchiga ${Math.abs(bozorQarzi).toFixed(4)} g lom qaytarishi shart.`
+                          ? `Sotuvchi boshqaruvchiga ${formatScreenGrams(Math.abs(bozorQarzi), 2)} lom qaytarishi shart.`
                           : bozorQarzi > 0
-                          ? `Boshqaruvchi sotuvchiga ${bozorQarzi.toFixed(4)} g ortiqcha tushum (avans) uchun qarzdor.`
+                          ? `Boshqaruvchi sotuvchiga ${formatScreenGrams(bozorQarzi, 2)} ortiqcha tushum (avans) uchun qarzdor.`
                           : "Barcha majburiyatlar to'liq yopilgan."}
                       </div>
                     </div>
 
                     {/* Breakdown */}
-                    <div className="grid grid-cols-3 gap-1.5 text-[11px] bg-slate-50 p-2.5 rounded-2xl border border-slate-200 font-mono">
+                    <div className="grid grid-cols-3 gap-1.5 text-[11px] bg-slate-50 p-2.5 rounded-2xl border border-slate-200 font-mono text-[#0F172A]">
                       <div>
-                        <span className="text-slate-500 block text-[10px]">Olingan Tovar:</span>
-                        <span className="font-bold text-slate-800">{Number(acc.total_transferred_physical_g || 0).toFixed(2)} g</span>
+                        <span className="text-[#475569] block text-[10px]">Olingan Tovar:</span>
+                        <span className="font-bold text-[#0F172A]">{formatScreenGrams(Number(acc.total_transferred_physical_g || 0), 2)}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[10px]">Majburiyat:</span>
-                        <span className="font-bold text-amber-800">{Number(acc.total_seller_obligation_g || factoryObligation).toFixed(2)} g</span>
+                        <span className="text-[#475569] block text-[10px]">Majburiyat:</span>
+                        <span className="font-bold text-amber-900">{formatScreenGrams(Number(acc.total_seller_obligation_g || factoryObligation), 2)}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[10px]">Topshirildi:</span>
-                        <span className="font-bold text-emerald-800">{Number(acc.total_settled_to_manager_g || 0).toFixed(2)} g</span>
+                        <span className="text-[#475569] block text-[10px]">Topshirildi:</span>
+                        <span className="font-bold text-[#047857]">{formatScreenGrams(Number(acc.total_settled_to_manager_g || 0), 2)}</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-2xl border border-slate-200 text-[#0F172A]">
                       <div>
-                        <span className="text-slate-500 block">Kassasidagi Lom:</span>
-                        <span className="font-mono font-bold text-slate-800 text-sm">{tillScrap.toFixed(4)} g</span>
+                        <span className="text-[#475569] block">Kassasidagi Lom:</span>
+                        <span className="font-mono font-bold text-[#0F172A] text-sm">{formatScreenGrams(tillScrap, 2)}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block">Kassasidagi Naqd:</span>
-                        <span className="font-mono font-bold text-emerald-700 text-sm">{tillCash.toLocaleString()} UZS</span>
+                        <span className="text-[#475569] block">Kassasidagi Naqd:</span>
+                        <span className="font-mono font-bold text-[#047857] text-sm">{formatScreenUZS(tillCash)}</span>
                       </div>
                     </div>
 
@@ -1710,7 +1717,7 @@ export function DirectorSalesWorkspace({
           {/* Header & Metrics */}
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-black text-slate-900">
+              <h2 className="text-xl font-black text-[#F8FAFC]">
                 {activeVaultSection === "cash"
                   ? "Boshqaruvchi Kassasi & Seyf Balansi"
                   : activeVaultSection === "refining"
@@ -1719,7 +1726,7 @@ export function DirectorSalesWorkspace({
                   ? "Naqd Pulga Oltin Xarid (\"Tovar Olish\")"
                   : "Boshqaruvchi Kassasi, Afinaj & Xaridlar"}
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#CBD5E1]">
                 {activeVaultSection === "cash"
                   ? "Boshqaruvchi seyfi va kassasidagi fizik lom oltin, naqd UZS hamda toza quyma qoldiqlari."
                   : activeVaultSection === "refining"
@@ -1731,21 +1738,21 @@ export function DirectorSalesWorkspace({
             </div>
             <button
               onClick={() => void loadData()}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-[#F8FAFC] border border-slate-700 text-xs font-semibold rounded-xl transition"
             >
               🔄 Yangilash
             </button>
           </div>
 
           {/* Subview Segmented Control (only when all subviews are allowed) */}
-          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit text-xs font-bold">
+          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-900 border border-slate-800 rounded-2xl w-fit text-xs font-bold">
             <button
               type="button"
               onClick={() => setActiveVaultSection("all")}
               className={`px-3 py-1.5 rounded-xl transition ${
                 activeVaultSection === "all"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-slate-800 text-[#F8FAFC] shadow-sm border border-slate-700"
+                  : "text-[#CBD5E1] hover:text-[#F8FAFC]"
               }`}
             >
               📋 Barchasi
@@ -1756,7 +1763,7 @@ export function DirectorSalesWorkspace({
               className={`px-3 py-1.5 rounded-xl transition ${
                 activeVaultSection === "cash"
                   ? "bg-emerald-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
+                  : "text-[#CBD5E1] hover:text-[#F8FAFC]"
               }`}
             >
               💰 Kassa Balansi
@@ -1767,7 +1774,7 @@ export function DirectorSalesWorkspace({
               className={`px-3 py-1.5 rounded-xl transition ${
                 activeVaultSection === "refining"
                   ? "bg-cyan-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
+                  : "text-[#CBD5E1] hover:text-[#F8FAFC]"
               }`}
             >
               ⚗️ Afinaj (Pateriya)
@@ -1778,7 +1785,7 @@ export function DirectorSalesWorkspace({
               className={`px-3 py-1.5 rounded-xl transition ${
                 activeVaultSection === "purchases"
                   ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
+                  : "text-[#CBD5E1] hover:text-[#F8FAFC]"
               }`}
             >
               🪙 Naqdga Oltin Xarid
@@ -1791,25 +1798,25 @@ export function DirectorSalesWorkspace({
               <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
                 <div className="text-xs font-bold text-amber-200">Seyfdagi Lom Oltin (585)</div>
                 <div className="text-2xl font-black font-mono text-amber-300 mt-1">
-                  {Number(managerVault?.manager_scrap_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                  {formatScreenGrams(managerVault?.manager_scrap_grams || 0)}
                 </div>
-                <div className="text-[11px] text-amber-200/80 mt-1">Eritish uchun tayyor lom zaxirasi</div>
+                <div className="text-[11px] text-amber-200 mt-1">Eritish uchun tayyor lom zaxirasi</div>
               </div>
 
               <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
                 <div className="text-xs font-bold text-cyan-300">Afinaj Qilingan Toza Oltin (995)</div>
                 <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
-                  {Number(managerVault?.manager_refined_gold_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                  {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)}
                 </div>
-                <div className="text-[11px] text-cyan-300/80 mt-1">Zavodga topshirishga tayyor sof quyma</div>
+                <div className="text-[11px] text-cyan-300 mt-1">Zavodga topshirishga tayyor sof quyma</div>
               </div>
 
               <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm">
                 <div className="text-xs font-bold text-rose-300">Jami Afinaj Yo&apos;qotishi (Pateriya)</div>
                 <div className="text-2xl font-black font-mono text-rose-300 mt-1">
-                  {refiningBatches.reduce((sum, b) => sum + Number(b.total_loss_grams || 0), 0).toFixed(4)} <span className="text-xs font-normal">g 585</span>
+                  {formatScreenGrams(refiningBatches.reduce((sum, b) => sum + Number(b.total_loss_grams || 0), 0))} <span className="text-xs font-normal">585</span>
                 </div>
-                <div className="text-[11px] text-rose-300/80 mt-1">Boshqaruvchi hisobiga yozilgan zarar</div>
+                <div className="text-[11px] text-rose-200 mt-1">Boshqaruvchi hisobiga yozilgan zarar</div>
               </div>
             </div>
           ) : activeVaultSection === "purchases" ? (
@@ -1817,17 +1824,17 @@ export function DirectorSalesWorkspace({
               <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
                 <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd Pul</div>
                 <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
-                  {Number(managerVault?.manager_cash_amount || 0).toLocaleString()} <span className="text-xs font-normal">UZS</span>
+                  {formatScreenUZS(managerVault?.manager_cash_amount || 0)}
                 </div>
-                <div className="text-[11px] text-emerald-300/80 mt-1">Oltin xarid qilish uchun mavjud mablag&apos;</div>
+                <div className="text-[11px] text-emerald-200 mt-1">Oltin xarid qilish uchun mavjud mablag&apos;</div>
               </div>
 
               <div className="bg-indigo-950 text-white p-4 rounded-3xl border border-indigo-800 shadow-sm">
                 <div className="text-xs font-bold text-indigo-300">Bozordan Xarid Qilingan Oltin</div>
                 <div className="text-2xl font-black font-mono text-indigo-300 mt-1">
-                  {Number(managerVault?.manager_purchased_gold_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                  {formatScreenGrams(managerVault?.manager_purchased_gold_grams || 0)}
                 </div>
-                <div className="text-[11px] text-indigo-300/80 mt-1">{goldPurchases.length} ta xarid amaliyoti o&apos;tkazilgan</div>
+                <div className="text-[11px] text-indigo-200 mt-1">{goldPurchases.length} ta xarid amaliyoti o&apos;tkazilgan</div>
               </div>
             </div>
           ) : (
@@ -1835,33 +1842,33 @@ export function DirectorSalesWorkspace({
               <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
                 <div className="text-xs font-bold text-amber-200">Seyfdagi Lom Oltin (585)</div>
                 <div className="text-2xl font-black font-mono text-amber-300 mt-1">
-                  {Number(managerVault?.manager_scrap_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                  {formatScreenGrams(managerVault?.manager_scrap_grams || 0)}
                 </div>
-                <div className="text-[11px] text-amber-200/80 mt-1">Sotuvchilardan qabul qilingan lom</div>
+                <div className="text-[11px] text-amber-200 mt-1">Sotuvchilardan qabul qilingan lom</div>
               </div>
 
               <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
                 <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd Pul</div>
                 <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
-                  {Number(managerVault?.manager_cash_amount || 0).toLocaleString()} <span className="text-xs font-normal">UZS</span>
+                  {formatScreenUZS(managerVault?.manager_cash_amount || 0)}
                 </div>
-                <div className="text-[11px] text-emerald-300/80 mt-1">Boshqaruvchi kassasidagi naqd</div>
+                <div className="text-[11px] text-emerald-200 mt-1">Boshqaruvchi kassasidagi naqd</div>
               </div>
 
               <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
                 <div className="text-xs font-bold text-cyan-300">Afinaj Qilingan Toza Oltin</div>
                 <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
-                  {Number(managerVault?.manager_refined_gold_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                  {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)}
                 </div>
-                <div className="text-[11px] text-cyan-300/80 mt-1">Afinajdan chiqqan toza oltin zaxirasi</div>
+                <div className="text-[11px] text-cyan-200 mt-1">Afinajdan chiqqan toza oltin zaxirasi</div>
               </div>
 
               <div className="bg-indigo-950 text-white p-4 rounded-3xl border border-indigo-800 shadow-sm">
                 <div className="text-xs font-bold text-indigo-300">Bozordan Xarid Qilingan Oltin</div>
                 <div className="text-2xl font-black font-mono text-indigo-300 mt-1">
-                  {Number(managerVault?.manager_purchased_gold_grams || 0).toFixed(4)} <span className="text-xs font-normal">g</span>
+                  {formatScreenGrams(managerVault?.manager_purchased_gold_grams || 0)}
                 </div>
-                <div className="text-[11px] text-indigo-300/80 mt-1">Naqd pulga sotib olingan oltin</div>
+                <div className="text-[11px] text-indigo-200 mt-1">Naqd pulga sotib olingan oltin</div>
               </div>
             </div>
           )}
@@ -1907,14 +1914,14 @@ export function DirectorSalesWorkspace({
               {(activeVaultSection === "all" || activeVaultSection === "refining") && (
                 <form
                   onSubmit={(e) => void handleCreateRefiningBatch(e)}
-                  className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
+                  className="bg-white text-[#0F172A] p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
                 >
                   <div className="border-b pb-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-600 bg-cyan-50 px-2.5 py-1 rounded-full border border-cyan-200">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-700 bg-cyan-50 px-2.5 py-1 rounded-full border border-cyan-200">
                       Varaqa: &quot;Lom pateriya&quot;
                     </span>
-                    <h3 className="text-lg font-black text-slate-900 mt-2">Afinaj (Eritish & Qayta Ishlash)</h3>
-                    <p className="text-xs text-slate-500">
+                    <h3 className="text-lg font-black text-[#0F172A] mt-2">Afinaj (Eritish & Qayta Ishlash)</h3>
+                    <p className="text-xs text-[#475569]">
                       Lom oltinni eritish va tozalash. Yo&apos;qotish (pateriya) faqat boshqaruvchi hisobiga yoziladi, zavod qarzi o&apos;zgarmaydi!
                     </p>
                   </div>
@@ -1922,20 +1929,20 @@ export function DirectorSalesWorkspace({
                   <div className="space-y-3 text-sm">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Kiruvchi Lom Vazni (g):</label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Kiruvchi Lom Vazni (g):</label>
                         <input
                           type="number"
                           step="0.0001"
                           min="0.0001"
                           value={refInputScrap}
                           onChange={(e) => setRefInputScrap(e.target.value)}
-                          placeholder="Masalan: 50.0000"
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
+                          placeholder="Masalan: 50.00"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Eritilgan Vazn (g):</label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Eritilgan Vazn (g):</label>
                         <input
                           type="number"
                           step="0.0001"
@@ -1943,7 +1950,7 @@ export function DirectorSalesWorkspace({
                           value={refMeltedWeight}
                           onChange={(e) => setRefMeltedWeight(e.target.value)}
                           placeholder="Eritgandan so'ng"
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                           required
                         />
                       </div>
@@ -1951,7 +1958,7 @@ export function DirectorSalesWorkspace({
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Chiqqan Toza Vazn (g):</label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Chiqqan Toza Vazn (g):</label>
                         <input
                           type="number"
                           step="0.0001"
@@ -1959,12 +1966,12 @@ export function DirectorSalesWorkspace({
                           value={refFineWeight}
                           onChange={(e) => setRefFineWeight(e.target.value)}
                           placeholder="Afinajdan chiqqan"
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Toza Oltin Probasi:</label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Toza Oltin Probasi:</label>
                         <input
                           type="number"
                           step="1"
@@ -1979,23 +1986,23 @@ export function DirectorSalesWorkspace({
                     </div>
 
                     {/* Live Preview */}
-                    <div className="bg-cyan-50/70 p-3 rounded-2xl border border-cyan-200 text-xs space-y-1 font-mono">
-                      <div className="flex justify-between text-cyan-900">
+                    <div className="bg-cyan-50 p-3 rounded-2xl border border-cyan-200 text-xs space-y-1 font-mono text-[#0F172A]">
+                      <div className="flex justify-between text-[#475569]">
                         <span>Eritish yo&apos;qotishi (kuya):</span>
-                        <span className="font-bold">
-                          {Math.max(0, (parseFloat(refInputScrap) || 0) - (parseFloat(refMeltedWeight) || 0)).toFixed(4)} g
+                        <span className="font-bold text-[#0F172A]">
+                          {formatScreenGrams(Math.max(0, (parseFloat(refInputScrap) || 0) - (parseFloat(refMeltedWeight) || 0)))}
                         </span>
                       </div>
-                      <div className="flex justify-between text-cyan-900">
+                      <div className="flex justify-between text-[#475569]">
                         <span>585 Ekvivalenti:</span>
-                        <span className="font-bold">
-                          {(((parseFloat(refFineWeight) || 0) * (parseFloat(refFineProba) || 995)) / 585.0).toFixed(4)} g
+                        <span className="font-bold text-cyan-800">
+                          {formatScreenGrams(((parseFloat(refFineWeight) || 0) * (parseFloat(refFineProba) || 995)) / 585.0)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-rose-950 font-black border-t border-cyan-300 pt-1 text-sm">
+                      <div className="flex justify-between text-[#B91C1C] font-black border-t border-cyan-300 pt-1 text-sm">
                         <span>Jami Yo&apos;qotish (Lom Pateriya):</span>
                         <span>
-                          {Math.max(0, (parseFloat(refInputScrap) || 0) - (((parseFloat(refFineWeight) || 0) * (parseFloat(refFineProba) || 995)) / 585.0)).toFixed(4)} g
+                          {formatScreenGrams(Math.max(0, (parseFloat(refInputScrap) || 0) - (((parseFloat(refFineWeight) || 0) * (parseFloat(refFineProba) || 995)) / 585.0)))}
                         </span>
                       </div>
                       <div className="text-[10px] text-cyan-800 font-sans mt-1">
@@ -2004,13 +2011,13 @@ export function DirectorSalesWorkspace({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Izoh:</label>
                       <input
                         type="text"
                         placeholder="Usta / laboratoriya izohi..."
                         value={refNotes}
                         onChange={(e) => setRefNotes(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A] placeholder:text-[#475569]"
                       />
                     </div>
                   </div>
@@ -2029,34 +2036,34 @@ export function DirectorSalesWorkspace({
               {(activeVaultSection === "all" || activeVaultSection === "purchases") && (
                 <form
                   onSubmit={(e) => void handleCreateGoldPurchase(e)}
-                  className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
+                  className="bg-white text-[#0F172A] p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
                 >
                   <div className="border-b pb-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                       Varaqa: &quot;Tovar olish&quot;
                     </span>
-                    <h3 className="text-lg font-black text-slate-900 mt-2">Tovar Olish (Naqdga Oltin Xarid Qilish)</h3>
-                    <p className="text-xs text-slate-500">
+                    <h3 className="text-lg font-black text-[#0F172A] mt-2">Tovar Olish (Naqdga Oltin Xarid Qilish)</h3>
+                    <p className="text-xs text-[#475569]">
                       Kassadagi naqd pulga oltin sotib olish. Kassadagi naqd pul kamayadi, seyfdagi oltin ko&apos;payadi. Zavod qarzi o&apos;zgarmaydi!
                     </p>
                   </div>
 
                   <div className="space-y-3 text-sm">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Yetkazib Beruvchi / Bozor Nomi:</label>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Yetkazib Beruvchi / Bozor Nomi:</label>
                       <input
                         type="text"
                         placeholder="Masalan: Bozor, Usta Akmal..."
                         value={buySupplier}
                         onChange={(e) => setBuySupplier(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-[#0F172A] placeholder:text-[#475569]"
                         required
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Sarflangan Naqd (UZS):</label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Sarflangan Naqd (UZS):</label>
                         <input
                           type="number"
                           step="1000"
@@ -2076,14 +2083,14 @@ export function DirectorSalesWorkspace({
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">1 g Kursi (UZS):</label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">1 g Kursi (UZS):</label>
                         <input
                           type="number"
                           step="1000"
                           min="1000"
                           value={buyRate}
                           onChange={(e) => setBuyRate(e.target.value)}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                           required
                         />
                       </div>
@@ -2091,20 +2098,20 @@ export function DirectorSalesWorkspace({
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Olingan Oltin Vazni (g):</label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Olingan Oltin Vazni (g):</label>
                         <input
                           type="number"
                           step="0.0001"
                           min="0.0001"
                           value={buyWeight}
                           onChange={(e) => setBuyWeight(e.target.value)}
-                          placeholder="20.0000"
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
+                          placeholder="20.00"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Probasi:</label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Probasi:</label>
                         <input
                           type="number"
                           step="1"
@@ -2112,36 +2119,36 @@ export function DirectorSalesWorkspace({
                           max="1000"
                           value={buyProba}
                           onChange={(e) => setBuyProba(e.target.value)}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                           required
                         />
                       </div>
                     </div>
 
                     {/* Live Preview */}
-                    <div className="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono">
-                      <div className="flex justify-between text-emerald-900">
+                    <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono text-[#0F172A]">
+                      <div className="flex justify-between text-[#475569]">
                         <span>Sarflangan naqd pul:</span>
-                        <span className="font-bold">{(parseFloat(buyCash) || 0).toLocaleString()} UZS</span>
+                        <span className="font-bold text-[#0F172A]">{formatScreenUZS(parseFloat(buyCash) || 0)}</span>
                       </div>
-                      <div className="flex justify-between text-emerald-900">
+                      <div className="flex justify-between text-[#475569]">
                         <span>Olingan oltin vazni:</span>
-                        <span className="font-bold">{parseFloat(buyWeight) || 0} g ({parseFloat(buyProba) || 585} proba)</span>
+                        <span className="font-bold text-[#0F172A]">{formatScreenGrams(parseFloat(buyWeight) || 0)} ({parseFloat(buyProba) || 585} proba)</span>
                       </div>
-                      <div className="flex justify-between text-emerald-950 font-black border-t border-emerald-300 pt-1 text-sm">
+                      <div className="flex justify-between text-[#0F172A] font-black border-t border-emerald-300 pt-1 text-sm">
                         <span>585 Ekvivalenti:</span>
-                        <span>{(((parseFloat(buyWeight) || 0) * (parseFloat(buyProba) || 585)) / 585.0).toFixed(4)} g</span>
+                        <span className="text-[#047857]">{formatScreenGrams(((parseFloat(buyWeight) || 0) * (parseFloat(buyProba) || 585)) / 585.0)}</span>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Izoh:</label>
                       <input
                         type="text"
                         placeholder="Bozor yoki tovar tafsiloti..."
                         value={buyNotes}
                         onChange={(e) => setBuyNotes(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A] placeholder:text-[#475569]"
                       />
                     </div>
                   </div>
@@ -2161,40 +2168,40 @@ export function DirectorSalesWorkspace({
           {/* Tables: Refining Batches & Gold Purchases */}
           <div className="space-y-4">
             {(activeVaultSection === "all" || activeVaultSection === "cash" || activeVaultSection === "refining") && (
-              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-                <h3 className="font-bold text-slate-900 text-sm">Afinaj Partiyalari Ro&apos;yxati (&quot;Lom pateriya&quot;)</h3>
+              <div className="bg-white text-[#0F172A] p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <h3 className="font-bold text-[#0F172A] text-sm">Afinaj Partiyalari Ro&apos;yxati (&quot;Lom pateriya&quot;)</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 text-slate-700 border-b font-bold">
+                    <thead className="bg-slate-50 text-[#475569] border-b font-bold">
                       <tr>
                         <th className="p-2.5">Partiya №</th>
                         <th className="p-2.5">Sana</th>
-                        <th className="p-2.5 text-right">Kiruvchi Lom (g)</th>
-                        <th className="p-2.5 text-right">Eritilgan (g)</th>
-                        <th className="p-2.5 text-right">Toza Oltin (g)</th>
+                        <th className="p-2.5 text-right">Kiruvchi Lom</th>
+                        <th className="p-2.5 text-right">Eritilgan</th>
+                        <th className="p-2.5 text-right">Toza Oltin</th>
                         <th className="p-2.5 text-right">Toza Proba</th>
-                        <th className="p-2.5 text-right">585 Eq (g)</th>
-                        <th className="p-2.5 text-right text-rose-700">Yo&apos;qotish (g)</th>
-                        <th className="p-2.5 text-right text-rose-700">% Pateriya</th>
+                        <th className="p-2.5 text-right">585 Eq</th>
+                        <th className="p-2.5 text-right text-[#B91C1C]">Yo&apos;qotish</th>
+                        <th className="p-2.5 text-right text-[#B91C1C]">% Pateriya</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y font-mono">
                       {refiningBatches.map((b) => (
                         <tr key={b.id} className="hover:bg-slate-50">
-                          <td className="p-2.5 font-bold text-slate-900">{b.batch_no}</td>
-                          <td className="p-2.5 text-slate-600">{b.batch_date}</td>
-                          <td className="p-2.5 text-right font-bold">{Number(b.input_scrap_grams).toFixed(4)}</td>
-                          <td className="p-2.5 text-right">{Number(b.melted_weight_grams).toFixed(4)}</td>
-                          <td className="p-2.5 text-right font-bold text-cyan-800">{Number(b.output_fine_grams).toFixed(4)}</td>
-                          <td className="p-2.5 text-right">{b.output_fine_proba}</td>
-                          <td className="p-2.5 text-right font-black">{Number(b.output_585_equiv_grams).toFixed(4)}</td>
-                          <td className="p-2.5 text-right font-bold text-rose-700">{Number(b.total_loss_grams).toFixed(4)}</td>
-                          <td className="p-2.5 text-right font-black text-rose-700">{b.loss_pct}%</td>
+                          <td className="p-2.5 font-bold text-[#0F172A]">{b.batch_no}</td>
+                          <td className="p-2.5 text-[#475569]">{b.batch_date}</td>
+                          <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(b.input_scrap_grams)}</td>
+                          <td className="p-2.5 text-right text-[#475569]">{formatScreenGrams(b.melted_weight_grams)}</td>
+                          <td className="p-2.5 text-right font-bold text-cyan-800">{formatScreenGrams(b.output_fine_grams)}</td>
+                          <td className="p-2.5 text-right text-[#475569]">{b.output_fine_proba}</td>
+                          <td className="p-2.5 text-right font-black text-[#0F172A]">{formatScreenGrams(b.output_585_equiv_grams)}</td>
+                          <td className="p-2.5 text-right font-bold text-[#B91C1C]">{formatScreenGrams(b.total_loss_grams)}</td>
+                          <td className="p-2.5 text-right font-black text-[#B91C1C]">{b.loss_pct}%</td>
                         </tr>
                       ))}
                       {refiningBatches.length === 0 && (
                         <tr>
-                          <td colSpan={9} className="p-6 text-center text-slate-400 font-sans">
+                          <td colSpan={9} className="p-6 text-center text-[#475569] font-sans">
                             Hozircha afinaj partiyalari mavjud emas.
                           </td>
                         </tr>
@@ -2206,38 +2213,38 @@ export function DirectorSalesWorkspace({
             )}
 
             {(activeVaultSection === "all" || activeVaultSection === "cash" || activeVaultSection === "purchases") && (
-              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-                <h3 className="font-bold text-slate-900 text-sm">Oltin Xaridlari Tarixi (&quot;Tovar olish&quot;)</h3>
+              <div className="bg-white text-[#0F172A] p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <h3 className="font-bold text-[#0F172A] text-sm">Oltin Xaridlari Tarixi (&quot;Tovar olish&quot;)</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 text-slate-700 border-b font-bold">
+                    <thead className="bg-slate-50 text-[#475569] border-b font-bold">
                       <tr>
                         <th className="p-2.5">Xarid №</th>
                         <th className="p-2.5">Sana</th>
                         <th className="p-2.5">Yetkazib Beruvchi</th>
-                        <th className="p-2.5 text-right">Sarflangan Naqd (UZS)</th>
+                        <th className="p-2.5 text-right">Sarflangan Naqd</th>
                         <th className="p-2.5 text-right">Kurs (UZS/g)</th>
-                        <th className="p-2.5 text-right">Vazn (g)</th>
+                        <th className="p-2.5 text-right">Vazn</th>
                         <th className="p-2.5 text-right">Proba</th>
-                        <th className="p-2.5 text-right font-bold text-emerald-800">585 Eq (g)</th>
+                        <th className="p-2.5 text-right font-bold text-[#047857]">585 Eq</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y font-mono">
                       {goldPurchases.map((p) => (
                         <tr key={p.id} className="hover:bg-slate-50">
-                          <td className="p-2.5 font-bold text-slate-900">{p.purchase_no}</td>
-                          <td className="p-2.5 text-slate-600">{p.purchase_date}</td>
-                          <td className="p-2.5 font-sans font-medium text-slate-800">{p.supplier_name}</td>
-                          <td className="p-2.5 text-right font-bold text-emerald-700">{Number(p.cash_spent_uzs).toLocaleString()}</td>
-                          <td className="p-2.5 text-right text-slate-600">{Number(p.rate_per_gram).toLocaleString()}</td>
-                          <td className="p-2.5 text-right font-bold">{Number(p.gold_weight_grams).toFixed(4)}</td>
-                          <td className="p-2.5 text-right">{p.proba}</td>
-                          <td className="p-2.5 text-right font-black text-emerald-800">{Number(p.equiv_585_grams).toFixed(4)}</td>
+                          <td className="p-2.5 font-bold text-[#0F172A]">{p.purchase_no}</td>
+                          <td className="p-2.5 text-[#475569]">{p.purchase_date}</td>
+                          <td className="p-2.5 font-sans font-medium text-[#0F172A]">{p.supplier_name}</td>
+                          <td className="p-2.5 text-right font-bold text-[#047857]">{formatScreenUZS(p.cash_spent_uzs)}</td>
+                          <td className="p-2.5 text-right text-[#475569]">{Number(p.rate_per_gram).toLocaleString()}</td>
+                          <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(p.gold_weight_grams)}</td>
+                          <td className="p-2.5 text-right text-[#475569]">{p.proba}</td>
+                          <td className="p-2.5 text-right font-black text-[#047857]">{formatScreenGrams(p.equiv_585_grams)}</td>
                         </tr>
                       ))}
                       {goldPurchases.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="p-6 text-center text-slate-400 font-sans">
+                          <td colSpan={8} className="p-6 text-center text-[#475569] font-sans">
                             Hozircha oltin xaridlari mavjud emas.
                           </td>
                         </tr>
@@ -2256,25 +2263,25 @@ export function DirectorSalesWorkspace({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <form
             onSubmit={(e) => void handleIssueConsignment(e)}
-            className="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
+            className="lg:col-span-1 bg-white text-[#0F172A] p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
           >
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Mahsulot Topshirish</h2>
-              <p className="text-xs text-slate-500">
+              <h2 className="text-lg font-bold text-[#0F172A]">Mahsulot Topshirish</h2>
+              <p className="text-xs text-[#475569]">
                 Zavod mahsulotini sotuvchiga belgilangan zavod ustamasi bilan berish.
               </p>
             </div>
 
             <div className="space-y-3 text-sm">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#475569] mb-1">
                   Sotuvchi (Faqat faol sotuvchilar):
                 </label>
                 <select
                   id="consignSellerSelect"
                   value={consignSellerId}
                   onChange={(e) => setConsignSellerId(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-blue-500 outline-none text-xs text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-blue-500 outline-none text-xs text-[#0F172A]"
                   required
                 >
                   <option value="">-- Sotuvchini tanlang (Direktor tanlanmaydi) --</option>
@@ -2292,11 +2299,11 @@ export function DirectorSalesWorkspace({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Tayyor Mahsulot (Vitrina):</label>
+                <label className="block text-xs font-bold text-[#475569] mb-1">Tayyor Mahsulot (Vitrina):</label>
                 <select
                   value={consignProductId}
                   onChange={(e) => handleProductSelect(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-blue-500 outline-none text-xs text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-blue-500 outline-none text-xs text-[#0F172A]"
                   required
                 >
                   <option value="">Mahsulotni tanlang...</option>
@@ -2310,24 +2317,24 @@ export function DirectorSalesWorkspace({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Dona soni:</label>
+                  <label className="block text-xs font-bold text-[#475569] mb-1">Dona soni:</label>
                   <input
                     type="number"
                     min="1"
                     value={consignQty}
                     onChange={(e) => setConsignQty(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs text-slate-900"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs text-[#0F172A]"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Asl Vazn (1 dona):</label>
+                  <label className="block text-xs font-bold text-[#475569] mb-1">Asl Vazn (1 dona):</label>
                   <input
                     type="number"
                     step="0.0001"
                     value={consignBaseWeight}
                     onChange={(e) => setConsignBaseWeight(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs text-slate-900"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs text-[#0F172A]"
                     required
                   />
                 </div>
@@ -2336,7 +2343,7 @@ export function DirectorSalesWorkspace({
               {/* Dynamic Factory Markup selection */}
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-bold text-slate-700">Zavod Ustamasi (%):</label>
+                  <label className="text-xs font-bold text-[#475569]">Zavod Ustamasi (%):</label>
                   <span className="text-[10px] text-blue-600 font-semibold cursor-pointer" onClick={() => setActiveTab("presets")}>
                     + Foizlarni sozlash
                   </span>
@@ -2355,37 +2362,37 @@ export function DirectorSalesWorkspace({
               </div>
 
               {/* Live Preview Card */}
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl space-y-2">
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl space-y-2 text-[#0F172A]">
                 <div className="text-[11px] font-bold text-amber-900 uppercase">
                   Jonli Hisob-Kitob (Non-Compounding):
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-600">Jami Asl Vazn:</span>
-                  <span className="font-mono font-bold text-slate-800">{curBaseWeight.toFixed(4)} g</span>
+                  <span className="text-[#475569]">Jami Asl Vazn:</span>
+                  <span className="font-mono font-bold text-[#0F172A]">{formatScreenGrams(curBaseWeight)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-600">Zavod Ustamasi:</span>
+                  <span className="text-[#475569]">Zavod Ustamasi:</span>
                   <span className="font-mono font-bold text-amber-800">+{curFactoryMarkupNum}%</span>
                 </div>
                 <div className="border-t border-amber-200/80 pt-1 flex justify-between text-sm">
-                  <span className="font-bold text-amber-950">Zavod Majburiyati:</span>
+                  <span className="font-bold text-[#0F172A]">Zavod Majburiyati:</span>
                   <span className="font-mono font-black text-amber-950">
-                    {liveConsignCalc.factoryGoldDueGrams.toFixed(4)} g lom
+                    {formatScreenGrams(liveConsignCalc.factoryGoldDueGrams)}
                   </span>
                 </div>
                 <div className="text-[10px] text-amber-700 italic">
-                  Formula: {curBaseWeight.toFixed(4)} × (1 + {curFactoryMarkupNum}/100) = {liveConsignCalc.factoryGoldDueGrams.toFixed(4)}g
+                  Formula: {formatScreenGrams(curBaseWeight)} × (1 + {curFactoryMarkupNum}/100) = {formatScreenGrams(liveConsignCalc.factoryGoldDueGrams)}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Izoh (ixtiyoriy):</label>
+                <label className="block text-xs font-bold text-[#475569] mb-1">Izoh (ixtiyoriy):</label>
                 <input
                   type="text"
                   placeholder="Partiya yoki topshirish shartlari..."
                   value={consignNotes}
                   onChange={(e) => setConsignNotes(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A] placeholder:text-[#475569]"
                 />
               </div>
 
@@ -2400,13 +2407,13 @@ export function DirectorSalesWorkspace({
           </form>
 
           {/* Consignments Table */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-lg font-bold text-slate-900">Topshirilgan Konsignatsiyalar Ro&apos;yxati</h2>
+          <div className="lg:col-span-2 bg-white text-[#0F172A] p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <h2 className="text-lg font-bold text-[#0F172A]">Topshirilgan Konsignatsiyalar Ro&apos;yxati</h2>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[#475569]">
                     <th className="py-2.5 px-3 font-semibold">№ Chek</th>
                     <th className="py-2.5 px-3 font-semibold">Sotuvchi</th>
                     <th className="py-2.5 px-3 font-semibold">Mahsulot</th>
@@ -2420,12 +2427,12 @@ export function DirectorSalesWorkspace({
                   {consignments.map((c) => (
                     <tr key={c.id} className="hover:bg-slate-50/80 transition">
                       <td className="py-2.5 px-3 font-mono font-bold text-blue-700">{c.consignment_no || c.id.slice(0, 8)}</td>
-                      <td className="py-2.5 px-3 font-medium text-slate-800">{c.seller?.name || c.seller?.full_name || "Sotuvchi"}</td>
-                      <td className="py-2.5 px-3 text-slate-700">{c.product_name || c.item_name}</td>
-                      <td className="py-2.5 px-3 font-mono">{Number(c.base_weight_grams).toFixed(4)}g</td>
+                      <td className="py-2.5 px-3 font-medium text-[#0F172A]">{c.seller?.name || c.seller?.full_name || "Sotuvchi"}</td>
+                      <td className="py-2.5 px-3 text-[#475569]">{c.product_name || c.item_name}</td>
+                      <td className="py-2.5 px-3 font-mono text-[#0F172A]">{formatScreenGrams(c.base_weight_grams)}</td>
                       <td className="py-2.5 px-3 font-bold text-amber-700">+{c.factory_markup_pct}%</td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
-                        {Number(c.factory_gold_due_grams).toFixed(4)}g
+                      <td className="py-2.5 px-3 font-mono font-bold text-[#0F172A]">
+                        {formatScreenGrams(c.factory_gold_due_grams)}
                       </td>
                       <td className="py-2.5 px-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -2433,7 +2440,7 @@ export function DirectorSalesWorkspace({
                             ? "bg-amber-100 text-amber-800"
                             : c.status === "fully_sold"
                             ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-100 text-slate-700"
+                            : "bg-slate-100 text-[#0F172A]"
                         }`}>
                           {c.status === "held_by_seller" ? "Sotuvchida" : c.status === "fully_sold" ? "Sotildi" : c.status}
                         </span>
@@ -2442,7 +2449,7 @@ export function DirectorSalesWorkspace({
                   ))}
                   {consignments.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-6 text-center text-slate-400">
+                      <td colSpan={7} className="py-6 text-center text-[#475569]">
                         Hozircha konsignatsiyalar ro&apos;yxati bo&apos;sh.
                       </td>
                     </tr>
@@ -2474,11 +2481,11 @@ export function DirectorSalesWorkspace({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Factory Markups Section */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4 text-[#0F172A]">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="font-black text-slate-900 text-base">Zavod Ustamalari (Factory Markups)</h3>
-                  <div className="text-xs text-slate-500">Zavoddan sotuvchiga topshirishda qo&apos;llaniladi</div>
+                  <h3 className="font-black text-[#0F172A] text-base">Zavod Ustamalari (Factory Markups)</h3>
+                  <div className="text-xs text-[#475569]">Zavoddan sotuvchiga topshirishda qo&apos;llaniladi</div>
                 </div>
                 <button
                   id="addFactoryPresetBtn"
@@ -2499,7 +2506,7 @@ export function DirectorSalesWorkspace({
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">{p.name}</span>
+                        <span className="font-bold text-[#0F172A] text-sm">{p.name}</span>
                         <span className="bg-amber-100 text-amber-900 text-xs font-mono font-black px-2 py-0.5 rounded-lg">
                           +{p.percentage}%
                         </span>
@@ -2509,7 +2516,7 @@ export function DirectorSalesWorkspace({
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">
+                      <div className="text-[10px] text-[#475569] mt-0.5">
                         Tartib raqami: {p.display_order} • Holat: {p.is_active ? "Faol (Sotuvchiga ko'rinadi)" : "Nofaol"}
                       </div>
                     </div>
@@ -2519,7 +2526,7 @@ export function DirectorSalesWorkspace({
                         onClick={() => handleTogglePresetActive(p)}
                         className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition ${
                           p.is_active
-                            ? "border-slate-300 text-slate-600 hover:bg-slate-200"
+                            ? "border-slate-300 text-[#475569] hover:bg-slate-200"
                             : "border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
                         }`}
                       >
@@ -2527,7 +2534,7 @@ export function DirectorSalesWorkspace({
                       </button>
                       <button
                         onClick={() => handleEditPreset(p)}
-                        className="text-xs px-2.5 py-1 rounded-lg font-bold bg-slate-200 hover:bg-slate-300 text-slate-700"
+                        className="text-xs px-2.5 py-1 rounded-lg font-bold bg-slate-200 hover:bg-slate-300 text-[#0F172A]"
                       >
                         ✏️
                       </button>
@@ -2538,11 +2545,11 @@ export function DirectorSalesWorkspace({
             </div>
 
             {/* Client Markups Section */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4 text-[#0F172A]">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="font-black text-slate-900 text-base">Mijozga Sotish Ustamalari (Client Markups)</h3>
-                  <div className="text-xs text-slate-500">Sotuvchi mijozga nasiya yozishda faqat bularni tanlay oladi</div>
+                  <h3 className="font-black text-[#0F172A] text-base">Mijozga Sotish Ustamalari (Client Markups)</h3>
+                  <div className="text-xs text-[#475569]">Sotuvchi mijozga nasiya yozishda faqat bularni tanlay oladi</div>
                 </div>
                 <button
                   id="addClientPresetBtn"
@@ -2563,7 +2570,7 @@ export function DirectorSalesWorkspace({
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">{p.name}</span>
+                        <span className="font-bold text-[#0F172A] text-sm">{p.name}</span>
                         <span className="bg-indigo-100 text-indigo-900 text-xs font-mono font-black px-2 py-0.5 rounded-lg">
                           +{p.percentage}%
                         </span>
@@ -2573,7 +2580,7 @@ export function DirectorSalesWorkspace({
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">
+                      <div className="text-[10px] text-[#475569] mt-0.5">
                         Tartib raqami: {p.display_order} • Holat: {p.is_active ? "Faol (Sotuvchiga ko'rinadi)" : "Nofaol"}
                       </div>
                     </div>
@@ -2584,7 +2591,7 @@ export function DirectorSalesWorkspace({
                         onClick={() => handleTogglePresetActive(p)}
                         className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition ${
                           p.is_active
-                            ? "border-slate-300 text-slate-600 hover:bg-slate-200"
+                            ? "border-slate-300 text-[#475569] hover:bg-slate-200"
                             : "border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
                         }`}
                       >
@@ -2592,7 +2599,7 @@ export function DirectorSalesWorkspace({
                       </button>
                       <button
                         onClick={() => handleEditPreset(p)}
-                        className="text-xs px-2.5 py-1 rounded-lg font-bold bg-slate-200 hover:bg-slate-300 text-slate-700"
+                        className="text-xs px-2.5 py-1 rounded-lg font-bold bg-slate-200 hover:bg-slate-300 text-[#0F172A]"
                       >
                         ✏️
                       </button>
@@ -2607,11 +2614,11 @@ export function DirectorSalesWorkspace({
 
       {/* TAB 4: CLIENTS OVERVIEW */}
       {activeTab === "clients" && (
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-[#0F172A]">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Mijozlar Umumiy Qarzdorlik Holati</h2>
-              <p className="text-xs text-slate-500">
+              <h2 className="text-lg font-bold text-[#0F172A]">Mijozlar Umumiy Qarzdorlik Holati</h2>
+              <p className="text-xs text-[#475569]">
                 Barcha sotuvchilarga tegishli mijozlarning 585 lom oltin qarz va avans hisoblari.
               </p>
             </div>
@@ -2620,7 +2627,7 @@ export function DirectorSalesWorkspace({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+                <tr className="border-b border-slate-200 bg-slate-50 text-[#475569]">
                   <th className="py-2.5 px-3 font-semibold">Mijoz Kodi</th>
                   <th className="py-2.5 px-3 font-semibold">Mijoz Ismi</th>
                   <th className="py-2.5 px-3 font-semibold">Telefon</th>
@@ -2633,31 +2640,32 @@ export function DirectorSalesWorkspace({
               <tbody className="divide-y divide-slate-100">
                 {clientAccounts.map((c) => {
                   const cust = c.customer || customers.find(cu => String(cu.id) === String(c.customer_id));
+                  const adv = Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0);
                   return (
                     <tr key={c.customer_id} className="hover:bg-slate-50/80 transition">
                       <td className="py-2.5 px-3 font-mono font-bold text-blue-700">
                         {cust?.customer_code || "CUST-XXXX"}
                       </td>
-                      <td className="py-2.5 px-3 font-bold text-slate-900">{cust?.contact_name || "Mijoz"}</td>
-                      <td className="py-2.5 px-3 text-slate-600">{cust?.phone || "—"}</td>
-                      <td className="py-2.5 px-3 font-mono">{Number(c.total_scrap_paid_grams || 0).toFixed(4)}g</td>
-                      <td className="py-2.5 px-3 font-mono text-emerald-700">
-                        {Number(c.total_cash_paid_amount || 0).toLocaleString()} UZS
+                      <td className="py-2.5 px-3 font-bold text-[#0F172A]">{cust?.contact_name || "Mijoz"}</td>
+                      <td className="py-2.5 px-3 text-[#475569]">{cust?.phone || "—"}</td>
+                      <td className="py-2.5 px-3 font-mono">{formatScreenGrams(c.total_scrap_paid_grams, 2)}</td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">
+                        {formatScreenUZS(c.total_cash_paid_amount)}
                       </td>
                       <td className="py-2.5 px-3 font-mono font-black text-rose-600 text-sm">
-                        {Number(c.current_debt_grams || c.current_gold_debt_grams || 0).toFixed(4)}g
+                        {formatScreenGrams(c.current_debt_grams || c.current_gold_debt_grams, 2)}
                       </td>
                       <td className="py-2.5 px-3 font-mono font-bold text-blue-700">
-                        {Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0) > 0
-                          ? `+${Number(c.advance_balance_grams || c.advance_gold_balance_grams).toFixed(4)}g`
-                          : "0.0000g"}
+                        {adv > 0
+                          ? `+${formatScreenGrams(adv, 2)}`
+                          : formatScreenGrams(0, 2)}
                       </td>
                     </tr>
                   );
                 })}
                 {clientAccounts.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-slate-400">
+                    <td colSpan={7} className="py-6 text-center text-[#475569]">
                       Hozircha mijozlar hisob raqamlari mavjud emas.
                     </td>
                   </tr>
@@ -2670,13 +2678,13 @@ export function DirectorSalesWorkspace({
 
       {/* TAB 5: HISTORY & AUDIT */}
       {activeTab === "history" && (
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">Oxirgi Tushum va Qaytimlar Arxivi</h2>
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-[#0F172A]">
+          <h2 className="text-lg font-bold text-[#0F172A]">Oxirgi Tushum va Qaytimlar Arxivi</h2>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+                <tr className="border-b border-slate-200 bg-slate-50 text-[#475569]">
                   <th className="py-2.5 px-3 font-semibold">№ Kvitansiya</th>
                   <th className="py-2.5 px-3 font-semibold">Yo&apos;nalish</th>
                   <th className="py-2.5 px-3 font-semibold">Sotuvchi / Mijoz</th>
@@ -2704,20 +2712,20 @@ export function DirectorSalesWorkspace({
                           {s.direction === "client_to_seller" ? "Mijoz → Sotuvchi" : "Sotuvchi → Zavod"}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-medium text-slate-800">
+                      <td className="py-2.5 px-3 font-medium text-[#0F172A]">
                         {partyName}
                       </td>
-                      <td className="py-2.5 px-3 font-mono">{Number(s.scrap_weight_grams).toFixed(4)}g</td>
-                      <td className="py-2.5 px-3 font-mono text-emerald-700">
-                        {Number(s.cash_paid_amount).toLocaleString()} UZS
+                      <td className="py-2.5 px-3 font-mono">{formatScreenGrams(s.scrap_weight_grams, 2)}</td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">
+                        {formatScreenUZS(s.cash_paid_amount)}
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-slate-500">
+                      <td className="py-2.5 px-3 font-mono text-[#475569]">
                         {Number(s.gold_rate_applied).toLocaleString()}
                       </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
-                        {Number(s.total_settled_grams).toFixed(4)}g
+                      <td className="py-2.5 px-3 font-mono font-bold text-[#0F172A]">
+                        {formatScreenGrams(s.total_settled_grams, 2)}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-500">{s.settlement_date}</td>
+                      <td className="py-2.5 px-3 text-[#475569]">{s.settlement_date}</td>
                     </tr>
                   );
                 })}
@@ -2774,10 +2782,10 @@ export function DirectorSalesWorkspace({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <form
             onSubmit={(e) => void handleSaveDailyRate(e)}
-            className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-amber-200"
+            className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-amber-200 text-[#0F172A]"
           >
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-bold text-lg text-slate-900">Kunlik Lom Kursini Kiritish</h3>
+              <h3 className="font-bold text-lg text-[#0F172A]">Kunlik Lom Kursini Kiritish</h3>
               <button
                 type="button"
                 onClick={() => setShowRateModal(false)}
@@ -2789,40 +2797,40 @@ export function DirectorSalesWorkspace({
 
             <div className="space-y-3 text-sm">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Kurs (1 gramm lom 585 uchun UZS):</label>
+                <label className="block text-xs font-bold text-[#475569] mb-1">Kurs (1 gramm lom 585 uchun UZS):</label>
                 <input
                   type="number"
                   step="1000"
                   value={newRateAmount}
                   onChange={(e) => setNewRateAmount(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-base font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-base font-bold text-[#0F172A] focus:ring-2 focus:ring-amber-500 outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Sana:</label>
+                <label className="block text-xs font-bold text-[#475569] mb-1">Sana:</label>
                 <input
                   type="date"
                   value={newRateDate}
                   onChange={(e) => setNewRateDate(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A]"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
+                <label className="block text-xs font-bold text-[#475569] mb-1">Izoh:</label>
                 <input
                   type="text"
                   placeholder="Bozor kursi bo'yicha tasdiqlandi..."
                   value={newRateNotes}
                   onChange={(e) => setNewRateNotes(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A]"
                 />
               </div>
 
-              <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border">
+              <div className="text-[11px] text-[#475569] bg-slate-50 p-2.5 rounded-xl border">
                 ℹ️ Qoida 6: Ushbu kurs bo&apos;yicha mijozdan olingan naqd pullar o&apos;sha operatsiya sanasidagi kurs bilan lom grammiga aylantiriladi va tarixiy qiymati o&apos;zgarmaydi.
               </div>
             </div>
@@ -2831,7 +2839,7 @@ export function DirectorSalesWorkspace({
               <button
                 type="button"
                 onClick={() => setShowRateModal(false)}
-                className="px-4 py-2 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700"
+                className="px-4 py-2 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 text-[#475569]"
               >
                 Bekor qilish
               </button>
@@ -2852,10 +2860,10 @@ export function DirectorSalesWorkspace({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <form
             onSubmit={(e) => void handleSavePreset(e)}
-            className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-blue-200"
+            className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-blue-200 text-[#0F172A]"
           >
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-bold text-lg text-slate-900">
+              <h3 className="font-bold text-lg text-[#0F172A]">
                 {editingPreset ? "Ustama Foizini Tahrirlash" : "Yangi Ustama Foizi Qo'shish"}
               </h3>
               <button
@@ -2869,12 +2877,12 @@ export function DirectorSalesWorkspace({
 
             <div className="space-y-3 text-sm">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Toifa:</label>
+                <label className="block text-xs font-bold text-[#475569] mb-1">Toifa:</label>
                 <select
                   value={presetType}
                   onChange={(e) => setPresetType(e.target.value as "factory_markup" | "client_markup")}
                   disabled={editingPreset != null}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-[#0F172A]"
                 >
                   <option value="factory_markup">Zavod Ustamasi (Factory Markup)</option>
                   <option value="client_markup">Mijozga Sotish Ustamasi (Client Markup)</option>
@@ -2883,7 +2891,7 @@ export function DirectorSalesWorkspace({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Ustama Foizi (%):</label>
+                  <label className="block text-xs font-bold text-[#475569] mb-1">Ustama Foizi (%):</label>
                   <input
                     type="number"
                     step="0.1"
@@ -2892,29 +2900,29 @@ export function DirectorSalesWorkspace({
                     placeholder="Masalan: 14.5"
                     value={presetPercentage}
                     onChange={(e) => setPresetPercentage(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-sm text-slate-900"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-sm text-[#0F172A]"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Tartib (Display Order):</label>
+                  <label className="block text-xs font-bold text-[#475569] mb-1">Tartib (Display Order):</label>
                   <input
                     type="number"
                     value={presetOrder}
                     onChange={(e) => setPresetOrder(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm text-slate-900"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm text-[#0F172A]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Nomi (Tavsifi):</label>
+                <label className="block text-xs font-bold text-[#475569] mb-1">Nomi (Tavsifi):</label>
                 <input
                   type="text"
                   placeholder="Masalan: Zavod 14% (Katta Partiya)"
                   value={presetName}
                   onChange={(e) => setPresetName(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A]"
                 />
               </div>
 
@@ -2926,7 +2934,7 @@ export function DirectorSalesWorkspace({
                   onChange={(e) => setPresetIsDefault(e.target.checked)}
                   className="w-4 h-4 rounded text-blue-600"
                 />
-                <label htmlFor="presetDefaultCheck" className="text-xs text-slate-700 font-medium">
+                <label htmlFor="presetDefaultCheck" className="text-xs text-[#475569] font-medium">
                   Ushbu toifa uchun standart (default) qilib belgilash
                 </label>
               </div>
@@ -2936,7 +2944,7 @@ export function DirectorSalesWorkspace({
               <button
                 type="button"
                 onClick={() => setPresetModalOpen(false)}
-                className="px-4 py-2 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700"
+                className="px-4 py-2 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 text-[#475569]"
               >
                 Bekor qilish
               </button>
@@ -2957,12 +2965,12 @@ export function DirectorSalesWorkspace({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <form
             onSubmit={(e) => void handleConfirmSurrender(e)}
-            className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-indigo-200"
+            className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-indigo-200 text-[#0F172A]"
           >
             <div className="flex justify-between items-center border-b pb-3">
               <div>
-                <h3 className="font-bold text-lg text-slate-900">Zavodga Tushumni Qabul Qilish</h3>
-                <div className="text-xs text-slate-500">
+                <h3 className="font-bold text-lg text-[#0F172A]">Zavodga Tushumni Qabul Qilish</h3>
+                <div className="text-xs text-[#475569]">
                   Sotuvchi: {surrenderSeller.seller?.name || surrenderSeller.seller?.full_name || employees.find(e => String(e.id) === String(surrenderSeller.seller_id))?.full_name || "Sotuvchi"}
                 </div>
               </div>
@@ -2977,28 +2985,28 @@ export function DirectorSalesWorkspace({
 
             <div className="space-y-3 text-sm">
               <div className="bg-slate-50 p-3 rounded-2xl border text-xs space-y-1">
-                <div className="flex justify-between text-slate-600">
+                <div className="flex justify-between text-[#475569]">
                   <span>Sotuvchi kassasidagi lom:</span>
-                  <span className="font-mono font-bold text-slate-900">
-                    {Number(surrenderSeller.seller_till_scrap_grams || 0).toFixed(4)} g
+                  <span className="font-mono font-bold text-[#0F172A]">
+                    {formatScreenGrams(surrenderSeller.seller_till_scrap_grams, 2)}
                   </span>
                 </div>
-                <div className="flex justify-between text-slate-600">
+                <div className="flex justify-between text-[#475569]">
                   <span>Sotuvchi kassasidagi naqd:</span>
                   <span className="font-mono font-bold text-emerald-700">
-                    {Number(surrenderSeller.seller_till_cash_amount || 0).toLocaleString()} UZS
+                    {formatScreenUZS(surrenderSeller.seller_till_cash_amount)}
                   </span>
                 </div>
                 <div className="flex justify-between text-amber-900 font-semibold border-t pt-1">
                   <span>Zavod majburiyati:</span>
                   <span className="font-mono font-bold">
-                    {Number(surrenderSeller.current_factory_obligation_grams || surrenderSeller.remaining_factory_gold_due_grams || 0).toFixed(4)} g
+                    {formatScreenGrams(surrenderSeller.current_factory_obligation_grams || surrenderSeller.remaining_factory_gold_due_grams, 2)}
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#475569] mb-1">
                   Qabul qilinayotgan Lom Oltin (g):
                 </label>
                 <input
@@ -3007,13 +3015,13 @@ export function DirectorSalesWorkspace({
                   min="0"
                   value={surrenderScrapWeight}
                   onChange={(e) => setSurrenderScrapWeight(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#475569] mb-1">
                   Qabul qilinayotgan Naqd Pul (UZS):
                 </label>
                 <input
@@ -3028,13 +3036,13 @@ export function DirectorSalesWorkspace({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Izoh:</label>
+                <label className="block text-xs font-bold text-[#475569] mb-1">Izoh:</label>
                 <input
                   type="text"
                   placeholder="Kassir qabul qildi..."
                   value={surrenderNotes}
                   onChange={(e) => setSurrenderNotes(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-[#0F172A]"
                 />
               </div>
             </div>
@@ -3043,7 +3051,7 @@ export function DirectorSalesWorkspace({
               <button
                 type="button"
                 onClick={() => setSurrenderModalOpen(false)}
-                className="px-4 py-2 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700"
+                className="px-4 py-2 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 text-[#475569]"
               >
                 Bekor qilish
               </button>

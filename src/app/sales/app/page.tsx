@@ -373,7 +373,7 @@ export default function SalesDashboardPage() {
 
         <div className="overflow-x-auto border border-slate-800 rounded-2xl">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-slate-950 text-slate-400">
+            <thead className="bg-slate-950 text-[#CBD5E1]">
               <tr>
                 <th className="py-2.5 px-3 font-bold">Sotuvchi</th>
                 <th className="py-2.5 px-3 font-bold">Zavod Majburiyati (8%)</th>
@@ -383,32 +383,32 @@ export default function SalesDashboardPage() {
                 <th className="py-2.5 px-3 font-bold text-right">Amal</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800 text-slate-300">
+            <tbody className="divide-y divide-slate-800 text-[#F8FAFC]">
               {sellerAccounts.map((acc) => {
                 const bQarzi = Number(acc.market_debt_balance_grams ?? 0);
                 return (
                   <tr key={acc.seller_id} className="hover:bg-slate-800/60 transition">
-                    <td className="py-3 px-3 font-bold text-white">
+                    <td className="py-3 px-3 font-bold text-[#F8FAFC]">
                       {acc.employee?.name || acc.employee?.full_name || "Sotuvchi"}
                     </td>
                     <td className="py-3 px-3 font-mono text-amber-400 font-bold">
-                      {Number(acc.current_factory_obligation_grams || acc.remaining_factory_gold_due_grams || 0).toFixed(4)} g
+                      {formatScreenGrams(acc.current_factory_obligation_grams || acc.remaining_factory_gold_due_grams || 0, 2)}
                     </td>
                     <td className="py-3 px-3 font-mono">
-                      {Number(acc.seller_till_scrap_grams || 0).toFixed(4)} g
+                      {formatScreenGrams(acc.seller_till_scrap_grams || 0, 2)}
                     </td>
-                    <td className="py-3 px-3 font-mono text-emerald-400">
-                      {Number(acc.seller_till_cash_amount || 0).toLocaleString()} UZS
+                    <td className="py-3 px-3 font-mono text-emerald-400 font-bold">
+                      {formatScreenUZS(acc.seller_till_cash_amount || 0)}
                     </td>
                     <td className="py-3 px-3 font-mono font-black">
                       <span className={bQarzi <= 0 ? "text-emerald-400" : "text-rose-400"}>
-                        {bQarzi <= 0 ? `-${Math.abs(bQarzi).toFixed(4)}g` : `+${bQarzi.toFixed(4)}g`}
+                        {bQarzi <= 0 ? `-${formatScreenGrams(Math.abs(bQarzi), 2)}` : `+${formatScreenGrams(bQarzi, 2)}`}
                       </span>
                     </td>
                     <td className="py-3 px-3 text-right">
                       <Link
                         href="/sales/app/sellers"
-                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-bold text-[11px] transition"
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[#F8FAFC] rounded-lg font-bold text-[11px] transition"
                       >
                         Tafsilot
                       </Link>

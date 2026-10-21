@@ -93,3 +93,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* WCAG AA High Contrast Guarantee for Sales App Light Elements */
+.bg-white,
+.bg-slate-50,
+.bg-slate-100 {
+  color: #0F172A;
+}
+
