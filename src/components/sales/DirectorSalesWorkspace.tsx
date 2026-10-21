@@ -512,26 +512,56 @@ export function DirectorSalesWorkspace() {
 
   // 6. BarTender Model Creation Action
   const handleAddNewModel = async (modelData: {
-    model_code: string;
+    model_code?: string;
     name: string;
     category: string;
     decorations?: string;
     reference_weight_grams?: number;
     gold_purity?: number;
-  }) => {
+  }): Promise<JewelryModelItem> => {
     setBusy(true);
     try {
-      const { error } = await supabase.from("jewelry_models").insert([
-        {
-          ...modelData,
-          is_active: true,
-        },
-      ]);
-      if (error) throw error;
-      notifySuccess(`Yangi model muvaffaqiyatli saqlandi: ${modelData.name} (${modelData.model_code})`);
+      // 1. Call server-side atomic sequence RPC
+      const { data, error } = await supabase.rpc("rpc_create_jewelry_model", {
+        p_name: modelData.name,
+        p_category: modelData.category || "Серьги",
+        p_decorations: modelData.decorations || null,
+        p_reference_weight_grams: modelData.reference_weight_grams || null,
+        p_purity: String(modelData.gold_purity || 585),
+        p_model_code: modelData.model_code || null,
+      });
+
+      if (error) {
+        // Fallback: direct insert if RPC not present in older schemas
+        const code = modelData.model_code || `JF-M-${String(models.length + 1).padStart(4, "0")}`;
+        const { data: insData, error: insErr } = await supabase.from("jewelry_models").insert([
+          {
+            model_code: code,
+            name: modelData.name,
+            category: modelData.category || "Серьги",
+            decorations: modelData.decorations,
+            reference_weight_grams: modelData.reference_weight_grams,
+            gold_purity: String(modelData.gold_purity || 585),
+            proba: modelData.gold_purity || 585,
+            is_active: true,
+          },
+        ]).select().single();
+
+        if (insErr) throw insErr;
+        const fallbackItem = insData as unknown as JewelryModelItem;
+        notifySuccess(`Yangi model muvaffaqiyatli saqlandi: ${fallbackItem.name} (${fallbackItem.model_code})`);
+        await loadData();
+        return fallbackItem;
+      }
+
+      const created = (typeof data === "string" ? JSON.parse(data) : data) as JewelryModelItem;
+      notifySuccess(`Yangi model muvaffaqiyatli saqlandi: ${created.name} (${created.model_code})`);
       await loadData();
+      return created;
     } catch (err: unknown) {
-      notifyError(`Model qo'shishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      notifyError(`Model qo'shishda xatolik: ${msg}`);
+      throw err;
     } finally {
       setBusy(false);
     }

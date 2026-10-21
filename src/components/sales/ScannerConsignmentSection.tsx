@@ -311,6 +311,7 @@ export function ScannerConsignmentSection({
               3. Qo&apos;lda Model Tanlash (Ixtiyoriy):
             </label>
             <select
+              id="manualModelSelect"
               value={session.activeModel?.id || ""}
               onChange={(e) => handleManualModelSelect(e.target.value)}
               className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white"

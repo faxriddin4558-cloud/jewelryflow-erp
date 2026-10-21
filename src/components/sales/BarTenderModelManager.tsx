@@ -11,30 +11,51 @@ import {
 interface Props {
   models: JewelryModelItem[];
   onAddModel: (model: {
-    model_code: string;
+    model_code?: string;
     name: string;
     category: string;
     decorations?: string;
     reference_weight_grams?: number;
     gold_purity?: number;
-  }) => Promise<void>;
+  }) => Promise<JewelryModelItem | void>;
   isBusy?: boolean;
 }
 
-export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
+export function BarTenderModelManager({ models = [], onAddModel, isBusy }: Props) {
+  const safeModels = models || [];
   const [selectedModel, setSelectedModel] = useState<JewelryModelItem | null>(
-    models.length > 0 ? (models[0] ?? null) : null
+    safeModels.length > 0 ? (safeModels[0] ?? null) : null
   );
   const [showAddModal, setShowAddModal] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // New model form states
-  const [newCode, setNewCode] = useState(`JF-M-000${models.length + 1}`);
+  const nextSeqCode = `JF-M-${String(safeModels.length + 1).padStart(4, "0")}`;
+  const [newCode, setNewCode] = useState(nextSeqCode);
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("Серьги");
   const [newDecorations, setNewDecorations] = useState("Дорика");
   const [newWeight, setNewWeight] = useState("14.50");
   const [newPurity, setNewPurity] = useState("585");
+
+  // Keep selection valid as models array updates
+  React.useEffect(() => {
+    const list = models || [];
+    if (!selectedModel && list.length > 0) {
+      setSelectedModel(list[0] ?? null);
+    } else if (selectedModel && list.length > 0) {
+      const match = list.find(m => m.id === selectedModel.id || m.model_code === selectedModel.model_code);
+      if (match) setSelectedModel(match);
+    }
+  }, [models, selectedModel]);
+
+  const handleOpenAddModal = () => {
+    const list = models || [];
+    setNewCode(`JF-M-${String(list.length + 1).padStart(4, "0")}`);
+    setFormError(null);
+    setShowAddModal(true);
+  };
 
   const handleDownloadCsv = () => {
     const csvContent = generateBarTenderCsv(models);
@@ -54,20 +75,32 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
 
   const handleSubmitNewModel = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCode.trim() || !newName.trim()) return;
+    setFormError(null);
+    if (!newName.trim()) {
+      setFormError("Model nomi kiritilishi shart!");
+      return;
+    }
 
-    await onAddModel({
-      model_code: newCode.trim().toUpperCase(),
-      name: newName.trim(),
-      category: newCategory.trim(),
-      decorations: newDecorations.trim() || undefined,
-      reference_weight_grams: parseFloat(newWeight) || undefined,
-      gold_purity: parseInt(newPurity, 10) || 585,
-    });
+    try {
+      const created = await onAddModel({
+        model_code: newCode.trim() ? newCode.trim().toUpperCase() : undefined,
+        name: newName.trim(),
+        category: newCategory.trim(),
+        decorations: newDecorations.trim() || undefined,
+        reference_weight_grams: parseFloat(newWeight) || undefined,
+        gold_purity: parseInt(newPurity, 10) || 585,
+      });
 
-    setShowAddModal(false);
-    setNewName("");
-    setNewCode(`JF-M-000${models.length + 2}`);
+      setShowAddModal(false);
+      setNewName("");
+      setNewDecorations("");
+      setNewCode(`JF-M-${String(models.length + 2).padStart(4, "0")}`);
+      if (created) {
+        setSelectedModel(created);
+      }
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : String(err));
+    }
   };
 
   // QR SVG for active model
@@ -103,7 +136,8 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
             <span>📥</span> BarTender uchun CSV
           </button>
           <button
-            onClick={() => setShowAddModal(true)}
+            id="openAddModelModalBtn"
+            onClick={handleOpenAddModal}
             className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black rounded-xl transition flex items-center gap-1.5 shadow-md"
           >
             <span>+</span> Yangi Model Qo&apos;shish
@@ -136,10 +170,12 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium">
                 {models.map((m) => {
-                  const isSelected = selectedModel?.id === m.id;
+                  const isSelected = selectedModel?.id === m.id || selectedModel?.model_code === m.model_code;
                   return (
                     <tr
                       key={m.id}
+                      id={`model-row-${m.model_code}`}
+                      data-testid={`model-row-${m.model_code}`}
                       onClick={() => setSelectedModel(m)}
                       className={`cursor-pointer transition ${
                         isSelected
@@ -180,15 +216,16 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
                 </div>
 
                 <div
+                  id="activeCardQrSvg"
                   className="bg-white p-2 rounded-xl border border-slate-200"
                   dangerouslySetInnerHTML={{ __html: activeQrSvg }}
                 />
 
                 <div className="space-y-1 text-center font-sans">
-                  <div className="font-mono text-base font-black text-slate-950 tracking-wider">
+                  <div id="activeCardModelCode" className="font-mono text-base font-black text-slate-950 tracking-wider">
                     {selectedModel.model_code}
                   </div>
-                  <div className="font-bold text-sm text-slate-800">{selectedModel.name}</div>
+                  <div id="activeCardModelName" className="font-bold text-sm text-slate-800">{selectedModel.name}</div>
                   <div className="text-xs text-slate-500">
                     {selectedModel.category || "Серьги"} • {selectedModel.decorations || "Standart"} • {selectedModel.gold_purity || 585}°
                   </div>
@@ -248,15 +285,25 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
               </button>
             </div>
 
+            {formError && (
+              <div id="modelFormErrorAlert" className="bg-rose-950/80 border border-rose-700 text-rose-200 px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between">
+                <span>⚠️ {formError}</span>
+                <button type="button" onClick={() => setFormError(null)} className="text-rose-400 font-bold ml-2">✕</button>
+              </div>
+            )}
+
             <form onSubmit={handleSubmitNewModel} className="space-y-4 text-xs">
               <div className="space-y-1">
-                <label className="font-bold text-slate-300">Model Kodi (BarTender QR uchun):</label>
+                <div className="flex justify-between items-center">
+                  <label className="font-bold text-slate-300">Model Kodi (BarTender QR uchun):</label>
+                  <span className="text-[10px] text-amber-300">Server ketma-ketlikda ta&apos;minlaydi</span>
+                </div>
                 <input
+                  id="newModelCode"
                   type="text"
-                  required
                   value={newCode}
                   onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                  placeholder="Masalan: JF-M-0001"
+                  placeholder="Avtomatik (masalan: JF-M-0002)"
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
                 />
               </div>
@@ -264,11 +311,12 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
               <div className="space-y-1">
                 <label className="font-bold text-slate-300">Model Nomi:</label>
                 <input
+                  id="newModelName"
                   type="text"
                   required
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Masalan: Malika, Shahzoda, Italiya Uzuk"
+                  placeholder="Masalan: Zarina, Shahzoda, Italiya Uzuk"
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white"
                 />
               </div>
@@ -277,6 +325,7 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
                 <div className="space-y-1">
                   <label className="font-bold text-slate-300">Kategoriya:</label>
                   <select
+                    id="newModelCategory"
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white"
@@ -293,6 +342,7 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
                 <div className="space-y-1">
                   <label className="font-bold text-slate-300">Proba:</label>
                   <select
+                    id="newModelPurity"
                     value={newPurity}
                     onChange={(e) => setNewPurity(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white"
@@ -308,6 +358,7 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
                 <div className="space-y-1">
                   <label className="font-bold text-slate-300">Bezak (Decorations):</label>
                   <input
+                    id="newModelDecorations"
                     type="text"
                     value={newDecorations}
                     onChange={(e) => setNewDecorations(e.target.value)}
@@ -319,6 +370,7 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
                 <div className="space-y-1">
                   <label className="font-bold text-slate-300">Standart Vazn (g):</label>
                   <input
+                    id="newModelWeight"
                     type="number"
                     step="0.01"
                     value={newWeight}
@@ -338,6 +390,7 @@ export function BarTenderModelManager({ models, onAddModel, isBusy }: Props) {
                   Bekor Qilish
                 </button>
                 <button
+                  id="submitNewModelBtn"
                   type="submit"
                   disabled={isBusy}
                   className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl"

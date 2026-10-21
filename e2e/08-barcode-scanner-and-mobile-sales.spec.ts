@@ -122,7 +122,7 @@ test.describe('8. JewelryFlow Sales — Barcode Inventory, Scanner 564, BarTende
     await expect(page.locator('text=✓ 100% Mos').first()).toBeVisible();
 
     // -------------------------------------------------------------------------
-    // STEP 4: BarTender Catalog & CSV Export Verification
+    // STEP 4: BarTender Catalog, Model Creation & QR Export Verification
     // -------------------------------------------------------------------------
     console.log('[STEP 4] Checking BarTender Model Manager & CSV export...');
     await page.click('button:has-text("BarTender Modellar")');
@@ -131,6 +131,54 @@ test.describe('8. JewelryFlow Sales — Barcode Inventory, Scanner 564, BarTende
 
     const exportCsvBtn = page.locator('#exportBartenderCsvBtn');
     await expect(exportCsvBtn).toBeVisible();
+
+    // -------------------------------------------------------------------------
+    // STEP 4.1: Create New Model "Zarina" (Komplekt, 585) & Server Sequence
+    // -------------------------------------------------------------------------
+    console.log('[STEP 4.1] Creating new model Zarina (Komplekt, 585)...');
+    await page.click('#openAddModelModalBtn');
+    await expect(page.locator('text=Yangi Doimiy Model Qo\'shish').first()).toBeVisible();
+
+    await page.fill('#newModelName', 'Zarina');
+    await page.selectOption('#newModelCategory', 'Комплект');
+    await page.selectOption('#newModelPurity', '585');
+    await page.fill('#newModelDecorations', 'Brilliant');
+    await page.fill('#newModelWeight', '18.40');
+
+    console.log('[STEP 4.2] Submitting new model...');
+    await page.click('#submitNewModelBtn');
+
+    // Verify success notification and immediate presence in model list
+    await expect(page.locator('text=Yangi model muvaffaqiyatli saqlandi').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Zarina').first()).toBeVisible();
+    await expect(page.locator('text=JF-M-0002').first()).toBeVisible();
+
+    // Verify Printable QR card displays Zarina & JF-M-0002
+    await expect(page.locator('#activeCardModelName')).toHaveText('Zarina');
+    await expect(page.locator('#activeCardModelCode')).toHaveText('JF-M-0002');
+    await expect(page.locator('#activeCardQrSvg svg')).toBeVisible();
+
+    // -------------------------------------------------------------------------
+    // STEP 4.3: Full Browser Reload to verify persistence across reloads
+    // -------------------------------------------------------------------------
+    console.log('[STEP 4.3] Performing full browser reload to verify model persistence...');
+    await page.reload();
+    await page.click('button:has-text("BarTender Modellar")');
+    await expect(page.locator('text=Zarina').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=JF-M-0002').first()).toBeVisible();
+    await expect(page.locator('text=Malika').first()).toBeVisible();
+
+    // -------------------------------------------------------------------------
+    // STEP 4.4: Verify Zarina can be selected in Scanner 564 Consignment
+    // -------------------------------------------------------------------------
+    console.log('[STEP 4.4] Verifying Zarina in Scanner 564 Consignment...');
+    await page.click('button:has-text("Skaner 564 Konsignatsiya")');
+    const consignInput = page.locator('#scannerConsignInput');
+    await consignInput.fill('JF-M-0002');
+    await consignInput.press('Enter');
+
+    await expect(page.locator('#activeModelName')).toHaveText('Zarina');
+    await expect(page.locator('#activeModelCode')).toHaveText('JF-M-0002');
 
     // -------------------------------------------------------------------------
     // STEP 5: Seller Mobile Workspace — Barcode Sale

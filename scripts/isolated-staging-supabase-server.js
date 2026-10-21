@@ -411,7 +411,7 @@ async function ensureSalesDemoData(db) {
   try {
     await db.exec(`
       INSERT INTO public.jewelry_models (
-        id, model_code, name, category, ring_size, loops_count, locks_count, decorations, reference_weight_grams, is_active, organization_id
+        id, model_code, name, category, ring_size, loops_count, locks_count, decorations, reference_weight_grams, is_active, organization_id, gold_purity, proba
       )
       VALUES (
         '88888888-8888-4001-8001-000000000001'::uuid,
@@ -424,7 +424,9 @@ async function ensureSalesDemoData(db) {
         'Дорика',
         14.500,
         true,
-        '${ORG_GOLDIA_ID}'::uuid
+        '${ORG_GOLDIA_ID}'::uuid,
+        '585',
+        585
       )
       ON CONFLICT (model_code) DO UPDATE SET
         name = EXCLUDED.name,
@@ -432,6 +434,8 @@ async function ensureSalesDemoData(db) {
         decorations = EXCLUDED.decorations,
         reference_weight_grams = EXCLUDED.reference_weight_grams,
         organization_id = EXCLUDED.organization_id,
+        gold_purity = '585',
+        proba = 585,
         is_active = true;
     `);
   } catch (err) {
@@ -1087,6 +1091,18 @@ async function startStagingServer(port = PORT, options = {}) {
               patchSql += ` RETURNING *;`;
 
               const result = await dbInstance.query(patchSql, updateVals);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(result.rows));
+              return;
+            }
+
+            if (req.method === 'DELETE') {
+              let delSql = `DELETE FROM public.${tableName}`;
+              if (whereClauses.length > 0) {
+                delSql += ` WHERE ` + whereClauses.join(' AND ');
+              }
+              delSql += ` RETURNING *;`;
+              const result = await dbInstance.query(delSql, whereValues);
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify(result.rows));
               return;
