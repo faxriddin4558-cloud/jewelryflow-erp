@@ -85,16 +85,25 @@ function SalesDashboardContent() {
     0
   );
 
+  // Client Net Debt & Advance
   const totalClientDebtGrams = clientAccounts.reduce(
-    (acc, c) => acc + Number(c.current_debt_grams || c.current_gold_debt_grams || 0),
+    (acc, c) => acc + Math.max(0, Number(c.current_debt_grams || c.current_gold_debt_grams || 0) - Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0)),
+    0
+  );
+  const totalClientAdvanceGrams = clientAccounts.reduce(
+    (acc, c) => acc + Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0),
     0
   );
 
-  const availableSellerPieces = pieces.filter((p) => p.status === "held_by_seller");
-  const totalPhysicalGrams = availableSellerPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+  // Physical Gold Reconciliation (Pure 585g Base Weight)
+  const totalFactoryPhysicalGrams = factoryReceipts.reduce((sum, r) => sum + Number(r.original_physical_g || 0), 0);
+  const managerReceiptAvailableGrams = factoryReceipts.reduce((sum, r) => sum + Number(r.available_physical_g || 0), 0);
+  const managerReturnedPieces = pieces.filter((p) => p.status === "in_manager_stock" || p.status === "returned_to_manager");
+  const managerReturnedGrams = managerReturnedPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+  const totalManagerPhysicalGrams = managerReceiptAvailableGrams + managerReturnedGrams;
 
-  const managerStockPieces = pieces.filter((p) => p.status === "in_manager_stock" || p.status === "returned_to_manager");
-  const managerStockGrams = managerStockPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+  const availableSellerPieces = pieces.filter((p) => p.status === "held_by_seller");
+  const totalSellerPhysicalGrams = availableSellerPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
 
   const soldPieces = pieces.filter((p) => p.status === "sold");
   const soldPhysicalGrams = soldPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
@@ -102,7 +111,9 @@ function SalesDashboardContent() {
   const returnedPieces = pieces.filter((p) => p.status === "returned_to_factory");
   const returnedPhysicalGrams = returnedPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
 
-  const totalPhysicalBaseGrams = managerStockGrams + totalPhysicalGrams + soldPhysicalGrams + returnedPhysicalGrams;
+  const totalAccountedPhysicalGrams = totalManagerPhysicalGrams + totalSellerPhysicalGrams + soldPhysicalGrams + returnedPhysicalGrams;
+  const physicalDiscrepancy = Math.abs(totalFactoryPhysicalGrams - totalAccountedPhysicalGrams);
+  const isPhysicalBalanced = physicalDiscrepancy < 0.001;
 
   // Tier 2: Seller Obligation & Bozor Qarzi
   const totalSellerObligation = sellerAccounts.reduce(
@@ -167,19 +178,23 @@ function SalesDashboardContent() {
         </div>
 
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-blue-500/40 transition">
-          <div className="text-slate-400 text-xs font-bold">2. Sotuvchilardagi Tovar</div>
+          <div className="text-slate-400 text-xs font-bold">2. Ombor & Sotuvchidagi Tovar</div>
           <div className="text-xl font-black font-mono text-cyan-400 mt-1">
-            {formatScreenGrams(totalPhysicalGrams)}
+            {formatScreenGrams(totalManagerPhysicalGrams + totalSellerPhysicalGrams)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">{availableSellerPieces.length} dona fizik buyum</div>
+          <div className="text-[10px] text-slate-400 mt-1">
+            Menejer: {formatScreenGrams(totalManagerPhysicalGrams)} | Sotuvchilar: {formatScreenGrams(totalSellerPhysicalGrams)}
+          </div>
         </div>
 
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-rose-500/40 transition">
-          <div className="text-slate-400 text-xs font-bold">3. Mijozlar Nasiyasi</div>
+          <div className="text-slate-400 text-xs font-bold">3. Mijozlar Sof Nasiyasi</div>
           <div className="text-xl font-black font-mono text-rose-400 mt-1">
             {formatScreenGrams(totalClientDebtGrams)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">12% ustama bilan mijoz qarzlari</div>
+          <div className="text-[10px] text-slate-400 mt-1">
+            Sof qarz (avans: +{formatScreenGrams(totalClientAdvanceGrams)})
+          </div>
         </div>
 
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-amber-500/40 transition">
@@ -203,11 +218,11 @@ function SalesDashboardContent() {
         </div>
 
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-purple-500/40 transition">
-          <div className="text-slate-400 text-xs font-bold">6. Sof Oltin (995)</div>
+          <div className="text-slate-400 text-xs font-bold">6. Afinaj Oltin (585 Eq)</div>
           <div className="text-xl font-black font-mono text-purple-300 mt-1">
             {formatScreenGrams(managerRefined)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Afinaj qilingan sof quyma</div>
+          <div className="text-[10px] text-slate-400 mt-1">585 ekvivalentidagi toza quyma</div>
         </div>
       </div>
 
@@ -225,22 +240,29 @@ function SalesDashboardContent() {
               </p>
             </div>
           </div>
-          <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-black px-3 py-1 rounded-xl flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-            BALANS TO&apos;LIQ MOS • FIZIK VAZN TO&apos;LIQ SAQLANGAN (0.00 g farq)
-          </span>
+          {isPhysicalBalanced ? (
+            <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-black px-3 py-1 rounded-xl flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+              BALANS TO&apos;LIQ MOS • FIZIK VAZN TO&apos;LIQ SAQLANGAN (0.00 g farq)
+            </span>
+          ) : (
+            <span className="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-black px-3 py-1 rounded-xl flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>
+              ⚠️ NOMUVOFIQLIK: {formatScreenGrams(physicalDiscrepancy)} TAFOVUT ANIQLANDI
+            </span>
+          )}
         </div>
 
         <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 font-mono text-xs md:text-sm text-slate-200 space-y-2">
           <div className="text-cyan-400 font-bold text-xs uppercase tracking-wider">
-            Zavoddan Qabul Qilingan ({formatScreenGrams(totalPhysicalBaseGrams)}) ≡ Joylashuv Bo&apos;yicha Fizik Ta&apos;minot:
+            Zavoddan Qabul Qilingan ({formatScreenGrams(totalFactoryPhysicalGrams)}) ≡ Joylashuv Bo&apos;yicha Fizik Ta&apos;minot:
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs md:text-base font-black">
-            <span className="text-cyan-400">{formatScreenGrams(totalPhysicalBaseGrams)}</span>
+            <span className="text-cyan-400">{formatScreenGrams(totalFactoryPhysicalGrams)} (Zavod Kirimi)</span>
             <span className="text-slate-500">=</span>
-            <span className="text-blue-400">{formatScreenGrams(managerStockGrams)} (Menejer Seyfida)</span>
+            <span className="text-blue-400">{formatScreenGrams(totalManagerPhysicalGrams)} (Menejer Omborida)</span>
             <span className="text-slate-500">+</span>
-            <span className="text-amber-300">{formatScreenGrams(totalPhysicalGrams)} (Sotuvchilarda Unsold)</span>
+            <span className="text-amber-300">{formatScreenGrams(totalSellerPhysicalGrams)} (Sotuvchilarda Unsold)</span>
             <span className="text-slate-500">+</span>
             <span className="text-emerald-400">{formatScreenGrams(soldPhysicalGrams)} (Mijozga Sotilgan)</span>
             {returnedPhysicalGrams > 0 && (
@@ -251,7 +273,7 @@ function SalesDashboardContent() {
             )}
           </div>
           <div className="text-[11px] text-slate-400">
-            Jami dona: {pieces.length} ta (Seyfda: {managerStockPieces.length}, Sotuvchilarda: {availableSellerPieces.length}, Sotilgan: {soldPieces.length})
+            Menejer omborida mavjud: {formatScreenGrams(managerReceiptAvailableGrams)} (kvitansiyalar qoldig&apos;i) + {formatScreenGrams(managerReturnedGrams)} (qaytarilgan donalar). Jami taqsimlangan donalar: {pieces.length} ta (Sotuvchilarda: {availableSellerPieces.length}, Sotilgan: {soldPieces.length}).
           </div>
         </div>
       </div>

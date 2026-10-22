@@ -35,6 +35,7 @@ import {
   formatScreenUZS,
   type JewelryModelItem,
 } from "@/lib/barcode-scanner-engine";
+import { parseErrorMessage } from "@/lib/error-utils";
 
 export type DirectorSalesTab =
   | "factory"
@@ -185,8 +186,17 @@ export function DirectorSalesWorkspace({
     setSuccessMessage(msg);
     setTimeout(() => setSuccessMessage(null), 4000);
   };
-  const notifyError = (msg: string) => {
-    setErrorMessage(msg);
+  const notifyError = (msg: unknown, prefix?: string) => {
+    let text = "";
+    if (typeof msg === "string") {
+      text = msg.includes("[object Object]")
+        ? msg.replace("[object Object]", "Server javobida xatolik yuz berdi")
+        : msg;
+    } else {
+      text = parseErrorMessage(msg);
+    }
+    const fullText = prefix ? `${prefix}: ${text}` : text;
+    setErrorMessage(fullText);
     setTimeout(() => setErrorMessage(null), 6000);
   };
 
@@ -742,7 +752,7 @@ export function DirectorSalesWorkspace({
       setSurrenderModalOpen(false);
       await loadData();
     } catch (err: unknown) {
-      notifyError(`Tushumni qabul qilishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(err, "Tushumni qabul qilishda xatolik");
     } finally {
       setBusy(false);
     }

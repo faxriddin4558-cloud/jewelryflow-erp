@@ -17,7 +17,29 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
-let SUPABASE_URL = 'https://vouehtlmsunebracahon.supabase.co';
+function loadEnvFile(envPath) {
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const idx = trimmed.indexOf('=');
+      if (idx > 0) {
+        const k = trimmed.slice(0, idx).trim();
+        let v = trimmed.slice(idx + 1).trim();
+        if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+          v = v.slice(1, -1);
+        }
+        if (!process.env[k]) process.env[k] = v;
+      }
+    }
+  }
+}
+
+loadEnvFile(path.resolve(__dirname, '../.env.staging.local'));
+loadEnvFile(path.resolve(__dirname, '../.env.local'));
+
+let SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://vouehtlmsunebracahon.supabase.co';
 let SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!SUPABASE_ANON_KEY) {
@@ -28,7 +50,7 @@ if (!SUPABASE_ANON_KEY) {
     const keys = JSON.parse(rawKeys.slice(jsonStart, jsonEnd));
     SUPABASE_ANON_KEY = keys.find(k => k.name === 'anon').api_key;
   } catch (err) {
-    console.error('Failed to get keys via supabase cli:', err.message);
+    // console.error('Failed to get keys via supabase cli:', err.message);
   }
 }
 
@@ -163,11 +185,15 @@ async function run() {
   assert(pieceBefore.status === 'held_by_seller', 'Piece status is held_by_seller before sale');
 
   // Get or create test customer
-  const { data: custRes } = await dirSb.rpc('rpc_create_customer_with_code', {
+  const { data: custRes, error: custErr } = await dirSb.rpc('rpc_create_customer_with_code', {
     p_contact_name: `QA-Klient-${Date.now()}`,
-    p_phone: '+998901234567',
+    p_phone: `+99890${Math.floor(1000000 + Math.random() * 9000000)}`,
     p_seller_id: jamshidId
   });
+  if (custErr) {
+    console.error('custErr details:', custErr);
+    throw custErr;
+  }
   const customerId = custRes.customer_id;
 
   // Sell the piece via rpc_record_barcode_piece_sale
@@ -230,11 +256,15 @@ async function run() {
   console.log('\n[5/5] ADVANCE CONSUMPTION & 38.76g NET DEBT RECONCILIATION (F07)');
 
   // Step A: Create fresh customer
-  const { data: advCust } = await dirSb.rpc('rpc_create_customer_with_code', {
+  const { data: advCust, error: advCustErr } = await dirSb.rpc('rpc_create_customer_with_code', {
     p_contact_name: `QA-Advance-Cust-${Date.now()}`,
-    p_phone: '+998991112233',
+    p_phone: `+99899${Math.floor(1000000 + Math.random() * 9000000)}`,
     p_seller_id: jamshidId
   });
+  if (advCustErr) {
+    console.error('advCustErr details:', advCustErr);
+    throw advCustErr;
+  }
   const advCustId = advCust.customer_id;
 
   // Step B: Simulate 112g debt -> 90g settlement -> 22g debt -> 23g settlement -> 0 debt + 1g advance

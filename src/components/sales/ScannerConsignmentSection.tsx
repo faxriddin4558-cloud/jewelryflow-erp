@@ -107,11 +107,27 @@ export function ScannerConsignmentSection({
 
   // Set default factory markup preset
   useEffect(() => {
-    if (factoryPresets.length > 0 && !factoryMarkupPct) {
-      const def = factoryPresets.find((p) => p.is_default) || factoryPresets[0];
-      if (def) setFactoryMarkupPct(String(def.percentage));
+    if (factoryPresets.length > 0) {
+      const exists = factoryPresets.some(
+        (p) => String(p.percentage) === factoryMarkupPct || Number(p.percentage) === parseFloat(factoryMarkupPct)
+      );
+      if (!exists) {
+        const def = factoryPresets.find((p) => p.is_default) || factoryPresets[0];
+        if (def) setFactoryMarkupPct(String(def.percentage));
+      }
     }
   }, [factoryPresets, factoryMarkupPct]);
+
+  const handleSelectReceipt = (id: string) => {
+    setSelectedReceiptId(id);
+    if (id && availableFactoryReceipts) {
+      const match = availableFactoryReceipts.find((r) => r.id === id);
+      const rMarkup = (match as { factory_markup_pct?: number | null } | undefined)?.factory_markup_pct;
+      if (typeof rMarkup === "number" && rMarkup > 0) {
+        setFactoryMarkupPct(String(rMarkup));
+      }
+    }
+  };
 
   // Auto-focus barcode input
   const keepFocus = () => {
@@ -326,7 +342,7 @@ export function ScannerConsignmentSection({
               <select
                 id="scannerFactoryReceiptSelect"
                 value={selectedReceiptId}
-                onChange={(e) => setSelectedReceiptId(e.target.value)}
+                onChange={(e) => handleSelectReceipt(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-xs font-mono"
               >
                 <option value="">Avtomatik FIFO (Mavjud kirimdan kamaytirish)</option>

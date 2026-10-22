@@ -27,6 +27,7 @@ import {
   type JewelryModelItem,
 } from "@/lib/barcode-scanner-engine";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
+import { parseErrorMessage } from "@/lib/error-utils";
 
 interface CustomerItem {
   id: string;
@@ -96,8 +97,17 @@ export function SellerMobileWorkspace() {
     setSuccessMessage(msg);
     setTimeout(() => setSuccessMessage(null), 4000);
   };
-  const notifyError = (msg: string) => {
-    setErrorMessage(msg);
+  const notifyError = (msg: unknown, prefix?: string) => {
+    let text = "";
+    if (typeof msg === "string") {
+      text = msg.includes("[object Object]")
+        ? msg.replace("[object Object]", "Server javobida xatolik yuz berdi")
+        : msg;
+    } else {
+      text = parseErrorMessage(msg);
+    }
+    const fullText = prefix ? `${prefix}: ${text}` : text;
+    setErrorMessage(fullText);
     setTimeout(() => setErrorMessage(null), 6000);
   };
 
@@ -143,7 +153,7 @@ export function SellerMobileWorkspace() {
           ? supabase.from("seller_consignments").select("*").eq("seller_id", sellerId).order("created_at", { ascending: false })
           : Promise.resolve({ data: [] }),
         sellerId
-          ? supabase.from("jewelry_sales").select("*, customer:customer_id(id, contact_name, customer_code, phone)").eq("seller_id", sellerId).order("created_at", { ascending: false })
+          ? supabase.from("jewelry_sales").select("*, customer:customers(id, contact_name, customer_code, phone)").eq("seller_id", sellerId).order("created_at", { ascending: false })
           : Promise.resolve({ data: [] }),
         sellerId
           ? supabase.from("seller_gold_accounts").select("*").eq("seller_id", sellerId).maybeSingle()
@@ -152,8 +162,8 @@ export function SellerMobileWorkspace() {
           ? supabase.from("customers").select("id, customer_code, contact_name, phone, company_name, seller_id").or(`seller_id.eq.${sellerId},seller_id.is.null`).order("contact_name", { ascending: true })
           : supabase.from("customers").select("id, customer_code, contact_name, phone, company_name, seller_id").order("contact_name", { ascending: true }),
         sellerId && !isAdminOrDir
-          ? supabase.from("client_gold_accounts").select("*, customer:customer_id(id, contact_name, customer_code, phone)").eq("seller_id", sellerId)
-          : supabase.from("client_gold_accounts").select("*, customer:customer_id(id, contact_name, customer_code, phone)"),
+          ? supabase.from("client_gold_accounts").select("*, customer:customers(id, contact_name, customer_code, phone)").eq("seller_id", sellerId)
+          : supabase.from("client_gold_accounts").select("*, customer:customers(id, contact_name, customer_code, phone)"),
         sellerId
           ? supabase.from("consignment_pieces").select("*").eq("seller_id", sellerId).order("created_at", { ascending: false })
           : Promise.resolve({ data: [] }),

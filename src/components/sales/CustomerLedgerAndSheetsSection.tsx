@@ -30,6 +30,7 @@ interface CustomerRow {
   company_name?: string | null;
   seller_id?: string | null;
   current_debt_grams?: number;
+  advance_balance_grams?: number;
   total_scrap_paid_grams?: number;
   total_cash_paid_amount?: number;
   seller?: { name: string; full_name?: string } | null;
@@ -121,6 +122,7 @@ interface CustomerQueryRow {
   seller: { name: string; full_name?: string } | null;
   accounts: Array<{
     current_debt_grams?: number | null;
+    advance_balance_grams?: number | null;
     total_scrap_paid_grams?: number | null;
     total_cash_paid_amount?: number | null;
   }> | null;
@@ -193,8 +195,8 @@ export function CustomerLedgerAndSheetsSection() {
         .from("customers")
         .select(`
           id, customer_code, contact_name, phone, company_name, seller_id,
-          seller:employees(name, full_name),
-          accounts:client_gold_accounts(current_debt_grams, total_scrap_paid_grams, total_cash_paid_amount)
+          seller:employees!customers_seller_id_fkey(name, full_name),
+          accounts:client_gold_accounts(current_debt_grams, advance_balance_grams, total_scrap_paid_grams, total_cash_paid_amount)
         `)
         .order("contact_name", { ascending: true });
 
@@ -205,18 +207,25 @@ export function CustomerLedgerAndSheetsSection() {
       const { data, error } = await query;
       if (error) throw error;
 
-      const mapped: CustomerRow[] = ((data as unknown as CustomerQueryRow[]) || []).map((row) => ({
-        id: row.id,
-        customer_code: row.customer_code,
-        contact_name: row.contact_name,
-        phone: row.phone,
-        company_name: row.company_name,
-        seller_id: row.seller_id,
-        seller: row.seller,
-        current_debt_grams: Number(row.accounts?.[0]?.current_debt_grams || 0),
-        total_scrap_paid_grams: Number(row.accounts?.[0]?.total_scrap_paid_grams || 0),
-        total_cash_paid_amount: Number(row.accounts?.[0]?.total_cash_paid_amount || 0),
-      }));
+      const mapped: CustomerRow[] = ((data as unknown as CustomerQueryRow[]) || []).map((row) => {
+        const rawDebt = Number(row.accounts?.[0]?.current_debt_grams || 0);
+        const rawAdv = Number(row.accounts?.[0]?.advance_balance_grams || 0);
+        const netDebt = Math.max(0, rawDebt - rawAdv);
+
+        return {
+          id: row.id,
+          customer_code: row.customer_code,
+          contact_name: row.contact_name,
+          phone: row.phone,
+          company_name: row.company_name,
+          seller_id: row.seller_id,
+          seller: row.seller,
+          current_debt_grams: netDebt,
+          advance_balance_grams: rawAdv,
+          total_scrap_paid_grams: Number(row.accounts?.[0]?.total_scrap_paid_grams || 0),
+          total_cash_paid_amount: Number(row.accounts?.[0]?.total_cash_paid_amount || 0),
+        };
+      });
 
       setCustomers(mapped);
 
@@ -483,15 +492,34 @@ export function CustomerLedgerAndSheetsSection() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white text-xs"
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white text-xs font-mono"
                 />
-                <span className="text-slate-500">—</span>
+                <span className="text-slate-500 font-mono">—</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white text-xs"
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white text-xs font-mono"
                 />
+                <button
+                  type="button"
+                  onClick={() => void loadDailyLedger()}
+                  disabled={busy}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition flex items-center gap-1"
+                >
+                  <span>🔍</span> Filter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Date().toISOString().split("T")[0];
+                    setStartDate(today);
+                    setEndDate(today);
+                  }}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl border border-slate-700 transition"
+                >
+                  Bugun
+                </button>
               </div>
             )}
 
