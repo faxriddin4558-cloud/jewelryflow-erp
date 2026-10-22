@@ -314,10 +314,11 @@ function SalesLoginContent() {
     roleTitle: string,
     empName: string
   ) => {
+    const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "GoldiaPassword2026!";
     setEmail(pilotEmail);
-    setPassword("GoldiaPassword2026!");
+    setPassword(demoPassword);
     setSuccessMessage(`${roleTitle} (${empName}) sifatida tizimga kirilmoqda...`);
-    await executeLogin(pilotEmail, "GoldiaPassword2026!");
+    await executeLogin(pilotEmail, demoPassword);
   };
 
 
