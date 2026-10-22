@@ -31,6 +31,9 @@ interface RpcPieceSaleResult {
   weight_grams: number;
   client_markup_pct: number;
   client_gold_due_grams: number;
+  gross_gold_due_grams?: number;
+  net_remaining_debt_grams?: number;
+  advance_applied_grams?: number;
 }
 
 interface RpcSettlementResult {
@@ -322,7 +325,7 @@ describe("JewelryFlow Sales — Item-Level Inventory, 3-Tier Debt, Sheets Parity
     expect(sale.status).toBe("ok");
     expect(Number(sale.weight_grams)).toBe(6.15);
     expect(Number(sale.client_markup_pct)).toBe(15.0);
-    expect(Number(sale.client_gold_due_grams)).toBe(7.0725);
+    expect(Number(sale.gross_gold_due_grams ?? sale.client_gold_due_grams)).toBe(7.0725);
 
     // Verify Piece B status is now 'sold' and linked to sale
     const pieceB = await db.query<{ status: string; sale_id: string }>(`
@@ -366,6 +369,7 @@ describe("JewelryFlow Sales — Item-Level Inventory, 3-Tier Debt, Sheets Parity
       SELECT public.rpc_record_client_settlement(
         p_customer_id := '${custDilraboId}',
         p_scrap_weight := 2.00,
+        p_scrap_proba := 585.0,
         p_notes := 'Dilrabo partial scrap payment'
       ) as rpc_record_client_settlement;
     `);

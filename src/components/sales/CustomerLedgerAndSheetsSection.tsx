@@ -113,6 +113,13 @@ export interface MonthlyReportPayload {
   summary: MonthlyReportSummary;
 }
 
+interface CustomerAccountData {
+  current_debt_grams?: number | null;
+  advance_balance_grams?: number | null;
+  total_scrap_paid_grams?: number | null;
+  total_cash_paid_amount?: number | null;
+}
+
 interface CustomerQueryRow {
   id: string;
   customer_code: string;
@@ -121,12 +128,7 @@ interface CustomerQueryRow {
   company_name: string | null;
   seller_id: string;
   seller: { name: string; full_name?: string } | null;
-  accounts: Array<{
-    current_debt_grams?: number | null;
-    advance_balance_grams?: number | null;
-    total_scrap_paid_grams?: number | null;
-    total_cash_paid_amount?: number | null;
-  }> | null;
+  accounts: CustomerAccountData | CustomerAccountData[] | null;
 }
 
 export function CustomerLedgerAndSheetsSection() {
@@ -167,6 +169,7 @@ export function CustomerLedgerAndSheetsSection() {
   const [payScrapWeight, setPayScrapWeight] = useState("");
   const [payCashAmount, setPayCashAmount] = useState("");
   const [payRate, setPayRate] = useState("900000");
+  const [payScrapPurity, setPayScrapPurity] = useState("585");
   const [payNotes, setPayNotes] = useState("");
 
   const [saleModalOpen, setSaleModalOpen] = useState(false);
@@ -221,8 +224,12 @@ export function CustomerLedgerAndSheetsSection() {
       if (error) throw error;
 
       const mapped: CustomerRow[] = ((data as unknown as CustomerQueryRow[]) || []).map((row) => {
-        const rawDebt = Number(row.accounts?.[0]?.current_debt_grams || 0);
-        const rawAdv = Number(row.accounts?.[0]?.advance_balance_grams || 0);
+        const rawAccounts = row.accounts;
+        const accObj = Array.isArray(rawAccounts)
+          ? (rawAccounts[0] as CustomerAccountData | undefined)
+          : (rawAccounts as CustomerAccountData | undefined);
+        const rawDebt = Number(accObj?.current_debt_grams || 0);
+        const rawAdv = Number(accObj?.advance_balance_grams || 0);
         const netDebt = Math.max(0, rawDebt - rawAdv);
 
         return {
@@ -235,8 +242,8 @@ export function CustomerLedgerAndSheetsSection() {
           seller: row.seller,
           current_debt_grams: netDebt,
           advance_balance_grams: rawAdv,
-          total_scrap_paid_grams: Number(row.accounts?.[0]?.total_scrap_paid_grams || 0),
-          total_cash_paid_amount: Number(row.accounts?.[0]?.total_cash_paid_amount || 0),
+          total_scrap_paid_grams: Number(accObj?.total_scrap_paid_grams || 0),
+          total_cash_paid_amount: Number(accObj?.total_cash_paid_amount || 0),
         };
       });
 
@@ -257,14 +264,14 @@ export function CustomerLedgerAndSheetsSection() {
     }
   }, [selectedSeller]);
 
-  // Load Daily Ledger
-  const loadDailyLedger = useCallback(async () => {
+  // Load Daily Ledger by range
+  const fetchDailyLedgerRange = useCallback(async (start?: string, end?: string) => {
     setBusy(true);
     try {
       const { data, error } = await supabase.rpc("rpc_get_daily_sales_ledger", {
         p_seller_id: selectedSeller === "all" ? null : selectedSeller,
-        p_start_date: startDate || null,
-        p_end_date: endDate || null,
+        p_start_date: start || null,
+        p_end_date: end || null,
       });
 
       if (error) throw error;
@@ -275,7 +282,11 @@ export function CustomerLedgerAndSheetsSection() {
     } finally {
       setBusy(false);
     }
-  }, [selectedSeller, startDate, endDate]);
+  }, [selectedSeller]);
+
+  const loadDailyLedger = useCallback(async () => {
+    await fetchDailyLedgerRange(startDate, endDate);
+  }, [fetchDailyLedgerRange, startDate, endDate]);
 
   // Load Monthly Report
   const loadMonthlyReport = useCallback(async () => {
@@ -359,6 +370,7 @@ export function CustomerLedgerAndSheetsSection() {
       const { data, error } = await supabase.rpc("rpc_record_client_settlement", {
         p_customer_id: targetCustomer.id,
         p_scrap_weight: scrap,
+        p_scrap_proba: scrap > 0 ? (parseFloat(payScrapPurity) || 585) : null,
         p_cash_amount: cash,
         p_rate_per_gram: rate,
         p_notes: payNotes.trim() || "Mijozdan to'lov qabul qilindi",
@@ -374,6 +386,7 @@ export function CustomerLedgerAndSheetsSection() {
       setPaymentModalOpen(false);
       setTargetCustomer(null);
       setPayScrapWeight("");
+      setPayScrapPurity("585");
       setPayCashAmount("");
       setPayNotes("");
       await loadCustomers();
@@ -582,6 +595,7 @@ export function CustomerLedgerAndSheetsSection() {
                     const today = new Date().toISOString().split("T")[0];
                     setStartDate(today);
                     setEndDate(today);
+                    void fetchDailyLedgerRange(today, today);
                   }}
                   className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl border border-slate-700 transition"
                 >
@@ -1056,17 +1070,33 @@ export function CustomerLedgerAndSheetsSection() {
             </div>
 
             <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-amber-300 block mb-1">Qaytarilgan Lom Oltin (g 585)</label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  min="0"
-                  value={payScrapWeight}
-                  onChange={(e) => setPayScrapWeight(e.target.value)}
-                  placeholder="0.0000"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-amber-300 block mb-1">Qaytarilgan Lom (g)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={payScrapWeight}
+                    onChange={(e) => setPayScrapWeight(e.target.value)}
+                    placeholder="0.0000"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-amber-300 block mb-1">Lom Probasi</label>
+                  <select
+                    value={payScrapPurity}
+                    onChange={(e) => setPayScrapPurity(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm"
+                  >
+                    <option value="585">585 proba</option>
+                    <option value="375">375 proba</option>
+                    <option value="750">750 proba</option>
+                    <option value="995">995 proba</option>
+                    <option value="999.9">999.9 proba</option>
+                  </select>
+                </div>
               </div>
 
               <div>

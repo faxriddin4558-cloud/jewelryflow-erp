@@ -1010,6 +1010,7 @@ export interface ManagerVaultAccountRow {
   manager_scrap_grams: number;
   manager_cash_amount: number;
   manager_refined_gold_grams: number;
+  manager_refined_gold_fine_grams?: number;
   manager_purchased_gold_grams: number;
   total_factory_received_g: number;
   total_factory_obligation_g: number;

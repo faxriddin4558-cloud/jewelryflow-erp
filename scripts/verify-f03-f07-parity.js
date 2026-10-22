@@ -272,6 +272,7 @@ async function run() {
   const { data: setRes, error: setErr } = await jamSb.rpc('rpc_record_client_settlement', {
     p_customer_id: advCustId,
     p_scrap_weight: 1.0,
+    p_scrap_proba: 585,
     p_cash_amount: 0,
     p_rate_per_gram: 900000,
     p_notes: 'Initial 1.0g advance payment'

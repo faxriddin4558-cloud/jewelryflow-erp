@@ -791,7 +791,7 @@ export function DirectorSalesWorkspace({
       );
 
       setReceiptData({
-        title: "Zavodga Tushum Qabul Qilish Kvitansiyasi",
+        title: "Boshqaruvchiga Tushum Qabul Qilish Kvitansiyasi",
         receiptNo: data.settlement_no || "SURR-NEW",
         date: new Date().toLocaleDateString("uz-UZ"),
         sellerName: surrenderSeller.seller?.name || surrenderSeller.seller?.full_name || "Sotuvchi",
@@ -804,10 +804,10 @@ export function DirectorSalesWorkspace({
         previousDebtGrams: calc.previousDebtGrams,
         remainingDebtGrams: calc.remainingDebtGrams,
         advanceGoldGrams: calc.excessGoldGrams,
-        notes: surrenderNotes || "Sotuvchi kassasidan lom va naqd pul zavodga qabul qilindi",
+        notes: surrenderNotes || "Sotuvchi kassasidan lom va naqd pul boshqaruvchiga qabul qilindi",
       });
 
-      notifySuccess(`№${data.settlement_no} tushum zavodga qabul qilindi va sotuvchi majburiyati kamaytirildi!`);
+      notifySuccess(`№${data.settlement_no} tushum boshqaruvchiga qabul qilindi va sotuvchi majburiyati kamaytirildi!`);
       setSurrenderModalOpen(false);
       await loadData();
     } catch (err: unknown) {
@@ -1919,9 +1919,14 @@ export function DirectorSalesWorkspace({
               <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
                 <div className="text-xs font-bold text-cyan-300">Afinaj Qilingan Toza Oltin (995)</div>
                 <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
-                  {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)}
+                  {formatScreenGrams(
+                    managerVault?.manager_refined_gold_fine_grams ??
+                    (managerVault?.manager_refined_gold_grams ? Number(managerVault.manager_refined_gold_grams) * 585 / 995 : 0)
+                  )} <span className="text-xs font-normal text-cyan-400">995</span>
                 </div>
-                <div className="text-[11px] text-cyan-300 mt-1">Zavodga topshirishga tayyor sof quyma</div>
+                <div className="text-[11px] text-cyan-300 mt-1">
+                  {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)} g (585 ekvivalent) • Sof quyma
+                </div>
               </div>
 
               <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm">
@@ -3159,7 +3164,7 @@ export function DirectorSalesWorkspace({
           >
             <div className="flex justify-between items-center border-b pb-3">
               <div>
-                <h3 className="font-bold text-lg text-[#0F172A]">Zavodga Tushumni Qabul Qilish</h3>
+                <h3 className="font-bold text-lg text-[#0F172A]">Boshqaruvchiga Tushumni Qabul Qilish</h3>
                 <div className="text-xs text-[#475569]">
                   Sotuvchi: {surrenderSeller.seller?.name || surrenderSeller.seller?.full_name || employees.find(e => String(e.id) === String(surrenderSeller.seller_id))?.full_name || "Sotuvchi"}
                 </div>

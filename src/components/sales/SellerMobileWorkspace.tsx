@@ -648,9 +648,10 @@ export function SellerMobileWorkspace() {
           factoryMarkupPct: livePieceSaleCalc.factoryMarkupPct,
           factoryGoldDueGrams: livePieceSaleCalc.factoryGoldDueGrams,
           clientMarkupPct: livePieceSaleCalc.clientMarkupPct,
-          clientGoldDueGrams: livePieceSaleCalc.clientGoldDueGrams,
+          clientGoldDueGrams: Number(data?.gross_gold_due_grams ?? livePieceSaleCalc.clientGoldDueGrams),
           markupSpreadGrams: livePieceSaleCalc.markupSpreadGrams,
-          remainingDebtGrams: livePieceSaleCalc.clientGoldDueGrams,
+          advanceAppliedGrams: Number(data?.advance_applied_grams || 0),
+          remainingDebtGrams: Number(data?.net_remaining_debt_grams ?? livePieceSaleCalc.clientGoldDueGrams),
           notes: scanNotes || "Skaner 564 orqali sotildi",
         });
       }

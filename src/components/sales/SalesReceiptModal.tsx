@@ -27,6 +27,7 @@ export interface ReceiptData {
   previousDebtGrams?: number;
   remainingDebtGrams?: number;
   advanceGoldGrams?: number;
+  advanceAppliedGrams?: number;
   notes?: string;
 }
 
@@ -65,6 +66,7 @@ ${data.goldRateApplied != null ? `Lom Kursi: ${data.goldRateApplied.toLocaleStri
 ${data.cashEquivalentGrams != null && data.cashEquivalentGrams > 0 ? `Naqd Ekvivalenti: ${data.cashEquivalentGrams.toFixed(4)} g` : ""}
 ${data.totalSettledGrams != null ? `Jami Qaytarilgan: ${data.totalSettledGrams.toFixed(4)} g` : ""}
 ${data.previousDebtGrams != null ? `Avvalgi Qarz: ${data.previousDebtGrams.toFixed(4)} g` : ""}
+${data.advanceAppliedGrams != null && data.advanceAppliedGrams > 0 ? `Qoplangan Avans: -${data.advanceAppliedGrams.toFixed(4)} g` : ""}
 ${data.remainingDebtGrams != null ? `Qolgan Qarz: ${data.remainingDebtGrams.toFixed(4)} g` : ""}
 ${data.advanceGoldGrams != null && data.advanceGoldGrams > 0 ? `Ortiqcha Avans (Balans): ${data.advanceGoldGrams.toFixed(4)} g` : ""}
 ----------------------------------------
@@ -258,6 +260,12 @@ JewelryFlow ERP — Rasmiy Hisob-Kitob Cheki
                 <div className="flex justify-between text-slate-500">
                   <span>Avvalgi qarz:</span>
                   <span className="font-mono">{data.previousDebtGrams.toFixed(4)} g</span>
+                </div>
+              )}
+              {data.advanceAppliedGrams != null && data.advanceAppliedGrams > 0 && (
+                <div className="flex justify-between font-bold text-emerald-700 bg-emerald-50 p-2 rounded-lg">
+                  <span>Qoplangan Avans:</span>
+                  <span className="font-mono text-sm">-{data.advanceAppliedGrams.toFixed(4)} g</span>
                 </div>
               )}
               {data.remainingDebtGrams != null && (

@@ -188,6 +188,7 @@ async function main() {
   const { data: settle1, error: settle1Err } = await jamSb.rpc('rpc_record_client_settlement', {
     p_customer_id: customerId,
     p_scrap_weight: 1.0,
+    p_scrap_proba: 585,
     p_cash_amount: 0,
     p_rate_per_gram: 900000,
     p_notes: 'Mega Step 9 scrap payment'
