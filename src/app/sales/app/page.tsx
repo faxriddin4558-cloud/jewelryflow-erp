@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -16,7 +16,7 @@ import {
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 
 
-export default function SalesDashboardPage() {
+function SalesDashboardContent() {
   const searchParams = useSearchParams();
   const [currentUser, setCurrentUser] = useState<ErpUser>(() => RBAC.getCurrentUser());
   const [loading, setLoading] = useState(true);
@@ -511,3 +511,18 @@ export default function SalesDashboardPage() {
     </div>
   );
 }
+
+export default function SalesDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0F172A] p-6 text-slate-400 font-mono text-sm flex items-center justify-center">
+          Yuklanmoqda...
+        </div>
+      }
+    >
+      <SalesDashboardContent />
+    </Suspense>
+  );
+}
+
