@@ -35,7 +35,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
   {
     title: "OMBOR & KONSIGNATSIYA",
     items: [
-      { name: "Boshqaruvchi Ombori", href: "/sales/app/inventory", icon: "🏦" },
+      { name: "Boshqaruvchi Ombori", href: "/sales/app/inventory", icon: "🏦", roles: ["Director", "Production Manager", "manager"] },
       { name: "Scanner 564 Tarqatish", href: "/sales/app/consignments", icon: "📟", roles: ["Director", "Production Manager", "manager"] },
     ],
   },
@@ -165,6 +165,27 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  // F01 Route Guard: prevent sellers from accessing privileged manager/director pages directly
+  useEffect(() => {
+    if (!currentUser || !pathname) return;
+    const isSeller = currentUser.role === "Seller" || currentUser.role === "seller";
+    const RESTRICTED_FOR_SELLER = [
+      "/sales/app/factory",
+      "/sales/app/factory-receive",
+      "/sales/app/refining",
+      "/sales/app/purchases",
+      "/sales/app/consignments",
+      "/sales/app/users",
+      "/sales/app/settings",
+      "/sales/app/sellers",
+      "/sales/app/inventory",
+    ];
+
+    if (isSeller && RESTRICTED_FOR_SELLER.some((prefix) => pathname.startsWith(prefix))) {
+      router.replace("/sales/app?unauthorized=1");
+    }
+  }, [currentUser, pathname, router]);
 
   const handleSaveRate = async (e: React.FormEvent) => {
     e.preventDefault();

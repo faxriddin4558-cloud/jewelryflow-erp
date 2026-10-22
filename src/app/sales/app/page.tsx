@@ -2,24 +2,36 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   supabase,
+  RBAC,
   type SellerGoldAccountRow,
   type ClientGoldAccountRow,
   type DailyGoldRateRow,
   type ConsignmentPieceRow,
   type ManagerVaultAccountRow,
+  type ErpUser,
 } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 
 
 export default function SalesDashboardPage() {
+  const searchParams = useSearchParams();
+  const [currentUser, setCurrentUser] = useState<ErpUser>(() => RBAC.getCurrentUser());
   const [loading, setLoading] = useState(true);
   const [sellerAccounts, setSellerAccounts] = useState<SellerGoldAccountRow[]>([]);
   const [clientAccounts, setClientAccounts] = useState<ClientGoldAccountRow[]>([]);
   const [pieces, setPieces] = useState<ConsignmentPieceRow[]>([]);
   const [managerVault, setManagerVault] = useState<ManagerVaultAccountRow | null>(null);
   const [dailyRate, setDailyRate] = useState<DailyGoldRateRow | null>(null);
+
+  useEffect(() => {
+    const unsub = RBAC.subscribe((u) => setCurrentUser(u));
+    return () => unsub();
+  }, []);
+
+  const isSeller = currentUser.role === "Seller" || currentUser.role === "seller";
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -99,6 +111,18 @@ export default function SalesDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Unauthorized Access Warning Banner */}
+      {searchParams.get("unauthorized") === "1" && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-300 text-xs flex items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">🛡️</span>
+            <div>
+              <span className="font-bold">Ruxsat cheklangan:</span> Siz sotuvchi rolidasiz. Zavod kirimlari va boshqaruv sahifalariga kirish huquqi faqat Direktor va Boshqaruvchi uchun belgilangan.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. Welcome Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950 rounded-3xl p-6 border-2 border-slate-800 shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -301,74 +325,138 @@ export default function SalesDashboardPage() {
           <span>⚡</span> Tezkor Amaliyotlar
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          <Link
-            href="/sales/app/factory"
-            className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-amber-500/40 transition group shadow-sm"
-          >
-            <div className="text-2xl mb-2">🏭</div>
-            <div className="font-bold text-white text-sm group-hover:text-amber-400 transition">
-              Zavod Bilan Hisob-Kitob
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              Tovar qabul qilish (8%) va qaytarilgan oltin balansi
-            </div>
-          </Link>
+        {isSeller ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <Link
+              href="/sales/mobile"
+              className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/40 transition group shadow-sm"
+            >
+              <div className="text-2xl mb-2">📱</div>
+              <div className="font-bold text-white text-sm group-hover:text-emerald-400 transition">
+                Mobil Savdo (Nasiya / Savdo)
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                Tezkor mijoz savdosi, nasiya va to&apos;lovlarni qabul qilish
+              </div>
+            </Link>
 
-          <Link
-            href="/sales/app/consignments"
-            className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-blue-500/40 transition group shadow-sm"
-          >
-            <div className="text-2xl mb-2">📟</div>
-            <div className="font-bold text-white text-sm group-hover:text-blue-400 transition">
-              Scanner 564 Konsignatsiya
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              Shtrix-kod skaneri orqali sotuvchiga berish
-            </div>
-          </Link>
+            <Link
+              href="/sales/app/customers"
+              className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-blue-500/40 transition group shadow-sm"
+            >
+              <div className="text-2xl mb-2">🛍️</div>
+              <div className="font-bold text-white text-sm group-hover:text-blue-400 transition">
+                Mijozlar Ro&apos;yxati
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                Mijozlar qarz daftari va yangi mijoz kiritish
+              </div>
+            </Link>
 
-          <Link
-            href="/sales/app/customers"
-            className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/40 transition group shadow-sm"
-          >
-            <div className="text-2xl mb-2">🛍️</div>
-            <div className="font-bold text-white text-sm group-hover:text-emerald-400 transition">
-              Mijozga Nasiya Sotish
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              12% ustama va mijoz hisobida 585 qarz yozish
-            </div>
-          </Link>
+            <Link
+              href="/sales/app/cash"
+              className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-purple-500/40 transition group shadow-sm"
+            >
+              <div className="text-2xl mb-2">💰</div>
+              <div className="font-bold text-white text-sm group-hover:text-purple-400 transition">
+                Kassa & Valyuta
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                Kassangizdagi lom oltin va naqd pul balansi
+              </div>
+            </Link>
 
-          <Link
-            href="/sales/app/sellers"
-            className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-purple-500/40 transition group shadow-sm"
-          >
-            <div className="text-2xl mb-2">👥</div>
-            <div className="font-bold text-white text-sm group-hover:text-purple-400 transition">
-              Sotuvchilar & Bozor Qarzi
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              Bozor qarzi (+/-) va tushumni qabul qilish
-            </div>
-          </Link>
-        </div>
+            <Link
+              href="/sales/app/models"
+              className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-amber-500/40 transition group shadow-sm"
+            >
+              <div className="text-2xl mb-2">🏷️</div>
+              <div className="font-bold text-white text-sm group-hover:text-amber-400 transition">
+                Modellar Katalogi
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                Zargarlik modellari va vazn parametrlari
+              </div>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <Link
+              href="/sales/app/factory"
+              className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-amber-500/40 transition group shadow-sm"
+            >
+              <div className="text-2xl mb-2">🏭</div>
+              <div className="font-bold text-white text-sm group-hover:text-amber-400 transition">
+                Zavod Bilan Hisob-Kitob
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                Tovar qabul qilish (8%) va qaytarilgan oltin balansi
+              </div>
+            </Link>
+
+            <Link
+              href="/sales/app/consignments"
+              className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-blue-500/40 transition group shadow-sm"
+            >
+              <div className="text-2xl mb-2">📟</div>
+              <div className="font-bold text-white text-sm group-hover:text-blue-400 transition">
+                Scanner 564 Konsignatsiya
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                Shtrix-kod skaneri orqali sotuvchiga berish
+              </div>
+            </Link>
+
+            <Link
+              href="/sales/app/customers"
+              className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/40 transition group shadow-sm"
+            >
+              <div className="text-2xl mb-2">🛍️</div>
+              <div className="font-bold text-white text-sm group-hover:text-emerald-400 transition">
+                Mijozga Nasiya Sotish
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                12% ustama va mijoz hisobida 585 qarz yozish
+              </div>
+            </Link>
+
+            <Link
+              href="/sales/app/sellers"
+              className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-purple-500/40 transition group shadow-sm"
+            >
+              <div className="text-2xl mb-2">👥</div>
+              <div className="font-bold text-white text-sm group-hover:text-purple-400 transition">
+                Sotuvchilar & Bozor Qarzi
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                Bozor qarzi (+/-) va tushumni qabul qilish
+              </div>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* 5. Active Sellers Balance Overview */}
       <div className="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-sm space-y-4">
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="font-black text-white text-base">Sotuvchilar Bozor Qarzi & Kassa Holati</h3>
-            <p className="text-xs text-slate-400">Har bir sotuvchining mas&apos;uliyati va kassadagi pullari</p>
+            <h3 className="font-black text-white text-base">
+              {isSeller ? `Mening Bozor Qarzi & Kassa Holatim (${currentUser.name})` : "Sotuvchilar Bozor Qarzi & Kassa Holati"}
+            </h3>
+            <p className="text-xs text-slate-400">
+              {isSeller
+                ? "Faqat sizning shaxsiy konsignatsiya majburiyatingiz va kassadagi naqd/lom balansi"
+                : "Har bir sotuvchining mas'uliyati va kassadagi pullari"}
+            </p>
           </div>
-          <Link
-            href="/sales/app/sellers"
-            className="text-xs font-bold text-amber-400 hover:underline"
-          >
-            Barchasini ko&apos;rish →
-          </Link>
+          {!isSeller && (
+            <Link
+              href="/sales/app/sellers"
+              className="text-xs font-bold text-amber-400 hover:underline"
+            >
+              Barchasini ko&apos;rish →
+            </Link>
+          )}
         </div>
 
         <div className="overflow-x-auto border border-slate-800 rounded-2xl">
