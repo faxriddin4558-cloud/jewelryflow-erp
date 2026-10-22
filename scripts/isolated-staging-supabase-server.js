@@ -388,12 +388,13 @@ async function ensureSalesDemoData(db) {
   try {
     await db.exec(`
       INSERT INTO public.daily_gold_rates (
-        id, organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed, set_by, notes
+        id, organization_id, rate_date, proba, purity, rate_per_gram, currency, is_confirmed, set_by, notes
       )
       VALUES (
         '55555555-5555-4001-8001-000000000001'::uuid,
         '${ORG_GOLDIA_ID}'::uuid,
         current_date,
+        585.00,
         585.00,
         900000.00,
         'UZS',
@@ -575,12 +576,13 @@ async function seedStagingData(db, force = false) {
   try {
     await db.exec(`
       INSERT INTO public.daily_gold_rates (
-        id, organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed, set_by, notes
+        id, organization_id, rate_date, proba, purity, rate_per_gram, currency, is_confirmed, set_by, notes
       )
       VALUES (
         '55555555-5555-4001-8001-000000000001'::uuid,
         '${ORG_GOLDIA_ID}'::uuid,
         current_date,
+        585.00,
         585.00,
         900000.00,
         'UZS',

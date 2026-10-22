@@ -4,9 +4,26 @@
 -- MUHIM: Ushbu faylda FAQAT sun'iy (synthetic) demo ma'lumotlar mavjud.
 -- Real mijozlar, qarzlar, xodimlar yoki maxfiy kalitlar mutlaqo kiritilmagan.
 -- Yangi test Supabase bazasida "SQL Editor" orqali to'g'ridan-to'g'ri ishga tushiriladi.
+-- Barcha jadval ustunlari va UNIQUE constraintlari haqiqiy sxemaga 100% mos.
 -- ==============================================================================
 
 BEGIN;
+
+-- Helper to safely hash passwords across different environments (Supabase, local pgcrypto, etc.)
+CREATE OR REPLACE FUNCTION public.demo_hash_password(pwd text)
+RETURNS text LANGUAGE plpgsql AS $$
+BEGIN
+  BEGIN
+    RETURN crypt(pwd, gen_salt('bf'));
+  EXCEPTION WHEN OTHERS THEN
+    BEGIN
+      RETURN extensions.crypt(pwd, extensions.gen_salt('bf'));
+    EXCEPTION WHEN OTHERS THEN
+      RETURN md5(pwd);
+    END;
+  END;
+END;
+$$;
 
 -- 1. Demo Korxona (Organization)
 INSERT INTO public.organizations (id, code, name, status)
@@ -22,7 +39,7 @@ INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_a
 VALUES (
   '11111111-1111-4001-8001-000000000001'::uuid,
   'demo.director@goldia.uz',
-  crypt('GoldiaDemo2026!', gen_salt('bf')),
+  public.demo_hash_password('GoldiaDemo2026!'),
   NOW(),
   '{"provider":"email","providers":["email"]}'::jsonb,
   '{"role":"admin","role_type":"director","department":"Rahbariyat","full_name":"Alisher Direktor (Demo)","organization_id":"00000000-0000-4001-8001-000000000001","is_demo":true}'::jsonb,
@@ -62,7 +79,7 @@ INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_a
 VALUES (
   '11111111-1111-4001-8001-000000000002'::uuid,
   'demo.manager@goldia.uz',
-  crypt('GoldiaDemo2026!', gen_salt('bf')),
+  public.demo_hash_password('GoldiaDemo2026!'),
   NOW(),
   '{"provider":"email","providers":["email"]}'::jsonb,
   '{"role":"production_manager","role_type":"manager","department":"Boshqaruv","full_name":"Bobur Boshqaruvchi (Demo)","organization_id":"00000000-0000-4001-8001-000000000001","is_demo":true}'::jsonb,
@@ -102,7 +119,7 @@ INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_a
 VALUES (
   '11111111-1111-4001-8001-000000000007'::uuid,
   'demo.seller@goldia.uz',
-  crypt('GoldiaDemo2026!', gen_salt('bf')),
+  public.demo_hash_password('GoldiaDemo2026!'),
   NOW(),
   '{"provider":"email","providers":["email"]}'::jsonb,
   '{"role":"sales","role_type":"seller","department":"Savdo","full_name":"Jamshid Sotuvchi (Demo)","organization_id":"00000000-0000-4001-8001-000000000001","is_demo":true}'::jsonb,
@@ -141,26 +158,27 @@ ON CONFLICT (id) DO UPDATE SET
 -- director@goldia.uz, manager@goldia.uz, seller@goldia.uz
 INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, role, aud)
 VALUES
-  ('11111111-1111-4001-8001-000000000011'::uuid, 'director@goldia.uz', crypt('GoldiaPassword2026!', gen_salt('bf')), NOW(), '{"provider":"email"}'::jsonb, '{"role":"admin","role_type":"director","full_name":"Alisher (Goldia)","is_demo":true}'::jsonb, 'authenticated', 'authenticated'),
-  ('11111111-1111-4001-8001-000000000012'::uuid, 'manager@goldia.uz', crypt('GoldiaPassword2026!', gen_salt('bf')), NOW(), '{"provider":"email"}'::jsonb, '{"role":"production_manager","role_type":"manager","full_name":"Rustam (Goldia)","is_demo":true}'::jsonb, 'authenticated', 'authenticated'),
-  ('11111111-1111-4001-8001-000000000017'::uuid, 'seller@goldia.uz', crypt('GoldiaPassword2026!', gen_salt('bf')), NOW(), '{"provider":"email"}'::jsonb, '{"role":"sales","role_type":"seller","full_name":"Jamshid (Goldia)","is_demo":true}'::jsonb, 'authenticated', 'authenticated')
-ON CONFLICT (email) DO NOTHING;
+  ('11111111-1111-4001-8001-000000000011'::uuid, 'director@goldia.uz', public.demo_hash_password('GoldiaPassword2026!'), NOW(), '{"provider":"email"}'::jsonb, '{"role":"admin","role_type":"director","full_name":"Alisher (Goldia)","is_demo":true}'::jsonb, 'authenticated', 'authenticated'),
+  ('11111111-1111-4001-8001-000000000012'::uuid, 'manager@goldia.uz', public.demo_hash_password('GoldiaPassword2026!'), NOW(), '{"provider":"email"}'::jsonb, '{"role":"production_manager","role_type":"manager","full_name":"Rustam (Goldia)","is_demo":true}'::jsonb, 'authenticated', 'authenticated'),
+  ('11111111-1111-4001-8001-000000000017'::uuid, 'seller@goldia.uz', public.demo_hash_password('GoldiaPassword2026!'), NOW(), '{"provider":"email"}'::jsonb, '{"role":"sales","role_type":"seller","full_name":"Jamshid (Goldia)","is_demo":true}'::jsonb, 'authenticated', 'authenticated')
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.employees (id, user_id, name, full_name, email, role, role_type, department, organization_id, is_active, status)
 VALUES
   ('11111111-1111-4001-8001-000000000011'::uuid, '11111111-1111-4001-8001-000000000011'::uuid, 'Alisher Director', 'Alisher Director', 'director@goldia.uz', 'admin', 'director', 'Rahbariyat', '00000000-0000-4001-8001-000000000001'::uuid, true, 'active'),
   ('11111111-1111-4001-8001-000000000012'::uuid, '11111111-1111-4001-8001-000000000012'::uuid, 'Rustam Manager', 'Rustam Manager', 'manager@goldia.uz', 'production_manager', 'manager', 'Boshqaruv', '00000000-0000-4001-8001-000000000001'::uuid, true, 'active'),
   ('11111111-1111-4001-8001-000000000017'::uuid, '11111111-1111-4001-8001-000000000017'::uuid, 'Jamshid Sotuvchi', 'Jamshid Sotuvchi', 'seller@goldia.uz', 'sales', 'seller', 'Savdo', '00000000-0000-4001-8001-000000000001'::uuid, true, 'active')
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- 3. Bugungi Lom Kursi (585 proba = 900,000 UZS)
 INSERT INTO public.daily_gold_rates (
-  id, organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed, notes
+  id, organization_id, rate_date, proba, purity, rate_per_gram, currency, is_confirmed, notes
 )
 VALUES (
   '55555555-5555-4001-8001-000000000001'::uuid,
   '00000000-0000-4001-8001-000000000001'::uuid,
   CURRENT_DATE,
+  585.00,
   585.00,
   900000.00,
   'UZS',
@@ -169,16 +187,17 @@ VALUES (
 )
 ON CONFLICT (organization_id, rate_date, proba) DO UPDATE SET
   rate_per_gram = EXCLUDED.rate_per_gram,
+  purity = EXCLUDED.purity,
   is_confirmed = true;
 
 -- 4. Sun'iy Zargarlik Modellari (Jewelry Models)
-INSERT INTO public.jewelry_models (id, organization_id, code, name, category, standard_purity, description)
+INSERT INTO public.jewelry_models (id, organization_id, model_code, name, category, reference_weight_grams, proba, gold_purity, notes)
 VALUES
-  ('33333333-3333-4001-8001-000000000001'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, 'MOD-UZK-01', 'Italiya Uzuk 585', 'Uzuk', 585, 'Klassik ayollar uzugi'),
-  ('33333333-3333-4001-8001-000000000002'::uuid, '00000000-0000-4001-8001-000000000002'::uuid, 'MOD-ZNJ-02', 'Bismark Zanjir 585', 'Zanjir', 585, 'Erkaklar zanjiri'),
-  ('33333333-3333-4001-8001-000000000003'::uuid, '00000000-0000-4001-8001-000000000003'::uuid, 'MOD-BLG-03', 'Klassik Bilaguzuk 585', 'Bilaguzuk', 585, 'Qattiq bilaguzuk'),
-  ('33333333-3333-4001-8001-000000000004'::uuid, '00000000-0000-4001-8001-000000000004'::uuid, 'MOD-SRG-04', 'Sharq Sirg''asi 585', 'Sirg''a', 585, 'Brilliant qoshli sirg''a')
-ON CONFLICT (organization_id, code) DO NOTHING;
+  ('33333333-3333-4001-8001-000000000001'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, 'MOD-UZK-01', 'Italiya Uzuk 585', 'Uzuk', 4.500, 585, '585', 'Klassik ayollar uzugi'),
+  ('33333333-3333-4001-8001-000000000002'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, 'MOD-ZNJ-02', 'Bismark Zanjir 585', 'Zanjir', 12.800, 585, '585', 'Erkaklar zanjiri'),
+  ('33333333-3333-4001-8001-000000000003'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, 'MOD-BLG-03', 'Klassik Bilaguzuk 585', 'Bilaguzuk', 18.200, 585, '585', 'Qattiq bilaguzuk'),
+  ('33333333-3333-4001-8001-000000000004'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, 'MOD-SRG-04', 'Sharq Sirg''asi 585', 'Sirg''a', 8.200, 585, '585', 'Brilliant qoshli sirg''a')
+ON CONFLICT (model_code) DO NOTHING;
 
 -- 5. Boshqaruvchi Omboridagi Sun'iy Mahsulotlar (Inventory Products)
 INSERT INTO public.products (id, name, title, category, weight, proba, stock, quantity, organization_id)
@@ -192,26 +211,47 @@ ON CONFLICT (id) DO UPDATE SET
   quantity = EXCLUDED.quantity,
   weight = EXCLUDED.weight;
 
--- 6. Individual Shtrix-kodli Buyumlar (Consignment Pieces)
+-- 6. Demo Konsignatsiya va Individual Shtrix-kodli Buyumlar (Consignment Pieces)
+INSERT INTO public.seller_consignments (
+  id, organization_id, consignment_no, seller_id, product_name, quantity, base_weight_grams, proba, factory_markup_pct, factory_gold_due_grams, factory_remaining_gold_grams, status, notes
+)
+VALUES (
+  '99999999-9999-4001-8001-000000000001'::uuid,
+  '00000000-0000-4001-8001-000000000001'::uuid,
+  'CS-DEMO-001',
+  '11111111-1111-4001-8001-000000000007'::uuid,
+  'Uzuk & Zanjir To''plami',
+  4,
+  40.5000,
+  585,
+  8.00,
+  43.7400,
+  43.7400,
+  'held_by_seller',
+  'Staging demo konsignatsiya'
+)
+ON CONFLICT (organization_id, consignment_no) DO NOTHING;
+
 INSERT INTO public.consignment_pieces (
-  id, organization_id, barcode, model_code, title, weight, proba, status, location, current_holder_role, current_holder_id, notes
+  id, organization_id, consignment_id, model_code, model_name, category, weight_grams, purity, proba, status, seller_id, raw_barcode, notes
 )
 VALUES
-  ('88888888-8888-4001-8001-000000000001'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, '564000001', 'MOD-UZK-01', 'Uzuk Italiya #1', 4.5000, 585, 'in_stock', 'Boshqaruvchi Ombori', 'manager', '11111111-1111-4001-8001-000000000002'::uuid, 'Staging demo dona'),
-  ('88888888-8888-4001-8001-000000000002'::uuid, '00000000-0000-4001-8001-000000000002'::uuid, '564000002', 'MOD-UZK-01', 'Uzuk Italiya #2', 5.0000, 585, 'in_stock', 'Boshqaruvchi Ombori', 'manager', '11111111-1111-4001-8001-000000000002'::uuid, 'Staging demo dona'),
-  ('88888888-8888-4001-8001-000000000003'::uuid, '00000000-0000-4001-8001-000000000003'::uuid, '564000003', 'MOD-ZNJ-02', 'Bismark Zanjir #1', 12.8000, 585, 'consigned', 'Jamshid Sotuvchi Qo''lida', 'seller', '11111111-1111-4001-8001-000000000007'::uuid, 'Sotuvchiga berilgan'),
-  ('88888888-8888-4001-8001-000000000004'::uuid, '00000000-0000-4001-8001-000000000004'::uuid, '564000004', 'MOD-BLG-03', 'Bilaguzuk Klassik #1', 18.2000, 585, 'consigned', 'Jamshid Sotuvchi Qo''lida', 'seller', '11111111-1111-4001-8001-000000000007'::uuid, 'Sotuvchiga berilgan')
-ON CONFLICT (organization_id, barcode) DO NOTHING;
+  ('88888888-8888-4001-8001-000000000001'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, '99999999-9999-4001-8001-000000000001'::uuid, 'MOD-UZK-01', 'Uzuk Italiya #1', 'Uzuk', 4.5000, 585, 585, 'held_by_seller', '11111111-1111-4001-8001-000000000007'::uuid, '564000001', 'Staging demo dona'),
+  ('88888888-8888-4001-8001-000000000002'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, '99999999-9999-4001-8001-000000000001'::uuid, 'MOD-UZK-01', 'Uzuk Italiya #2', 'Uzuk', 5.0000, 585, 585, 'held_by_seller', '11111111-1111-4001-8001-000000000007'::uuid, '564000002', 'Staging demo dona'),
+  ('88888888-8888-4001-8001-000000000003'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, '99999999-9999-4001-8001-000000000001'::uuid, 'MOD-ZNJ-02', 'Bismark Zanjir #1', 'Zanjir', 12.8000, 585, 585, 'held_by_seller', '11111111-1111-4001-8001-000000000007'::uuid, '564000003', 'Sotuvchiga berilgan'),
+  ('88888888-8888-4001-8001-000000000004'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, '99999999-9999-4001-8001-000000000001'::uuid, 'MOD-BLG-03', 'Bilaguzuk Klassik #1', 'Bilaguzuk', 18.2000, 585, 585, 'held_by_seller', '11111111-1111-4001-8001-000000000007'::uuid, '564000004', 'Sotuvchiga berilgan')
+ON CONFLICT (id) DO NOTHING;
 
 -- 7. Sun'iy Demo Mijozlar (Customers)
 INSERT INTO public.customers (
-  id, customer_code, contact_name, company_name, phone, organization_id, seller_id, address
+  id, customer_code, contact_name, company_name, phone, billing_address, is_active, seller_id
 )
 VALUES
-  ('77777777-7777-4001-8001-000000000001'::uuid, 'CUST-DEMO-01', 'Rustam Zargar (Demo)', 'Chorsu Savdo Rastasi #14', '+998901234567', '00000000-0000-4001-8001-000000000001'::uuid, '11111111-1111-4001-8001-000000000007'::uuid, 'Toshkent, Chorsu bozori'),
-  ('77777777-7777-4001-8001-000000000002'::uuid, 'CUST-DEMO-02', 'Sherzod Akfa (Demo)', 'Qo''qon Savdo Markazi', '+998909876543', '00000000-0000-4001-8001-000000000001'::uuid, '11111111-1111-4001-8001-000000000007'::uuid, 'Farg''ona viloyati, Qo''qon')
-ON CONFLICT (id) DO UPDATE SET
-  contact_name = EXCLUDED.contact_name,
-  company_name = EXCLUDED.company_name;
+  ('77777777-7777-4001-8001-000000000001'::uuid, 'CUST-DEMO-01', 'Rustam Zargar (Demo)', 'Chorsu Savdo Rastasi #14', '+998901234567', 'Toshkent, Chorsu bozori', true, '11111111-1111-4001-8001-000000000007'::uuid),
+  ('77777777-7777-4001-8001-000000000002'::uuid, 'CUST-DEMO-02', 'Sherzod Akfa (Demo)', 'Qo''qon Savdo Markazi', '+998909876543', 'Farg''ona viloyati, Qo''qon', true, '11111111-1111-4001-8001-000000000007'::uuid)
+ON CONFLICT (customer_code) DO NOTHING;
+
+-- 8. Tozalash va Yakunlash
+DROP FUNCTION IF EXISTS public.demo_hash_password(text);
 
 COMMIT;
