@@ -22,3 +22,5 @@ e2e-report.json
 memory/*.db
 .local-pilot-data/
 .local-backups/
+.staging-credentials.txt
+*.credentials*
