@@ -73,6 +73,7 @@ export interface DailyLedgerEntry {
   total_payment_g?: number | null;
   closing_debt_g: number;
   notes?: string | null;
+  status?: string | null;
 }
 
 export interface MonthlyReportItem {
@@ -172,6 +173,18 @@ export function CustomerLedgerAndSheetsSection() {
   const [salePieceId, setSalePieceId] = useState("");
   const [saleMarkupPct, setSaleMarkupPct] = useState("12.0");
   const [saleNotes, setSaleNotes] = useState("");
+
+  // Reversal / Correction states
+  const [currentRole, setCurrentRole] = useState<string>("seller");
+  const [reversalModalOpen, setReversalModalOpen] = useState(false);
+  const [reversalTarget, setReversalTarget] = useState<DailyLedgerEntry | null>(null);
+  const [reversalReason, setReversalReason] = useState("");
+
+  useEffect(() => {
+    supabase.rpc("current_employee_role_text").then(({ data }) => {
+      if (data) setCurrentRole(String(data).toLowerCase());
+    });
+  }, []);
 
   // Load Sellers
   useEffect(() => {
@@ -403,6 +416,60 @@ export function CustomerLedgerAndSheetsSection() {
       await loadCustomers();
     } catch (err: unknown) {
       setMessage({ type: "error", text: `Savdoni rasmiylashtirishda xatolik: ${parseErrorMessage(err, "Savdoni saqlab bo'lmadi")}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const isPrivileged = [
+    "admin", "director", "owner", "direktor", "rahbar", "manager", "production_manager", "boshqaruvchi"
+  ].includes(currentRole);
+
+  const openReversalModal = (tx: DailyLedgerEntry) => {
+    setReversalTarget(tx);
+    setReversalReason("");
+    setReversalModalOpen(true);
+  };
+
+  const handleExecuteReversal = async () => {
+    if (!reversalTarget) return;
+    if (!reversalReason.trim()) {
+      setMessage({ type: "error", text: "Bekor qilish sababini kiritishingiz shart!" });
+      return;
+    }
+    setBusy(true);
+    try {
+      if (reversalTarget.tx_type === "sale") {
+        if (!reversalTarget.item_id) {
+          throw new Error("Ushbu savdoga bog'langan mahsulot donasi (item_id) topilmadi");
+        }
+        const { error } = await supabase.rpc("rpc_reverse_barcode_piece_sale", {
+          p_piece_id: reversalTarget.item_id,
+          p_reason: reversalReason.trim(),
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.rpc("rpc_reverse_client_settlement", {
+          p_settlement_id: reversalTarget.tx_id,
+          p_reason: reversalReason.trim(),
+        });
+        if (error) throw error;
+      }
+
+      setMessage({
+        type: "success",
+        text: `Operatsiya (${reversalTarget.tx_id.slice(0, 8)}) muvaffaqiyatli bekor qilindi (audited compensating reversal).`,
+      });
+      setReversalModalOpen(false);
+      setReversalTarget(null);
+      setReversalReason("");
+      await loadDailyLedger();
+      await loadCustomers();
+    } catch (err: unknown) {
+      setMessage({
+        type: "error",
+        text: `Bekor qilishda xatolik: ${parseErrorMessage(err, "Bekor qilib bo'lmadi")}`,
+      });
     } finally {
       setBusy(false);
     }
@@ -684,6 +751,7 @@ export function CustomerLedgerAndSheetsSection() {
                   <th className="py-3 px-3 font-mono text-amber-200">Lom narxi</th>
                   <th className="py-3 px-3 font-mono text-emerald-200">Pul+Lom (eq)</th>
                   <th className="py-3 px-3 font-mono font-bold text-rose-400">Qarzdorlik</th>
+                  <th className="py-3 px-3 text-center">Amallar</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium">
@@ -730,11 +798,31 @@ export function CustomerLedgerAndSheetsSection() {
                     <td className="py-2.5 px-3 font-mono font-bold text-rose-400">
                       {formatScreenGrams(r.closing_debt_g)}
                     </td>
+                    <td className="py-2.5 px-3 text-center">
+                      {r.status === "reversed" ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950/80 text-rose-400 border border-rose-900/60">
+                          Bekor qilingan
+                        </span>
+                      ) : isPrivileged || (r.tx_type === "sale" && r.item_id) ? (
+                        <button
+                          type="button"
+                          onClick={() => openReversalModal(r)}
+                          disabled={busy}
+                          className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-rose-800/80 bg-rose-950/40 text-rose-300 hover:bg-rose-900/60 hover:text-white transition flex items-center gap-1 mx-auto"
+                        >
+                          <span>↩️</span> Bekor qilish
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-slate-500 italic" title="Faqat rahbar yoki menejer bekor qila oladi">
+                          🔒 Tasdiqlangan
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {dailyLedgerRows.length === 0 && (
                   <tr>
-                    <td colSpan={12} className="py-8 text-center text-slate-500">
+                    <td colSpan={13} className="py-8 text-center text-slate-500">
                       Tanlangan oraliqda savdo yoki to&apos;lov yozuvlari topilmadi.
                     </td>
                   </tr>
@@ -1122,6 +1210,99 @@ export function CustomerLedgerAndSheetsSection() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {/* MODAL: REVERSAL / BEKOR QILISH (Compensating Transaction) */}
+      {reversalModalOpen && reversalTarget && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 text-white space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-rose-400 font-bold text-base">
+                <span>↩️</span>
+                <h3>Operatsiyani Bekor Qilish (Auditli Kompensatsiya)</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReversalModalOpen(false)}
+                className="text-slate-400 hover:text-white text-lg font-mono font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-2xl text-xs text-amber-200 space-y-1">
+              <div className="font-bold flex items-center gap-1.5">
+                <span>🛡️</span> Xavfsiz Auditli Tuzatish
+              </div>
+              <p className="text-[11px] text-amber-300/90 leading-relaxed">
+                Ushbu amal ma&apos;lumotlarni o&apos;chirmaydi. Aksincha, moliyaviy va fizik oltin qoldiqlarini
+                to&apos;g&apos;ri holatga qaytaruvchi kompensatsion yozuv va to&apos;liq audit qaydini yaratadi.
+              </p>
+            </div>
+
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs space-y-2 font-mono">
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-sans">Hujjat turi:</span>
+                <span className="font-bold text-white uppercase">{reversalTarget.tx_type === "sale" ? "Savdo (Nasiya)" : "To'lov / Qaytim"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-sans">Kvitansiya ID:</span>
+                <span className="text-slate-300">{reversalTarget.tx_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-sans">Mijoz:</span>
+                <span className="font-bold text-amber-300">{reversalTarget.customer_name} ({reversalTarget.customer_code})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-sans">Sotuvchi:</span>
+                <span className="text-slate-300">{reversalTarget.seller_name}</span>
+              </div>
+              {reversalTarget.tx_type === "sale" ? (
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-sans">Bekor qilinadigan qarz:</span>
+                  <span className="font-bold text-rose-400">-{formatScreenGrams(reversalTarget.obligation_g)}</span>
+                </div>
+              ) : (
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-sans">Bekor qilinadigan to&apos;lov:</span>
+                  <span className="font-bold text-amber-400">
+                    {formatScreenGrams(reversalTarget.scrap_received_g)} lom / {formatScreenUZS(reversalTarget.cash_received_uzs)} naqd
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-rose-300 flex items-center gap-1">
+                <span>✍️</span> Bekor qilish sababi (Majburiy)
+              </label>
+              <textarea
+                value={reversalReason}
+                onChange={(e) => setReversalReason(e.target.value)}
+                placeholder="Xato kiritilgan summa, mijoz tovarini qaytardi, noto'g'ri tushum..."
+                rows={3}
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setReversalModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition"
+              >
+                Orqaga
+              </button>
+              <button
+                type="button"
+                disabled={busy || !reversalReason.trim()}
+                onClick={handleExecuteReversal}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition flex items-center gap-1 disabled:opacity-50"
+              >
+                {busy ? "Bekor qilinmoqda..." : "Tasdiqlash & Bekor Qilish"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

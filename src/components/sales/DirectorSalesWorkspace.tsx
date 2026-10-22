@@ -180,6 +180,17 @@ export function DirectorSalesWorkspace({
   const [surrenderScrapWeight, setSurrenderScrapWeight] = useState("0");
   const [surrenderCashAmount, setSurrenderCashAmount] = useState("0");
   const [surrenderNotes, setSurrenderNotes] = useState("");
+  // Safe Reversals Modal state
+  const [reversalTarget, setReversalTarget] = useState<{
+    type: "factory_receipt" | "consignment" | "settlement";
+    id: string;
+    docNo: string;
+    title: string;
+    details: string;
+    direction?: string;
+  } | null>(null);
+  const [reversalReason, setReversalReason] = useState("");
+  const [reversalBusy, setReversalBusy] = useState(false);
 
   // Notification helper
   const notifySuccess = (msg: string) => {
@@ -278,6 +289,54 @@ export function DirectorSalesWorkspace({
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  const handleExecuteReversal = async () => {
+    if (!reversalTarget || !reversalReason.trim()) {
+      notifyError("Iltimos, bekor qilish sababini batafsil kiriting.");
+      return;
+    }
+    setReversalBusy(true);
+    try {
+      if (reversalTarget.type === "factory_receipt") {
+        const { error } = await supabase.rpc("rpc_reverse_factory_receipt", {
+          p_receipt_id: reversalTarget.id,
+          p_reason: reversalReason.trim(),
+        });
+        if (error) throw error;
+        notifySuccess(`Zavod kvitansiyasi (${reversalTarget.docNo}) muvaffaqiyatli bekor qilindi.`);
+      } else if (reversalTarget.type === "consignment") {
+        const { error } = await supabase.rpc("rpc_reverse_barcode_consignment", {
+          p_consignment_id: reversalTarget.id,
+          p_reason: reversalReason.trim(),
+        });
+        if (error) throw error;
+        notifySuccess(`Konsignatsiya (${reversalTarget.docNo}) muvaffaqiyatli bekor qilindi.`);
+      } else if (reversalTarget.type === "settlement") {
+        if (reversalTarget.direction === "client_to_seller") {
+          const { error } = await supabase.rpc("rpc_reverse_client_settlement", {
+            p_settlement_id: reversalTarget.id,
+            p_reason: reversalReason.trim(),
+          });
+          if (error) throw error;
+          notifySuccess(`Mijoz to'lovi (${reversalTarget.docNo}) muvaffaqiyatli bekor qilindi.`);
+        } else {
+          const { error } = await supabase.rpc("rpc_reverse_seller_to_manager_settlement", {
+            p_settlement_id: reversalTarget.id,
+            p_reason: reversalReason.trim(),
+          });
+          if (error) throw error;
+          notifySuccess(`Topshirish hisoboti (${reversalTarget.docNo}) muvaffaqiyatli bekor qilindi.`);
+        }
+      }
+      setReversalTarget(null);
+      setReversalReason("");
+      await loadData();
+    } catch (err: unknown) {
+      notifyError(err, "Bekor qilishda xatolik");
+    } finally {
+      setReversalBusy(false);
+    }
+  };
 
   // Active sellers: strictly exclude director, admin, and management roles
   const activeSellers = useMemo(() => {
@@ -1504,29 +1563,71 @@ export function DirectorSalesWorkspace({
                         <th className="p-2.5 text-right">Zavod Majburiyati</th>
                         <th className="p-2.5 text-right">Qoldiq Vazn</th>
                         <th className="p-2.5 text-center">Holati</th>
+                        <th className="p-2.5 text-center">Amallar</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y font-mono">
-                      {factoryReceipts.map((r) => (
-                        <tr key={r.id} className="hover:bg-slate-50">
-                          <td className="p-2.5 font-bold text-[#0F172A]">{r.receipt_no}</td>
-                          <td className="p-2.5 text-[#475569]">{r.receipt_date}</td>
-                          <td className="p-2.5 font-sans font-medium text-[#0F172A]">{r.product_name}</td>
-                          <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(r.original_physical_g)}</td>
-                          <td className="p-2.5 text-right text-[#475569]">{r.proba}</td>
-                          <td className="p-2.5 text-right text-amber-700 font-bold">+{r.factory_markup_pct}%</td>
-                          <td className="p-2.5 text-right font-black text-amber-900">{formatScreenGrams(r.factory_obligation_g)}</td>
-                          <td className="p-2.5 text-right text-[#475569]">{formatScreenGrams(r.available_physical_g)}</td>
-                          <td className="p-2.5 text-center font-sans">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-[#0F172A]">
-                              {r.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {factoryReceipts.map((r) => {
+                        const isReversed = r.status === "reversed" || Boolean(r.reversed_at);
+                        const isTransferred = Number(r.transferred_physical_g) > 0 || Number(r.available_physical_g) < Number(r.original_physical_g);
+                        return (
+                          <tr key={r.id} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-[#0F172A]">{r.receipt_no}</td>
+                            <td className="p-2.5 text-[#475569]">{r.receipt_date}</td>
+                            <td className="p-2.5 font-sans font-medium text-[#0F172A]">{r.product_name}</td>
+                            <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(r.original_physical_g)}</td>
+                            <td className="p-2.5 text-right text-[#475569]">{r.proba}</td>
+                            <td className="p-2.5 text-right text-amber-700 font-bold">+{r.factory_markup_pct}%</td>
+                            <td className="p-2.5 text-right font-black text-amber-900">{formatScreenGrams(r.factory_obligation_g)}</td>
+                            <td className="p-2.5 text-right text-[#475569]">{formatScreenGrams(r.available_physical_g)}</td>
+                            <td className="p-2.5 text-center font-sans">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isReversed
+                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                  : "bg-slate-100 text-[#0F172A]"
+                              }`}>
+                                {isReversed ? "Bekor qilingan" : r.status}
+                              </span>
+                            </td>
+                            <td className="p-2.5 text-center font-sans">
+                              {isReversed ? (
+                                <span className="text-[11px] text-slate-400 italic font-mono">
+                                  Bekor bo&apos;lgan
+                                </span>
+                              ) : isTransferred ? (
+                                <button
+                                  type="button"
+                                  disabled
+                                  title="Sotuvchilarga tarqatilgan. Avval konsignatsiyani bekor qiling."
+                                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+                                >
+                                  🔒 Tarqatilgan
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReversalTarget({
+                                      type: "factory_receipt",
+                                      id: r.id,
+                                      docNo: r.receipt_no,
+                                      title: `Zavod Kirimi №${r.receipt_no}`,
+                                      details: `${r.product_name} — ${formatScreenGrams(r.original_physical_g)} (${r.proba}°)`,
+                                    });
+                                    setReversalReason("");
+                                  }}
+                                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+                                >
+                                  ↩️ Bekor qilish
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                       {factoryReceipts.length === 0 && (
                         <tr>
-                          <td colSpan={9} className="p-6 text-center text-[#475569] font-sans">
+                          <td colSpan={10} className="p-6 text-center text-[#475569] font-sans">
                             Hozircha zavoddan tovar kirimi mavjud emas.
                           </td>
                         </tr>
@@ -2433,35 +2534,75 @@ export function DirectorSalesWorkspace({
                     <th className="py-2.5 px-3 font-semibold">Ustama</th>
                     <th className="py-2.5 px-3 font-semibold">Zavod Oltini</th>
                     <th className="py-2.5 px-3 font-semibold">Holat</th>
+                    <th className="py-2.5 px-3 font-semibold text-center">Amallar</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {consignments.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-2.5 px-3 font-mono font-bold text-blue-700">{c.consignment_no || c.id.slice(0, 8)}</td>
-                      <td className="py-2.5 px-3 font-medium text-[#0F172A]">{c.seller?.name || c.seller?.full_name || "Sotuvchi"}</td>
-                      <td className="py-2.5 px-3 text-[#475569]">{c.product_name || c.item_name}</td>
-                      <td className="py-2.5 px-3 font-mono text-[#0F172A]">{formatScreenGrams(c.base_weight_grams)}</td>
-                      <td className="py-2.5 px-3 font-bold text-amber-700">+{c.factory_markup_pct}%</td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-[#0F172A]">
-                        {formatScreenGrams(c.factory_gold_due_grams)}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          c.status === "held_by_seller"
-                            ? "bg-amber-100 text-amber-800"
-                            : c.status === "fully_sold"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-100 text-[#0F172A]"
-                        }`}>
-                          {c.status === "held_by_seller" ? "Sotuvchida" : c.status === "fully_sold" ? "Sotildi" : c.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {consignments.map((c) => {
+                    const isCancelled = c.status === "cancelled" || Boolean(c.cancelled_at);
+                    const hasSales = Number(c.sold_quantity) > 0;
+                    return (
+                      <tr key={c.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-2.5 px-3 font-mono font-bold text-blue-700">{c.consignment_no || c.id.slice(0, 8)}</td>
+                        <td className="py-2.5 px-3 font-medium text-[#0F172A]">{c.seller?.name || c.seller?.full_name || "Sotuvchi"}</td>
+                        <td className="py-2.5 px-3 text-[#475569]">{c.product_name || c.item_name}</td>
+                        <td className="py-2.5 px-3 font-mono text-[#0F172A]">{formatScreenGrams(c.base_weight_grams)}</td>
+                        <td className="py-2.5 px-3 font-bold text-amber-700">+{c.factory_markup_pct}%</td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-[#0F172A]">
+                          {formatScreenGrams(c.factory_gold_due_grams)}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            isCancelled
+                              ? "bg-rose-100 text-rose-800 border border-rose-200"
+                              : c.status === "held_by_seller"
+                              ? "bg-amber-100 text-amber-800"
+                              : c.status === "fully_sold"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-100 text-[#0F172A]"
+                          }`}>
+                            {isCancelled ? "Bekor qilingan" : c.status === "held_by_seller" ? "Sotuvchida" : c.status === "fully_sold" ? "Sotildi" : c.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          {isCancelled ? (
+                            <span className="text-[11px] text-slate-400 italic font-mono">
+                              Bekor bo&apos;lgan
+                            </span>
+                          ) : hasSales ? (
+                            <button
+                              type="button"
+                              disabled
+                              title="Dona sotilgan. Avval sotuv kvitansiyasini bekor qiling."
+                              className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+                            >
+                              🔒 Sotilgan
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReversalTarget({
+                                  type: "consignment",
+                                  id: c.id,
+                                  docNo: c.consignment_no || c.id.slice(0, 8),
+                                  title: `Konsignatsiya №${c.consignment_no || c.id.slice(0, 8)}`,
+                                  details: `${c.product_name || c.item_name} — ${formatScreenGrams(c.base_weight_grams)} (${c.seller?.name || "Sotuvchi"})`,
+                                });
+                                setReversalReason("");
+                              }}
+                              className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+                            >
+                              ↩️ Bekor qilish
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {consignments.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-6 text-center text-[#475569]">
+                      <td colSpan={8} className="py-6 text-center text-[#475569]">
                         Hozircha konsignatsiyalar ro&apos;yxati bo&apos;sh.
                       </td>
                     </tr>
@@ -2705,6 +2846,7 @@ export function DirectorSalesWorkspace({
                   <th className="py-2.5 px-3 font-semibold">Kurs</th>
                   <th className="py-2.5 px-3 font-semibold">Jami Yopilgan</th>
                   <th className="py-2.5 px-3 font-semibold">Sana</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Amallar</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -2712,16 +2854,19 @@ export function DirectorSalesWorkspace({
                   const cust = s.customer || customers.find(cu => String(cu.id) === String(s.customer_id));
                   const seller = s.seller || employees.find(e => String(e.id) === String(s.seller_id));
                   const partyName = cust?.contact_name || seller?.name || seller?.full_name || "—";
+                  const isReversed = s.status === "reversed" || Boolean(s.reversed_at);
                   return (
                     <tr key={s.id} className="hover:bg-slate-50/80 transition">
                       <td className="py-2.5 px-3 font-mono font-bold text-blue-700">{s.settlement_no}</td>
                       <td className="py-2.5 px-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          s.direction === "client_to_seller"
+                          isReversed
+                            ? "bg-rose-100 text-rose-800 border border-rose-200"
+                            : s.direction === "client_to_seller"
                             ? "bg-purple-100 text-purple-800"
                             : "bg-emerald-100 text-emerald-800"
                         }`}>
-                          {s.direction === "client_to_seller" ? "Mijoz → Sotuvchi" : "Sotuvchi → Zavod"}
+                          {isReversed ? "Bekor qilingan" : s.direction === "client_to_seller" ? "Mijoz → Sotuvchi" : "Sotuvchi → Zavod"}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 font-medium text-[#0F172A]">
@@ -2738,9 +2883,41 @@ export function DirectorSalesWorkspace({
                         {formatScreenGrams(s.total_settled_grams, 2)}
                       </td>
                       <td className="py-2.5 px-3 text-[#475569]">{s.settlement_date}</td>
+                      <td className="py-2.5 px-3 text-center">
+                        {isReversed ? (
+                          <span className="text-[11px] text-slate-400 italic font-mono">
+                            Bekor bo&apos;lgan
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReversalTarget({
+                                type: "settlement",
+                                id: s.id,
+                                docNo: s.settlement_no || s.id.slice(0, 8),
+                                title: `To'lov №${s.settlement_no || s.id.slice(0, 8)}`,
+                                details: `${s.direction === "client_to_seller" ? "Mijoz → Sotuvchi" : "Sotuvchi → Zavod"}: ${partyName} — Lom: ${formatScreenGrams(s.scrap_weight_grams, 2)}, Pul: ${formatScreenUZS(s.cash_paid_amount)}`,
+                                direction: s.direction,
+                              });
+                              setReversalReason("");
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+                          >
+                            ↩️ Bekor qilish
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
+                {settlements.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="py-6 text-center text-[#475569]">
+                      Hozircha hisob-kitoblar ro&apos;yxati bo&apos;sh.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -3094,6 +3271,70 @@ export function DirectorSalesWorkspace({
             setSelectedReconSeller(null);
           }}
         />
+      )}
+
+      {/* REVERSAL / CORRECTION CONFIRMATION MODAL */}
+      {reversalTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-slate-800">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-xl font-black shrink-0">
+                  ↩️
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">{reversalTarget.title}</h3>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">{reversalTarget.details}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReversalTarget(null)}
+                className="text-slate-400 hover:text-slate-700 font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+              <p className="font-bold">⚠️ Moliyaviy Kompensatsiya Ogohlantirishi:</p>
+              <p>
+                Ushbu operatsiya bazadan fizik o&apos;chirilmaydi! Barcha tegishli ombor, qarz va kassalarga audit qilingan teskari kompensatsiya yoziladi.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Bekor qilish sababi (Audit talabi) <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={reversalReason}
+                onChange={(e) => setReversalReason(e.target.value)}
+                placeholder="Masalan: Klient tovarini qaytardi, noto'g'ri raqam yoki xatolik sabab..."
+                className="w-full text-xs p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setReversalTarget(null)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 transition"
+              >
+                Bekor qilmaslik
+              </button>
+              <button
+                type="button"
+                disabled={reversalBusy || !reversalReason.trim()}
+                onClick={() => void handleExecuteReversal()}
+                className="px-5 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {reversalBusy ? "Bajarilmoqda..." : "Tasdiqlash & Bekor qilish"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

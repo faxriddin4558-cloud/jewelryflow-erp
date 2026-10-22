@@ -773,7 +773,10 @@ export interface SellerConsignmentRow {
   factory_settled_gold_grams?: number;
   factory_remaining_gold_grams?: number;
   sold_quantity?: number;
-  status: "held_by_seller" | "partially_sold" | "fully_sold" | "returned_to_factory" | "closed" | "consigned" | "sold" | "returned" | "partial_return";
+  status: "held_by_seller" | "partially_sold" | "fully_sold" | "returned_to_factory" | "closed" | "consigned" | "sold" | "returned" | "partial_return" | "cancelled";
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancellation_reason?: string | null;
   primary_image_url?: string | null;
   issued_at?: string;
   sold_at?: string;
@@ -898,6 +901,11 @@ export interface GoldSettlementRow {
   remaining_debt_grams: number;
   advance_gold_balance_grams?: number;
   confirmed_by_director?: boolean;
+  status?: "confirmed" | "reversed";
+  reversal_of_id?: string | null;
+  reversed_at?: string | null;
+  reversed_by?: string | null;
+  reversal_reason?: string | null;
   notes?: string;
   customer?: {
     id: string;
@@ -989,7 +997,10 @@ export interface FactoryReceiptRow {
   factory_obligation_g: number;
   transferred_physical_g: number;
   available_physical_g: number;
-  status: "in_manager_stock" | "partially_transferred" | "fully_transferred" | "returned_to_factory";
+  status: "in_manager_stock" | "partially_transferred" | "fully_transferred" | "returned_to_factory" | "reversed";
+  reversed_at?: string | null;
+  reversed_by?: string | null;
+  reversal_reason?: string | null;
   notes?: string | null;
   created_at?: string;
 }
