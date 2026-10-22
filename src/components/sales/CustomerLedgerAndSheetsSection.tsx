@@ -4,6 +4,24 @@ import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 
+function parseErrorMessage(err: unknown, fallback: string = "Xatolik yuz berdi"): string {
+  if (!err) return fallback;
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "object" && err !== null) {
+    const e = err as { message?: string; details?: string; hint?: string; error_description?: string; code?: string };
+    if (e.message) return e.message;
+    if (e.details) return e.details;
+    if (e.error_description) return e.error_description;
+    try {
+      const s = JSON.stringify(err);
+      if (s !== "{}") return s;
+    } catch {
+      // ignore
+    }
+  }
+  return String(err) !== "[object Object]" ? String(err) : fallback;
+}
+
 interface CustomerRow {
   id: string;
   customer_code: string;
@@ -211,7 +229,7 @@ export function CustomerLedgerAndSheetsSection() {
       const { data: pData } = await piecesQuery;
       if (pData) setAvailablePieces(pData as PieceItem[]);
     } catch (err: unknown) {
-      setMessage({ type: "error", text: `Mijozlarni yuklashda xatolik: ${err instanceof Error ? err.message : String(err)}` });
+      setMessage({ type: "error", text: `Mijozlarni yuklashda xatolik: ${parseErrorMessage(err, "Mijozlarni yuklab bo'lmadi")}` });
     } finally {
       setBusy(false);
     }
@@ -223,14 +241,15 @@ export function CustomerLedgerAndSheetsSection() {
     try {
       const { data, error } = await supabase.rpc("rpc_get_daily_sales_ledger", {
         p_seller_id: selectedSeller === "all" ? null : selectedSeller,
-        p_start_date: startDate,
-        p_end_date: endDate,
+        p_start_date: startDate || null,
+        p_end_date: endDate || null,
       });
 
       if (error) throw error;
       setDailyLedgerRows((data as unknown as DailyLedgerEntry[]) || []);
     } catch (err: unknown) {
-      setMessage({ type: "error", text: `Kunlik jurnalni yuklashda xatolik: ${err instanceof Error ? err.message : String(err)}` });
+      setDailyLedgerRows([]);
+      setMessage({ type: "error", text: `Kunlik jurnalni yuklashda xatolik: ${parseErrorMessage(err, "Kunlik jurnalni yuklab bo'lmadi")}` });
     } finally {
       setBusy(false);
     }
@@ -249,7 +268,7 @@ export function CustomerLedgerAndSheetsSection() {
       if (error) throw error;
       setMonthlyReportData((data as unknown as MonthlyReportPayload) || null);
     } catch (err: unknown) {
-      setMessage({ type: "error", text: `Oylik hisobotni yuklashda xatolik: ${err instanceof Error ? err.message : String(err)}` });
+      setMessage({ type: "error", text: `Oylik hisobotni yuklashda xatolik: ${parseErrorMessage(err, "Oylik hisobotni yuklab bo'lmadi")}` });
     } finally {
       setBusy(false);
     }
@@ -293,7 +312,7 @@ export function CustomerLedgerAndSheetsSection() {
         await loadCustomers();
       }
     } catch (err: unknown) {
-      setMessage({ type: "error", text: `Mijoz qo'shishda xatolik: ${err instanceof Error ? err.message : String(err)}` });
+      setMessage({ type: "error", text: `Mijoz qo'shishda xatolik: ${parseErrorMessage(err, "Mijozni saqlab bo'lmadi")}` });
     } finally {
       setBusy(false);
     }
@@ -337,7 +356,7 @@ export function CustomerLedgerAndSheetsSection() {
       setPayNotes("");
       await loadCustomers();
     } catch (err: unknown) {
-      setMessage({ type: "error", text: `To'lovni saqlashda xatolik: ${err instanceof Error ? err.message : String(err)}` });
+      setMessage({ type: "error", text: `To'lovni saqlashda xatolik: ${parseErrorMessage(err, "To'lovni saqlab bo'lmadi")}` });
     } finally {
       setBusy(false);
     }
@@ -374,7 +393,7 @@ export function CustomerLedgerAndSheetsSection() {
       setSaleNotes("");
       await loadCustomers();
     } catch (err: unknown) {
-      setMessage({ type: "error", text: `Savdoni rasmiylashtirishda xatolik: ${err instanceof Error ? err.message : String(err)}` });
+      setMessage({ type: "error", text: `Savdoni rasmiylashtirishda xatolik: ${parseErrorMessage(err, "Savdoni saqlab bo'lmadi")}` });
     } finally {
       setBusy(false);
     }

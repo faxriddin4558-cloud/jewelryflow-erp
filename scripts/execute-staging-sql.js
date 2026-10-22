@@ -48,13 +48,17 @@ async function main() {
   const testRes = await runSqlQuery('SELECT current_database(), current_user;');
   console.log('Connected! Result:', testRes);
 
-  const migrationFile = path.resolve(__dirname, '../supabase/migrations/20260101000036_security_hardening_seller_isolation_and_factory_permissions.sql');
-  console.log('Reading Migration 036 from:', migrationFile);
+  const targetArg = process.argv[2];
+  const migrationFile = targetArg
+    ? path.resolve(process.cwd(), targetArg)
+    : path.resolve(__dirname, '../supabase/migrations/20260101000037_core_accounting_parity_and_stock_lifecycle.sql');
+
+  console.log('Reading Migration from:', migrationFile);
   const sql = fs.readFileSync(migrationFile, 'utf8');
 
-  console.log('Applying Migration 036 to vouehtlmsunebracahon...');
+  console.log('Applying Migration to vouehtlmsunebracahon...');
   const applyRes = await runSqlQuery(sql);
-  console.log('Migration 036 applied successfully! Result:', applyRes);
+  console.log('Migration applied successfully! Result:', applyRes);
 }
 
 if (require.main === module) {

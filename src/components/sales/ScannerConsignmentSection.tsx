@@ -38,9 +38,16 @@ interface Props {
   activeSellers: SellerItem[];
   availableModels: JewelryModelItem[];
   factoryPresets: MarkupPreset[];
+  availableFactoryReceipts?: Array<{
+    id: string;
+    receipt_no: string;
+    product_name: string;
+    available_physical_g?: number;
+  }>;
   onConfirmConsignment: (payload: {
     sellerId: string;
     factoryMarkupPct: number;
+    factoryReceiptId?: string;
     pieces: Array<{
       model_id?: string;
       model_code: string;
@@ -59,10 +66,12 @@ export function ScannerConsignmentSection({
   activeSellers,
   availableModels,
   factoryPresets,
+  availableFactoryReceipts,
   onConfirmConsignment,
   isBusy,
 }: Props) {
   const [selectedSellerId, setSelectedSellerId] = useState("");
+  const [selectedReceiptId, setSelectedReceiptId] = useState("");
   const [factoryMarkupPct, setFactoryMarkupPct] = useState("8.00");
   const [notes, setNotes] = useState("");
   const [inputVal, setInputVal] = useState("");
@@ -221,6 +230,7 @@ export function ScannerConsignmentSection({
     await onConfirmConsignment({
       sellerId: selectedSellerId,
       factoryMarkupPct: parseFloat(factoryMarkupPct) || 0,
+      factoryReceiptId: selectedReceiptId || undefined,
       pieces: piecesPayload,
       notes: notes.trim() || undefined,
     });
@@ -307,6 +317,29 @@ export function ScannerConsignmentSection({
               )}
             </select>
           </div>
+
+          {availableFactoryReceipts && availableFactoryReceipts.length > 0 && (
+            <div className="space-y-1">
+              <label className="font-bold text-slate-300 block">
+                Zavod Kirimi Manbasi (Menejer Ombori):
+              </label>
+              <select
+                id="scannerFactoryReceiptSelect"
+                value={selectedReceiptId}
+                onChange={(e) => setSelectedReceiptId(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-xs font-mono"
+              >
+                <option value="">Avtomatik FIFO (Mavjud kirimdan kamaytirish)</option>
+                {availableFactoryReceipts
+                  .filter((r) => Number(r.available_physical_g || 0) > 0)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.receipt_no} — {r.product_name} ({formatScreenGrams(Number(r.available_physical_g || 0), 2)} mavjud)
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
 
           <div className="space-y-1">
             <label className="font-bold text-slate-300 block">

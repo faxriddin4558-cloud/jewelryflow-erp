@@ -752,6 +752,7 @@ export function DirectorSalesWorkspace({
   const handleConfirmBarcodeConsignment = async (payload: {
     sellerId: string;
     factoryMarkupPct: number;
+    factoryReceiptId?: string;
     pieces: Array<{
       model_id?: string;
       model_code: string;
@@ -772,6 +773,7 @@ export function DirectorSalesWorkspace({
         p_pieces: payload.pieces,
         p_notes: payload.notes || null,
         p_idempotency_key: idempotencyKey,
+        p_factory_receipt_id: payload.factoryReceiptId || null,
       });
 
       if (error) throw error;
@@ -2741,6 +2743,7 @@ export function DirectorSalesWorkspace({
           activeSellers={activeSellers}
           availableModels={models}
           factoryPresets={factoryPresets}
+          availableFactoryReceipts={factoryReceipts}
           onConfirmConsignment={handleConfirmBarcodeConsignment}
           isBusy={busy}
         />

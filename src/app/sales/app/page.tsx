@@ -11,6 +11,8 @@ import {
   type DailyGoldRateRow,
   type ConsignmentPieceRow,
   type ManagerVaultAccountRow,
+  type FactoryReceiptRow,
+  type FactoryGoldHandoverRow,
   type ErpUser,
 } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
@@ -25,6 +27,8 @@ function SalesDashboardContent() {
   const [pieces, setPieces] = useState<ConsignmentPieceRow[]>([]);
   const [managerVault, setManagerVault] = useState<ManagerVaultAccountRow | null>(null);
   const [dailyRate, setDailyRate] = useState<DailyGoldRateRow | null>(null);
+  const [factoryReceipts, setFactoryReceipts] = useState<FactoryReceiptRow[]>([]);
+  const [factoryHandovers, setFactoryHandovers] = useState<FactoryGoldHandoverRow[]>([]);
 
   useEffect(() => {
     const unsub = RBAC.subscribe((u) => setCurrentUser(u));
@@ -36,12 +40,14 @@ function SalesDashboardContent() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [sellersRes, clientsRes, piecesRes, vaultRes, rateRes] = await Promise.all([
+      const [sellersRes, clientsRes, piecesRes, vaultRes, rateRes, rcpRes, hndRes] = await Promise.all([
         supabase.from("seller_gold_accounts").select("*, employee:employees(name, full_name)"),
         supabase.from("client_gold_accounts").select("*"),
         supabase.from("consignment_pieces").select("*"),
         supabase.from("manager_vault_account").select("*").limit(1).maybeSingle(),
         supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("factory_receipts").select("factory_obligation_g, original_physical_g, available_physical_g, transferred_physical_g"),
+        supabase.from("factory_gold_handovers").select("agreed_equivalent_g"),
       ]);
 
       if (sellersRes.data) setSellerAccounts(sellersRes.data as SellerGoldAccountRow[]);
@@ -49,6 +55,8 @@ function SalesDashboardContent() {
       if (piecesRes.data) setPieces(piecesRes.data as ConsignmentPieceRow[]);
       if (vaultRes.data) setManagerVault(vaultRes.data as ManagerVaultAccountRow);
       if (rateRes.data) setDailyRate(rateRes.data as DailyGoldRateRow);
+      if (rcpRes.data) setFactoryReceipts(rcpRes.data as FactoryReceiptRow[]);
+      if (hndRes.data) setFactoryHandovers(hndRes.data as FactoryGoldHandoverRow[]);
     } catch {
       // ignore
     } finally {
@@ -62,10 +70,10 @@ function SalesDashboardContent() {
   }, [loadData]);
 
   // Calculations
-  const totalFactoryObligation = sellerAccounts.reduce(
-    (acc, s) => acc + Number(s.current_factory_obligation_grams || s.remaining_factory_gold_due_grams || 0),
-    0
-  );
+  // Tier 1: Canonical Factory Ledger (receipts - handovers)
+  const factoryReceiptsObligation = factoryReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0);
+  const factoryHandoversSettled = factoryHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0);
+  const totalFactoryObligation = Math.max(0, factoryReceiptsObligation - factoryHandoversSettled);
 
   const totalSellerTillScrap = sellerAccounts.reduce(
     (acc, s) => acc + Number(s.seller_till_scrap_grams || 0),
@@ -96,8 +104,9 @@ function SalesDashboardContent() {
 
   const totalPhysicalBaseGrams = managerStockGrams + totalPhysicalGrams + soldPhysicalGrams + returnedPhysicalGrams;
 
+  // Tier 2: Seller Obligation & Bozor Qarzi
   const totalSellerObligation = sellerAccounts.reduce(
-    (acc, s) => acc + Math.abs(Number(s.market_debt_balance_grams || s.current_factory_obligation_grams || 0)),
+    (acc, s) => acc + Math.abs(Number(s.bozor_qarzi_signed_g ?? s.seller_owes_manager_g ?? s.current_factory_obligation_grams ?? 0)),
     0
   );
 
@@ -473,7 +482,17 @@ function SalesDashboardContent() {
             </thead>
             <tbody className="divide-y divide-slate-800 text-[#F8FAFC]">
               {sellerAccounts.map((acc) => {
-                const bQarzi = Number(acc.market_debt_balance_grams ?? 0);
+                const bQarzi = acc.bozor_qarzi_signed_g !== undefined
+                  ? Number(acc.bozor_qarzi_signed_g)
+                  : -Number(acc.current_factory_obligation_grams || acc.remaining_factory_gold_due_grams || 0);
+
+                const isZero = Math.abs(bQarzi) < 0.0001;
+                const formattedBozorQarzi = isZero
+                  ? "0.00 g"
+                  : bQarzi < 0
+                  ? `-${formatScreenGrams(Math.abs(bQarzi), 2)}`
+                  : `+${formatScreenGrams(bQarzi, 2)}`;
+
                 return (
                   <tr key={acc.seller_id} className="hover:bg-slate-800/60 transition">
                     <td className="py-3 px-3 font-bold text-[#F8FAFC]">
@@ -489,8 +508,8 @@ function SalesDashboardContent() {
                       {formatScreenUZS(acc.seller_till_cash_amount || 0)}
                     </td>
                     <td className="py-3 px-3 font-mono font-black">
-                      <span className={bQarzi <= 0 ? "text-emerald-400" : "text-rose-400"}>
-                        {bQarzi <= 0 ? `-${formatScreenGrams(Math.abs(bQarzi), 2)}` : `+${formatScreenGrams(bQarzi, 2)}`}
+                      <span className={isZero ? "text-slate-400" : bQarzi < 0 ? "text-rose-400" : "text-emerald-400"}>
+                        {formattedBozorQarzi}
                       </span>
                     </td>
                     <td className="py-3 px-3 text-right">

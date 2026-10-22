@@ -370,7 +370,9 @@ export function SellerMobileWorkspace() {
     return clientAccounts.find(a => String(a.customer_id) === settleCustomerId) || null;
   }, [clientAccounts, settleCustomerId]);
 
-  const previousDebtForSettle = Number(customerDebtAccount?.current_debt_grams || customerDebtAccount?.current_gold_debt_grams || 0);
+  const rawPrevDebt = Number(customerDebtAccount?.current_debt_grams || customerDebtAccount?.current_gold_debt_grams || 0);
+  const rawPrevAdv = Number(customerDebtAccount?.advance_balance_grams || customerDebtAccount?.advance_gold_balance_grams || 0);
+  const previousDebtForSettle = Math.max(0, rawPrevDebt - rawPrevAdv);
 
   const activeRatePerGram = Number(dailyRate?.rate_per_gram || 900000);
 
@@ -659,8 +661,12 @@ export function SellerMobileWorkspace() {
     }
   };
 
-  // Filtered debtors
-  const debtorsList = clientAccounts.filter(c => Number(c.current_debt_grams || c.current_gold_debt_grams || 0) > 0);
+  // Filtered debtors (strictly net debt > 0)
+  const debtorsList = clientAccounts.filter(c => {
+    const d = Number(c.current_debt_grams || c.current_gold_debt_grams || 0);
+    const a = Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0);
+    return (d - a) > 0.0001;
+  });
 
   // Till status numbers
   const myTillScrap = Number(myTillAccount?.seller_till_scrap_grams || 0);
@@ -1367,10 +1373,18 @@ export function SellerMobileWorkspace() {
                 <option value="">To&apos;lov qiluvchi mijozni tanlang...</option>
                 {customers.map((cust) => {
                   const acc = clientAccounts.find(a => String(a.customer_id) === String(cust.id));
-                  const debt = Number(acc?.current_debt_grams || acc?.current_gold_debt_grams || 0);
+                  const d = Number(acc?.current_debt_grams || acc?.current_gold_debt_grams || 0);
+                  const a = Number(acc?.advance_balance_grams || acc?.advance_gold_balance_grams || 0);
+                  const net = Math.max(0, d - a);
+                  let label = "• Qarzsiz";
+                  if (net > 0) {
+                    label = `• Qarz: ${formatScreenGrams(net, 2)}`;
+                  } else if (a > 0) {
+                    label = `• Avans: +${formatScreenGrams(a, 2)}`;
+                  }
                   return (
                     <option key={cust.id} value={cust.id}>
-                      {cust.contact_name} ({cust.customer_code || "KODSIZ"}) {debt > 0 ? `• Qarz: ${formatScreenGrams(debt, 2)}` : "• Qarzsiz"}
+                      {cust.contact_name} ({cust.customer_code || "KODSIZ"}) {label}
                     </option>
                   );
                 })}
