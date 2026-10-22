@@ -313,7 +313,7 @@ begin
     set settled_gold_grams = round((coalesce(settled_gold_grams, 0) + v_applied_to_debt)::numeric, 4),
         remaining_gold_grams = round(greatest(0, remaining_gold_grams - v_applied_to_debt)::numeric, 4),
         status = case
-          when round(greatest(0, remaining_gold_grams - v_applied_to_debt)::numeric, 4) <= 0.0001 then 'fully_settled'
+          when round(greatest(0, remaining_gold_grams - v_applied_to_debt)::numeric, 4) <= 0.0001 then 'fully_paid'
           else 'partially_paid'
         end,
         updated_at = now()
@@ -1265,4 +1265,159 @@ grant execute on function public.rpc_reverse_client_settlement to authenticated;
 grant execute on function public.rpc_record_refining_batch to authenticated;
 grant execute on function public.rpc_issue_barcode_consignment to authenticated;
 grant execute on function public.rpc_return_piece_to_manager to authenticated;
+
+-- -------------------------------------------------------------------------
+-- 9. FACTORY GOLD HANDOVER HARDENING (COLUMNS & PERMISSIONS PARITY)
+-- -------------------------------------------------------------------------
+
+drop function if exists public.rpc_record_factory_gold_handover(numeric, numeric, numeric, date, text, text);
+drop function if exists public.rpc_record_factory_gold_handover(text, numeric, numeric, numeric, text, text, text);
+
+create or replace function public.rpc_record_factory_gold_handover(
+  p_source_type         text default 'refined_gold',
+  p_physical_weight_g   numeric default null,
+  p_proba               numeric default 585.0,
+  p_agreed_equivalent_g numeric default null,
+  p_factory_recipient   text default 'Zavod',
+  p_notes               text default null,
+  p_idempotency_key     text default null,
+  p_gross_weight_grams  numeric default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_org_id         uuid := public.current_organization_id();
+  v_caller_id      uuid := auth.uid();
+  v_phys_w         numeric(14, 4);
+  v_pr             numeric(6, 2);
+  v_agreed_eq      numeric(14, 4);
+  v_src_type       text;
+  v_handover_no    text;
+  v_handover_id    uuid;
+  v_vault          public.manager_vault_account;
+  v_existing       jsonb;
+begin
+  if v_org_id is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar',
+    'production_manager', 'manager', 'boshqaruvchi',
+    'accountant', 'buxgalter'
+  ]);
+
+  if p_idempotency_key is not null then
+    select jsonb_build_object(
+      'status', 'ok',
+      'idempotent_replay', true,
+      'handover_id', id,
+      'handover_no', handover_no,
+      'agreed_equivalent_g', agreed_equivalent_g,
+      'equivalent_585_grams', agreed_equivalent_g
+    ) into v_existing
+    from public.factory_gold_handovers
+    where idempotency_key = p_idempotency_key and organization_id = v_org_id;
+
+    if v_existing is not null then
+      return v_existing;
+    end if;
+  end if;
+
+  v_phys_w := round(coalesce(p_physical_weight_g, p_gross_weight_grams, 0)::numeric, 4);
+  v_pr := round(coalesce(p_proba, 585.0)::numeric, 2);
+
+  if v_phys_w <= 0 then
+    raise exception 'Invalid physical weight: must be > 0';
+  end if;
+
+  if p_agreed_equivalent_g is not null and p_agreed_equivalent_g > 0 then
+    v_agreed_eq := round(p_agreed_equivalent_g::numeric, 4);
+  else
+    v_agreed_eq := round(v_phys_w * (v_pr / 585.0), 4);
+  end if;
+
+  v_src_type := coalesce(nullif(btrim(p_source_type), ''), 'refined_gold');
+  if v_src_type not in ('refined_gold', 'purchased_gold', 'scrap_gold') then
+    v_src_type := 'refined_gold';
+  end if;
+
+  perform public._get_or_create_manager_vault(v_org_id);
+  select * into v_vault from public.manager_vault_account where organization_id = v_org_id for update;
+
+  -- Deduct from corresponding manager holding
+  if v_src_type = 'refined_gold' then
+    update public.manager_vault_account
+    set manager_refined_gold_grams = round(greatest(0, manager_refined_gold_grams - v_agreed_eq), 4),
+        manager_refined_gold_fine_grams = round(greatest(0, manager_refined_gold_fine_grams - v_phys_w), 4)
+    where organization_id = v_org_id;
+
+  elsif v_src_type = 'purchased_gold' then
+    update public.manager_vault_account
+    set manager_purchased_gold_grams = round(greatest(0, manager_purchased_gold_grams - v_agreed_eq), 4)
+    where organization_id = v_org_id;
+
+  elsif v_src_type = 'scrap_gold' then
+    update public.manager_vault_account
+    set manager_scrap_grams = round(greatest(0, manager_scrap_grams - v_phys_w), 4)
+    where organization_id = v_org_id;
+  end if;
+
+  -- Update factory obligation: ONLY THIS EVENT REDUCES FACTORY DEBT!
+  update public.manager_vault_account
+  set total_factory_handed_over_g = round(total_factory_handed_over_g + v_agreed_eq, 4),
+      current_factory_obligation_g = round(greatest(0, total_factory_obligation_g - (total_factory_handed_over_g + v_agreed_eq)), 4),
+      updated_at = now()
+  where organization_id = v_org_id
+  returning * into v_vault;
+
+  v_handover_no := 'HND-' || to_char(current_date, 'YYYYMMDD') || '-' || upper(substr(gen_random_uuid()::text, 1, 6));
+
+  insert into public.factory_gold_handovers (
+    organization_id,
+    handover_no,
+    source_type,
+    physical_weight_g,
+    proba,
+    agreed_equivalent_g,
+    factory_recipient,
+    factory_accepted,
+    notes,
+    idempotency_key,
+    recorded_by
+  ) values (
+    v_org_id,
+    v_handover_no,
+    v_src_type,
+    v_phys_w,
+    v_pr,
+    v_agreed_eq,
+    coalesce(nullif(btrim(p_factory_recipient), ''), 'Zavod'),
+    true,
+    p_notes,
+    p_idempotency_key,
+    v_caller_id
+  ) returning id into v_handover_id;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'handover_id', v_handover_id,
+    'handover_no', v_handover_no,
+    'source_type', v_src_type,
+    'physical_weight_g', v_phys_w,
+    'gross_weight_grams', v_phys_w,
+    'proba', v_pr,
+    'agreed_equivalent_g', v_agreed_eq,
+    'equivalent_585_grams', v_agreed_eq,
+    'total_factory_handed_over_g', v_vault.total_factory_handed_over_g,
+    'current_factory_obligation_g', v_vault.current_factory_obligation_g
+  );
+end;
+$$;
+
+grant execute on function public.rpc_record_factory_gold_handover to authenticated;
+
 
