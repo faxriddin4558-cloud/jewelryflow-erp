@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
       if (role === "Seller") {
         const { error: sgaErr } = await adminClient.from("seller_gold_accounts").upsert({
           seller_id: newAuthUserId,
-          organization_id: "00000000-0000-4001-8001-000000000001",
+          organization_id: "00000000-0000-0000-0000-000000000001",
           total_consigned_gold_grams: 0,
           total_factory_settled_gold_grams: 0,
           current_factory_obligation_grams: 0,
