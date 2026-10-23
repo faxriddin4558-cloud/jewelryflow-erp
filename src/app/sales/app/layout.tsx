@@ -260,9 +260,10 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
   const isStaging =
     isMounted &&
     typeof window !== "undefined" &&
+    process.env.NEXT_PUBLIC_APP_ENV !== "production" &&
     (process.env.NEXT_PUBLIC_APP_ENV === "staging" ||
       process.env.NEXT_PUBLIC_STAGING_MODE === "true" ||
-      window.location.hostname.includes("vercel.app"));
+      window.location.hostname.includes("staging"));
 
   return (
     <div className="flex h-screen w-full bg-slate-950 text-slate-100 font-sans overflow-hidden">

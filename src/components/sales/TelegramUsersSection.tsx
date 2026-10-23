@@ -16,6 +16,13 @@ export function TelegramUsersSection() {
     expiresAt: string;
   } | null>(null);
 
+  // New Employee Modal (For real production onboarding)
+  const [newEmpModalOpen, setNewEmpModalOpen] = useState(false);
+  const [newEmpName, setNewEmpName] = useState("");
+  const [newEmpEmail, setNewEmpEmail] = useState("");
+  const [newEmpPhone, setNewEmpPhone] = useState("+998 ");
+  const [newEmpRole, setNewEmpRole] = useState<"Director" | "Production Manager" | "Seller">("Seller");
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -102,6 +109,70 @@ export function TelegramUsersSection() {
     }
   };
 
+  const handleCreateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmpName.trim() || !newEmpEmail.trim()) {
+      setStatusMessage({ type: "error", text: "Xodim ismi va emaili kiritilishi shart!" });
+      return;
+    }
+    setLoading(true);
+    setStatusMessage(null);
+    try {
+      const cleanEmail = newEmpEmail.trim().toLowerCase();
+      const cleanName = newEmpName.trim();
+      const empCode = `EMP-${Date.now().toString().slice(-6)}`;
+      const normalizedRole =
+        newEmpRole === "Director" ? "admin" : newEmpRole === "Production Manager" ? "production_manager" : "seller";
+
+      const { data: created, error: empErr } = await supabase
+        .from("employees")
+        .insert({
+          employee_code: empCode,
+          name: cleanName,
+          full_name: cleanName,
+          email: cleanEmail,
+          phone: newEmpPhone.trim() || null,
+          department: newEmpRole === "Seller" ? "Savdo" : "Boshqaruv",
+          role: normalizedRole,
+          role_type: newEmpRole,
+          position: newEmpRole,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (empErr) throw empErr;
+
+      if (created && normalizedRole === "seller") {
+        await supabase.from("seller_gold_accounts").insert({
+          seller_id: created.id,
+          organization_id: created.organization_id || "00000000-0000-4001-8001-000000000001",
+          total_consigned_gold_grams: 0,
+          total_factory_settled_gold_grams: 0,
+          current_factory_obligation_grams: 0,
+          seller_till_scrap_grams: 0,
+          seller_till_cash_amount: 0,
+          total_client_debt_grams: 0,
+        });
+      }
+
+      setStatusMessage({
+        type: "success",
+        text: `Yangi xodim muvaffaqiyatli saqlandi: ${cleanName} (${newEmpRole})!`,
+      });
+      setNewEmpModalOpen(false);
+      setNewEmpName("");
+      setNewEmpEmail("");
+      setNewEmpPhone("+998 ");
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setStatusMessage({ type: "error", text: `Xodimni qo'shishda xatolik: ${msg}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -117,13 +188,21 @@ export function TelegramUsersSection() {
               Har bir xodimga shaxsiy 6 xonali OTP kod beriladi. Xodim Telegram bot (@jewelryflow_sales_bot) yoki Mini App orqali kodni kiritishi bilan hisobi avtomatik bog&apos;lanadi.
             </p>
           </div>
-          <button
-            onClick={() => void loadData()}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition shadow-md flex items-center gap-2"
-          >
-            <span>🔄</span> Yangilash
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setNewEmpModalOpen(true)}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition shadow-md flex items-center gap-1.5"
+            >
+              <span>➕</span> Yangi Xodim Qo&apos;shish
+            </button>
+            <button
+              onClick={() => void loadData()}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition shadow-md flex items-center gap-2"
+            >
+              <span>🔄</span> Yangilash
+            </button>
+          </div>
         </div>
       </div>
 
@@ -143,6 +222,99 @@ export function TelegramUsersSection() {
           <button onClick={() => setStatusMessage(null)} className="font-bold opacity-60 hover:opacity-100">
             ✕
           </button>
+        </div>
+      )}
+
+      {/* New Employee Modal */}
+      {newEmpModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form
+            onSubmit={handleCreateEmployee}
+            className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 text-slate-900 space-y-4"
+          >
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <span>👤</span> Yangi Xodimni Ro&apos;yxatdan O&apos;tkazish
+              </h3>
+              <button
+                type="button"
+                onClick={() => setNewEmpModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Xodim F.I.Sh.:</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Masalan: Abdullayev Tohir"
+                  value={newEmpName}
+                  onChange={(e) => setNewEmpName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Xizmat Emaili:</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="tohir@goldia.uz"
+                  value={newEmpEmail}
+                  onChange={(e) => setNewEmpEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Telefon Raqami:</label>
+                <input
+                  type="text"
+                  placeholder="+998 90 123 45 67"
+                  value={newEmpPhone}
+                  onChange={(e) => setNewEmpPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Tizimdagi Roli:</label>
+                <select
+                  value={newEmpRole}
+                  onChange={(e) => setNewEmpRole(e.target.value as "Director" | "Production Manager" | "Seller")}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="Seller">Sotuvchi (Seller / Savdo xodimi)</option>
+                  <option value="Production Manager">Boshqaruvchi (Production Manager / Zavod hisobchisi)</option>
+                  <option value="Director">Direktor (Rahbar / To&apos;liq vakolat)</option>
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  * Sotuvchi tanlansa, avtomatik ravishda uning shaxsiy bozor qarzi va kassa hisobvarag&apos;i ochiladi.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setNewEmpModalOpen(false)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+              >
+                Bekor Qilish
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-md transition disabled:opacity-50"
+              >
+                {loading ? "Saqlanmoqda..." : "Saqlash"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

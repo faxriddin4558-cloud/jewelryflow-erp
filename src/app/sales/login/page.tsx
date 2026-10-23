@@ -30,6 +30,16 @@ interface TelegramWebAppObject {
   close?: () => void;
 }
 
+const DEMO_EMAILS = [
+  "director@goldia.uz",
+  "manager@goldia.uz",
+  "seller@goldia.uz",
+  "dilshod@jewelryflow.uz",
+  "jasur@jewelryflow.uz",
+  "worker@goldia.uz",
+  "accountant@goldia.uz",
+];
+
 function SalesLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -55,18 +65,26 @@ function SalesLoginContent() {
   const isStaging =
     isMounted &&
     typeof window !== "undefined" &&
+    process.env.NEXT_PUBLIC_APP_ENV !== "production" &&
     (process.env.NEXT_PUBLIC_APP_ENV === "staging" ||
       process.env.NEXT_PUBLIC_STAGING_MODE === "true" ||
-      window.location.hostname.includes("vercel.app"));
+      window.location.hostname.includes("staging"));
 
   const isLocalPilot =
     isMounted &&
     typeof window !== "undefined" &&
+    process.env.NEXT_PUBLIC_APP_ENV !== "production" &&
     (window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1" ||
       process.env.NEXT_PUBLIC_APP_ENV === "local_offline");
 
-  const showDemoSwitcher = isLocalPilot || isStaging;
+  const isProduction =
+    isMounted &&
+    typeof window !== "undefined" &&
+    (process.env.NEXT_PUBLIC_APP_ENV === "production" ||
+      (!isStaging && !isLocalPilot && !window.location.hostname.includes("staging")));
+
+  const showDemoSwitcher = !isProduction && (isLocalPilot || isStaging);
 
   // Check Telegram WebApp on mount
   useEffect(() => {
@@ -230,6 +248,16 @@ function SalesLoginContent() {
 
     const cleanEmail = userEmail.trim().toLowerCase();
 
+    // In production, block demo accounts strictly
+    if (isProduction && DEMO_EMAILS.includes(cleanEmail)) {
+      setErrorMessage(
+        "Xavfsizlik qoidasi: Production muhitida demo akkauntlar orqali kirish qat'iyan taqiqlangan! Iltimos, shaxsiy tasdiqlangan xodim hisobingizdan foydalaning."
+      );
+      setLoading(false);
+      await recordAuditLog(undefined, cleanEmail, "Unknown", "password", "failed");
+      return;
+    }
+
     try {
       // 1. Authenticate with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -314,6 +342,10 @@ function SalesLoginContent() {
     roleTitle: string,
     empName: string
   ) => {
+    if (isProduction) {
+      setErrorMessage("Xavfsizlik talabi: Production muhitida demo tezkor login o'chirilgan.");
+      return;
+    }
     const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "GoldiaPassword2026!";
     setEmail(pilotEmail);
     setPassword(demoPassword);
@@ -423,7 +455,7 @@ function SalesLoginContent() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="masalan: jamshid@jewelryflow.uz"
+                placeholder={isProduction ? "xodim@goldia.uz" : "masalan: jamshid@jewelryflow.uz"}
                 className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-2xl text-sm font-medium text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition"
               />
             </div>
