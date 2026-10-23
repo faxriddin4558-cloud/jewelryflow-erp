@@ -339,6 +339,12 @@ export function CustomerLedgerAndSheetsSection() {
     }
   }, [selectedSeller]);
 
+  const handleApplyDateFilter = useCallback((customStart?: string, customEnd?: string) => {
+    const s = (customStart !== undefined ? customStart : startDate)?.trim() || null;
+    const e = (customEnd !== undefined ? customEnd : endDate)?.trim() || null;
+    void fetchDailyLedgerRange(s || undefined, e || undefined);
+  }, [fetchDailyLedgerRange, startDate, endDate]);
+
   const loadDailyLedger = useCallback(async () => {
     await fetchDailyLedgerRange(startDate, endDate);
   }, [fetchDailyLedgerRange, startDate, endDate]);
@@ -364,9 +370,10 @@ export function CustomerLedgerAndSheetsSection() {
 
   useEffect(() => {
     if (activeTab === "directory") void loadCustomers();
-    if (activeTab === "daily_ledger") void loadDailyLedger();
+    if (activeTab === "daily_ledger") void fetchDailyLedgerRange(startDate, endDate);
     if (activeTab === "monthly_report") void loadMonthlyReport();
-  }, [activeTab, loadCustomers, loadDailyLedger, loadMonthlyReport]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedSeller]);
 
   // Add Customer
   const handleCreateCustomer = async (e: React.FormEvent) => {
@@ -633,11 +640,11 @@ export function CustomerLedgerAndSheetsSection() {
                 <input
                   type="date"
                   value={startDate}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setStartDate(val);
-                    if (!endDate || endDate < val) {
-                      setEndDate(val);
+                  onChange={(e) => setStartDate(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleApplyDateFilter();
                     }
                   }}
                   className="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white text-xs font-mono"
@@ -647,15 +654,21 @@ export function CustomerLedgerAndSheetsSection() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleApplyDateFilter();
+                    }
+                  }}
                   className="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white text-xs font-mono"
                 />
                 <button
                   type="button"
-                  onClick={() => void loadDailyLedger()}
+                  onClick={() => handleApplyDateFilter()}
                   disabled={busy}
                   className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition flex items-center gap-1"
                 >
-                  <span>🔍</span> Filter
+                  {busy ? <span>⏳</span> : <span>🔍</span>} Filter
                 </button>
                 <button
                   type="button"
