@@ -207,47 +207,81 @@ export function CustomerLedgerAndSheetsSection() {
   const loadCustomers = useCallback(async () => {
     setBusy(true);
     try {
-      let query = supabase
-        .from("customers")
-        .select(`
-          id, customer_code, contact_name, phone, company_name, seller_id,
-          seller:employees!customers_seller_id_fkey(name, full_name),
-          accounts:client_gold_accounts(current_debt_grams, advance_balance_grams, total_scrap_paid_grams, total_cash_paid_amount)
-        `)
-        .order("contact_name", { ascending: true });
+      const { data: ledgerData, error: ledgerErr } = await supabase.rpc("rpc_get_unified_customer_ledger");
+      if (!ledgerErr && ledgerData?.items) {
+        interface UnifiedItem {
+          customer_id: string;
+          customer_code: string;
+          contact_name: string;
+          phone?: string | null;
+          company_name?: string | null;
+          seller_id?: string | null;
+          seller_name?: string | null;
+          net_debt_g?: number;
+          available_advance_g?: number;
+          paid_scrap_equivalent_g?: number;
+          paid_cash_equivalent_g?: number;
+        }
+        let mapped: CustomerRow[] = ledgerData.items.map((i: UnifiedItem) => ({
+          id: i.customer_id,
+          customer_code: i.customer_code,
+          contact_name: i.contact_name,
+          phone: i.phone || null,
+          company_name: i.company_name || null,
+          seller_id: i.seller_id || "",
+          seller: { name: i.seller_name || "Sotuvchi", full_name: i.seller_name || "Sotuvchi" },
+          current_debt_grams: Number(i.net_debt_g || 0),
+          advance_balance_grams: Number(i.available_advance_g || 0),
+          total_scrap_paid_grams: Number(i.paid_scrap_equivalent_g || 0),
+          total_cash_paid_amount: Number(i.paid_cash_equivalent_g || 0),
+        }));
+        if (selectedSeller !== "all") {
+          mapped = mapped.filter((c) => c.seller_id === selectedSeller);
+        }
+        setCustomers(mapped);
+      } else {
+        let query = supabase
+          .from("customers")
+          .select(`
+            id, customer_code, contact_name, phone, company_name, seller_id,
+            seller:employees!customers_seller_id_fkey(name, full_name),
+            accounts:client_gold_accounts(current_debt_grams, advance_balance_grams, total_scrap_paid_grams, total_cash_paid_amount)
+          `)
+          .order("contact_name", { ascending: true });
 
-      if (selectedSeller !== "all") {
-        query = query.eq("seller_id", selectedSeller);
+        if (selectedSeller !== "all") {
+          query = query.eq("seller_id", selectedSeller);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const mapped: CustomerRow[] = ((data as unknown as CustomerQueryRow[]) || []).map((row) => {
+          const rawAccounts = row.accounts;
+          const accObj = Array.isArray(rawAccounts)
+            ? (rawAccounts[0] as CustomerAccountData | undefined)
+            : (rawAccounts as CustomerAccountData | undefined);
+          const rawDebt = Number(accObj?.current_debt_grams || 0);
+          const rawAdv = Number(accObj?.advance_balance_grams || 0);
+          const netDebt = Math.max(0, rawDebt - rawAdv);
+
+          return {
+            id: row.id,
+            customer_code: row.customer_code,
+            contact_name: row.contact_name,
+            phone: row.phone,
+            company_name: row.company_name,
+            seller_id: row.seller_id,
+            seller: row.seller,
+            current_debt_grams: netDebt,
+            advance_balance_grams: rawAdv,
+            total_scrap_paid_grams: Number(accObj?.total_scrap_paid_grams || 0),
+            total_cash_paid_amount: Number(accObj?.total_cash_paid_amount || 0),
+          };
+        });
+
+        setCustomers(mapped);
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const mapped: CustomerRow[] = ((data as unknown as CustomerQueryRow[]) || []).map((row) => {
-        const rawAccounts = row.accounts;
-        const accObj = Array.isArray(rawAccounts)
-          ? (rawAccounts[0] as CustomerAccountData | undefined)
-          : (rawAccounts as CustomerAccountData | undefined);
-        const rawDebt = Number(accObj?.current_debt_grams || 0);
-        const rawAdv = Number(accObj?.advance_balance_grams || 0);
-        const netDebt = Math.max(0, rawDebt - rawAdv);
-
-        return {
-          id: row.id,
-          customer_code: row.customer_code,
-          contact_name: row.contact_name,
-          phone: row.phone,
-          company_name: row.company_name,
-          seller_id: row.seller_id,
-          seller: row.seller,
-          current_debt_grams: netDebt,
-          advance_balance_grams: rawAdv,
-          total_scrap_paid_grams: Number(accObj?.total_scrap_paid_grams || 0),
-          total_cash_paid_amount: Number(accObj?.total_cash_paid_amount || 0),
-        };
-      });
-
-      setCustomers(mapped);
 
       // Load available pieces for sale
       const piecesQuery = supabase
@@ -419,7 +453,7 @@ export function CustomerLedgerAndSheetsSection() {
 
       setMessage({
         type: "success",
-        text: `Savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${data.model_name} (${formatScreenGrams(data.weight_grams, 2)} @ ${data.client_markup_pct}%). Qarz yozildi: ${formatScreenGrams(data.client_gold_due_grams, 2)}.`,
+        text: `Savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${data.model_name} (${formatScreenGrams(data.weight_grams, 2)} @ ${data.client_markup_pct}%). Mahsulot qiymati: ${formatScreenGrams(data.gross_gold_due_grams || data.client_gold_due_grams, 2)}.${Number(data.advance_applied_grams || 0) > 0 ? ` Qoplangan avans: -${formatScreenGrams(Number(data.advance_applied_grams), 2)}.` : ""} Sof qolgan qarz: ${formatScreenGrams(data.net_remaining_debt_grams ?? data.remaining_gold_grams, 2)}.`,
       });
 
       setSaleModalOpen(false);

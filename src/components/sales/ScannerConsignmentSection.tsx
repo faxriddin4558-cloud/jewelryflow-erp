@@ -17,7 +17,6 @@ import {
   type Scanner564Config,
   DEFAULT_SCANNER_CONFIG,
 } from "@/lib/barcode-scanner-engine";
-import { GoldEngine } from "@/lib/erp-engine";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
 
 interface SellerItem {
@@ -47,6 +46,7 @@ interface Props {
   onConfirmConsignment: (payload: {
     sellerId: string;
     factoryMarkupPct: number;
+    sellerMarkupPct?: number;
     factoryReceiptId?: string;
     pieces: Array<{
       model_id?: string;
@@ -73,6 +73,7 @@ export function ScannerConsignmentSection({
   const [selectedSellerId, setSelectedSellerId] = useState("");
   const [selectedReceiptId, setSelectedReceiptId] = useState("");
   const [factoryMarkupPct, setFactoryMarkupPct] = useState("8.00");
+  const [sellerMarkupPct, setSellerMarkupPct] = useState("12.00");
   const [notes, setNotes] = useState("");
   const [inputVal, setInputVal] = useState("");
   const [session, setSession] = useState<DraftScanSession>(createEmptyScanSession());
@@ -243,22 +244,34 @@ export function ScannerConsignmentSection({
       raw_barcode: p.rawBarcode,
     }));
 
-    await onConfirmConsignment({
-      sellerId: selectedSellerId,
-      factoryMarkupPct: parseFloat(factoryMarkupPct) || 0,
-      factoryReceiptId: selectedReceiptId || undefined,
-      pieces: piecesPayload,
-      notes: notes.trim() || undefined,
-    });
+    try {
+      await onConfirmConsignment({
+        sellerId: selectedSellerId,
+        factoryMarkupPct: parseFloat(factoryMarkupPct) || 0,
+        sellerMarkupPct: parseFloat(sellerMarkupPct) || 12.0,
+        factoryReceiptId: selectedReceiptId || undefined,
+        pieces: piecesPayload,
+        notes: notes.trim() || undefined,
+      });
 
-    // Reset session upon success
-    setSession(createEmptyScanSession());
-    clearSessionFromStorage();
-    setNotes("");
+      // Reset session ONLY upon genuine success
+      setSession(createEmptyScanSession());
+      clearSessionFromStorage();
+      setNotes("");
+      setStatusNotice({ text: "Konsignatsiya muvaffaqiyatli topshirildi!", type: "success" });
+    } catch (err: unknown) {
+      // PRESERVE SCANNER DRAFT ON FAILURE! Never lose user scans!
+      setStatusNotice({
+        text: `Topshirishda xatolik: ${err instanceof Error ? err.message : String(err)}. Skaner qoralamasi to'liq saqlab qolindi!`,
+        type: "error",
+      });
+    }
   };
 
   const fPct = parseFloat(factoryMarkupPct) || 0;
-  const calc = GoldEngine.calculateJewelryConsignmentAndSale(session.totalWeightGrams, fPct, fPct);
+  const sPct = parseFloat(sellerMarkupPct) || 12.0;
+  const factoryDueGrams = Math.round(session.totalWeightGrams * (1.0 + fPct / 100.0) * 10000) / 10000;
+  const sellerDueGrams = Math.round(session.totalWeightGrams * (1.0 + sPct / 100.0) * 10000) / 10000;
 
   return (
     <div className="space-y-6">
@@ -332,6 +345,20 @@ export function ScannerConsignmentSection({
                 </>
               )}
             </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-bold text-slate-300 block">3. Sotuvchi Majburiyati Ustamasi (%):</label>
+            <input
+              id="scannerSellerMarkupInput"
+              type="number"
+              step="0.5"
+              min="0"
+              value={sellerMarkupPct}
+              onChange={(e) => setSellerMarkupPct(e.target.value)}
+              placeholder="12.00"
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-bold text-blue-300 focus:ring-2 focus:ring-blue-400"
+            />
           </div>
 
           {availableFactoryReceipts && availableFactoryReceipts.length > 0 && (
@@ -508,7 +535,16 @@ export function ScannerConsignmentSection({
               Zavod Majburiyati (+{fPct}%)
             </div>
             <div id="draftFactoryDue" className="text-3xl font-black text-emerald-400 font-mono">
-              {formatScreenGrams(calc.factoryGoldDueGrams, 2)}
+              {formatScreenGrams(factoryDueGrams, 2)}
+            </div>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-[#F8FAFC] space-y-3">
+            <div className="text-xs text-[#CBD5E1] uppercase tracking-wider font-semibold">
+              Sotuvchi Majburiyati (+{sPct}%)
+            </div>
+            <div id="draftSellerDue" className="text-3xl font-black text-blue-400 font-mono">
+              {formatScreenGrams(sellerDueGrams, 2)}
             </div>
           </div>
 

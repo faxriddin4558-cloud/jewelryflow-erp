@@ -351,9 +351,10 @@ export function SellerMobileWorkspace() {
           factoryMarkupPct: liveSaleCalc.factoryMarkupPct,
           factoryGoldDueGrams: liveSaleCalc.factoryGoldDueGrams,
           clientMarkupPct: liveSaleCalc.clientMarkupPct,
-          clientGoldDueGrams: liveSaleCalc.clientGoldDueGrams,
+          clientGoldDueGrams: Number(data?.gross_gold_due_grams ?? data?.client_gold_due_grams ?? liveSaleCalc.clientGoldDueGrams),
           markupSpreadGrams: liveSaleCalc.markupSpreadGrams,
-          remainingDebtGrams: liveSaleCalc.clientGoldDueGrams,
+          advanceAppliedGrams: Number(data?.advance_applied_grams || 0),
+          remainingDebtGrams: Number(data?.net_remaining_debt_grams ?? data?.remaining_gold_grams ?? liveSaleCalc.clientGoldDueGrams),
           notes: saleNotes || "Mijozga nasiya asosida topshirildi",
         });
       }

@@ -56,7 +56,7 @@ ${data.customerPhone ? `Telefon: ${data.customerPhone}` : ""}
 ${data.itemName ? `Mahsulot: ${data.itemName}` : ""}
 ${data.baseWeightGrams != null ? `Asl Vazn: ${data.baseWeightGrams.toFixed(4)} g (${data.purity || 585} proba)` : ""}
 ${data.clientMarkupPct != null ? `Mijoz Ustamasi: ${data.clientMarkupPct}%` : ""}
-${data.clientGoldDueGrams != null ? `Mijozga Yozilgan Oltin: ${data.clientGoldDueGrams.toFixed(4)} g` : ""}
+${data.clientGoldDueGrams != null ? `Mahsulot Oltin Qiymati: ${data.clientGoldDueGrams.toFixed(4)} g` : ""}
 ${data.factoryMarkupPct != null ? `Zavod Ustamasi: ${data.factoryMarkupPct}%` : ""}
 ${data.factoryGoldDueGrams != null ? `Zavod Majburiyati: ${data.factoryGoldDueGrams.toFixed(4)} g` : ""}
 ${data.markupSpreadGrams != null ? `Hisob-kitob Farqi (Spread): ${data.markupSpreadGrams.toFixed(4)} g` : ""}
@@ -172,7 +172,7 @@ JewelryFlow ERP — Rasmiy Hisob-Kitob Cheki
               )}
               {data.clientGoldDueGrams != null && (
                 <div className="flex justify-between bg-amber-50 p-2.5 rounded-xl border border-amber-200">
-                  <span className="font-bold text-amber-900">Mijozning Oltin Qarzi:</span>
+                  <span className="font-bold text-amber-900">Mahsulot Oltin Qiymati:</span>
                   <span className="font-mono font-black text-amber-950 text-base">
                     {data.clientGoldDueGrams.toFixed(4)} g
                   </span>

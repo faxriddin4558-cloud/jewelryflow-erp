@@ -822,6 +822,7 @@ export function DirectorSalesWorkspace({
     sellerId: string;
     factoryMarkupPct: number;
     factoryReceiptId?: string;
+    sellerMarkupPct?: number;
     pieces: Array<{
       model_id?: string;
       model_code: string;
@@ -839,6 +840,7 @@ export function DirectorSalesWorkspace({
       const { data, error } = await supabase.rpc("rpc_issue_barcode_consignment", {
         p_seller_id: payload.sellerId,
         p_factory_markup_pct: payload.factoryMarkupPct,
+        p_seller_markup_pct: payload.sellerMarkupPct || 12.0,
         p_pieces: payload.pieces,
         p_notes: payload.notes || null,
         p_idempotency_key: idempotencyKey,
@@ -868,6 +870,7 @@ export function DirectorSalesWorkspace({
       setActiveTab("seller_stock");
     } catch (err: unknown) {
       notifyError(`Konsignatsiyani topshirishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      throw err; // Rethrow so ScannerConsignmentSection preserves scanner draft!
     } finally {
       setBusy(false);
     }
