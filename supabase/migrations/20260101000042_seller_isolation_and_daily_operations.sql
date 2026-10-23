@@ -622,26 +622,3 @@ end;
 $$;
 
 grant execute on function public.rpc_record_factory_receipt to authenticated;
-
-
--- -------------------------------------------------------------------------
--- 5. RECORD APPLIED MIGRATIONS IN SCHEMA METADATA
--- -------------------------------------------------------------------------
-
-create schema if not exists supabase_migrations;
-
-create table if not exists supabase_migrations.schema_migrations (
-  version text primary key,
-  name text,
-  inserted_at timestamptz default now()
-);
-
-insert into supabase_migrations.schema_migrations (version, name) values
-  ('20260101000036', 'security_hardening_seller_isolation_and_factory_permissions'),
-  ('20260101000037', 'core_accounting_parity_and_stock_lifecycle'),
-  ('20260101000038', 'final_sales_mega_fix'),
-  ('20260101000039', 'safe_corrections_reversals_and_staging_cleanup'),
-  ('20260101000040', 'financial_integrity_and_unified_ledger'),
-  ('20260101000041', 'jules_security_hardening'),
-  ('20260101000042', 'seller_isolation_and_daily_operations')
-on conflict (version) do nothing;
