@@ -60,7 +60,13 @@ function SalesLoginContent() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    const errParam = searchParams.get("error");
+    if (errParam === "demo_blocked_in_production") {
+      setErrorMessage(
+        "Xavfsizlik qoidasi: Server xavfsizligi tomonidan demo akkaunt sessiyasi bekor qilindi. Production muhitida faqat tasdiqlangan shaxsiy xodim hisobidan foydalaning."
+      );
+    }
+  }, [searchParams]);
 
   const isStaging =
     isMounted &&
@@ -249,7 +255,7 @@ function SalesLoginContent() {
     const cleanEmail = userEmail.trim().toLowerCase();
 
     // In production, block demo accounts strictly
-    if (isProduction && DEMO_EMAILS.includes(cleanEmail)) {
+    if (isProduction && (DEMO_EMAILS.includes(cleanEmail) || cleanEmail.startsWith("demo."))) {
       setErrorMessage(
         "Xavfsizlik qoidasi: Production muhitida demo akkauntlar orqali kirish qat'iyan taqiqlangan! Iltimos, shaxsiy tasdiqlangan xodim hisobingizdan foydalaning."
       );

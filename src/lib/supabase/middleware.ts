@@ -54,8 +54,38 @@ export async function updateSupabaseSession(request: NextRequest) {
     pathname.startsWith("/api/webhooks") ||
     pathname.startsWith("/api/sales/telegram") ||
     pathname.startsWith("/api/sales/import") ||
+    pathname.startsWith("/api/sales/employees") ||
     pathname === "/manifest.json" ||
     pathname === "/sw.js";
+
+  const isProductionEnv = process.env.NEXT_PUBLIC_APP_ENV === "production";
+  const DEMO_EMAILS_SET = new Set([
+    "director@goldia.uz",
+    "manager@goldia.uz",
+    "seller@goldia.uz",
+    "dilshod@jewelryflow.uz",
+    "jasur@jewelryflow.uz",
+    "worker@goldia.uz",
+    "accountant@goldia.uz",
+    "demo.director@goldia.uz",
+    "demo.manager@goldia.uz",
+    "demo.seller@goldia.uz",
+    "admin@goldia.uz",
+  ]);
+
+  // SERVER-SIDE SECURITY GUARD: Strictly block demo logins in production mode
+  if (user && user.email && isProductionEnv) {
+    const emailLower = user.email.toLowerCase().trim();
+    if (DEMO_EMAILS_SET.has(emailLower) || emailLower.startsWith("demo.")) {
+      await supabase.auth.signOut();
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/sales/login";
+      redirectUrl.searchParams.set("error", "demo_blocked_in_production");
+      const blockedResponse = NextResponse.redirect(redirectUrl);
+      request.cookies.getAll().forEach((c) => blockedResponse.cookies.delete(c.name));
+      return blockedResponse;
+    }
+  }
 
   if (!user && !isAuthRoute && !isPublicAsset) {
     const redirectUrl = request.nextUrl.clone();

@@ -20,8 +20,33 @@ export function TelegramUsersSection() {
   const [newEmpModalOpen, setNewEmpModalOpen] = useState(false);
   const [newEmpName, setNewEmpName] = useState("");
   const [newEmpEmail, setNewEmpEmail] = useState("");
+  const [newEmpPassword, setNewEmpPassword] = useState("");
   const [newEmpPhone, setNewEmpPhone] = useState("+998 ");
   const [newEmpRole, setNewEmpRole] = useState<"Director" | "Production Manager" | "Seller">("Seller");
+  const [currentUserRole, setCurrentUserRole] = useState<string>("seller");
+
+  useEffect(() => {
+    async function checkRole() {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) {
+          const { data: emp } = await supabase
+            .from("employees")
+            .select("role")
+            .eq("user_id", data.user.id)
+            .maybeSingle();
+          if (emp?.role) {
+            setCurrentUserRole(String(emp.role).toLowerCase());
+          }
+        }
+      } catch {
+        // Fallback default
+      }
+    }
+    void checkRole();
+  }, []);
+
+  const isDirector = currentUserRole === "admin" || currentUserRole === "director";
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -111,58 +136,48 @@ export function TelegramUsersSection() {
 
   const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEmpName.trim() || !newEmpEmail.trim()) {
-      setStatusMessage({ type: "error", text: "Xodim ismi va emaili kiritilishi shart!" });
+    if (!newEmpName.trim() || !newEmpEmail.trim() || !newEmpPassword.trim()) {
+      setStatusMessage({ type: "error", text: "Xodim ismi, emaili va boshlang'ich paroli kiritilishi shart!" });
+      return;
+    }
+    if (newEmpPassword.trim().length < 6) {
+      setStatusMessage({ type: "error", text: "Parol kamida 6 ta belgidan iborat bo'lishi kerak!" });
       return;
     }
     setLoading(true);
     setStatusMessage(null);
     try {
-      const cleanEmail = newEmpEmail.trim().toLowerCase();
-      const cleanName = newEmpName.trim();
-      const empCode = `EMP-${Date.now().toString().slice(-6)}`;
-      const normalizedRole =
-        newEmpRole === "Director" ? "admin" : newEmpRole === "Production Manager" ? "production_manager" : "seller";
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-      const { data: created, error: empErr } = await supabase
-        .from("employees")
-        .insert({
-          employee_code: empCode,
-          name: cleanName,
-          full_name: cleanName,
-          email: cleanEmail,
+      const res = await fetch("/api/sales/employees/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          fullName: newEmpName.trim(),
+          email: newEmpEmail.trim().toLowerCase(),
+          password: newEmpPassword.trim(),
+          role: newEmpRole,
           phone: newEmpPhone.trim() || null,
-          department: newEmpRole === "Seller" ? "Savdo" : "Boshqaruv",
-          role: normalizedRole,
-          role_type: newEmpRole,
-          position: newEmpRole,
-          is_active: true,
-        })
-        .select()
-        .single();
+        }),
+      });
 
-      if (empErr) throw empErr;
-
-      if (created && normalizedRole === "seller") {
-        await supabase.from("seller_gold_accounts").insert({
-          seller_id: created.id,
-          organization_id: created.organization_id || "00000000-0000-4001-8001-000000000001",
-          total_consigned_gold_grams: 0,
-          total_factory_settled_gold_grams: 0,
-          current_factory_obligation_grams: 0,
-          seller_till_scrap_grams: 0,
-          seller_till_cash_amount: 0,
-          total_client_debt_grams: 0,
-        });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Xodimni qo'shishda xatolik yuz berdi");
       }
 
       setStatusMessage({
         type: "success",
-        text: `Yangi xodim muvaffaqiyatli saqlandi: ${cleanName} (${newEmpRole})!`,
+        text: `Yangi xodim muvaffaqiyatli saqlandi: ${newEmpName.trim()} (${newEmpRole})!`,
       });
       setNewEmpModalOpen(false);
       setNewEmpName("");
       setNewEmpEmail("");
+      setNewEmpPassword("");
       setNewEmpPhone("+998 ");
       await loadData();
     } catch (err: unknown) {
@@ -189,12 +204,14 @@ export function TelegramUsersSection() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setNewEmpModalOpen(true)}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition shadow-md flex items-center gap-1.5"
-            >
-              <span>➕</span> Yangi Xodim Qo&apos;shish
-            </button>
+            {isDirector && (
+              <button
+                onClick={() => setNewEmpModalOpen(true)}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition shadow-md flex items-center gap-1.5"
+              >
+                <span>➕</span> Yangi Xodim Qo&apos;shish
+              </button>
+            )}
             <button
               onClick={() => void loadData()}
               disabled={loading}
@@ -247,7 +264,7 @@ export function TelegramUsersSection() {
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Xodim F.I.Sh.:</label>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Xodim F.I.Sh. *:</label>
                 <input
                   type="text"
                   required
@@ -259,13 +276,25 @@ export function TelegramUsersSection() {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Xizmat Emaili:</label>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Xizmat Emaili *:</label>
                 <input
                   type="email"
                   required
                   placeholder="tohir@goldia.uz"
                   value={newEmpEmail}
                   onChange={(e) => setNewEmpEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Boshlang&apos;ich Parol *:</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Kamida 6 ta belgi"
+                  value={newEmpPassword}
+                  onChange={(e) => setNewEmpPassword(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
                 />
               </div>
