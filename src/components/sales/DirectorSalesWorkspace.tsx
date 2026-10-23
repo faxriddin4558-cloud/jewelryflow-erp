@@ -282,7 +282,7 @@ export function DirectorSalesWorkspace({
         }
       }
     } catch (err: unknown) {
-      notifyError(`Ma'lumotlarni yuklashda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(`Ma'lumotlarni yuklashda xatolik: ${parseErrorMessage(err)}`);
     }
   }, [consignProductId]);
 
@@ -437,7 +437,7 @@ export function DirectorSalesWorkspace({
       setNewRateNotes("");
       await loadData();
     } catch (err: unknown) {
-      notifyError(`Lom kursini saqlashda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(`Lom kursini saqlashda xatolik: ${parseErrorMessage(err)}`);
     } finally {
       setBusy(false);
     }
@@ -489,7 +489,7 @@ export function DirectorSalesWorkspace({
       setPresetModalOpen(false);
       await loadData();
     } catch (err: unknown) {
-      notifyError(`Ustama foizini saqlashda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(`Ustama foizini saqlashda xatolik: ${parseErrorMessage(err)}`);
     } finally {
       setBusy(false);
     }
@@ -512,7 +512,7 @@ export function DirectorSalesWorkspace({
       notifySuccess(`Ustama "${p.name}" ${!p.is_active ? "faollashtirildi" : "o'chirildi"}`);
       await loadData();
     } catch (err: unknown) {
-      notifyError(`Ustama holatini o'zgartirishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(`Ustama holatini o'zgartirishda xatolik: ${parseErrorMessage(err)}`);
     } finally {
       setBusy(false);
     }
@@ -549,7 +549,7 @@ export function DirectorSalesWorkspace({
       setRcpNotes("");
       await loadData();
     } catch (err: unknown) {
-      notifyError(`Zavod tovarini qabul qilishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(`Zavod tovarini qabul qilishda xatolik: ${parseErrorMessage(err)}`);
     } finally {
       setBusy(false);
     }
@@ -588,7 +588,7 @@ export function DirectorSalesWorkspace({
       setRefNotes("");
       await loadData();
     } catch (err: unknown) {
-      notifyError(`Afinaj partiyasini saqlashda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(`Afinaj partiyasini saqlashda xatolik: ${parseErrorMessage(err)}`);
     } finally {
       setBusy(false);
     }
@@ -628,7 +628,7 @@ export function DirectorSalesWorkspace({
       setBuyNotes("");
       await loadData();
     } catch (err: unknown) {
-      notifyError(`Oltin xaridini qayd etishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(`Oltin xaridini qayd etishda xatolik: ${parseErrorMessage(err)}`);
     } finally {
       setBusy(false);
     }
@@ -665,7 +665,7 @@ export function DirectorSalesWorkspace({
       setHndNotes("");
       await loadData();
     } catch (err: unknown) {
-      notifyError(`Zavodga topshirishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(`Zavodga topshirishda xatolik: ${parseErrorMessage(err)}`);
     } finally {
       setBusy(false);
     }
@@ -728,7 +728,7 @@ export function DirectorSalesWorkspace({
       setConsignSellerId("");
       await loadData();
     } catch (err: unknown) {
-      notifyError(`Konsignatsiya topshirishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(`Konsignatsiya topshirishda xatolik: ${parseErrorMessage(err)}`);
     } finally {
       setBusy(false);
     }
@@ -869,7 +869,7 @@ export function DirectorSalesWorkspace({
       await loadData();
       setActiveTab("seller_stock");
     } catch (err: unknown) {
-      notifyError(`Konsignatsiyani topshirishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(`Konsignatsiyani topshirishda xatolik: ${parseErrorMessage(err)}`);
       throw err; // Rethrow so ScannerConsignmentSection preserves scanner draft!
     } finally {
       setBusy(false);
@@ -1782,7 +1782,7 @@ export function DirectorSalesWorkspace({
                         <span className="font-bold text-[#0F172A]">{formatScreenGrams(Number(acc.total_transferred_physical_g || 0), 2)}</span>
                       </div>
                       <div>
-                        <span className="text-[#475569] block text-[10px]">Majburiyat:</span>
+                        <span className="text-[#475569] block text-[10px]">Sotuvchi Majburiyati:</span>
                         <span className="font-bold text-amber-900">{formatScreenGrams(Number(acc.total_seller_obligation_g || factoryObligation), 2)}</span>
                       </div>
                       <div>
@@ -1920,7 +1920,7 @@ export function DirectorSalesWorkspace({
               </div>
 
               <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
-                <div className="text-xs font-bold text-cyan-300">Afinaj Qilingan Toza Oltin (995)</div>
+                <div className="text-xs font-bold text-cyan-300">Afinaj Qilingan Toza Oltin (Fizik 995)</div>
                 <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
                   {formatScreenGrams(
                     managerVault?.manager_refined_gold_fine_grams ??
@@ -3196,7 +3196,7 @@ export function DirectorSalesWorkspace({
                   </span>
                 </div>
                 <div className="flex justify-between text-amber-900 font-semibold border-t pt-1">
-                  <span>Zavod majburiyati:</span>
+                  <span>Sotuvchi majburiyati (Bozor qarzi):</span>
                   <span className="font-mono font-bold">
                     {formatScreenGrams(surrenderSeller.current_factory_obligation_grams || surrenderSeller.remaining_factory_gold_due_grams, 2)}
                   </span>

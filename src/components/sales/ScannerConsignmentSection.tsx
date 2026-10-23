@@ -18,6 +18,7 @@ import {
   DEFAULT_SCANNER_CONFIG,
 } from "@/lib/barcode-scanner-engine";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
+import { parseErrorMessage } from "@/lib/error-utils";
 
 interface SellerItem {
   id: string;
@@ -262,7 +263,7 @@ export function ScannerConsignmentSection({
     } catch (err: unknown) {
       // PRESERVE SCANNER DRAFT ON FAILURE! Never lose user scans!
       setStatusNotice({
-        text: `Topshirishda xatolik: ${err instanceof Error ? err.message : String(err)}. Skaner qoralamasi to'liq saqlab qolindi!`,
+        text: `Topshirishda xatolik: ${parseErrorMessage(err)}. Skaner qoralamasi to'liq saqlab qolindi!`,
         type: "error",
       });
     }

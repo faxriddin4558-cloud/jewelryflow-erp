@@ -29,10 +29,12 @@ interface CustomerRow {
   phone?: string | null;
   company_name?: string | null;
   seller_id?: string | null;
+  gross_debt_g?: number;
   current_debt_grams?: number;
   advance_balance_grams?: number;
   total_scrap_paid_grams?: number;
   total_cash_paid_amount?: number;
+  paid_cash_equivalent_g?: number;
   seller?: { name: string; full_name?: string } | null;
 }
 
@@ -183,11 +185,26 @@ export function CustomerLedgerAndSheetsSection() {
   const [reversalTarget, setReversalTarget] = useState<DailyLedgerEntry | null>(null);
   const [reversalReason, setReversalReason] = useState("");
 
+  const [currentEmployeeId, setCurrentEmployeeId] = useState<string>("");
+
   useEffect(() => {
     supabase.rpc("current_employee_role_text").then(({ data }) => {
       if (data) setCurrentRole(String(data).toLowerCase());
     });
+    supabase.rpc("current_employee_id").then(({ data }) => {
+      if (data) {
+        const empId = String(data);
+        setCurrentEmployeeId(empId);
+      }
+    });
   }, []);
+
+  useEffect(() => {
+    if (["seller", "sotuvchi", "sales"].includes(currentRole) && currentEmployeeId) {
+      setSelectedSeller(currentEmployeeId);
+      setNewCustSellerId(currentEmployeeId);
+    }
+  }, [currentRole, currentEmployeeId]);
 
   // Load Sellers
   useEffect(() => {
@@ -217,10 +234,12 @@ export function CustomerLedgerAndSheetsSection() {
           company_name?: string | null;
           seller_id?: string | null;
           seller_name?: string | null;
+          gross_debt_g?: number;
           net_debt_g?: number;
           available_advance_g?: number;
           paid_scrap_equivalent_g?: number;
           paid_cash_equivalent_g?: number;
+          paid_cash_amount_uzs?: number;
         }
         let mapped: CustomerRow[] = ledgerData.items.map((i: UnifiedItem) => ({
           id: i.customer_id,
@@ -230,10 +249,12 @@ export function CustomerLedgerAndSheetsSection() {
           company_name: i.company_name || null,
           seller_id: i.seller_id || "",
           seller: { name: i.seller_name || "Sotuvchi", full_name: i.seller_name || "Sotuvchi" },
+          gross_debt_g: Number(i.gross_debt_g || 0),
           current_debt_grams: Number(i.net_debt_g || 0),
           advance_balance_grams: Number(i.available_advance_g || 0),
           total_scrap_paid_grams: Number(i.paid_scrap_equivalent_g || 0),
-          total_cash_paid_amount: Number(i.paid_cash_equivalent_g || 0),
+          total_cash_paid_amount: Number(i.paid_cash_amount_uzs || 0),
+          paid_cash_equivalent_g: Number(i.paid_cash_equivalent_g || 0),
         }));
         if (selectedSeller !== "all") {
           mapped = mapped.filter((c) => c.seller_id === selectedSeller);
@@ -577,18 +598,25 @@ export function CustomerLedgerAndSheetsSection() {
         {/* Global Filter Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 text-xs">
           <div className="flex flex-wrap items-center gap-3">
-            <select
-              value={selectedSeller}
-              onChange={(e) => setSelectedSeller(e.target.value)}
-              className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium"
-            >
-              <option value="all">Barcha Sotuvchilar</option>
-              {sellers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.full_name || s.name}
-                </option>
-              ))}
-            </select>
+            {["seller", "sotuvchi", "sales"].includes(currentRole) ? (
+              <div className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium flex items-center gap-1.5 text-xs">
+                <span className="text-amber-400 font-bold">👤 Sotuvchi:</span>
+                <span>{sellers.find(s => s.id === currentEmployeeId)?.full_name || sellers.find(s => s.id === currentEmployeeId)?.name || "Mening hisobim"}</span>
+              </div>
+            ) : (
+              <select
+                value={selectedSeller}
+                onChange={(e) => setSelectedSeller(e.target.value)}
+                className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium"
+              >
+                <option value="all">Barcha Sotuvchilar (Bozor)</option>
+                {sellers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.full_name || s.name}
+                  </option>
+                ))}
+              </select>
+            )}
 
             {activeTab === "directory" && (
               <input
@@ -605,7 +633,13 @@ export function CustomerLedgerAndSheetsSection() {
                 <input
                   type="date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setStartDate(val);
+                    if (!endDate || endDate < val) {
+                      setEndDate(val);
+                    }
+                  }}
                   className="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white text-xs font-mono"
                 />
                 <span className="text-slate-500 font-mono">—</span>
@@ -634,6 +668,18 @@ export function CustomerLedgerAndSheetsSection() {
                   className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl border border-slate-700 transition"
                 >
                   Bugun
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+                    setStartDate(yesterday);
+                    setEndDate(yesterday);
+                    void fetchDailyLedgerRange(yesterday, yesterday);
+                  }}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl border border-slate-700 transition"
+                >
+                  Kecha
                 </button>
               </div>
             )}
@@ -712,7 +758,8 @@ export function CustomerLedgerAndSheetsSection() {
                   <th className="py-3 px-3">Biriktirilgan Sotuvchi</th>
                   <th className="py-3 px-3 font-mono text-amber-300">To&apos;langan Lom</th>
                   <th className="py-3 px-3 font-mono text-emerald-300">To&apos;langan Naqd</th>
-                  <th className="py-3 px-3 font-mono text-rose-400">Hozirgi Qarz (585g)</th>
+                  <th className="py-3 px-3 font-mono text-cyan-300">Avans (Haqdorlik)</th>
+                  <th className="py-3 px-3 font-mono text-rose-400">Sof Qarz (585g)</th>
                   <th className="py-3 px-3 text-right">Amallar</th>
                 </tr>
               </thead>
@@ -729,10 +776,16 @@ export function CustomerLedgerAndSheetsSection() {
                       {formatScreenGrams(c.total_scrap_paid_grams)}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-emerald-400">
-                      {formatScreenUZS(c.total_cash_paid_amount)}
+                      <div>{formatScreenUZS(c.total_cash_paid_amount)}</div>
+                      {Number(c.paid_cash_equivalent_g || 0) > 0 && (
+                        <div className="text-[10px] text-emerald-500/80">({formatScreenGrams(c.paid_cash_equivalent_g)})</div>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 font-mono font-bold text-cyan-400">
+                      {Number(c.advance_balance_grams || 0) > 0 ? `+${formatScreenGrams(c.advance_balance_grams)}` : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono font-black text-rose-400 text-sm">
-                      {formatScreenGrams(c.current_debt_grams)}
+                      {Number(c.current_debt_grams || 0) > 0 ? formatScreenGrams(c.current_debt_grams) : "0.00 g"}
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -760,7 +813,7 @@ export function CustomerLedgerAndSheetsSection() {
                 ))}
                 {filteredCustomers.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-500">
+                    <td colSpan={9} className="py-8 text-center text-slate-500">
                       Mijozlar topilmadi.
                     </td>
                   </tr>

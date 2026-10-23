@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { formatGrams, formatScreenGrams, type JewelryModelItem } from "@/lib/barcode-scanner-engine";
 import { supabase, type ConsignmentPieceRow, type SellerGoldAccountRow } from "@/lib/erp-engine";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
+import { parseErrorMessage } from "@/lib/error-utils";
 
 interface SellerItem {
   id: string;
@@ -192,7 +193,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
     } catch (err: unknown) {
       setActionMessage({
         type: "error",
-        text: `Qaytarishda xatolik: ${err instanceof Error ? err.message : String(err)}`,
+        text: `Qaytarishda xatolik: ${parseErrorMessage(err)}`,
       });
     } finally {
       setBusy(false);

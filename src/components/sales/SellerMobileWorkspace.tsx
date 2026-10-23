@@ -203,7 +203,7 @@ export function SellerMobileWorkspace() {
         setClientAccounts(clientAccRes.data as unknown as ClientGoldAccountRow[]);
       }
     } catch (err: unknown) {
-      notifyError(`Sotuvchi panelini yuklashda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(err, "Sotuvchi panelini yuklashda xatolik");
     }
   }, [saleClientMarkup]);
 
@@ -282,7 +282,7 @@ export function SellerMobileWorkspace() {
         setRegisteredCodeNotice(null);
       }, 8000);
     } catch (err: unknown) {
-      notifyError(`Mijozni ro'yxatdan o'tkazishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(err, "Mijozni ro'yxatdan o'tkazishda xatolik");
     } finally {
       setBusy(false);
     }
@@ -365,7 +365,7 @@ export function SellerMobileWorkspace() {
       await loadSellerWorkspace();
       setActiveTab("stock");
     } catch (err: unknown) {
-      notifyError(`Savdoni yozishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(err, "Savdoni yozishda xatolik");
     } finally {
       setBusy(false);
     }
@@ -456,7 +456,7 @@ export function SellerMobileWorkspace() {
       setSettleNotes("");
       await loadSellerWorkspace();
     } catch (err: unknown) {
-      notifyError(`To'lovni qabul qilishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(err, "To'lovni qabul qilishda xatolik");
     } finally {
       setBusy(false);
     }
@@ -591,7 +591,7 @@ export function SellerMobileWorkspace() {
       notifySuccess(`Dona zavodga qaytarildi va majburiyat ${formatScreenGrams(data.factory_due_deducted_grams, 2)} ga kamaytirildi!`);
       await loadSellerWorkspace();
     } catch (err: unknown) {
-      notifyError(`Qaytarishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(err, "Qaytarishda xatolik");
     } finally {
       setBusy(false);
     }
@@ -667,7 +667,7 @@ export function SellerMobileWorkspace() {
       await loadSellerWorkspace();
       setActiveTab("pieces");
     } catch (err: unknown) {
-      notifyError(`Skaner savdoni yozishda xatolik: ${err instanceof Error ? err.message : String(err)}`);
+      notifyError(err, "Skaner savdoni yozishda xatolik");
     } finally {
       setBusy(false);
     }
@@ -678,6 +678,12 @@ export function SellerMobileWorkspace() {
     const d = Number(c.current_debt_grams || c.current_gold_debt_grams || 0);
     const a = Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0);
     return (d - a) > 0.0001;
+  });
+
+  // Filtered advance clients (strictly advance > 0)
+  const advancesList = clientAccounts.filter(c => {
+    const a = Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0);
+    return a > 0.0001;
   });
 
   // Till status numbers
@@ -1574,6 +1580,44 @@ export function SellerMobileWorkspace() {
                 </div>
               );
             })
+          )}
+
+          {advancesList.length > 0 && (
+            <div className="pt-4 space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <h3 className="text-sm font-bold text-[#F8FAFC]">Mijoz Avanslari (Ortiqcha To&apos;lovlar)</h3>
+                <span className="text-xs text-cyan-400 font-bold">{advancesList.length} mijoz</span>
+              </div>
+              {advancesList.map((acc) => {
+                const adv = Number(acc.advance_balance_grams || acc.advance_gold_balance_grams || 0);
+                const relatedCustomer = acc.customer || customers.find(c => String(c.id) === String(acc.customer_id));
+                const custName = relatedCustomer?.contact_name || "Mijoz";
+                const custCode = relatedCustomer?.customer_code || "KODSIZ";
+
+                return (
+                  <div
+                    key={`adv_${acc.customer_id}`}
+                    className="bg-white rounded-3xl p-4 border border-cyan-100 shadow-sm space-y-2 text-[#0F172A]"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-bold text-[#0F172A] text-sm">{custName}</div>
+                        <div className="text-[11px] font-mono text-cyan-700 font-bold">{custCode}</div>
+                        {relatedCustomer?.phone && (
+                          <div className="text-xs text-[#475569]">{relatedCustomer.phone}</div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-cyan-700 font-bold block">Avans Balansi</span>
+                        <span className="text-base font-black font-mono text-cyan-600">
+                          +{formatScreenGrams(adv, 2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
