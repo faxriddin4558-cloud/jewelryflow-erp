@@ -737,6 +737,9 @@ export interface GoldSettlementCalc {
   cashPaidAmount: number;
   ratePerGram: number;
   cashEquivalentGrams: number;
+  usdAmount?: number;
+  usdRate?: number;
+  usdEquivalentGrams?: number;
   totalSettledGrams: number;
   appliedToDebtGrams: number;
   excessGoldGrams: number;
@@ -851,6 +854,7 @@ export interface JewelrySaleRow {
   settled_gold_grams?: number;
   remaining_gold_grams?: number;
   status: "open_debt" | "partially_paid" | "fully_paid" | "cancelled" | "active" | "settled" | "reversed";
+  sale_type?: "piece" | "weight";
   created_at?: string;
   notes?: string;
   customer?: {
@@ -890,6 +894,9 @@ export interface GoldSettlementRow {
   scrap_purity?: number;
   cash_paid_amount?: number;
   cash_amount?: number;
+  usd_amount?: number;
+  usd_rate_applied?: number;
+  usd_equivalent_grams?: number;
   currency?: string;
   cash_equivalent_grams?: number;
   cash_gold_equivalent_grams?: number;
@@ -961,6 +968,8 @@ export interface SellerGoldAccountRow {
   total_client_debt_grams?: number;
   seller_till_scrap_grams?: number;
   seller_till_cash_amount?: number;
+  seller_till_usd_amount?: number;
+  current_physical_stock_g?: number;
   total_transferred_physical_g?: number;
   total_seller_obligation_g?: number;
   total_settled_to_manager_g?: number;
@@ -1009,6 +1018,7 @@ export interface ManagerVaultAccountRow {
   organization_id: string;
   manager_scrap_grams: number;
   manager_cash_amount: number;
+  manager_usd_amount?: number;
   manager_refined_gold_grams: number;
   manager_refined_gold_fine_grams?: number;
   manager_purchased_gold_grams: number;
@@ -1209,19 +1219,28 @@ export const GoldEngine = {
     previousDebt: number | string,
     scrapWeight: number | string,
     cashAmount: number | string,
-    ratePerGram: number | string
+    ratePerGram: number | string,
+    usdAmount?: number | string,
+    usdRate?: number | string
   ): GoldSettlementCalc => {
     const prevDebt = Math.max(0, Number(previousDebt || 0));
     const scrapW = Math.max(0, Number(scrapWeight || 0));
     const cash = Math.max(0, Number(cashAmount || 0));
     const rate = Number(ratePerGram || 0);
+    const usd = Math.max(0, Number(usdAmount || 0));
+    const uRate = Number(usdRate || 0);
 
     let cashEquivalentGrams = 0;
     if (cash > 0 && rate > 0) {
       cashEquivalentGrams = Number((cash / rate).toFixed(4));
     }
 
-    const totalSettledGrams = Number((scrapW + cashEquivalentGrams).toFixed(4));
+    let usdEquivalentGrams = 0;
+    if (usd > 0 && uRate > 0 && rate > 0) {
+      usdEquivalentGrams = Number(((usd * uRate) / rate).toFixed(4));
+    }
+
+    const totalSettledGrams = Number((scrapW + cashEquivalentGrams + usdEquivalentGrams).toFixed(4));
     const appliedToDebtGrams = Number(Math.min(prevDebt, totalSettledGrams).toFixed(4));
     const excessGoldGrams = Number(Math.max(0, totalSettledGrams - prevDebt).toFixed(4));
     const remainingDebtGrams = Number(Math.max(0, prevDebt - appliedToDebtGrams).toFixed(4));
@@ -1232,6 +1251,9 @@ export const GoldEngine = {
       cashPaidAmount: cash,
       ratePerGram: rate,
       cashEquivalentGrams,
+      usdAmount: usd,
+      usdRate: uRate,
+      usdEquivalentGrams,
       totalSettledGrams,
       appliedToDebtGrams,
       excessGoldGrams,

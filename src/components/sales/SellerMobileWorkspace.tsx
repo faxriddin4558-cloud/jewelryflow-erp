@@ -91,6 +91,10 @@ export function SellerMobileWorkspace() {
   const [settleScrapWeight, setSettleScrapWeight] = useState("");
   const [settleScrapPurity, setSettleScrapPurity] = useState("585");
   const [settleCashAmount, setSettleCashAmount] = useState("");
+  const [settleUsdAmount, setSettleUsdAmount] = useState("");
+  const [settleUsdRate, setSettleUsdRate] = useState("");
+  const [isManualUsdRate, setIsManualUsdRate] = useState(false);
+  const [cbuUsdRate, setCbuUsdRate] = useState<number | null>(null);
   const [settleNotes, setSettleNotes] = useState("");
 
   const notifySuccess = (msg: string) => {
@@ -201,6 +205,18 @@ export function SellerMobileWorkspace() {
       }
       if (clientAccRes.data) {
         setClientAccounts(clientAccRes.data as unknown as ClientGoldAccountRow[]);
+      }
+
+      // Fetch official CBU USD rate
+      try {
+        const cbuRes = await fetch("/api/sales/currency/cbu");
+        const cbuJson = await cbuRes.json();
+        if (cbuJson.success && cbuJson.data?.rate) {
+          setCbuUsdRate(cbuJson.data.rate);
+          setSettleUsdRate((prev) => prev || String(cbuJson.data.rate));
+        }
+      } catch {
+        // CBU fetch error handled gracefully
       }
     } catch (err: unknown) {
       notifyError(err, "Sotuvchi panelini yuklashda xatolik");
@@ -391,13 +407,17 @@ export function SellerMobileWorkspace() {
   const liveSettleCalc = useMemo(() => {
     const scrapW = parseFloat(settleScrapWeight) || 0;
     const cash = parseFloat(settleCashAmount) || 0;
+    const usd = parseFloat(settleUsdAmount) || 0;
+    const usdRate = parseFloat(settleUsdRate) || 0;
     return GoldEngine.calculateGoldSettlement(
       previousDebtForSettle,
       scrapW,
       cash,
-      activeRatePerGram
+      activeRatePerGram,
+      usd,
+      usdRate
     );
-  }, [previousDebtForSettle, settleScrapWeight, settleCashAmount, activeRatePerGram]);
+  }, [previousDebtForSettle, settleScrapWeight, settleCashAmount, settleUsdAmount, settleUsdRate, activeRatePerGram]);
 
   const handleRecordSettlement = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -408,14 +428,21 @@ export function SellerMobileWorkspace() {
 
     const scrapW = parseFloat(settleScrapWeight) || 0;
     const cash = parseFloat(settleCashAmount) || 0;
+    const usd = parseFloat(settleUsdAmount) || 0;
+    const usdRate = parseFloat(settleUsdRate) || 0;
 
-    if (scrapW <= 0 && cash <= 0) {
-      notifyError("Iltimos, to'langan lom oltin vazni yoki naqd pul summasini kiriting!");
+    if (scrapW <= 0 && cash <= 0 && usd <= 0) {
+      notifyError("Iltimos, to'langan lom oltin vazni, naqd UZS yoki naqd USD summasini kiriting!");
       return;
     }
 
-    if (cash > 0 && !hasValidDailyRate) {
-      notifyError("⚠️ Bugungi 585 oltin kursi belgilanmagan! Naqd pul qabul qilish uchun avval boshqaruvchidan kursni kiritishni so'rang.");
+    if ((cash > 0 || usd > 0) && !hasValidDailyRate) {
+      notifyError("⚠️ Bugungi 585 oltin kursi belgilanmagan! Naqd pul yoki valyuta qabul qilish uchun avval boshqaruvchidan kursni kiritishni so'rang.");
+      return;
+    }
+
+    if (usd > 0 && (!usdRate || usdRate <= 0)) {
+      notifyError("USD to'lovi uchun USD kursi (UZS/$) kiritilishi shart!");
       return;
     }
 
@@ -428,7 +455,9 @@ export function SellerMobileWorkspace() {
         p_scrap_weight: scrapW,
         p_scrap_proba: parseInt(settleScrapPurity, 10) || 585,
         p_cash_amount: cash,
-        p_rate_per_gram: hasValidDailyRate ? activeRatePerGram : null,
+        p_rate_per_gram: (cash > 0 || usd > 0) && hasValidDailyRate ? activeRatePerGram : null,
+        p_usd_amount: usd,
+        p_usd_rate: usd > 0 ? usdRate : null,
         p_notes: settleNotes.trim() || null,
         p_idempotency_key: idempotencyKey,
       });
@@ -449,16 +478,20 @@ export function SellerMobileWorkspace() {
         cashAmount: cash,
         goldRateApplied: activeRatePerGram,
         cashEquivalentGrams: liveSettleCalc.cashEquivalentGrams,
+        usdAmount: usd,
+        usdRateApplied: usd > 0 ? usdRate : undefined,
+        usdEquivalentGrams: liveSettleCalc.usdEquivalentGrams,
         totalSettledGrams: liveSettleCalc.totalSettledGrams,
         previousDebtGrams: liveSettleCalc.previousDebtGrams,
         remainingDebtGrams: liveSettleCalc.remainingDebtGrams,
         advanceGoldGrams: liveSettleCalc.excessGoldGrams,
-        notes: settleNotes || "Mijozdan lom va naqd pul qabul qilindi",
+        notes: settleNotes || "Mijozdan to'lov qabul qilindi",
       });
 
       notifySuccess(`№${data.settlement_no} to'lov qabul qilindi! Kassaga kirim qilindi.`);
       setSettleScrapWeight("");
       setSettleCashAmount("");
+      setSettleUsdAmount("");
       setSettleNotes("");
       await loadSellerWorkspace();
     } catch (err: unknown) {
@@ -1465,39 +1498,110 @@ export function SellerMobileWorkspace() {
               </div>
             </div>
 
-            {/* Cash Input */}
-            <div>
-              <label htmlFor="settleCashAmountInput" className="block text-xs font-bold text-[#475569] mb-1">
-                Naqd Pul (UZS) {hasValidDailyRate ? `(Kurs: ${activeRatePerGram.toLocaleString()} UZS/g)` : <span className="text-amber-600 font-bold">(⚠️ 585 kursi belgilanmagan)</span>}:
-              </label>
-              <input
-                id="settleCashAmountInput"
-                type="number"
-                step="1000"
-                min="0"
-                placeholder={hasValidDailyRate ? "0" : "Avval kunlik kurs kiritilishi shart"}
-                disabled={!hasValidDailyRate}
-                value={settleCashAmount}
-                onChange={(e) => setSettleCashAmount(e.target.value)}
-                className={`w-full p-2.5 rounded-xl font-mono text-xs font-bold ${
-                  hasValidDailyRate
-                    ? "bg-slate-50 border border-slate-300 text-emerald-800"
-                    : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
-                }`}
-              />
+            {/* Cash Input UZS & USD */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor="settleCashAmountInput" className="block text-xs font-bold text-[#475569] mb-1">
+                  Naqd UZS:
+                </label>
+                <input
+                  id="settleCashAmountInput"
+                  type="number"
+                  step="1000"
+                  min="0"
+                  placeholder={hasValidDailyRate ? "0" : "Kurs kerak"}
+                  disabled={!hasValidDailyRate}
+                  value={settleCashAmount}
+                  onChange={(e) => setSettleCashAmount(e.target.value)}
+                  className={`w-full p-2.5 rounded-xl font-mono text-xs font-bold ${
+                    hasValidDailyRate
+                      ? "bg-slate-50 border border-slate-300 text-emerald-800"
+                      : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="settleUsdAmountInput" className="block text-xs font-bold text-[#475569] mb-1">
+                  Naqd USD ($):
+                </label>
+                <input
+                  id="settleUsdAmountInput"
+                  type="number"
+                  step="1"
+                  min="0"
+                  placeholder="$ 0"
+                  value={settleUsdAmount}
+                  onChange={(e) => setSettleUsdAmount(e.target.value)}
+                  className="w-full p-2.5 rounded-xl font-mono text-xs font-bold bg-slate-50 border border-slate-300 text-blue-800"
+                />
+              </div>
+            </div>
+
+            {/* Rates: 585 Gold & USD */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-bold text-[#475569] mb-1">
+                  585 Kursi: {hasValidDailyRate ? `${activeRatePerGram.toLocaleString()} UZS` : <span className="text-amber-600">(Kiritilmagan)</span>}
+                </label>
+                <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono text-slate-700">
+                  {hasValidDailyRate ? `${activeRatePerGram.toLocaleString()} UZS/g` : "⚠️ Kurs yo'q"}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="settleUsdRateInput" className="block text-xs font-bold text-[#475569]">
+                    USD Kursi {isManualUsdRate ? <span className="text-[10px] text-amber-600 font-normal">(Qo&apos;lda)</span> : <span className="text-[10px] text-cyan-600 font-normal">(MB)</span>}:
+                  </label>
+                  {cbuUsdRate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSettleUsdRate(String(cbuUsdRate));
+                        setIsManualUsdRate(false);
+                      }}
+                      className="text-[10px] text-blue-600 hover:underline"
+                    >
+                      MB: {cbuUsdRate.toLocaleString()}
+                    </button>
+                  )}
+                </div>
+                <input
+                  id="settleUsdRateInput"
+                  type="number"
+                  placeholder="Masalan: 12800"
+                  value={settleUsdRate}
+                  onChange={(e) => {
+                    setSettleUsdRate(e.target.value);
+                    setIsManualUsdRate(true);
+                  }}
+                  className="w-full p-2.5 rounded-xl font-mono text-xs font-bold bg-slate-50 border border-slate-300 text-slate-800"
+                />
+              </div>
             </div>
 
             {/* Live Calculation Preview */}
             <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl space-y-2 text-xs">
               <div className="text-[11px] font-bold text-emerald-900 uppercase">
-                Avtomatik Kalkulyator (Jonli):
+                Kompozit Kalkulyator (Jonli):
               </div>
-              <div className="flex justify-between text-[#475569]">
-                <span>Naqd pulning lom ekvivalenti:</span>
-                <span className="font-mono font-bold text-emerald-800">
-                  {formatScreenGrams(liveSettleCalc.cashEquivalentGrams, 2)}
-                </span>
-              </div>
+              {Number(liveSettleCalc.cashEquivalentGrams || 0) > 0 && (
+                <div className="flex justify-between text-[#475569]">
+                  <span>Naqd UZS lom ekvivalenti:</span>
+                  <span className="font-mono font-bold text-emerald-800">
+                    +{formatScreenGrams(liveSettleCalc.cashEquivalentGrams, 2)}
+                  </span>
+                </div>
+              )}
+              {Number(liveSettleCalc.usdEquivalentGrams || 0) > 0 && (
+                <div className="flex justify-between text-[#475569]">
+                  <span>Naqd USD lom ekvivalenti:</span>
+                  <span className="font-mono font-bold text-blue-800">
+                    +{formatScreenGrams(liveSettleCalc.usdEquivalentGrams, 2)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-[#0F172A] border-t border-emerald-200/80 pt-1">
                 <span>Jami To&apos;lanayotgan Lom:</span>
                 <span className="font-mono text-sm text-emerald-950">
@@ -1746,18 +1850,32 @@ export function SellerMobileWorkspace() {
               </div>
             </div>
 
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center p-3 bg-amber-50 rounded-2xl border border-amber-200">
-                <span className="font-bold text-amber-900">Kassamdagi Lom Oltin:</span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200">
+                <span className="font-bold text-amber-900 block mb-1">Kassamdagi Lom:</span>
                 <span className="font-mono font-black text-amber-950 text-base">
                   {formatScreenGrams(myTillScrap, 2)}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-2xl border border-emerald-200">
-                <span className="font-bold text-emerald-900">Kassamdagi Naqd Pul:</span>
+              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200">
+                <span className="font-bold text-emerald-900 block mb-1">Kassamdagi Naqd (UZS):</span>
                 <span className="font-mono font-black text-emerald-950 text-base">
                   {formatScreenUZS(myTillCash)}
+                </span>
+              </div>
+
+              <div className="p-3 bg-blue-50 rounded-2xl border border-blue-200">
+                <span className="font-bold text-blue-900 block mb-1">Kassamdagi Naqd (USD):</span>
+                <span className="font-mono font-black text-blue-950 text-base">
+                  ${Number(myTillAccount?.seller_till_usd_amount || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-200">
+                <span className="font-bold text-indigo-900 block mb-1">Fizik Oltin Qoldig&apos;i:</span>
+                <span className="font-mono font-black text-indigo-950 text-base">
+                  {formatScreenGrams(myTillAccount?.current_physical_stock_g || 0, 4)}
                 </span>
               </div>
             </div>

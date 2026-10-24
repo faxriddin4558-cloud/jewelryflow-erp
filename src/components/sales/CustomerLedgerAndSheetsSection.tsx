@@ -180,11 +180,18 @@ export function CustomerLedgerAndSheetsSection() {
   const [targetCustomer, setTargetCustomer] = useState<CustomerRow | null>(null);
   const [payScrapWeight, setPayScrapWeight] = useState("");
   const [payCashAmount, setPayCashAmount] = useState("");
+  const [payUsdAmount, setPayUsdAmount] = useState("");
   const [payRate, setPayRate] = useState("");
+  const [payUsdRate, setPayUsdRate] = useState("");
+  const [isManualUsdRate, setIsManualUsdRate] = useState(false);
+  const [cbuUsdRate, setCbuUsdRate] = useState<number | null>(null);
   const [payScrapPurity, setPayScrapPurity] = useState("585");
   const [payNotes, setPayNotes] = useState("");
 
   const [saleModalOpen, setSaleModalOpen] = useState(false);
+  const [saleMode, setSaleMode] = useState<"weight" | "piece">("weight");
+  const [saleWeightGrams, setSaleWeightGrams] = useState("");
+  const [sellerAvailableStock, setSellerAvailableStock] = useState<number | null>(null);
   const [salePieceId, setSalePieceId] = useState("");
   const [saleMarkupPct, setSaleMarkupPct] = useState("12.0");
   const [saleNotes, setSaleNotes] = useState("");
@@ -437,14 +444,20 @@ export function CustomerLedgerAndSheetsSection() {
     try {
       const scrap = parseFloat(payScrapWeight) || 0;
       const cash = parseFloat(payCashAmount) || 0;
+      const usd = parseFloat(payUsdAmount) || 0;
       const rate = parseFloat(payRate);
+      const usdRate = parseFloat(payUsdRate);
 
-      if (scrap <= 0 && cash <= 0) {
-        throw new Error("Kamida lom vazni yoki naqd pul summasi kiritilishi shart");
+      if (scrap <= 0 && cash <= 0 && usd <= 0) {
+        throw new Error("Kamida lom vazni, naqd UZS yoki naqd USD summasi kiritilishi shart");
       }
 
-      if (cash > 0 && (!rate || rate <= 0)) {
+      if ((cash > 0 || usd > 0) && (!rate || rate <= 0)) {
         throw new Error("Naqd pul to'lovi uchun 585 oltin kursi kiritilishi shart! Iltimos, kursni kiriting.");
+      }
+
+      if (usd > 0 && (!usdRate || usdRate <= 0)) {
+        throw new Error("USD to'lovi uchun USD kursi (UZS/$) kiritilishi shart! Iltimos, kursni kiriting.");
       }
 
       const { data, error } = await supabase.rpc("rpc_record_client_settlement", {
@@ -452,7 +465,9 @@ export function CustomerLedgerAndSheetsSection() {
         p_scrap_weight: scrap,
         p_scrap_proba: scrap > 0 ? (parseFloat(payScrapPurity) || 585) : null,
         p_cash_amount: cash,
-        p_rate_per_gram: cash > 0 ? rate : null,
+        p_rate_per_gram: (cash > 0 || usd > 0) ? rate : null,
+        p_usd_amount: usd,
+        p_usd_rate: usd > 0 ? usdRate : null,
         p_notes: payNotes.trim() || "Mijozdan to'lov qabul qilindi",
       });
 
@@ -460,7 +475,7 @@ export function CustomerLedgerAndSheetsSection() {
 
       setMessage({
         type: "success",
-        text: `To'lov qabul qilindi! (${targetCustomer.contact_name}): Jami yopildi ${formatScreenGrams(data.total_settled_grams, 2)}. Qoldiq qarz: ${formatScreenGrams(data.remaining_debt_grams, 2)}.`,
+        text: `To'lov qabul qilindi! (${targetCustomer.contact_name}): Jami yopildi ${formatScreenGrams(data.total_settled_grams, 4)}.${usd > 0 ? ` [USD: $${usd.toLocaleString()} @ ${usdRate.toLocaleString()}]` : ""} Qoldiq qarz: ${formatScreenGrams(data.remaining_debt_grams, 4)}.`,
       });
 
       setPaymentModalOpen(false);
@@ -468,6 +483,7 @@ export function CustomerLedgerAndSheetsSection() {
       setPayScrapWeight("");
       setPayScrapPurity("585");
       setPayCashAmount("");
+      setPayUsdAmount("");
       setPayNotes("");
       await loadCustomers();
     } catch (err: unknown) {
@@ -480,31 +496,58 @@ export function CustomerLedgerAndSheetsSection() {
   // Sale Handler
   const handleRecordSale = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetCustomer || !salePieceId) return;
+    if (!targetCustomer) return;
     setBusy(true);
     setMessage(null);
 
     try {
       const markup = parseFloat(saleMarkupPct) || 12.0;
 
-      const { data, error } = await supabase.rpc("rpc_record_barcode_piece_sale", {
-        p_customer_id: targetCustomer.id,
-        p_seller_id: targetCustomer.seller_id || sellers[0]?.id,
-        p_piece_id: salePieceId,
-        p_client_markup_pct: markup,
-        p_notes: saleNotes.trim() || "Mijozga nasiya sotuv",
-      });
+      if (saleMode === "weight") {
+        const weight = parseFloat(saleWeightGrams);
+        if (isNaN(weight) || weight <= 0) {
+          throw new Error("Iltimos, sotilayotgan mahsulot vaznini (gramm) to'g'ri kiriting!");
+        }
 
-      if (error) throw error;
+        const { data, error } = await supabase.rpc("rpc_record_weight_sale", {
+          p_customer_id: targetCustomer.id,
+          p_seller_id: targetCustomer.seller_id || sellers[0]?.id,
+          p_weight_grams: weight,
+          p_client_markup_pct: markup,
+          p_notes: saleNotes.trim() || "Mijozga vazn bo'yicha nasiya sotuv",
+        });
 
-      setMessage({
-        type: "success",
-        text: `Savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${data.model_name} (${formatScreenGrams(data.weight_grams, 2)} @ ${data.client_markup_pct}%). Mahsulot qiymati: ${formatScreenGrams(data.gross_gold_due_grams || data.client_gold_due_grams, 2)}.${Number(data.advance_applied_grams || 0) > 0 ? ` Qoplangan avans: -${formatScreenGrams(Number(data.advance_applied_grams), 2)}.` : ""} Sof qolgan qarz: ${formatScreenGrams(data.net_remaining_debt_grams ?? data.remaining_gold_grams, 2)}.`,
-      });
+        if (error) throw error;
+
+        setMessage({
+          type: "success",
+          text: `Vazn bo'yicha savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${formatScreenGrams(data.weight_grams, 4)} @ ${data.client_markup_pct}%. Mijozga hisoblangan qarz: ${formatScreenGrams(data.client_gold_due_grams, 4)}.${Number(data.advance_applied_grams || 0) > 0 ? ` Qoplangan avans: -${formatScreenGrams(Number(data.advance_applied_grams), 4)}.` : ""} Qolgan qarz: ${formatScreenGrams(data.remaining_debt_grams, 4)}. Sotuvchi ombor qoldig'i: ${formatScreenGrams(data.remaining_physical_stock_g, 4)}.`,
+        });
+      } else {
+        if (!salePieceId) {
+          throw new Error("Iltimos, sotilayotgan donani tanlang!");
+        }
+
+        const { data, error } = await supabase.rpc("rpc_record_barcode_piece_sale", {
+          p_customer_id: targetCustomer.id,
+          p_seller_id: targetCustomer.seller_id || sellers[0]?.id,
+          p_piece_id: salePieceId,
+          p_client_markup_pct: markup,
+          p_notes: saleNotes.trim() || "Mijozga nasiya sotuv",
+        });
+
+        if (error) throw error;
+
+        setMessage({
+          type: "success",
+          text: `Savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${data.model_name} (${formatScreenGrams(data.weight_grams, 2)} @ ${data.client_markup_pct}%). Mahsulot qiymati: ${formatScreenGrams(data.gross_gold_due_grams || data.client_gold_due_grams, 2)}.${Number(data.advance_applied_grams || 0) > 0 ? ` Qoplangan avans: -${formatScreenGrams(Number(data.advance_applied_grams), 2)}.` : ""} Sof qolgan qarz: ${formatScreenGrams(data.net_remaining_debt_grams ?? data.remaining_gold_grams, 2)}.`,
+        });
+      }
 
       setSaleModalOpen(false);
       setTargetCustomer(null);
       setSalePieceId("");
+      setSaleWeightGrams("");
       setSaleNotes("");
       await loadCustomers();
     } catch (err: unknown) {
@@ -533,11 +576,8 @@ export function CustomerLedgerAndSheetsSection() {
     setBusy(true);
     try {
       if (reversalTarget.tx_type === "sale") {
-        if (!reversalTarget.item_id) {
-          throw new Error("Ushbu savdoga bog'langan mahsulot donasi (item_id) topilmadi");
-        }
-        const { error } = await supabase.rpc("rpc_reverse_barcode_piece_sale", {
-          p_piece_id: reversalTarget.item_id,
+        const { error } = await supabase.rpc("rpc_reverse_client_sale", {
+          p_sale_id: reversalTarget.tx_id,
           p_reason: reversalReason.trim(),
         });
         if (error) throw error;
@@ -831,7 +871,24 @@ export function CustomerLedgerAndSheetsSection() {
                         <button
                           onClick={() => {
                             setTargetCustomer(c);
+                            setSaleMode("weight");
+                            setSaleWeightGrams("");
+                            setSalePieceId("");
+                            setSaleMarkupPct("12.0");
+                            setSaleNotes("");
+                            setSellerAvailableStock(null);
                             setSaleModalOpen(true);
+                            const sellerId = c.seller_id || currentEmployeeId || sellers[0]?.id;
+                            if (sellerId) {
+                              void (async () => {
+                                try {
+                                  const { data } = await supabase.rpc("get_seller_available_stock_grams", { p_seller_id: sellerId });
+                                  setSellerAvailableStock(Number(data || 0));
+                                } catch {
+                                  setSellerAvailableStock(0);
+                                }
+                              })();
+                            }
                           }}
                           className="px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 rounded-lg text-[11px] font-bold transition"
                         >
@@ -840,7 +897,25 @@ export function CustomerLedgerAndSheetsSection() {
                         <button
                           onClick={() => {
                             setTargetCustomer(c);
+                            setPayScrapWeight("");
+                            setPayScrapPurity("585");
+                            setPayCashAmount("");
+                            setPayUsdAmount("");
+                            setPayNotes("");
                             setPaymentModalOpen(true);
+                            supabase.from("daily_gold_rates").select("rate_per_gram").order("rate_date", { ascending: false }).limit(1)
+                              .then(({ data }) => {
+                                if (data && data[0]?.rate_per_gram) setPayRate(String(data[0].rate_per_gram));
+                              });
+                            fetch("/api/sales/currency/cbu")
+                              .then(res => res.json())
+                              .then(json => {
+                                if (json.success && json.data?.rate) {
+                                  setCbuUsdRate(json.data.rate);
+                                  setPayUsdRate(String(json.data.rate));
+                                }
+                              })
+                              .catch(() => {});
                           }}
                           className="px-2.5 py-1 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-lg text-[11px] font-bold transition"
                         >
@@ -1176,198 +1251,417 @@ export function CustomerLedgerAndSheetsSection() {
       )}
 
       {/* MODAL 2: RECORD PAYMENT (TO'LOV QABUL QILISH) */}
-      {paymentModalOpen && targetCustomer && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <form
-            onSubmit={handleRecordPayment}
-            className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl"
-          >
-            <h3 className="text-lg font-black text-emerald-400 flex items-center gap-2">
-              <span>💰</span> Mijozdan To&apos;lov Qabul Qilish
-            </h3>
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1">
-              <div className="font-bold text-white text-sm">{targetCustomer.contact_name}</div>
-              <div className="text-slate-400 font-mono">
-                Hozirgi qarz:{" "}
-                <span className="text-rose-400 font-bold">
-                  {formatScreenGrams(targetCustomer.current_debt_grams)}
-                </span>
-              </div>
-            </div>
+      {paymentModalOpen && targetCustomer && (() => {
+        const scrap = parseFloat(payScrapWeight) || 0;
+        const purity = parseFloat(payScrapPurity) || 585;
+        const cash = parseFloat(payCashAmount) || 0;
+        const usd = parseFloat(payUsdAmount) || 0;
+        const goldRate = parseFloat(payRate) || 0;
+        const dollarRate = parseFloat(payUsdRate) || 0;
 
-            <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+        const scrap585Eq = scrap * (purity / 585);
+        const cashGoldEq = (cash > 0 && goldRate > 0) ? (cash / goldRate) : 0;
+        const usdGoldEq = (usd > 0 && dollarRate > 0 && goldRate > 0) ? ((usd * dollarRate) / goldRate) : 0;
+        const totalSettledPreview = scrap585Eq + cashGoldEq + usdGoldEq;
+        const currentDebt = Number(targetCustomer.current_debt_grams || 0);
+        const remainingDebtPreview = Math.max(0, currentDebt - totalSettledPreview);
+        const excessAdvancePreview = Math.max(0, totalSettledPreview - currentDebt);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <form
+              onSubmit={handleRecordPayment}
+              className="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 text-white space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <h3 className="text-lg font-black text-emerald-400 flex items-center gap-2">
+                <span>💰</span> Mijozdan To&apos;lov Qabul Qilish
+              </h3>
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1">
+                <div className="font-bold text-white text-sm">{targetCustomer.contact_name}</div>
+                <div className="text-slate-400 font-mono">
+                  Hozirgi qarz:{" "}
+                  <span className="text-rose-400 font-bold">
+                    {formatScreenGrams(targetCustomer.current_debt_grams)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                {/* 1. Lom Oltin */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-amber-300 block mb-1">Qaytarilgan Lom (g)</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={payScrapWeight}
+                      onChange={(e) => setPayScrapWeight(e.target.value)}
+                      placeholder="0.0000"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-amber-300 block mb-1">Lom Probasi</label>
+                    <select
+                      value={payScrapPurity}
+                      onChange={(e) => setPayScrapPurity(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm"
+                    >
+                      <option value="585">585 proba</option>
+                      <option value="375">375 proba</option>
+                      <option value="750">750 proba</option>
+                      <option value="995">995 proba</option>
+                      <option value="999.9">999.9 proba</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 2. Naqd Pul UZS va USD */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-emerald-300 block mb-1">To&apos;langan Naqd Pul (UZS)</label>
+                    <input
+                      type="number"
+                      step="1000"
+                      min="0"
+                      value={payCashAmount}
+                      onChange={(e) => setPayCashAmount(e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-blue-300 block mb-1">To&apos;langan Valyuta (USD $)</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={payUsdAmount}
+                      onChange={(e) => setPayUsdAmount(e.target.value)}
+                      placeholder="$ 0"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm text-blue-200"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Kurslar */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-300 block mb-1">
+                      585 Oltin Kursi (UZS/g) {(cash > 0 || usd > 0) ? <span className="text-amber-400">*</span> : ""}
+                    </label>
+                    <input
+                      type="number"
+                      value={payRate}
+                      onChange={(e) => setPayRate(e.target.value)}
+                      placeholder="Masalan: 950000"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="font-bold text-slate-300">
+                        USD Kursi {isManualUsdRate ? <span className="text-[10px] text-amber-400 font-normal">(Qo&apos;lda)</span> : <span className="text-[10px] text-cyan-400 font-normal">(MB)</span>} {usd > 0 ? <span className="text-blue-400">*</span> : ""}
+                      </label>
+                      {cbuUsdRate && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayUsdRate(String(cbuUsdRate));
+                            setIsManualUsdRate(false);
+                          }}
+                          className="text-[10px] text-blue-400 hover:underline"
+                        >
+                          MB: {cbuUsdRate.toLocaleString()}
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      value={payUsdRate}
+                      onChange={(e) => {
+                        setPayUsdRate(e.target.value);
+                        setIsManualUsdRate(true);
+                      }}
+                      placeholder="Masalan: 12800"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Kompozit Hisob-Kitob Jonli Kartasi */}
+                {(scrap > 0 || cash > 0 || usd > 0) && (
+                  <div className="bg-slate-950 border border-emerald-800/80 p-3.5 rounded-2xl space-y-1.5 text-xs">
+                    <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide">
+                      Kompozit To&apos;lov Ekvivalenti:
+                    </div>
+                    {scrap > 0 && (
+                      <div className="flex justify-between text-slate-300">
+                        <span>Lom oltin ({purity} proba):</span>
+                        <span className="font-mono text-amber-300">+{formatScreenGrams(scrap585Eq, 4)} (585 eq)</span>
+                      </div>
+                    )}
+                    {cash > 0 && (
+                      <div className="flex justify-between text-slate-300">
+                        <span>Naqd UZS ({formatScreenUZS(cash)}):</span>
+                        <span className="font-mono text-emerald-300">+{formatScreenGrams(cashGoldEq, 4)}</span>
+                      </div>
+                    )}
+                    {usd > 0 && (
+                      <div className="flex justify-between text-slate-300">
+                        <span>Naqd USD (${usd.toLocaleString()} @ {dollarRate.toLocaleString()}):</span>
+                        <span className="font-mono text-blue-300">+{formatScreenGrams(usdGoldEq, 4)}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-slate-800 pt-1.5 flex justify-between font-bold text-white">
+                      <span>Jami hisobdan o&apos;chiriladigan:</span>
+                      <span className="font-mono text-sm text-emerald-400">
+                        {formatScreenGrams(totalSettledPreview, 4)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-slate-400 pt-0.5">
+                      <span>Qoladigan qarz:</span>
+                      <span className={`font-mono font-bold ${remainingDebtPreview > 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                        {formatScreenGrams(remainingDebtPreview, 4)}
+                      </span>
+                    </div>
+                    {excessAdvancePreview > 0 && (
+                      <div className="flex justify-between text-cyan-400 pt-0.5">
+                        <span>Ortiqcha to&apos;lov (Avans balansi):</span>
+                        <span className="font-mono font-bold">+{formatScreenGrams(excessAdvancePreview, 4)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div>
-                  <label className="font-bold text-amber-300 block mb-1">Qaytarilgan Lom (g)</label>
+                  <label className="font-bold text-slate-400 block mb-1">Izoh</label>
                   <input
-                    type="number"
-                    step="0.0001"
-                    min="0"
-                    value={payScrapWeight}
-                    onChange={(e) => setPayScrapWeight(e.target.value)}
-                    placeholder="0.0000"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm"
+                    type="text"
+                    value={payNotes}
+                    onChange={(e) => setPayNotes(e.target.value)}
+                    placeholder="To'lov haqida qo'shimcha ma'lumot..."
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white"
                   />
                 </div>
-                <div>
-                  <label className="font-bold text-amber-300 block mb-1">Lom Probasi</label>
-                  <select
-                    value={payScrapPurity}
-                    onChange={(e) => setPayScrapPurity(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm"
-                  >
-                    <option value="585">585 proba</option>
-                    <option value="375">375 proba</option>
-                    <option value="750">750 proba</option>
-                    <option value="995">995 proba</option>
-                    <option value="999.9">999.9 proba</option>
-                  </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition"
+                >
+                  Bekor Qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition"
+                >
+                  {busy ? "Saqlanmoqda..." : "To'lovni Tasdiqlash"}
+                </button>
+              </div>
+            </form>
+          </div>
+        );
+      })()}
+
+      {/* MODAL 3: RECORD SALE (NASIYA SAVDO) */}
+      {saleModalOpen && targetCustomer && (() => {
+        const saleWeight = parseFloat(saleWeightGrams) || 0;
+        const markup = parseFloat(saleMarkupPct) || 0;
+        const clientGoldDue = saleWeight * (1 + markup / 100);
+        const availStock = sellerAvailableStock != null ? sellerAvailableStock : 0;
+        const remainingStockPreview = availStock - saleWeight;
+        const isStockExceeded = saleMode === "weight" && saleWeight > 0 && saleWeight > availStock;
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <form
+              onSubmit={handleRecordSale}
+              className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <h3 className="text-lg font-black text-cyan-400 flex items-center gap-2">
+                <span>🛍️</span> Nasiya Savdo Rasmiylashtirish
+              </h3>
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1">
+                <div className="font-bold text-white text-sm">{targetCustomer.contact_name}</div>
+                <div className="text-slate-400 font-mono">
+                  Hozirgi qarz:{" "}
+                  <span className="text-rose-400 font-bold">
+                    {formatScreenGrams(targetCustomer.current_debt_grams)}
+                  </span>
                 </div>
               </div>
 
-              <div>
-                <label className="font-bold text-emerald-300 block mb-1">To&apos;langan Naqd Pul (UZS)</label>
-                <input
-                  type="number"
-                  step="1000"
-                  min="0"
-                  value={payCashAmount}
-                  onChange={(e) => setPayCashAmount(e.target.value)}
-                  placeholder="0"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-400 block mb-1">Oltin Kursi (UZS / 1g lom)</label>
-                <input
-                  type="number"
-                  value={payRate}
-                  onChange={(e) => setPayRate(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-400 block mb-1">Izoh</label>
-                <input
-                  type="text"
-                  value={payNotes}
-                  onChange={(e) => setPayNotes(e.target.value)}
-                  placeholder="To'lov haqida qo'shimcha ma'lumot..."
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setPaymentModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition"
-              >
-                Bekor Qilish
-              </button>
-              <button
-                type="submit"
-                disabled={busy}
-                className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition"
-              >
-                {busy ? "Saqlanmoqda..." : "To'lovni Tasdiqlash"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL 3: RECORD SALE (NASIYA SAVDO) */}
-      {saleModalOpen && targetCustomer && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <form
-            onSubmit={handleRecordSale}
-            className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl"
-          >
-            <h3 className="text-lg font-black text-cyan-400 flex items-center gap-2">
-              <span>🛍️</span> Aniq Donani Nasiya Sotish
-            </h3>
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1">
-              <div className="font-bold text-white text-sm">{targetCustomer.contact_name}</div>
-              <div className="text-slate-400 font-mono">
-                Hozirgi qarz:{" "}
-                <span className="text-rose-400 font-bold">
-                  {formatScreenGrams(targetCustomer.current_debt_grams)}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-amber-300 block mb-1">
-                  Sotuvchi Javonidagi Aniq Fizik Dona *
-                </label>
-                <select
-                  required
-                  value={salePieceId}
-                  onChange={(e) => setSalePieceId(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
+              {/* Mode Selector */}
+              <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setSaleMode("weight")}
+                  className={`py-2 rounded-xl transition ${
+                    saleMode === "weight"
+                      ? "bg-cyan-600 text-white shadow-md"
+                      : "text-slate-400 hover:text-white"
+                  }`}
                 >
-                  <option value="">Donani tanlang...</option>
-                  {availablePieces
-                    .filter((p) => !targetCustomer.seller_id || String(p.seller_id) === String(targetCustomer.seller_id))
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.model_name} ({p.model_code}) — {formatScreenGrams(p.weight_grams)}
-                      </option>
-                    ))}
-                </select>
+                  ⚖️ Vazn Bo&apos;yicha (Gramm)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSaleMode("piece")}
+                  className={`py-2 rounded-xl transition ${
+                    saleMode === "piece"
+                      ? "bg-cyan-600 text-white shadow-md"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  🏷️ Aniq Fizik Dona
+                </button>
               </div>
 
-              <div>
-                <label className="font-bold text-cyan-300 block mb-1">Mijoz Ustama Foizi (%)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={saleMarkupPct}
-                  onChange={(e) => setSaleMarkupPct(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
-                />
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Standart: 12.0% yoki 15.0%. Asl bazaviy vazndan mustaqil hisoblanadi.
-                </span>
+              <div className="space-y-3 text-xs">
+                {saleMode === "weight" ? (
+                  <>
+                    {/* Sotuvchi fizik qoldig'i ma'lumoti */}
+                    <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1">
+                      <div className="flex justify-between text-slate-400">
+                        <span>Sotuvchi Omboridagi Qoldiq:</span>
+                        <span className="font-mono font-bold text-amber-300">
+                          {sellerAvailableStock != null ? formatScreenGrams(sellerAvailableStock, 4) : "Yuklanmoqda..."}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 italic">
+                        * Faqat haqiqiy ombor qoldig&apos;i doirasida savdo amalga oshiriladi (server-side atomic tekshiruv).
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-amber-300 block mb-1">
+                        Sotilayotgan Sof Oltin Vazni (g) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        min="0.0001"
+                        required
+                        placeholder="Masalan: 15.0000"
+                        value={saleWeightGrams}
+                        onChange={(e) => setSaleWeightGrams(e.target.value)}
+                        className={`w-full bg-slate-950 border rounded-xl p-3 text-white font-mono text-sm ${
+                          isStockExceeded ? "border-rose-500 ring-1 ring-rose-500" : "border-slate-700"
+                        }`}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="font-bold text-amber-300 block mb-1">
+                      Sotuvchi Javonidagi Aniq Fizik Dona *
+                    </label>
+                    <select
+                      required
+                      value={salePieceId}
+                      onChange={(e) => setSalePieceId(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
+                    >
+                      <option value="">Donani tanlang...</option>
+                      {availablePieces
+                        .filter((p) => !targetCustomer.seller_id || String(p.seller_id) === String(targetCustomer.seller_id))
+                        .map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.model_name} ({p.model_code}) — {formatScreenGrams(p.weight_grams)}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="font-bold text-cyan-300 block mb-1">Mijoz Ustama Foizi (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={saleMarkupPct}
+                    onChange={(e) => setSaleMarkupPct(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Standart: 12.0% yoki 15.0%. Asl bazaviy vazndan mustaqil hisoblanadi.
+                  </span>
+                </div>
+
+                {/* Live Preview Card */}
+                {saleMode === "weight" && saleWeight > 0 && (
+                  <div className={`p-3.5 rounded-2xl border space-y-1.5 ${
+                    isStockExceeded
+                      ? "bg-rose-950/60 border-rose-800 text-rose-200"
+                      : "bg-slate-950 border-cyan-900/80 text-slate-300"
+                  }`}>
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-cyan-400">
+                      Jonli Savdo Hisob-Kitobi:
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Mahsulot vazni:</span>
+                      <span className="font-mono font-bold text-white">{formatScreenGrams(saleWeight, 4)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Mijoz ustamasi (+{markup}%):</span>
+                      <span className="font-mono text-cyan-300">+{formatScreenGrams(clientGoldDue - saleWeight, 4)}</span>
+                    </div>
+                    <div className="border-t border-slate-800 pt-1 flex justify-between font-bold text-white">
+                      <span>Mijozga hisoblanadigan qarz:</span>
+                      <span className="font-mono text-rose-400 text-sm">{formatScreenGrams(clientGoldDue, 4)}</span>
+                    </div>
+                    <div className="flex justify-between pt-1 border-t border-slate-800/60 text-slate-400">
+                      <span>Sotuvchining yangi ombor qoldig&apos;i:</span>
+                      <span className={`font-mono font-bold ${remainingStockPreview < 0 ? "text-rose-400" : "text-amber-300"}`}>
+                        {formatScreenGrams(remainingStockPreview, 4)}
+                      </span>
+                    </div>
+                    {isStockExceeded && (
+                      <div className="text-rose-400 font-bold text-xs pt-1">
+                        ⚠️ Sotuvchi omborida buncha qoldiq yo&apos;q! (Mavjud: {formatScreenGrams(availStock, 4)})
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label className="font-bold text-slate-400 block mb-1">Izoh</label>
+                  <input
+                    type="text"
+                    value={saleNotes}
+                    onChange={(e) => setSaleNotes(e.target.value)}
+                    placeholder="Nasiya muddati yoki qo'shimcha ma'lumot..."
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="font-bold text-slate-400 block mb-1">Izoh</label>
-                <input
-                  type="text"
-                  value={saleNotes}
-                  onChange={(e) => setSaleNotes(e.target.value)}
-                  placeholder="Nasiya muddati yoki qo'shimcha ma'lumot..."
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white"
-                />
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSaleModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition"
+                >
+                  Bekor Qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy || (saleMode === "weight" ? (!saleWeight || isStockExceeded) : !salePieceId)}
+                  className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 text-xs font-black transition"
+                >
+                  {busy ? "Sotilmoqda..." : "Nasiyani Rasmiylashtirish"}
+                </button>
               </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setSaleModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition"
-              >
-                Bekor Qilish
-              </button>
-              <button
-                type="submit"
-                disabled={busy || !salePieceId}
-                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition"
-              >
-                {busy ? "Sotilmoqda..." : "Nasiyani Rasmiylashtirish"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+            </form>
+          </div>
+        );
+      })()}
       {/* MODAL: REVERSAL / BEKOR QILISH (Compensating Transaction) */}
       {reversalModalOpen && reversalTarget && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">

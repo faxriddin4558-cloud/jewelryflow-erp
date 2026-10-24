@@ -6,7 +6,8 @@ async function main() {
     INSERT INTO supabase_migrations.schema_migrations (version, name)
     VALUES
       ('20260101000043', 'goldia_core_financial_and_reversal_parity'),
-      ('20260101000044', 'goldia_p0_safety_and_lock_order_parity')
+      ('20260101000044', 'goldia_p0_safety_and_lock_order_parity'),
+      ('20260101000045', 'goldia_core_sales_workflow_and_multi_currency')
     ON CONFLICT (version) DO NOTHING;
   `;
   const res = await runSqlQuery(sql);

@@ -179,6 +179,9 @@ export function DirectorSalesWorkspace({
   const [surrenderSeller, setSurrenderSeller] = useState<SellerGoldAccountRow | null>(null);
   const [surrenderScrapWeight, setSurrenderScrapWeight] = useState("0");
   const [surrenderCashAmount, setSurrenderCashAmount] = useState("0");
+  const [surrenderUsdAmount, setSurrenderUsdAmount] = useState("0");
+  const [surrenderUsdRate, setSurrenderUsdRate] = useState("");
+  const [cbuUsdRate, setCbuUsdRate] = useState<number | null>(null);
   const [surrenderNotes, setSurrenderNotes] = useState("");
   // Safe Reversals Modal state
   const [reversalTarget, setReversalTarget] = useState<{
@@ -739,8 +742,18 @@ export function DirectorSalesWorkspace({
     setSurrenderSeller(acc);
     setSurrenderScrapWeight(String(acc.seller_till_scrap_grams || 0));
     setSurrenderCashAmount(String(acc.seller_till_cash_amount || 0));
+    setSurrenderUsdAmount(String(acc.seller_till_usd_amount || 0));
     setSurrenderNotes("");
     setSurrenderModalOpen(true);
+    fetch("/api/sales/currency/cbu")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data?.rate) {
+          setCbuUsdRate(json.data.rate);
+          if (!surrenderUsdRate) setSurrenderUsdRate(String(json.data.rate));
+        }
+      })
+      .catch(() => {});
   };
 
   const handleConfirmSurrender = async (e: React.FormEvent) => {
@@ -749,14 +762,21 @@ export function DirectorSalesWorkspace({
 
     const scrapW = parseFloat(surrenderScrapWeight) || 0;
     const cash = parseFloat(surrenderCashAmount) || 0;
+    const usd = parseFloat(surrenderUsdAmount) || 0;
+    const usdRate = parseFloat(surrenderUsdRate) || 0;
 
-    if (scrapW <= 0 && cash <= 0) {
-      notifyError("Iltimos, topshirilayotgan lom vazni yoki naqd pul summasini kiriting!");
+    if (scrapW <= 0 && cash <= 0 && usd <= 0) {
+      notifyError("Iltimos, topshirilayotgan lom vazni, naqd UZS yoki naqd USD summasini kiriting!");
       return;
     }
 
-    if (cash > 0 && (!dailyRate || !dailyRate.rate_per_gram || Number(dailyRate.rate_per_gram) <= 0)) {
-      notifyError("⚠️ Bugungi 585 oltin kursi belgilanmagan! Naqd pul topshirish uchun avval kunlik kursni kiriting.");
+    if ((cash > 0 || usd > 0) && (!dailyRate || !dailyRate.rate_per_gram || Number(dailyRate.rate_per_gram) <= 0)) {
+      notifyError("⚠️ Bugungi 585 oltin kursi belgilanmagan! Naqd pul yoki valyuta topshirish uchun avval kunlik kursni kiriting.");
+      return;
+    }
+
+    if (usd > 0 && (!usdRate || usdRate <= 0)) {
+      notifyError("USD topshirish uchun USD kursi kiritilishi shart!");
       return;
     }
 
@@ -767,7 +787,9 @@ export function DirectorSalesWorkspace({
         p_seller_id: surrenderSeller.seller_id,
         p_scrap_weight_grams: scrapW,
         p_cash_paid_amount: cash,
-        p_rate_per_gram: dailyRate?.rate_per_gram || null,
+        p_usd_paid_amount: usd,
+        p_usd_rate: usd > 0 ? usdRate : null,
+        p_rate_per_gram: (cash > 0 || usd > 0) ? (dailyRate?.rate_per_gram || null) : null,
         p_notes: surrenderNotes.trim() || "Sotuvchi kassasidan boshqaruvchiga qabul qilingan tushum",
         p_idempotency_key: idempotencyKey,
       });
@@ -777,7 +799,7 @@ export function DirectorSalesWorkspace({
           p_seller_id: surrenderSeller.seller_id,
           p_scrap_weight: scrapW,
           p_cash_amount: cash,
-          p_rate_per_gram: dailyRate?.rate_per_gram || null,
+          p_rate_per_gram: (cash > 0 || usd > 0) ? (dailyRate?.rate_per_gram || null) : null,
           p_settlement_date: new Date().toISOString().split("T")[0],
           p_notes: surrenderNotes.trim() || "Sotuvchi kassasidan qabul qilingan tushum",
           p_idempotency_key: idempotencyKey,
@@ -792,7 +814,9 @@ export function DirectorSalesWorkspace({
         surrenderSeller.current_factory_obligation_grams || surrenderSeller.remaining_factory_gold_due_grams || 0,
         scrapW,
         cash,
-        rate
+        rate,
+        usd,
+        usdRate
       );
 
       setReceiptData({
@@ -805,6 +829,9 @@ export function DirectorSalesWorkspace({
         cashAmount: cash,
         goldRateApplied: rate,
         cashEquivalentGrams: calc.cashEquivalentGrams,
+        usdAmount: usd,
+        usdRateApplied: usd > 0 ? usdRate : undefined,
+        usdEquivalentGrams: calc.usdEquivalentGrams,
         totalSettledGrams: calc.totalSettledGrams,
         previousDebtGrams: calc.previousDebtGrams,
         remainingDebtGrams: calc.remainingDebtGrams,
@@ -1964,7 +1991,7 @@ export function DirectorSalesWorkspace({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
                 <div className="text-xs font-bold text-amber-200">Seyfdagi Lom Oltin (585)</div>
                 <div className="text-2xl font-black font-mono text-amber-300 mt-1">
@@ -1974,11 +2001,19 @@ export function DirectorSalesWorkspace({
               </div>
 
               <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
-                <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd Pul</div>
+                <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd (UZS)</div>
                 <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
                   {formatScreenUZS(managerVault?.manager_cash_amount || 0)}
                 </div>
                 <div className="text-[11px] text-emerald-200 mt-1">Boshqaruvchi kassasidagi naqd</div>
+              </div>
+
+              <div className="bg-blue-950 text-white p-4 rounded-3xl border border-blue-800 shadow-sm">
+                <div className="text-xs font-bold text-blue-300">Kassadagi Valyuta (USD)</div>
+                <div className="text-2xl font-black font-mono text-blue-400 mt-1">
+                  ${Number(managerVault?.manager_usd_amount || 0).toLocaleString()} USD
+                </div>
+                <div className="text-[11px] text-blue-200 mt-1">Boshqaruvchi seyfidagi USD</div>
               </div>
 
               <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
@@ -2887,7 +2922,11 @@ export function DirectorSalesWorkspace({
                       </td>
                       <td className="py-2.5 px-3 font-mono">{formatScreenGrams(s.scrap_weight_grams, 2)}</td>
                       <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">
-                        {formatScreenUZS(s.cash_paid_amount)}
+                        {Number(s.cash_paid_amount || 0) > 0 && <div>{formatScreenUZS(s.cash_paid_amount)}</div>}
+                        {Number(s.usd_amount || 0) > 0 && (
+                          <div className="text-[11px] text-blue-700 font-bold">${Number(s.usd_amount).toLocaleString()} USD</div>
+                        )}
+                        {!Number(s.cash_paid_amount || 0) && !Number(s.usd_amount || 0) && "—"}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-[#475569]">
                         {Number(s.gold_rate_applied).toLocaleString()}
@@ -3195,9 +3234,15 @@ export function DirectorSalesWorkspace({
                   </span>
                 </div>
                 <div className="flex justify-between text-[#475569]">
-                  <span>Sotuvchi kassasidagi naqd:</span>
+                  <span>Sotuvchi kassasidagi naqd (UZS):</span>
                   <span className="font-mono font-bold text-emerald-700">
                     {formatScreenUZS(surrenderSeller.seller_till_cash_amount)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[#475569]">
+                  <span>Sotuvchi kassasidagi valyuta (USD):</span>
+                  <span className="font-mono font-bold text-blue-700">
+                    ${Number(surrenderSeller.seller_till_usd_amount || 0).toLocaleString()} USD
                   </span>
                 </div>
                 <div className="flex justify-between text-amber-900 font-semibold border-t pt-1">
@@ -3223,20 +3268,63 @@ export function DirectorSalesWorkspace({
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#475569] mb-1">
-                  Qabul qilinayotgan Naqd Pul (UZS):
-                </label>
-                <input
-                  type="number"
-                  step="1000"
-                  min="0"
-                  value={surrenderCashAmount}
-                  onChange={(e) => setSurrenderCashAmount(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-emerald-700"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-[#475569] mb-1">
+                    Naqd Pul (UZS):
+                  </label>
+                  <input
+                    type="number"
+                    step="1000"
+                    min="0"
+                    value={surrenderCashAmount}
+                    onChange={(e) => setSurrenderCashAmount(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-emerald-700"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#475569] mb-1">
+                    Valyuta (USD $):
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={surrenderUsdAmount}
+                    onChange={(e) => setSurrenderUsdAmount(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-blue-700"
+                  />
+                </div>
               </div>
+
+              {Number(surrenderUsdAmount || 0) > 0 && (
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-bold text-[#475569]">
+                      USD Kursi (UZS / 1$):
+                    </label>
+                    {cbuUsdRate && (
+                      <button
+                        type="button"
+                        onClick={() => setSurrenderUsdRate(String(cbuUsdRate))}
+                        className="text-[10px] text-blue-600 hover:underline"
+                      >
+                        MB: {cbuUsdRate.toLocaleString()}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="number"
+                    placeholder="Masalan: 12800"
+                    value={surrenderUsdRate}
+                    onChange={(e) => setSurrenderUsdRate(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm text-[#0F172A]"
+                    required
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-[#475569] mb-1">Izoh:</label>

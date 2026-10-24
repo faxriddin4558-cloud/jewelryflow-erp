@@ -23,6 +23,9 @@ export interface ReceiptData {
   cashAmount?: number;
   goldRateApplied?: number;
   cashEquivalentGrams?: number;
+  usdAmount?: number;
+  usdRateApplied?: number;
+  usdEquivalentGrams?: number;
   totalSettledGrams?: number;
   previousDebtGrams?: number;
   remainingDebtGrams?: number;
@@ -64,6 +67,8 @@ ${data.scrapWeightGrams != null && data.scrapWeightGrams > 0 ? `To'langan Lom: $
 ${data.cashAmount != null && data.cashAmount > 0 ? `To'langan Naqd: ${data.cashAmount.toLocaleString()} UZS` : ""}
 ${data.goldRateApplied != null ? `Lom Kursi: ${data.goldRateApplied.toLocaleString()} UZS/g` : ""}
 ${data.cashEquivalentGrams != null && data.cashEquivalentGrams > 0 ? `Naqd Ekvivalenti: ${data.cashEquivalentGrams.toFixed(4)} g` : ""}
+${data.usdAmount != null && data.usdAmount > 0 ? `To'langan USD: $${data.usdAmount.toLocaleString()} USD (Kurs: ${data.usdRateApplied?.toLocaleString()} UZS)` : ""}
+${data.usdEquivalentGrams != null && data.usdEquivalentGrams > 0 ? `USD Ekvivalenti: ${data.usdEquivalentGrams.toFixed(4)} g` : ""}
 ${data.totalSettledGrams != null ? `Jami Qaytarilgan: ${data.totalSettledGrams.toFixed(4)} g` : ""}
 ${data.previousDebtGrams != null ? `Avvalgi Qarz: ${data.previousDebtGrams.toFixed(4)} g` : ""}
 ${data.advanceAppliedGrams != null && data.advanceAppliedGrams > 0 ? `Qoplangan Avans: -${data.advanceAppliedGrams.toFixed(4)} g` : ""}
@@ -237,6 +242,30 @@ JewelryFlow ERP — Rasmiy Hisob-Kitob Cheki
                       <span>Naqdning lom ekvivalenti:</span>
                       <span className="font-mono font-semibold text-emerald-800">
                         = {data.cashEquivalentGrams.toFixed(4)} g lom
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {data.usdAmount != null && data.usdAmount > 0 && (
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Topshirilgan valyuta (USD):</span>
+                    <span className="font-mono font-bold text-blue-700">
+                      ${data.usdAmount.toLocaleString()} USD
+                    </span>
+                  </div>
+                  {data.usdRateApplied != null && (
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <span>USD kursi:</span>
+                      <span className="font-mono">{data.usdRateApplied.toLocaleString()} UZS/$</span>
+                    </div>
+                  )}
+                  {data.usdEquivalentGrams != null && (
+                    <div className="flex justify-between text-xs text-slate-600">
+                      <span>USD ning lom ekvivalenti:</span>
+                      <span className="font-mono font-semibold text-blue-800">
+                        = {data.usdEquivalentGrams.toFixed(4)} g lom
                       </span>
                     </div>
                   )}
