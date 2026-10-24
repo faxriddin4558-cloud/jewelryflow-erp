@@ -89,20 +89,32 @@ export async function updateSupabaseSession(request: NextRequest) {
     }
   }
 
+  const host = request.headers.get("host") || "";
+  const isSalesDomain =
+    host.includes("sales") ||
+    host.includes("goldia") ||
+    pathname.startsWith("/sales");
+
   if (!user && !isAuthRoute && !isPublicAsset) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = pathname.startsWith("/sales/app") ? "/sales/login" : "/login";
+    redirectUrl.pathname = isSalesDomain ? "/sales/login" : "/login";
     redirectUrl.searchParams.set("redirectedFrom", pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (user && pathname === "/" && isSalesDomain) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/sales";
     return NextResponse.redirect(redirectUrl);
   }
 
   if (user && isAuthRoute) {
     const redirectFrom = request.nextUrl.searchParams.get("redirectedFrom");
     const safeTarget =
-      redirectFrom && redirectFrom.startsWith("/") && !redirectFrom.startsWith("//")
+      redirectFrom && redirectFrom.startsWith("/") && !redirectFrom.startsWith("//") && redirectFrom !== "/"
         ? redirectFrom
-        : pathname.startsWith("/sales/login")
-        ? "/sales/app"
+        : isSalesDomain
+        ? "/sales"
         : "/";
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = safeTarget;
