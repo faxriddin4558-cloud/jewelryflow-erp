@@ -133,12 +133,22 @@ describe('Barcode Scanner 564 & BarTender Engine', () => {
   });
 
   describe('4. Scanner 564 Draft Session Workflow', () => {
-    it('requires scanning model QR before weight barcodes', () => {
+    it('requires scanning model QR before weight barcodes in model_item_id mode', () => {
+      const twoCodeConfig = { ...DEFAULT_SCANNER_CONFIG, operatingMode: 'model_item_id' as const };
       const session = createEmptyScanSession();
-      const res = processScannedCode('14.52', session, sampleModels);
+      const res = processScannedCode('14.52', session, sampleModels, twoCodeConfig);
       expect(res.success).toBe(false);
       expect(res.action).toBe('error');
       expect(res.message).toContain('Avval Model QR kodini skaner qiling');
+    });
+
+    it('supports direct weight scanning in weight_only mode without model QR', () => {
+      const session = createEmptyScanSession();
+      const res = processScannedCode('14.52', session, sampleModels);
+      expect(res.success).toBe(true);
+      expect(res.action).toBe('piece_added');
+      expect(res.session.totalPieces).toBe(1);
+      expect(res.session.totalWeightGrams).toBe(14.52);
     });
 
     it('switches active model when model QR is scanned', () => {

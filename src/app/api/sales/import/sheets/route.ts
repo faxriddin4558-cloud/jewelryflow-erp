@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
         markup_pct: r.mapped.markup_pct || 0,
         product_name: r.mapped.product_name,
         cash_uzs: r.mapped.cash_amount || 0,
-        rate_per_g: r.mapped.rate || 900000,
+        rate_per_g: r.mapped.rate || 0,
         supplier: r.mapped.supplier,
         input_scrap_g: r.mapped.scrap_weight,
         melted_g: r.mapped.melted_weight,

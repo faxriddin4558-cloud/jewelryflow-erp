@@ -104,24 +104,17 @@ export async function GET() {
       });
     }
 
-    // Return reliable baseline rate if CBU API blocks foreign cloud datacenter
+    // STRICT FINANCIAL SAFETY: Never return an unverified guess as an official exchange rate!
     return NextResponse.json(
       {
-        success: true,
-        source: "baseline",
-        warning: `CBU server connection: ${errMessage}`,
-        data: {
-          rate: 12850.0,
-          formattedRate: "12 850.00",
-          date: new Date().toISOString().substring(0, 10),
-          diff: "0.00",
-          currency: "USD",
-          currencyName: "AQSH dollari",
-          fetchedAt: now,
-        },
+        success: false,
+        error: "ERR_CBU_SERVICE_UNAVAILABLE",
+        message:
+          "Markaziy Bank valyuta kursi serveri bilan aloqa o'rnatib bo'lmadi. Moliyaviy xavfsizlik uchun avtomatik taxminiy kurs ishlatilmaydi. Vakolatli xodim kursni qo'lda belgilashi shart.",
+        details: errMessage,
         clientDirectUrl: "https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/",
       },
-      { status: 200 }
+      { status: 503 }
     );
   }
 }

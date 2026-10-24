@@ -124,10 +124,10 @@ function SalesDashboardContent() {
   const managerScrap = Number(managerVault?.manager_scrap_grams ?? managerVault?.vault_scrap_gold_grams ?? 0);
   const managerCash = Number(managerVault?.manager_cash_amount ?? managerVault?.vault_cash_amount ?? 0);
   const managerRefined = Number(managerVault?.manager_refined_gold_grams ?? managerVault?.vault_refined_gold_grams ?? 0);
-  const currentRate = Number(dailyRate?.rate_per_gram || 900000);
+  const currentRate = Number(dailyRate?.rate_per_gram || 0);
 
-  // Cash equivalents
-  const cashEquivalentInGrams = (totalSellerTillCash + managerCash) / currentRate;
+  // Cash equivalents (calculated strictly when confirmed rate exists)
+  const cashEquivalentInGrams = currentRate > 0 ? (totalSellerTillCash + managerCash) / currentRate : 0;
 
   return (
     <div className="space-y-6">

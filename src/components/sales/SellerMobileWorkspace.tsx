@@ -385,7 +385,8 @@ export function SellerMobileWorkspace() {
   const rawPrevAdv = Number(customerDebtAccount?.advance_balance_grams || customerDebtAccount?.advance_gold_balance_grams || 0);
   const previousDebtForSettle = Math.max(0, rawPrevDebt - rawPrevAdv);
 
-  const activeRatePerGram = Number(dailyRate?.rate_per_gram || 900000);
+  const hasValidDailyRate = Boolean(dailyRate && Number(dailyRate.rate_per_gram) > 0);
+  const activeRatePerGram = hasValidDailyRate ? Number(dailyRate!.rate_per_gram) : 0;
 
   const liveSettleCalc = useMemo(() => {
     const scrapW = parseFloat(settleScrapWeight) || 0;
@@ -413,6 +414,11 @@ export function SellerMobileWorkspace() {
       return;
     }
 
+    if (cash > 0 && !hasValidDailyRate) {
+      notifyError("⚠️ Bugungi 585 oltin kursi belgilanmagan! Naqd pul qabul qilish uchun avval boshqaruvchidan kursni kiritishni so'rang.");
+      return;
+    }
+
     setBusy(true);
     try {
       const idempotencyKey = generateIdempotencyKey("settle-client");
@@ -422,7 +428,7 @@ export function SellerMobileWorkspace() {
         p_scrap_weight: scrapW,
         p_scrap_proba: parseInt(settleScrapPurity, 10) || 585,
         p_cash_amount: cash,
-        p_rate_per_gram: activeRatePerGram,
+        p_rate_per_gram: hasValidDailyRate ? activeRatePerGram : null,
         p_notes: settleNotes.trim() || null,
         p_idempotency_key: idempotencyKey,
       });
@@ -1462,17 +1468,22 @@ export function SellerMobileWorkspace() {
             {/* Cash Input */}
             <div>
               <label htmlFor="settleCashAmountInput" className="block text-xs font-bold text-[#475569] mb-1">
-                Naqd Pul (UZS) (Kurs: {activeRatePerGram.toLocaleString()} UZS/g):
+                Naqd Pul (UZS) {hasValidDailyRate ? `(Kurs: ${activeRatePerGram.toLocaleString()} UZS/g)` : <span className="text-amber-600 font-bold">(⚠️ 585 kursi belgilanmagan)</span>}:
               </label>
               <input
                 id="settleCashAmountInput"
                 type="number"
                 step="1000"
                 min="0"
-                placeholder="0"
+                placeholder={hasValidDailyRate ? "0" : "Avval kunlik kurs kiritilishi shart"}
+                disabled={!hasValidDailyRate}
                 value={settleCashAmount}
                 onChange={(e) => setSettleCashAmount(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold text-emerald-800"
+                className={`w-full p-2.5 rounded-xl font-mono text-xs font-bold ${
+                  hasValidDailyRate
+                    ? "bg-slate-50 border border-slate-300 text-emerald-800"
+                    : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
+                }`}
               />
             </div>
 

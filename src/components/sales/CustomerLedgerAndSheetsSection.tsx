@@ -180,7 +180,7 @@ export function CustomerLedgerAndSheetsSection() {
   const [targetCustomer, setTargetCustomer] = useState<CustomerRow | null>(null);
   const [payScrapWeight, setPayScrapWeight] = useState("");
   const [payCashAmount, setPayCashAmount] = useState("");
-  const [payRate, setPayRate] = useState("900000");
+  const [payRate, setPayRate] = useState("");
   const [payScrapPurity, setPayScrapPurity] = useState("585");
   const [payNotes, setPayNotes] = useState("");
 
@@ -437,10 +437,14 @@ export function CustomerLedgerAndSheetsSection() {
     try {
       const scrap = parseFloat(payScrapWeight) || 0;
       const cash = parseFloat(payCashAmount) || 0;
-      const rate = parseFloat(payRate) || 900000;
+      const rate = parseFloat(payRate);
 
       if (scrap <= 0 && cash <= 0) {
         throw new Error("Kamida lom vazni yoki naqd pul summasi kiritilishi shart");
+      }
+
+      if (cash > 0 && (!rate || rate <= 0)) {
+        throw new Error("Naqd pul to'lovi uchun 585 oltin kursi kiritilishi shart! Iltimos, kursni kiriting.");
       }
 
       const { data, error } = await supabase.rpc("rpc_record_client_settlement", {
@@ -448,7 +452,7 @@ export function CustomerLedgerAndSheetsSection() {
         p_scrap_weight: scrap,
         p_scrap_proba: scrap > 0 ? (parseFloat(payScrapPurity) || 585) : null,
         p_cash_amount: cash,
-        p_rate_per_gram: rate,
+        p_rate_per_gram: cash > 0 ? rate : null,
         p_notes: payNotes.trim() || "Mijozdan to'lov qabul qilindi",
       });
 

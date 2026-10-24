@@ -113,6 +113,26 @@ describe("JewelryFlow Sales — Item-Level Inventory, 3-Tier Debt, Sheets Parity
         )::jsonb;
       $$;
 
+      CREATE SCHEMA IF NOT EXISTS storage;
+      CREATE TABLE IF NOT EXISTS storage.buckets (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        owner UUID,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now(),
+        public BOOLEAN DEFAULT false
+      );
+      CREATE TABLE IF NOT EXISTS storage.objects (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        bucket_id TEXT,
+        name TEXT,
+        owner UUID,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now(),
+        last_accessed_at TIMESTAMPTZ DEFAULT now(),
+        metadata JSONB
+      );
+
       CREATE OR REPLACE FUNCTION moddatetime() RETURNS TRIGGER LANGUAGE plpgsql AS $$
       BEGIN
         NEW.updated_at = NOW();

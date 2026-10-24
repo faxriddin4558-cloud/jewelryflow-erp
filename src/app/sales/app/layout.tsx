@@ -77,7 +77,7 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
 
   // Rate update modal
   const [rateModalOpen, setRateModalOpen] = useState(false);
-  const [newRateValue, setNewRateValue] = useState("900000");
+  const [newRateValue, setNewRateValue] = useState("");
 
   useEffect(() => {
     setIsMounted(true);
@@ -529,7 +529,7 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
                 required
                 value={newRateValue}
                 onChange={(e) => setNewRateValue(e.target.value)}
-                placeholder="Masalan: 900000"
+                placeholder="Masalan: 1050000"
                 className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl font-mono text-lg font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-inner"
               />
             </div>

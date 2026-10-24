@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,8 +62,9 @@ export async function POST(req: NextRequest) {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     let publicUrl = `/api/models/photo/${fileName}`;
+    const storageDir = path.resolve(process.cwd(), ".local-pilot-data/storage/models");
 
-    if (supabaseUrl && serviceRoleKey) {
+    if (process.env.NODE_ENV !== "test" && supabaseUrl && serviceRoleKey) {
       const supabase = createClient(supabaseUrl, serviceRoleKey, {
         auth: { persistSession: false },
       });
@@ -85,6 +88,11 @@ export async function POST(req: NextRequest) {
       if (urlData?.publicUrl) {
         publicUrl = urlData.publicUrl;
       }
+    } else {
+      if (!fs.existsSync(storageDir)) {
+        fs.mkdirSync(storageDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(storageDir, fileName), buffer);
     }
 
     return NextResponse.json({

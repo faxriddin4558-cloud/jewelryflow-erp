@@ -79,6 +79,7 @@ export function ScannerConsignmentSection({
   const [inputVal, setInputVal] = useState("");
   const [session, setSession] = useState<DraftScanSession>(createEmptyScanSession());
   const [config, setConfig] = useState<Scanner564Config>(DEFAULT_SCANNER_CONFIG);
+  const [operatorConfirmed, setOperatorConfirmed] = useState(false);
   const [statusNotice, setStatusNotice] = useState<{
     text: string;
     type: "success" | "warning" | "error" | "info";
@@ -235,6 +236,14 @@ export function ScannerConsignmentSection({
       return;
     }
 
+    if (!operatorConfirmed) {
+      setStatusNotice({
+        text: "Iltimos, donalar soni va vazni to'g'riligini tasdiqlovchi katakchani belgilang!",
+        type: "error",
+      });
+      return;
+    }
+
     const piecesPayload = session.pieces.map((p) => ({
       model_id: p.modelId,
       model_code: p.modelCode,
@@ -258,6 +267,7 @@ export function ScannerConsignmentSection({
       // Reset session ONLY upon genuine success
       setSession(createEmptyScanSession());
       clearSessionFromStorage();
+      setOperatorConfirmed(false);
       setNotes("");
       setStatusNotice({ text: "Konsignatsiya muvaffaqiyatli topshirildi!", type: "success" });
     } catch (err: unknown) {
@@ -284,7 +294,7 @@ export function ScannerConsignmentSection({
               <span>⚡</span> Skaner 564 orqali Konsignatsiya Topshirish
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Two-Code System: Avval Model QR kodi, keyin tegning chiziqli vazn shtrix-kodi skaner qilinadi
+              Goldia Skaner 564 tizimi: Model bo&apos;yicha yoki to&apos;g&apos;ridan-to&apos;g&apos;ri dona vazn shtrix-kodlari orqali tezkor kirim
             </p>
           </div>
 
@@ -434,8 +444,9 @@ export function ScannerConsignmentSection({
                   </div>
                 </div>
               ) : (
-                <div className="text-sm font-bold text-rose-300">
-                  Model tanlanmagan! Avval model QR kodini skaner qiling.
+                <div className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Goldia Vazn Rejimi (Standart 585 dona): Vazn shtrix-kodini skaner qiling
                 </div>
               )}
             </div>
@@ -652,6 +663,28 @@ export function ScannerConsignmentSection({
             )}
           </div>
 
+          {/* Operator Confirmation & Duplicate Warning Notice */}
+          {session.pieces.length > 0 && (
+            <div className="p-4 bg-amber-950/40 border border-amber-800/60 rounded-2xl text-amber-200 text-xs space-y-2">
+              <div className="font-bold flex items-center gap-1.5 text-amber-300">
+                <span>⚠️</span> Operator Diqqatiga:
+              </div>
+              <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                Chiziqli shtrix-kod faqat vazn raqamini (masalan: 14.52g) o&apos;z ichiga oladi. Bir xil vaznli turli xil donalar bilan tasodifiy qayta skanerlangan donani farqlash uchun operator vizual nazorati shart.
+              </p>
+              <label className="flex items-center gap-2.5 pt-1 font-bold text-white cursor-pointer select-none">
+                <input
+                  id="operatorConfirmConsignmentCheckbox"
+                  type="checkbox"
+                  checked={operatorConfirmed}
+                  onChange={(e) => setOperatorConfirmed(e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-500 bg-slate-900 border-slate-700 focus:ring-emerald-400"
+                />
+                <span>Barcha {session.totalPieces} dona ({formatScreenGrams(session.totalWeightGrams, 2)}) to&apos;g&apos;ri sanalganini va dublikat yo&apos;qligini tasdiqlayman</span>
+              </label>
+            </div>
+          )}
+
           {/* Bottom Confirmation Bar */}
           <div className="border-t border-slate-800 pt-4 flex flex-wrap items-center justify-between gap-4">
             <div className="flex-1 min-w-[200px]">
@@ -667,7 +700,7 @@ export function ScannerConsignmentSection({
             <button
               id="confirmConsignmentBtn"
               onClick={handleConfirm}
-              disabled={isBusy || session.pieces.length === 0 || !selectedSellerId}
+              disabled={isBusy || session.pieces.length === 0 || !selectedSellerId || !operatorConfirmed}
               className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black text-sm rounded-xl transition flex items-center gap-2 shadow-lg"
             >
               <span>✓</span>

@@ -27,8 +27,8 @@ export async function GET(
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    // 1. Try fetching from Supabase Storage
-    if (supabaseUrl && serviceRoleKey) {
+    // 1. Try fetching from Supabase Storage (skip in test mode)
+    if (process.env.NODE_ENV !== "test" && supabaseUrl && serviceRoleKey) {
       const supabase = createClient(supabaseUrl, serviceRoleKey, {
         auth: { persistSession: false },
       });

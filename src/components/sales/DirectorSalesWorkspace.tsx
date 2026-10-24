@@ -134,7 +134,7 @@ export function DirectorSalesWorkspace({
   // Form: Gold Purchase ("Tovar olish")
   const [buySupplier, setBuySupplier] = useState("");
   const [buyCash, setBuyCash] = useState("");
-  const [buyRate, setBuyRate] = useState("900000");
+  const [buyRate, setBuyRate] = useState<string>("");
   const [buyWeight, setBuyWeight] = useState("");
   const [buyProba, setBuyProba] = useState("585");
   const [buyNotes, setBuyNotes] = useState("");
@@ -147,7 +147,7 @@ export function DirectorSalesWorkspace({
   const [hndNotes, setHndNotes] = useState("");
 
   // Daily rate form
-  const [newRateAmount, setNewRateAmount] = useState<string>("900000");
+  const [newRateAmount, setNewRateAmount] = useState<string>("");
   const [newRateDate, setNewRateDate] = useState<string>(() => (new Date().toISOString().split("T")[0] as string));
   const [newRateNotes, setNewRateNotes] = useState<string>("");
   const [showRateModal, setShowRateModal] = useState(false);
@@ -755,6 +755,11 @@ export function DirectorSalesWorkspace({
       return;
     }
 
+    if (cash > 0 && (!dailyRate || !dailyRate.rate_per_gram || Number(dailyRate.rate_per_gram) <= 0)) {
+      notifyError("⚠️ Bugungi 585 oltin kursi belgilanmagan! Naqd pul topshirish uchun avval kunlik kursni kiriting.");
+      return;
+    }
+
     setBusy(true);
     try {
       const idempotencyKey = generateIdempotencyKey("surr");
@@ -782,7 +787,7 @@ export function DirectorSalesWorkspace({
       if (res.error) throw res.error;
       const data = res.data;
 
-      const rate = dailyRate?.rate_per_gram || 900000;
+      const rate = Number(data?.applied_rate_per_gram || dailyRate?.rate_per_gram || 0);
       const calc = GoldEngine.calculateGoldSettlement(
         surrenderSeller.current_factory_obligation_grams || surrenderSeller.remaining_factory_gold_due_grams || 0,
         scrapW,

@@ -317,7 +317,10 @@ export function validateAndMapSheetsRows(
     }
 
     // Rate
-    const rate = parseNumber(rawRate) || 900000;
+    const rate = parseNumber(rawRate);
+    if (schema.requiredColumns.includes("rate") && rate <= 0) {
+      errors.push("Oltin kursi (rate) musbat son bo'lishi shart");
+    }
 
     // Factory gold due
     const factoryGoldDue = Number((weight * (1 + markupPct / 100)).toFixed(4));
@@ -431,7 +434,7 @@ export function validateSheetsData(
       proba: Number(r.mapped.proba || 585),
       markupPct: Number(r.mapped.markup_pct || 0),
       cashAmountUzs: Number(r.mapped.cash_amount || 0),
-      ratePerGram: Number(r.mapped.rate || 900000),
+      ratePerGram: Number(r.mapped.rate || 0),
       inputScrapG: Number(r.mapped.scrap_weight || 0),
       meltedG: Number(r.mapped.melted_weight || 0),
       outputFineG: Number(r.mapped.fine_weight || 0),
