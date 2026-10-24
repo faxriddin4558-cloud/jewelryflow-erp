@@ -50,6 +50,8 @@ async function setupTestEnvironment() {
     delete from public.gold_settlements where seller_id = '${QA_SELLER_ID}';
     delete from public.seller_consignments where seller_id = '${QA_SELLER_ID}';
     delete from public.seller_gold_accounts where seller_id = '${QA_SELLER_ID}';
+    delete from public.idempotency_keys where idempotency_key like 'T02-%' or idempotency_key like 'T05-%' or idempotency_key like 'T07-%' or idempotency_key like 'T11-%';
+    delete from public.gold_purchases where idempotency_key like 'T11-%';
 
     insert into public.seller_consignments (
       organization_id, seller_id, consignment_no, product_name,

@@ -799,7 +799,7 @@ export function DirectorSalesWorkspace({
     setBusy(true);
     try {
       const idempotencyKey = generateIdempotencyKey("surr");
-      let res = await supabase.rpc("rpc_record_seller_to_manager_settlement", {
+      const { data, error } = await supabase.rpc("rpc_record_seller_to_manager_settlement", {
         p_seller_id: surrenderSeller.seller_id,
         p_scrap_weight_grams: scrapW,
         p_cash_paid_amount: cash,
@@ -810,20 +810,7 @@ export function DirectorSalesWorkspace({
         p_idempotency_key: idempotencyKey,
       });
 
-      if (res.error) {
-        res = await supabase.rpc("rpc_record_seller_to_factory_settlement", {
-          p_seller_id: surrenderSeller.seller_id,
-          p_scrap_weight: scrapW,
-          p_cash_amount: cash,
-          p_rate_per_gram: (cash > 0 || usd > 0) ? (dailyRate?.rate_per_gram || null) : null,
-          p_settlement_date: new Date().toISOString().split("T")[0],
-          p_notes: surrenderNotes.trim() || "Sotuvchi kassasidan qabul qilingan tushum",
-          p_idempotency_key: idempotencyKey,
-        });
-      }
-
-      if (res.error) throw res.error;
-      const data = res.data;
+      if (error) throw error;
 
       const rate = Number(data?.applied_rate_per_gram || dailyRate?.rate_per_gram || 0);
       const calc = GoldEngine.calculateGoldSettlement(

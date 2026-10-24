@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const adminClient: any = createSupabaseServiceRoleClient();
     const { data: callerEmp, error: callerErr } = await adminClient
       .from("employees")
-      .select("id, role, role_type, full_name, email")
+      .select("id, role, role_type, full_name, email, organization_id")
       .eq("user_id", callerUserId)
       .maybeSingle();
 
@@ -80,6 +80,14 @@ export async function POST(req: NextRequest) {
     if (!isDirector) {
       return NextResponse.json(
         { success: false, error: "Xavfsizlik: Faqat korxona Rahbari (Direktor) yangi xodim qo'sha oladi!" },
+        { status: 403 }
+      );
+    }
+
+    const callerOrgId = callerEmp.organization_id;
+    if (!callerOrgId) {
+      return NextResponse.json(
+        { success: false, error: "Xavfsizlik: Boshqaruvchi xodimning tashkiloti (organization_id) aniqlanmadi!" },
         { status: 403 }
       );
     }
@@ -163,7 +171,7 @@ export async function POST(req: NextRequest) {
           position: role,
           department: role === "Seller" ? "Savdo" : "Boshqaruv",
           is_active: true,
-          organization_id: "00000000-0000-0000-0000-000000000001",
+          organization_id: callerOrgId,
         })
         .select()
         .single();
@@ -176,12 +184,15 @@ export async function POST(req: NextRequest) {
       if (role === "Seller") {
         const { error: sgaErr } = await adminClient.from("seller_gold_accounts").upsert({
           seller_id: newAuthUserId,
-          organization_id: "00000000-0000-0000-0000-000000000001",
+          organization_id: callerOrgId,
           total_consigned_gold_grams: 0,
           total_factory_settled_gold_grams: 0,
           current_factory_obligation_grams: 0,
           seller_till_scrap_grams: 0,
+          seller_till_scrap_physical_g: 0,
+          seller_till_scrap_585_eq_g: 0,
           seller_till_cash_amount: 0,
+          seller_till_usd_amount: 0,
           total_client_debt_grams: 0,
           total_transferred_physical_g: 0,
           total_seller_obligation_g: 0,
@@ -229,9 +240,10 @@ export async function POST(req: NextRequest) {
       const errMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
       console.error("DB error occurred during employee creation. Rolling back auth user:", newAuthUserId, errMsg);
       try {
+        await adminClient.from("seller_gold_accounts").delete().eq("seller_id", newAuthUserId);
         await adminClient.from("employees").delete().eq("id", newAuthUserId);
         await adminClient.auth.admin.deleteUser(newAuthUserId);
-        console.log("Rollback completed: Auth user and profile purged (no orphaned account).");
+        console.log("Rollback completed: Auth user, profile, and seller account purged (no orphaned account).");
       } catch (rollbackErr) {
         console.error("Failed to clean up auth user during rollback:", rollbackErr);
       }

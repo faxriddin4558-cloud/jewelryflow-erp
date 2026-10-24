@@ -189,7 +189,7 @@ async function main() {
       END IF;
 
       -- -----------------------------------------------------------------------
-      -- STEP 5: SOTUVCHI KASSASI -> MENEJER SEYFI (Surrender)
+      -- STEP 5A: SOTUVCHI KASSASI -> MENEJER SEYFI (Qisman Topshirish)
       -- Surrender 1.0g physical scrap (1.2821g 585 eq), 900,000 UZS, $50 USD
       -- -----------------------------------------------------------------------
       PERFORM set_config('request.jwt.claim.sub', v_mgr_user::text, true);
@@ -202,12 +202,12 @@ async function main() {
         p_rate_per_gram := 950000.00,
         p_usd_paid_amount := 50.00,
         p_usd_rate := 12800.00,
-        p_notes := 'Menejerga topshirilgan tushum'
+        p_notes := 'Menejerga qisman topshirilgan tushum'
       );
 
-      RAISE NOTICE 'Step 5 Surrender to Manager: %', v_surr_res;
+      RAISE NOTICE 'Step 5A Partial Surrender to Manager: %', v_surr_res;
 
-      -- Check seller till deductions:
+      -- Check seller till deductions after partial surrender:
       SELECT * INTO v_seller_acc FROM public.seller_gold_accounts WHERE seller_id = v_seller_emp;
       IF v_seller_acc.seller_till_scrap_physical_g <> 1.0000 THEN
         RAISE EXCEPTION 'Sotuvchi kassasi qoldiq fizik lom xato: kutilgan 1g, lekin % g', v_seller_acc.seller_till_scrap_physical_g;
@@ -219,16 +219,45 @@ async function main() {
         RAISE EXCEPTION 'Sotuvchi kassasi qoldiq USD xato: kutilgan 50 USD, lekin %', v_seller_acc.seller_till_usd_amount;
       END IF;
 
-      -- Check manager vault additions:
+      -- -----------------------------------------------------------------------
+      -- STEP 5B: SOTUVCHI KASSASI -> MENEJER SEYFI (Qolgan Tushumni Topshirish)
+      -- Surrender remaining 1.0g physical scrap (1.2820g 585 eq), 1,000,000 UZS, $50 USD
+      -- -----------------------------------------------------------------------
+      v_surr_res := public.rpc_record_seller_to_manager_settlement(
+        p_seller_id := v_seller_emp,
+        p_scrap_weight_grams := 1.2820,
+        p_physical_scrap_g := 1.0000,
+        p_cash_paid_amount := 1000000.00,
+        p_rate_per_gram := 950000.00,
+        p_usd_paid_amount := 50.00,
+        p_usd_rate := 12800.00,
+        p_notes := 'Menejerga qolgan barcha tushumni to''liq topshirish'
+      );
+
+      RAISE NOTICE 'Step 5B Final Surrender to Manager: %', v_surr_res;
+
+      -- Check seller till is now fully cleared:
+      SELECT * INTO v_seller_acc FROM public.seller_gold_accounts WHERE seller_id = v_seller_emp;
+      IF v_seller_acc.seller_till_scrap_physical_g <> 0 THEN
+        RAISE EXCEPTION 'Sotuvchi kassasida qoldiq fizik lom qolib ketdi: % g', v_seller_acc.seller_till_scrap_physical_g;
+      END IF;
+      IF v_seller_acc.seller_till_cash_amount <> 0 THEN
+        RAISE EXCEPTION 'Sotuvchi kassasida qoldiq UZS qolib ketdi: %', v_seller_acc.seller_till_cash_amount;
+      END IF;
+      IF v_seller_acc.seller_till_usd_amount <> 0 THEN
+        RAISE EXCEPTION 'Sotuvchi kassasida qoldiq USD qolib ketdi: %', v_seller_acc.seller_till_usd_amount;
+      END IF;
+
+      -- Check manager vault totals:
       SELECT * INTO v_vault FROM public.manager_vault_account WHERE organization_id = v_org_id;
-      IF v_vault.manager_scrap_physical_g <> 1.0000 THEN
-        RAISE EXCEPTION 'Seyfdagi fizik lom xato: kutilgan 1g, lekin % g', v_vault.manager_scrap_physical_g;
+      IF v_vault.manager_scrap_physical_g <> 2.0000 THEN
+        RAISE EXCEPTION 'Seyfdagi jami fizik lom xato: kutilgan 2g, lekin % g', v_vault.manager_scrap_physical_g;
       END IF;
-      IF v_vault.manager_cash_amount <> 900000.00 THEN
-        RAISE EXCEPTION 'Seyfdagi UZS naqd xato: kutilgan 900k, lekin %', v_vault.manager_cash_amount;
+      IF v_vault.manager_cash_amount <> 1900000.00 THEN
+        RAISE EXCEPTION 'Seyfdagi jami UZS naqd xato: kutilgan 1.9M, lekin %', v_vault.manager_cash_amount;
       END IF;
-      IF v_vault.manager_usd_amount <> 50.00 THEN
-        RAISE EXCEPTION 'Seyfdagi USD xato: kutilgan 50 USD, lekin %', v_vault.manager_usd_amount;
+      IF v_vault.manager_usd_amount <> 100.00 THEN
+        RAISE EXCEPTION 'Seyfdagi jami USD xato: kutilgan 100 USD, lekin %', v_vault.manager_usd_amount;
       END IF;
 
       -- -----------------------------------------------------------------------
@@ -248,10 +277,10 @@ async function main() {
 
       RAISE NOTICE 'Step 6 USD Gold Purchase: %', v_buy_res;
 
-      -- Manager USD balance: 50 - 20 = $30 USD
+      -- Manager USD balance: 100 - 20 = $80 USD
       SELECT * INTO v_vault FROM public.manager_vault_account WHERE organization_id = v_org_id;
-      IF v_vault.manager_usd_amount <> 30.00 THEN
-        RAISE EXCEPTION 'Seyfdagi xariddan keyingi USD xato: kutilgan 30 USD, lekin %', v_vault.manager_usd_amount;
+      IF v_vault.manager_usd_amount <> 80.00 THEN
+        RAISE EXCEPTION 'Seyfdagi xariddan keyingi USD xato: kutilgan 80 USD, lekin %', v_vault.manager_usd_amount;
       END IF;
       IF v_vault.manager_purchased_gold_grams <> 0.2667 THEN
         RAISE EXCEPTION 'Seyfdagi xarid oltin xato: kutilgan 0.2667g, lekin %', v_vault.manager_purchased_gold_grams;
@@ -259,16 +288,16 @@ async function main() {
 
       -- -----------------------------------------------------------------------
       -- STEP 7: MENEJER SEYFI -> AFINAJ ("Lom pateriya")
-      -- Melt 1.2821g 585 eq (1.0000g physical) scrap -> 0.7300g of 995 fine gold (1.2416g 585 eq)
-      -- Loss = 1.2821 - 1.2416 = 0.0405g (manager loss)
+      -- Melt 2.5641g 585 eq (2.0000g physical) scrap -> 1.4600g of 995 fine gold (2.4834g 585 eq)
+      -- Loss = 2.5641 - 2.4834 = 0.0807g (manager loss)
       -- -----------------------------------------------------------------------
       v_ref_res := public.rpc_record_refining_batch(
-        p_input_scrap_grams := 1.2821,
-        p_melted_weight_grams := 1.2500,
-        p_output_fine_grams := 0.7300,
+        p_input_scrap_grams := 2.5641,
+        p_melted_weight_grams := 2.5000,
+        p_output_fine_grams := 1.4600,
         p_output_fine_proba := 995.0,
-        p_notes := 'Afinaj partiyasi',
-        p_physical_scrap_grams := 1.0000
+        p_notes := 'To''liq afinaj partiyasi',
+        p_physical_scrap_grams := 2.0000
       );
 
       RAISE NOTICE 'Step 7 Refining: %', v_ref_res;
@@ -280,8 +309,8 @@ async function main() {
       IF v_vault.manager_scrap_physical_g <> 0 THEN
         RAISE EXCEPTION 'Afinajdan keyin seyfdagi fizik lom xato: kutilgan 0g, lekin %', v_vault.manager_scrap_physical_g;
       END IF;
-      IF v_vault.manager_refined_gold_grams <> 1.2416 THEN
-        RAISE EXCEPTION 'Afinaj toza oltin (585 eq) xato: kutilgan 1.2416g, lekin %', v_vault.manager_refined_gold_grams;
+      IF v_vault.manager_refined_gold_grams <> 2.4832 THEN
+        RAISE EXCEPTION 'Afinaj toza oltin (585 eq) xato: kutilgan 2.4832g, lekin %', v_vault.manager_refined_gold_grams;
       END IF;
       -- Factory obligation unchanged at refining step!
       IF v_vault.current_factory_obligation_g <> 216.0000 THEN
@@ -290,23 +319,23 @@ async function main() {
 
       -- -----------------------------------------------------------------------
       -- STEP 8: MENEJER SEYFI -> ZAVODGA TOPSHIRISH
-      -- Handover 1.2416g refined gold to Factory -> Reduces factory debt!
+      -- Handover 2.4832g refined gold to Factory -> Reduces factory debt!
       -- -----------------------------------------------------------------------
       v_hnd_res := public.rpc_record_factory_gold_handover(
         p_source_type := 'refined_gold',
-        p_physical_weight_g := 0.7300,
+        p_physical_weight_g := 1.4600,
         p_proba := 995.0,
-        p_agreed_equivalent_g := 1.2416,
+        p_agreed_equivalent_g := 2.4832,
         p_factory_recipient := 'Toshkent Zavodi',
         p_notes := 'Zavodga afinaj oltin topshirish'
       );
 
       RAISE NOTICE 'Step 8 Factory Handover: %', v_hnd_res;
 
-      -- Current factory obligation: 216.0000 - 1.2416 = 214.7584g!
+      -- Current factory obligation: 216.0000 - 2.4832 = 213.5168g!
       SELECT * INTO v_vault FROM public.manager_vault_account WHERE organization_id = v_org_id;
-      IF v_vault.current_factory_obligation_g <> 214.7584 THEN
-        RAISE EXCEPTION 'Zavodga topshirilgandan keyingi qarz xato: kutilgan 214.7584g, lekin %', v_vault.current_factory_obligation_g;
+      IF v_vault.current_factory_obligation_g <> 213.5168 THEN
+        RAISE EXCEPTION 'Zavodga topshirilgandan keyingi qarz xato: kutilgan 213.5168g, lekin %', v_vault.current_factory_obligation_g;
       END IF;
       IF v_vault.manager_refined_gold_grams <> 0 THEN
         RAISE EXCEPTION 'Seyfdagi quyma oltin xato: kutilgan 0g, lekin %', v_vault.manager_refined_gold_grams;
