@@ -555,12 +555,8 @@ function SalesLoginContent() {
         <div className="text-center text-xs text-slate-500 space-y-1">
           <div>JewelryFlow Sales v2.0 • Avtonom Savdo & Konsignatsiya Tizimi</div>
           <div className="flex justify-center gap-4 text-[11px] pt-1">
-            <Link href="/" className="hover:text-slate-400 underline">
-              ERP Ishlab chiqarish
-            </Link>
-            <span>•</span>
             <Link href="/sales/mobile" className="hover:text-slate-400 underline">
-              Mobil Sotuv
+              Mobil Sotuv (PWA)
             </Link>
           </div>
         </div>

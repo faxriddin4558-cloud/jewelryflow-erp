@@ -5,7 +5,6 @@ import { generateQrMatrix, renderMatrixToSvg } from "@/lib/qr-generator";
 import {
   generateBarTenderCsv,
   type JewelryModelItem,
-  formatScreenGrams,
 } from "@/lib/barcode-scanner-engine";
 import { validateImageFile, compressImageFile } from "@/lib/image-compression";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
@@ -40,7 +39,6 @@ export function BarTenderModelManager({ models = [], onAddModel, onUpdateModelPh
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("Серьги");
   const [newDecorations, setNewDecorations] = useState("Дорика");
-  const [newWeight, setNewWeight] = useState("14.50");
   const [newPurity, setNewPurity] = useState("585");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
@@ -174,7 +172,6 @@ export function BarTenderModelManager({ models = [], onAddModel, onUpdateModelPh
         name: newName.trim(),
         category: newCategory.trim(),
         decorations: newDecorations.trim() || undefined,
-        reference_weight_grams: parseFloat(newWeight) || undefined,
         gold_purity: parseInt(newPurity, 10) || 585,
         primary_image_url: uploadedPhotoUrl,
       });
@@ -255,7 +252,6 @@ export function BarTenderModelManager({ models = [], onAddModel, onUpdateModelPh
                   <th className="py-3 px-4">Kategoriya</th>
                   <th className="py-3 px-4">Proba</th>
                   <th className="py-3 px-4">Bezak</th>
-                  <th className="py-3 px-4">Standart Vazn</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium">
@@ -286,9 +282,6 @@ export function BarTenderModelManager({ models = [], onAddModel, onUpdateModelPh
                       <td className="py-3 px-4">{m.category || "Серьги"}</td>
                       <td className="py-3 px-4 font-mono">{m.gold_purity || 585}°</td>
                       <td className="py-3 px-4">{m.decorations || "Standart"}</td>
-                      <td className="py-3 px-4 font-mono text-slate-400">
-                        {m.reference_weight_grams ? `~${formatScreenGrams(m.reference_weight_grams, 2)}` : "—"}
-                      </td>
                     </tr>
                   );
                 })}
@@ -358,11 +351,6 @@ export function BarTenderModelManager({ models = [], onAddModel, onUpdateModelPh
                   <div className="text-xs text-[#475569]">
                     {selectedModel.category || "Серьги"} • {selectedModel.decorations || "Standart"} • {selectedModel.gold_purity || 585}°
                   </div>
-                  {selectedModel.reference_weight_grams && (
-                    <div className="text-xs text-[#475569] font-mono">
-                      Mo&apos;ljal: ~{formatScreenGrams(selectedModel.reference_weight_grams, 2)}
-                    </div>
-                  )}
                 </div>
 
                 {/* Existing Linear Barcode Mockup */}
@@ -493,19 +481,6 @@ export function BarTenderModelManager({ models = [], onAddModel, onUpdateModelPh
                     onChange={(e) => setNewDecorations(e.target.value)}
                     placeholder="Masalan: Дорика, Fasion"
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-300">Standart Vazn (g):</label>
-                  <input
-                    id="newModelWeight"
-                    type="number"
-                    step="0.01"
-                    value={newWeight}
-                    onChange={(e) => setNewWeight(e.target.value)}
-                    placeholder="Masalan: 14.50"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
                   />
                 </div>
               </div>

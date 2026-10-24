@@ -424,17 +424,8 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
 
         {/* Bottom Sidebar Utility */}
         <div className="p-3 border-t border-slate-800 text-[11px] space-y-1.5 text-slate-400">
-          <Link
-            href="/sales/mobile"
-            className="flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-blue-300 font-bold transition border border-slate-800"
-          >
-            <span className="flex items-center gap-2">
-              <span>📱</span> Mobil PWA Ko&apos;rinish
-            </span>
-            <span>→</span>
-          </Link>
-          <div className="text-center text-[10px] text-slate-600 pt-1">
-            JewelryFlow Sales • 2026
+          <div className="text-center text-[10px] text-slate-500 py-1 font-medium">
+            Goldia Sales • 2026
           </div>
         </div>
       </aside>

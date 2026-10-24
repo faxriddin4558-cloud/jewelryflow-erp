@@ -149,10 +149,20 @@ export function CustomerLedgerAndSheetsSection() {
 
   // Daily Ledger Data
   const [dailyLedgerRows, setDailyLedgerRows] = useState<DailyLedgerEntry[]>([]);
-  const [startDate, setStartDate] = useState(
-    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
-  );
-  const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]);
+  const [startDate, setStartDate] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("jf_sales_ledger_start_date");
+      if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) return saved;
+    }
+    return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("jf_sales_ledger_end_date");
+      if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) return saved;
+    }
+    return new Date().toISOString().substring(0, 10);
+  });
 
   // Monthly Report Data
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -342,6 +352,10 @@ export function CustomerLedgerAndSheetsSection() {
   const handleApplyDateFilter = useCallback((customStart?: string, customEnd?: string) => {
     const s = (customStart !== undefined ? customStart : startDate)?.trim() || null;
     const e = (customEnd !== undefined ? customEnd : endDate)?.trim() || null;
+    if (typeof window !== "undefined") {
+      if (s) sessionStorage.setItem("jf_sales_ledger_start_date", s);
+      if (e) sessionStorage.setItem("jf_sales_ledger_end_date", e);
+    }
     void fetchDailyLedgerRange(s || undefined, e || undefined);
   }, [fetchDailyLedgerRange, startDate, endDate]);
 
@@ -673,9 +687,13 @@ export function CustomerLedgerAndSheetsSection() {
                 <button
                   type="button"
                   onClick={() => {
-                    const today = new Date().toISOString().split("T")[0];
+                    const today = new Date().toISOString().substring(0, 10);
                     setStartDate(today);
                     setEndDate(today);
+                    if (typeof window !== "undefined") {
+                      sessionStorage.setItem("jf_sales_ledger_start_date", today);
+                      sessionStorage.setItem("jf_sales_ledger_end_date", today);
+                    }
                     void fetchDailyLedgerRange(today, today);
                   }}
                   className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl border border-slate-700 transition"
@@ -685,9 +703,13 @@ export function CustomerLedgerAndSheetsSection() {
                 <button
                   type="button"
                   onClick={() => {
-                    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+                    const yesterday = new Date(Date.now() - 86400000).toISOString().substring(0, 10);
                     setStartDate(yesterday);
                     setEndDate(yesterday);
+                    if (typeof window !== "undefined") {
+                      sessionStorage.setItem("jf_sales_ledger_start_date", yesterday);
+                      sessionStorage.setItem("jf_sales_ledger_end_date", yesterday);
+                    }
                     void fetchDailyLedgerRange(yesterday, yesterday);
                   }}
                   className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl border border-slate-700 transition"

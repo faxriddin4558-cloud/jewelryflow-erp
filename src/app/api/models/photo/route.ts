@@ -1,17 +1,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-
-const STORAGE_DIR = path.resolve(process.cwd(), ".local-pilot-data/storage/models");
 
 export async function POST(req: NextRequest) {
   try {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
-
     const contentType = req.headers.get("content-type") || "";
-    let base64Data = "";
+    let buffer: Buffer;
     let modelCode = "MODEL";
     let mimeType = "image/webp";
 
@@ -28,7 +23,7 @@ export async function POST(req: NextRequest) {
         );
       }
       mimeType = match[1] || "image/webp";
-      base64Data = match[2] || "";
+      buffer = Buffer.from(match[2] || "", "base64");
     } else {
       // Support multipart form-data
       const formData = await req.formData();
@@ -40,12 +35,15 @@ export async function POST(req: NextRequest) {
       }
 
       mimeType = file.type || "image/jpeg";
-      const buffer = Buffer.from(await file.arrayBuffer());
-      base64Data = buffer.toString("base64");
+      buffer = Buffer.from(await file.arrayBuffer());
     }
 
-    if (!base64Data) {
+    if (!buffer || buffer.length === 0) {
       return NextResponse.json({ error: "Rasm ma'lumotlari bo'sh" }, { status: 400 });
+    }
+
+    if (buffer.length > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: "Rasm hajmi 10 MB dan oshmasligi kerak" }, { status: 400 });
     }
 
     // Determine extension
@@ -57,11 +55,37 @@ export async function POST(req: NextRequest) {
 
     const hash = crypto.randomBytes(6).toString("hex");
     const fileName = `${modelCode}_${hash}.${ext}`;
-    const filePath = path.join(STORAGE_DIR, fileName);
 
-    fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    const publicUrl = `/api/models/photo/${fileName}`;
+    let publicUrl = `/api/models/photo/${fileName}`;
+
+    if (supabaseUrl && serviceRoleKey) {
+      const supabase = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { persistSession: false },
+      });
+
+      const { error: uploadError } = await supabase.storage
+        .from("jewelry-models")
+        .upload(fileName, buffer, {
+          contentType: mimeType,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error("Supabase Storage upload error:", uploadError);
+        throw new Error(`Storage xatosi: ${uploadError.message}`);
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("jewelry-models")
+        .getPublicUrl(fileName);
+
+      if (urlData?.publicUrl) {
+        publicUrl = urlData.publicUrl;
+      }
+    }
 
     return NextResponse.json({
       success: true,

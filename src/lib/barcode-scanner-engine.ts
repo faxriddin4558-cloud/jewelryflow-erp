@@ -22,10 +22,12 @@ export interface Scanner564Config {
   minWeightGrams: number;
   /** Maximum acceptable jewelry piece weight in grams, default: 1000.0 */
   maxWeightGrams: number;
-  /** Debounce window for exact same weight code to prevent scanner hardware bounce (ms), default: 350 */
+  /** Debounce window for hardware bounce deduplication (ms), default: 80 */
   debounceMs: number;
   /** Whether synthesized Web Audio sound is enabled, default: true */
   beepEnabled: boolean;
+  /** Operating Mode: 'weight_only' (default for Goldia) or 'model_item_id' (future per-piece tracking) */
+  operatingMode?: 'weight_only' | 'model_item_id';
 }
 
 export const DEFAULT_SCANNER_CONFIG: Scanner564Config = {
@@ -33,8 +35,19 @@ export const DEFAULT_SCANNER_CONFIG: Scanner564Config = {
   weightDecimalMode: 'auto',
   minWeightGrams: 0.05,
   maxWeightGrams: 1000.0,
-  debounceMs: 350,
+  debounceMs: 80,
   beepEnabled: true,
+  operatingMode: 'weight_only',
+};
+
+export const DEFAULT_WEIGHT_ONLY_MODEL: JewelryModelItem = {
+  id: '00000000-0000-0000-0000-000000000000',
+  model_code: 'VAZN',
+  name: 'Zargarlik Buyumi (Vazn)',
+  category: 'Buyum',
+  decorations: 'Standart',
+  gold_purity: 585,
+  is_active: true,
 };
 
 export interface JewelryModelItem {
@@ -315,13 +328,20 @@ export function processScannedCode(
 
   // 2. Weight Linear Barcode detected
   if (detection.type === 'weight_barcode') {
-    if (!session.activeModel) {
-      return {
-        success: false,
-        action: 'error',
-        session,
-        message: 'Avval Model QR kodini skaner qiling! (Masalan: Malika JF-M-0001)',
-      };
+    const effectiveMode = config.operatingMode || 'weight_only';
+    let targetModel = session.activeModel;
+
+    if (!targetModel) {
+      if (effectiveMode === 'weight_only') {
+        targetModel = DEFAULT_WEIGHT_ONLY_MODEL;
+      } else {
+        return {
+          success: false,
+          action: 'error',
+          session,
+          message: 'Avval Model QR kodini skaner qiling! (Masalan: Malika JF-M-0001)',
+        };
+      }
     }
 
     const parseResult = parseWeightValue(detection.cleanCode, config.weightDecimalMode);
@@ -346,44 +366,45 @@ export function processScannedCode(
       };
     }
 
-    // Debounce guard: identical weight code scanned in rapid succession (< debounceMs)
+    // Debounce guard: only block if EXACT same barcode is re-read within hardware bounce window (< 80ms)
     const timeDelta = now - session.lastScanTimestamp;
+    const bounceLimit = config.debounceMs ?? 80;
     if (
       !options?.allowDuplicateOverride &&
       session.lastRawCode === rawInput &&
-      timeDelta < config.debounceMs
+      timeDelta < bounceLimit
     ) {
       return {
         success: false,
         action: 'duplicate_warning',
         session,
-        message: `Ehtiyot bo'ling: Bir xil vazn (${weight}g) juda tez takrorlandi (${timeDelta}ms). Skaner qayta o'qishi bo'lishi mumkin. Agar bu alohida dona bo'lsa, qayta tasdiqlang.`,
+        message: `Skaner tugmasi takroriy bosildi (${timeDelta}ms). E'tibor bermaymiz.`,
       };
     }
 
     // Generate unique piece record
     const newPiece: ScannedPieceItem = {
       id: generateUniquePieceId(),
-      modelId: session.activeModel.id,
-      modelCode: session.activeModel.model_code,
-      modelName: session.activeModel.name,
-      category: session.activeModel.category || 'Серьги',
-      purity: Number(session.activeModel.gold_purity) || 585,
+      modelId: targetModel.id,
+      modelCode: targetModel.model_code,
+      modelName: targetModel.name,
+      category: targetModel.category || 'Buyum',
+      purity: Number(targetModel.gold_purity) || 585,
       weightGrams: weight,
       rawBarcode: rawInput,
       scannedAt: now,
-      primary_image_url: session.activeModel.primary_image_url || null,
+      primary_image_url: targetModel.primary_image_url || null,
     };
 
     // Add piece to session and update model aggregation
     const updatedPieces = [...session.pieces, newPiece];
     const newTotalWeight = addGrams(session.totalWeightGrams, weight);
-    const mCode = session.activeModel.model_code;
+    const mCode = targetModel.model_code;
     const existingGroup = session.byModel[mCode] || {
       modelCode: mCode,
-      modelName: session.activeModel.name,
-      category: session.activeModel.category || 'Серьги',
-      primary_image_url: session.activeModel.primary_image_url || null,
+      modelName: targetModel.name,
+      category: targetModel.category || 'Buyum',
+      primary_image_url: targetModel.primary_image_url || null,
       count: 0,
       totalWeightGrams: 0,
       pieces: [],
@@ -413,9 +434,9 @@ export function processScannedCode(
       success: true,
       action: 'piece_added',
       session: updatedSession,
-      message: `+1 dona qo'shildi: ${session.activeModel.name} — ${formatGrams(weight)}g`,
+      message: `+1 dona qo'shildi: ${targetModel.name} — ${formatGrams(weight)}`,
       piece: newPiece,
-      model: session.activeModel,
+      model: targetModel,
     };
   }
 
