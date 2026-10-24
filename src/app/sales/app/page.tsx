@@ -40,7 +40,7 @@ function SalesDashboardContent() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [sellersRes, clientsRes, piecesRes, vaultRes, rateRes, rcpRes, hndRes] = await Promise.all([
+      const [sellersRes, clientsRes, piecesRes, vaultRes, rateRes, rcpRes, hndRes, salesRes] = await Promise.all([
         supabase.from("seller_gold_accounts").select("*, employee:employees(name, full_name)"),
         supabase.from("client_gold_accounts").select("*"),
         supabase.from("consignment_pieces").select("*"),
@@ -48,6 +48,7 @@ function SalesDashboardContent() {
         supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("factory_receipts").select("factory_obligation_g, original_physical_g, available_physical_g, transferred_physical_g"),
         supabase.from("factory_gold_handovers").select("agreed_equivalent_g"),
+        supabase.from("jewelry_sales").select("base_weight_grams, status"),
       ]);
 
       if (sellersRes.data) setSellerAccounts(sellersRes.data as SellerGoldAccountRow[]);
@@ -57,6 +58,12 @@ function SalesDashboardContent() {
       if (rateRes.data) setDailyRate(rateRes.data as DailyGoldRateRow);
       if (rcpRes.data) setFactoryReceipts(rcpRes.data as FactoryReceiptRow[]);
       if (hndRes.data) setFactoryHandovers(hndRes.data as FactoryGoldHandoverRow[]);
+      if (salesRes.data) {
+        const soldGrams = salesRes.data
+          .filter((s: { status?: string }) => s.status !== "cancelled" && s.status !== "reversed")
+          .reduce((acc: number, s: { base_weight_grams?: number }) => acc + Number(s.base_weight_grams || 0), 0);
+        setTotalSoldGrams(soldGrams);
+      }
     } catch {
       // ignore
     } finally {
@@ -64,6 +71,7 @@ function SalesDashboardContent() {
     }
   }, []);
 
+  const [totalSoldGrams, setTotalSoldGrams] = useState(0);
 
   useEffect(() => {
     void loadData();
@@ -76,12 +84,22 @@ function SalesDashboardContent() {
   const totalFactoryObligation = Math.max(0, factoryReceiptsObligation - factoryHandoversSettled);
 
   const totalSellerTillScrap = sellerAccounts.reduce(
-    (acc, s) => acc + Number(s.seller_till_scrap_grams || 0),
+    (acc, s) => acc + Number(s.seller_till_scrap_585_eq_g ?? s.seller_till_scrap_grams ?? 0),
+    0
+  );
+
+  const totalSellerTillScrapPhys = sellerAccounts.reduce(
+    (acc, s) => acc + Number(s.seller_till_scrap_physical_g ?? s.seller_till_scrap_grams ?? 0),
     0
   );
 
   const totalSellerTillCash = sellerAccounts.reduce(
     (acc, s) => acc + Number(s.seller_till_cash_amount || 0),
+    0
+  );
+
+  const totalSellerTillUSD = sellerAccounts.reduce(
+    (acc, s) => acc + Number(s.seller_till_usd_amount || 0),
     0
   );
 
@@ -100,13 +118,13 @@ function SalesDashboardContent() {
   const managerReceiptAvailableGrams = factoryReceipts.reduce((sum, r) => sum + Number(r.available_physical_g || 0), 0);
   const managerReturnedPieces = pieces.filter((p) => p.status === "in_manager_stock" || p.status === "returned_to_manager");
   const managerReturnedGrams = managerReturnedPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
-  const totalManagerPhysicalGrams = managerReceiptAvailableGrams + managerReturnedGrams;
+  const totalManagerPhysicalGrams = Number(managerVault?.manager_physical_stock_g ?? (managerReceiptAvailableGrams + managerReturnedGrams));
 
   const availableSellerPieces = pieces.filter((p) => p.status === "held_by_seller");
-  const totalSellerPhysicalGrams = availableSellerPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+  const totalSellerPhysicalGrams = sellerAccounts.reduce((acc, s) => acc + Number(s.current_physical_stock_g || 0), 0);
 
   const soldPieces = pieces.filter((p) => p.status === "sold");
-  const soldPhysicalGrams = soldPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+  const soldPhysicalGrams = totalSoldGrams;
 
   const returnedPieces = pieces.filter((p) => p.status === "returned_to_factory");
   const returnedPhysicalGrams = returnedPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
@@ -121,9 +139,11 @@ function SalesDashboardContent() {
     0
   );
 
-  const managerScrap = Number(managerVault?.manager_scrap_grams ?? managerVault?.vault_scrap_gold_grams ?? 0);
+  const managerScrap = Number(managerVault?.manager_scrap_585_eq_g ?? managerVault?.manager_scrap_grams ?? managerVault?.vault_scrap_gold_grams ?? 0);
   const managerCash = Number(managerVault?.manager_cash_amount ?? managerVault?.vault_cash_amount ?? 0);
+  const managerUSD = Number(managerVault?.manager_usd_amount ?? 0);
   const managerRefined = Number(managerVault?.manager_refined_gold_grams ?? managerVault?.vault_refined_gold_grams ?? 0);
+  const managerPurchased = Number(managerVault?.manager_purchased_gold_grams ?? 0);
   const currentRate = Number(dailyRate?.rate_per_gram || 0);
 
   // Cash equivalents (calculated strictly when confirmed rate exists)
@@ -202,8 +222,12 @@ function SalesDashboardContent() {
           <div className="text-xl font-black font-mono text-amber-300 mt-1">
             {formatScreenGrams(totalSellerTillScrap)} lom
           </div>
+          <div className="text-[10px] text-amber-200/80 font-mono">
+            {formatScreenGrams(totalSellerTillScrapPhys)} fizik lom
+          </div>
           <div className="text-[10px] text-emerald-400 font-mono mt-1">
             +{formatScreenUZS(totalSellerTillCash)}
+            {totalSellerTillUSD > 0 && ` | +$${totalSellerTillUSD.toLocaleString()} USD`}
           </div>
         </div>
 
@@ -214,7 +238,13 @@ function SalesDashboardContent() {
           </div>
           <div className="text-[10px] text-emerald-300 font-mono mt-1">
             +{formatScreenUZS(managerCash)}
+            {managerUSD > 0 && ` | +$${managerUSD.toLocaleString()} USD`}
           </div>
+          {managerPurchased > 0 && (
+            <div className="text-[10px] text-indigo-300 font-mono">
+              +{formatScreenGrams(managerPurchased)} xarid oltin
+            </div>
+          )}
         </div>
 
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-purple-500/40 transition">

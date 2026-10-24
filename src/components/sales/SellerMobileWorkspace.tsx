@@ -726,8 +726,10 @@ export function SellerMobileWorkspace() {
   });
 
   // Till status numbers
-  const myTillScrap = Number(myTillAccount?.seller_till_scrap_grams || 0);
+  const myTillScrap = Number(myTillAccount?.seller_till_scrap_585_eq_g ?? myTillAccount?.seller_till_scrap_grams ?? 0);
+  const myTillScrapPhys = Number(myTillAccount?.seller_till_scrap_physical_g ?? myTillAccount?.seller_till_scrap_grams ?? 0);
   const myTillCash = Number(myTillAccount?.seller_till_cash_amount || 0);
+  const myTillUSD = Number(myTillAccount?.seller_till_usd_amount || 0);
   const myFactoryObligation = Number(myTillAccount?.current_factory_obligation_grams || myTillAccount?.remaining_factory_gold_due_grams || 0);
   const myBozorQarzi = myTillAccount?.bozor_qarzi_signed_g !== undefined ? Number(myTillAccount.bozor_qarzi_signed_g) : -myFactoryObligation;
 
@@ -788,17 +790,28 @@ export function SellerMobileWorkspace() {
         </div>
 
         {/* Seller Till Summary Banner */}
-        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-3 border-t border-slate-800 text-center">
           <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">
             <div className="text-xs font-bold text-[#CBD5E1]">Kassamdagi Lom</div>
             <div className="text-base font-black font-mono text-amber-300 mt-0.5">
               {formatScreenGrams(myTillScrap, 2)}
             </div>
+            {Math.abs(myTillScrap - myTillScrapPhys) > 0.001 && (
+              <div className="text-[10px] text-amber-200/80 font-mono">
+                {formatScreenGrams(myTillScrapPhys, 2)} fizik
+              </div>
+            )}
           </div>
           <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">
             <div className="text-xs font-bold text-[#CBD5E1]">Kassamdagi Naqd</div>
             <div className="text-base font-black font-mono text-emerald-400 mt-0.5">
               {formatScreenUZS(myTillCash)}
+            </div>
+          </div>
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">
+            <div className="text-xs font-bold text-[#CBD5E1]">Kassamdagi Dollar</div>
+            <div className="text-base font-black font-mono text-blue-400 mt-0.5">
+              ${myTillUSD.toLocaleString()} USD
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-2.5">

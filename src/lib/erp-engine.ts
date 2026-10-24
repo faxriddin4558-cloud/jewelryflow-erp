@@ -967,6 +967,8 @@ export interface SellerGoldAccountRow {
   remaining_factory_gold_due_grams?: number;
   total_client_debt_grams?: number;
   seller_till_scrap_grams?: number;
+  seller_till_scrap_physical_g?: number;
+  seller_till_scrap_585_eq_g?: number;
   seller_till_cash_amount?: number;
   seller_till_usd_amount?: number;
   current_physical_stock_g?: number;
@@ -1016,7 +1018,10 @@ export interface FactoryReceiptRow {
 
 export interface ManagerVaultAccountRow {
   organization_id: string;
+  manager_physical_stock_g?: number;
   manager_scrap_grams: number;
+  manager_scrap_physical_g?: number;
+  manager_scrap_585_eq_g?: number;
   manager_cash_amount: number;
   manager_usd_amount?: number;
   manager_refined_gold_grams: number;
@@ -1057,6 +1062,8 @@ export interface GoldPurchaseRow {
   purchase_date: string;
   supplier_name: string;
   cash_spent_uzs: number;
+  usd_spent?: number;
+  currency?: "UZS" | "USD";
   rate_per_gram: number;
   gold_weight_grams: number;
   proba: number;

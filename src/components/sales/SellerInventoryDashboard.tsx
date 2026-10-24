@@ -148,13 +148,21 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
     }
 
     const tillScrap = sellerAccounts.reduce(
-      (acc, s) => acc + Number(s.seller_till_scrap_grams || 0),
+      (acc, s) => acc + Number(s.seller_till_scrap_585_eq_g ?? s.seller_till_scrap_grams ?? 0),
       0
     );
     const tillCash = sellerAccounts.reduce(
       (acc, s) => acc + Number(s.seller_till_cash_amount || 0),
       0
     );
+    const tillUSD = sellerAccounts.reduce(
+      (acc, s) => acc + Number(s.seller_till_usd_amount || 0),
+      0
+    );
+
+    const truePhysicalStock = selectedSellerFilter === "all"
+      ? sellerAccounts.reduce((acc, s) => acc + Number(s.current_physical_stock_g || 0), 0)
+      : Number(sellerAccounts.find((s) => String(s.seller_id) === selectedSellerFilter)?.current_physical_stock_g || 0);
 
     return {
       consignedQty,
@@ -167,8 +175,10 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
       returnedGrams,
       tillScrap,
       tillCash,
+      tillUSD,
+      truePhysicalStock,
     };
-  }, [filteredPieces, sellerAccounts]);
+  }, [filteredPieces, sellerAccounts, selectedSellerFilter]);
 
   // Return piece to manager handler
   const handleConfirmReturn = async () => {
@@ -287,10 +297,13 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
 
           <div className="bg-slate-950 p-4 rounded-2xl border border-emerald-800/40 space-y-1">
             <div className="text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
-              Hozirgi Ombor Qoldig&apos;i
+              Fizik Oltin Qoldig&apos;i
             </div>
             <div className="text-xl font-black text-emerald-400 font-mono">
-              {totals.availableQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatScreenGrams(totals.availableGrams, 2)}</span>
+              {formatScreenGrams(totals.truePhysicalStock, 2)}
+            </div>
+            <div className="text-[11px] text-slate-400 font-mono">
+              Donalarda: {totals.availableQty} dona ({formatScreenGrams(totals.availableGrams, 2)})
             </div>
           </div>
 
