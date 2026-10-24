@@ -483,8 +483,8 @@ export function ScannerConsignmentSection({
               onKeyDown={handleKeyDown}
               placeholder={
                 session.activeModel
-                  ? `"${session.activeModel.name}" uchun vazn shtrix-kodini skaner qiling (masalan: 14.52)...`
-                  : "Model QR kodini skaner qiling (masalan: JF-M-0001)..."
+                  ? `"${session.activeModel.name}" uchun vazn shtrixkodini skaner qiling (masalan: 14.52)...`
+                  : "Vazn shtrixkodini skaner qiling (masalan: 14.52)..."
               }
               className="flex-1 bg-slate-900 border-2 border-amber-500 rounded-2xl px-5 py-4 text-white font-mono text-lg font-bold focus:outline-none focus:ring-4 focus:ring-amber-500/20 placeholder:text-slate-600 placeholder:font-sans placeholder:text-sm"
             />
@@ -612,7 +612,7 @@ export function ScannerConsignmentSection({
                 <div className="text-3xl mb-2">📦</div>
                 Hozircha hech qanday dona skaner qilinmadi.
                 <div className="mt-1 text-slate-400">
-                  Model QR kodini va tarozi vazn shtrix-kodini skanerlang.
+                  Vazn shtrix-kodini skanerlang (zarurat bo&apos;lsa model QR kodi bilan).
                 </div>
               </div>
             ) : (

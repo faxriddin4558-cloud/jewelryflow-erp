@@ -1,5 +1,7 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   supabase,
@@ -28,7 +30,12 @@ import { OwnerDashboard } from "@/components/manufacturing";
 
 const DEFAULT_REPORT: ErpReportType = "1. Daily production";
 
-export default function DashboardPage() {
+function DashboardPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isFactoryView = searchParams.get("view") === "factory" || searchParams.get("view") === "manufacturing";
+  const isRedirecting = !isFactoryView;
+
   const [mainTab, setMainTab] = useState<"kpi" | "reports" | "audit" | "e2e">("kpi");
   const [currentUser, setCurrentUser] = useState(() => RBAC.getCurrentUser());
   const [inv, setInv] = useState<InventoryItemRow[]>([]);
@@ -82,15 +89,55 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    setCurrentUser(RBAC.getCurrentUser());
-    const unsubscribe = RBAC.subscribe((updatedUser) => {
-      setCurrentUser(updatedUser);
-    });
-    void loadAll();
-    return () => {
-      unsubscribe();
+    if (isFactoryView) {
+      setCurrentUser(RBAC.getCurrentUser());
+      const unsubscribe = RBAC.subscribe((updatedUser) => {
+        setCurrentUser(updatedUser);
+      });
+      void loadAll();
+      return () => {
+        unsubscribe();
+      };
+    }
+
+    let isCancelled = false;
+    const routeToSales = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (isCancelled) return;
+        if (!session) {
+          router.replace("/sales/login");
+        } else {
+          const user = RBAC.getCurrentUser();
+          const role = (user?.role || "").toLowerCase();
+          if (role === "seller" || role === "worker") {
+            router.replace("/sales?view=seller_mobile");
+          } else {
+            router.replace("/sales");
+          }
+        }
+      } catch {
+        if (!isCancelled) router.replace("/sales/login");
+      }
     };
-  }, [loadAll]);
+
+    void routeToSales();
+    return () => {
+      isCancelled = true;
+    };
+  }, [isFactoryView, router, loadAll]);
+
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-6">
+        <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin mb-4" />
+        <div className="text-base font-black tracking-wide text-amber-300">GOLDIA SALES</div>
+        <div className="text-xs text-slate-400 mt-1">Xavfsiz savdo tizimiga yo&apos;naltirilmoqda...</div>
+      </div>
+    );
+  }
 
   const isDone = (st?: string | null) => st === "Tugatildi" || (st || "").toLowerCase() === "completed";
 
@@ -406,5 +453,20 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-6">
+          <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin mb-3" />
+          <div className="text-xs font-bold text-amber-300">Yuklanmoqda...</div>
+        </div>
+      }
+    >
+      <DashboardPageContent />
+    </Suspense>
   );
 }

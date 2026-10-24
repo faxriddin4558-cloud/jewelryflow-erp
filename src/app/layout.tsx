@@ -11,6 +11,7 @@ import {
   resolveEmployeeRole,
   type EmployeeRow,
 } from "@/lib/erp-engine";
+import { EnvironmentVersionBadge } from "@/components/common/EnvironmentVersionBadge";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -288,6 +289,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               )}
             </>
           )}
+          <EnvironmentVersionBadge />
         </QueryClientProvider>
       </body>
     </html>

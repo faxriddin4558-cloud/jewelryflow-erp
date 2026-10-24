@@ -916,14 +916,14 @@ export function SellerMobileWorkspace() {
             {/* Keyboard Wedge / Scanner input */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-300">
-                Skaner 564 Kiritish (Model QR yoki Vazn Shtrix-kodi):
+                Skaner 564 Kiritish (Vazn Shtrix-kodi):
               </label>
               <div className="flex gap-2">
                 <input
                   id="sellerBarcodeScanInput"
                   type="text"
                   autoFocus
-                  placeholder="Skanerlang yoki kiriting (masalan: JF-M-0001 yoki 14.52)..."
+                  placeholder="Vazn shtrixkodini skaner qiling (masalan: 14.52)..."
                   value={scanInputVal}
                   onChange={(e) => setScanInputVal(e.target.value)}
                   onKeyDown={(e) => {
