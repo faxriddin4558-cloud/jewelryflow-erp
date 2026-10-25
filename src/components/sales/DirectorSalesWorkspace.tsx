@@ -189,7 +189,7 @@ export function DirectorSalesWorkspace({
   const [surrenderNotes, setSurrenderNotes] = useState("");
   // Safe Reversals Modal state
   const [reversalTarget, setReversalTarget] = useState<{
-    type: "factory_receipt" | "consignment" | "settlement";
+    type: "factory_receipt" | "consignment" | "settlement" | "refining_batch" | "factory_gold_handover" | "gold_purchase" | "financial_transaction";
     id: string;
     docNo: string;
     title: string;
@@ -336,6 +336,34 @@ export function DirectorSalesWorkspace({
           if (error) throw error;
           notifySuccess(`Topshirish hisoboti (${reversalTarget.docNo}) muvaffaqiyatli bekor qilindi.`);
         }
+      } else if (reversalTarget.type === "refining_batch") {
+        const { error } = await supabase.rpc("rpc_reverse_refining_batch", {
+          p_batch_id: reversalTarget.id,
+          p_reason: reversalReason.trim(),
+        });
+        if (error) throw error;
+        notifySuccess(`Afinaj partiyasi (${reversalTarget.docNo}) muvaffaqiyatli bekor qilindi.`);
+      } else if (reversalTarget.type === "factory_gold_handover") {
+        const { error } = await supabase.rpc("rpc_reverse_factory_gold_handover", {
+          p_handover_id: reversalTarget.id,
+          p_reason: reversalReason.trim(),
+        });
+        if (error) throw error;
+        notifySuccess(`Zavodga topshirilgan oltin (${reversalTarget.docNo}) muvaffaqiyatli bekor qilindi.`);
+      } else if (reversalTarget.type === "gold_purchase") {
+        const { error } = await supabase.rpc("rpc_reverse_gold_purchase", {
+          p_purchase_id: reversalTarget.id,
+          p_reason: reversalReason.trim(),
+        });
+        if (error) throw error;
+        notifySuccess(`Oltin xaridi (${reversalTarget.docNo}) muvaffaqiyatli bekor qilindi.`);
+      } else if (reversalTarget.type === "financial_transaction") {
+        const { error } = await supabase.rpc("rpc_reverse_financial_transaction", {
+          p_transaction_id: reversalTarget.id,
+          p_reason: reversalReason.trim(),
+        });
+        if (error) throw error;
+        notifySuccess(`Moliyaviy operatsiya (${reversalTarget.docNo}) muvaffaqiyatli bekor qilindi.`);
       }
       setReversalTarget(null);
       setReversalReason("");
@@ -1709,6 +1737,7 @@ export function DirectorSalesWorkspace({
                         <th className="p-2.5 text-right">585 Ekvivalenti</th>
                         <th className="p-2.5">Qabul Qiluvchi</th>
                         <th className="p-2.5">Izoh</th>
+                        <th className="p-2.5 text-right">Amallar</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y font-mono">
@@ -1724,11 +1753,35 @@ export function DirectorSalesWorkspace({
                           <td className="p-2.5 text-right font-black text-[#047857]">{formatScreenGrams(h.agreed_equivalent_g)}</td>
                           <td className="p-2.5 font-sans text-[#0F172A]">{h.factory_recipient}</td>
                           <td className="p-2.5 font-sans text-[#475569]">{h.notes || "—"}</td>
+                          <td className="p-2.5 text-right font-sans">
+                            {h.status === "reversed" ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                Bekor qilingan
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReversalTarget({
+                                    type: "factory_gold_handover",
+                                    id: h.id,
+                                    docNo: h.handover_no,
+                                    title: `Zavodga Oltin Topshirish №${h.handover_no}`,
+                                    details: `${formatScreenGrams(h.physical_weight_g)} (${h.proba}°) = ${formatScreenGrams(h.agreed_equivalent_g)} 585 eq`,
+                                  });
+                                  setReversalReason("");
+                                }}
+                                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+                              >
+                                ↩️ Bekor qilish
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       ))}
                       {factoryHandovers.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="p-6 text-center text-[#475569] font-sans">
+                          <td colSpan={9} className="p-6 text-center text-[#475569] font-sans">
                             Hozircha zavodga topshirilgan oltinlar tarixi mavjud emas.
                           </td>
                         </tr>
@@ -2413,6 +2466,7 @@ export function DirectorSalesWorkspace({
                         <th className="p-2.5 text-right">585 Eq</th>
                         <th className="p-2.5 text-right text-[#B91C1C]">Yo&apos;qotish</th>
                         <th className="p-2.5 text-right text-[#B91C1C]">% Pateriya</th>
+                        <th className="p-2.5 text-right">Amallar</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y font-mono">
@@ -2427,11 +2481,35 @@ export function DirectorSalesWorkspace({
                           <td className="p-2.5 text-right font-black text-[#0F172A]">{formatScreenGrams(b.output_585_equiv_grams)}</td>
                           <td className="p-2.5 text-right font-bold text-[#B91C1C]">{formatScreenGrams(b.total_loss_grams)}</td>
                           <td className="p-2.5 text-right font-black text-[#B91C1C]">{b.loss_pct}%</td>
+                          <td className="p-2.5 text-right font-sans">
+                            {b.status === "reversed" ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                Bekor qilingan
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReversalTarget({
+                                    type: "refining_batch",
+                                    id: b.id,
+                                    docNo: b.batch_no,
+                                    title: `Afinaj Partiyasi №${b.batch_no}`,
+                                    details: `Kirim: ${formatScreenGrams(b.input_scrap_grams)} lom, Chiqim: ${formatScreenGrams(b.output_585_equiv_grams)} 585 eq`,
+                                  });
+                                  setReversalReason("");
+                                }}
+                                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+                              >
+                                ↩️ Bekor qilish
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       ))}
                       {refiningBatches.length === 0 && (
                         <tr>
-                          <td colSpan={9} className="p-6 text-center text-[#475569] font-sans">
+                          <td colSpan={10} className="p-6 text-center text-[#475569] font-sans">
                             Hozircha afinaj partiyalari mavjud emas.
                           </td>
                         </tr>
@@ -2457,6 +2535,7 @@ export function DirectorSalesWorkspace({
                         <th className="p-2.5 text-right">Vazn</th>
                         <th className="p-2.5 text-right">Proba</th>
                         <th className="p-2.5 text-right font-bold text-[#047857]">585 Eq</th>
+                        <th className="p-2.5 text-right">Amallar</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y font-mono">
@@ -2470,11 +2549,35 @@ export function DirectorSalesWorkspace({
                           <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(p.gold_weight_grams)}</td>
                           <td className="p-2.5 text-right text-[#475569]">{p.proba}</td>
                           <td className="p-2.5 text-right font-black text-[#047857]">{formatScreenGrams(p.equiv_585_grams)}</td>
+                          <td className="p-2.5 text-right font-sans">
+                            {p.status === "reversed" ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                Bekor qilingan
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReversalTarget({
+                                    type: "gold_purchase",
+                                    id: p.id,
+                                    docNo: p.purchase_no,
+                                    title: `Oltin Xaridi №${p.purchase_no}`,
+                                    details: `${formatScreenGrams(p.gold_weight_grams)} (${p.proba}°) = ${formatScreenGrams(p.equiv_585_grams)} 585 eq`,
+                                  });
+                                  setReversalReason("");
+                                }}
+                                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+                              >
+                                ↩️ Bekor qilish
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       ))}
                       {goldPurchases.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="p-6 text-center text-[#475569] font-sans">
+                          <td colSpan={9} className="p-6 text-center text-[#475569] font-sans">
                             Hozircha oltin xaridlari mavjud emas.
                           </td>
                         </tr>

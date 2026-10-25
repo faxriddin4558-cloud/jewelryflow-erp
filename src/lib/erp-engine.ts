@@ -1050,7 +1050,8 @@ export interface RefiningBatchRow {
   total_loss_grams: number;
   loss_pct: number;
   operator_id?: string | null;
-  status: "completed" | "pending" | "cancelled";
+  status: "completed" | "pending" | "cancelled" | "reversed" | string;
+  reversed_at?: string | null;
   notes?: string | null;
   created_at?: string;
 }
@@ -1069,6 +1070,8 @@ export interface GoldPurchaseRow {
   proba: number;
   equiv_585_grams: number;
   payment_method?: string;
+  status?: string | null;
+  reversed_at?: string | null;
   notes?: string | null;
   created_at?: string;
 }
@@ -1084,6 +1087,8 @@ export interface FactoryGoldHandoverRow {
   agreed_equivalent_g: number;
   factory_recipient: string;
   factory_accepted: boolean;
+  status?: string | null;
+  reversed_at?: string | null;
   notes?: string | null;
   created_at?: string;
 }

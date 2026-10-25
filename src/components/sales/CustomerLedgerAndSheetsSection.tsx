@@ -53,9 +53,22 @@ interface PieceItem {
   status: string;
 }
 
+export interface LegacyDebtRow {
+  id: string;
+  customer_id: string;
+  balance_type: "debt" | "advance";
+  delta_585_g: number;
+  entry_type: string;
+  as_of_date: string;
+  notes?: string | null;
+  status?: string | null;
+  created_at?: string;
+  created_by?: string | null;
+}
+
 export interface DailyLedgerEntry {
   tx_id: string;
-  tx_type: "sale" | "payment";
+  tx_type: "sale" | "payment" | "legacy_debt";
   tx_date: string;
   customer_id: string;
   customer_code: string;
@@ -203,6 +216,17 @@ export function CustomerLedgerAndSheetsSection() {
   const [reversalReason, setReversalReason] = useState("");
 
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string>("");
+
+  // Legacy Debt Modal states
+  const [legacyDebtModalOpen, setLegacyDebtModalOpen] = useState(false);
+  const [legacyBalanceType, setLegacyBalanceType] = useState<"debt" | "advance">("debt");
+  const [legacyCalculationMode, setLegacyCalculationMode] = useState<"reconciliation" | "direct">("reconciliation");
+  const [legacyTargetBalance, setLegacyTargetBalance] = useState("");
+  const [legacyAmount, setLegacyAmount] = useState("");
+  const [legacyAsOfDate, setLegacyAsOfDate] = useState("");
+  const [legacyNotes, setLegacyNotes] = useState("");
+  const [legacyCustomerHistory, setLegacyCustomerHistory] = useState<LegacyDebtRow[]>([]);
+  const [legacyHistoryLoading, setLegacyHistoryLoading] = useState(false);
 
   useEffect(() => {
     supabase.rpc("current_employee_role_text").then(({ data }) => {
@@ -581,9 +605,15 @@ export function CustomerLedgerAndSheetsSection() {
           p_reason: reversalReason.trim(),
         });
         if (error) throw error;
-      } else {
+      } else if (reversalTarget.tx_type === "payment") {
         const { error } = await supabase.rpc("rpc_reverse_client_settlement", {
           p_settlement_id: reversalTarget.tx_id,
+          p_reason: reversalReason.trim(),
+        });
+        if (error) throw error;
+      } else if (reversalTarget.tx_type === "legacy_debt") {
+        const { error } = await supabase.rpc("rpc_reverse_client_legacy_debt", {
+          p_legacy_debt_id: reversalTarget.tx_id,
           p_reason: reversalReason.trim(),
         });
         if (error) throw error;
@@ -602,6 +632,128 @@ export function CustomerLedgerAndSheetsSection() {
       setMessage({
         type: "error",
         text: `Bekor qilishda xatolik: ${parseErrorMessage(err, "Bekor qilib bo'lmadi")}`,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openLegacyDebtModal = async (cust: CustomerRow) => {
+    setTargetCustomer(cust);
+    setLegacyBalanceType(Number(cust.advance_balance_grams || 0) > 0 ? "advance" : "debt");
+    setLegacyCalculationMode("reconciliation");
+    setLegacyTargetBalance(
+      Number(cust.current_debt_grams || 0) > 0
+        ? String(cust.current_debt_grams)
+        : Number(cust.advance_balance_grams || 0) > 0
+        ? String(cust.advance_balance_grams)
+        : ""
+    );
+    setLegacyAmount("");
+    setLegacyAsOfDate(new Date().toISOString().substring(0, 10));
+    setLegacyNotes("");
+    setLegacyDebtModalOpen(true);
+
+    setLegacyHistoryLoading(true);
+    try {
+      const { data } = await supabase
+        .from("client_legacy_debts")
+        .select("*")
+        .eq("customer_id", cust.id)
+        .order("created_at", { ascending: false });
+      setLegacyCustomerHistory(data || []);
+    } catch {
+      setLegacyCustomerHistory([]);
+    } finally {
+      setLegacyHistoryLoading(false);
+    }
+  };
+
+  const handleSaveLegacyDebt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetCustomer) return;
+
+    setBusy(true);
+    try {
+      const isReconciliation = legacyCalculationMode === "reconciliation";
+      const targetVal = isReconciliation ? parseFloat(legacyTargetBalance) : null;
+      const directAmt = !isReconciliation ? parseFloat(legacyAmount) : null;
+
+      if (isReconciliation && (isNaN(targetVal!) || targetVal! < 0)) {
+        setMessage({ type: "error", text: "Daftardagi qoldiq miqdorini to'g'ri kiriting (musbat son)." });
+        setBusy(false);
+        return;
+      }
+
+      if (!isReconciliation && (isNaN(directAmt!) || directAmt! <= 0)) {
+        setMessage({ type: "error", text: "Qo'shiladigan miqdor 0 dan katta bo'lishi shart." });
+        setBusy(false);
+        return;
+      }
+
+      const idempotencyKey = `LEGACY-DEBT-${targetCustomer.id}-${Date.now()}`;
+      const { data, error } = await supabase.rpc("rpc_record_client_legacy_debt", {
+        p_customer_id: targetCustomer.id,
+        p_balance_type: legacyBalanceType,
+        p_amount_585_g: isReconciliation ? 0 : directAmt,
+        p_as_of_date: legacyAsOfDate || new Date().toISOString().substring(0, 10),
+        p_notes: legacyNotes.trim() || (isReconciliation ? "Daftar bo'yicha qayta solishtirish" : "Eski qarz kiritildi"),
+        p_entry_type: isReconciliation ? "reconciliation_adjustment" : "manual_addition",
+        p_target_final_balance: isReconciliation ? targetVal : null,
+        p_idempotency_key: idempotencyKey,
+      });
+
+      if (error) throw error;
+
+      if (data?.no_change_needed) {
+        setMessage({
+          type: "success",
+          text: `Tizim va daftar qoldig'i bir xil (${targetVal} g). Hech qanday o'zgarish talab qilinmadi (Δ = 0.0000 g).`,
+        });
+      } else {
+        const delta = Number(data?.delta_585_g || 0);
+        const newDebt = Number(data?.new_debt_585_g || 0);
+        const newAdv = Number(data?.new_advance_585_g || 0);
+        setMessage({
+          type: "success",
+          text: `Eski qarz/avans muvaffaqiyatli saqlandi! (${targetCustomer.contact_name}): Tuzatish: ${delta >= 0 ? `+${delta.toFixed(4)}` : delta.toFixed(4)} g. Yangi qoldiq: ${newDebt > 0 ? `${newDebt.toFixed(4)} g qarz` : newAdv > 0 ? `+${newAdv.toFixed(4)} g avans` : "0.00 g"}.`,
+        });
+      }
+
+      setLegacyDebtModalOpen(false);
+      await loadCustomers();
+    } catch (err: unknown) {
+      setMessage({
+        type: "error",
+        text: `Eski qarzni saqlashda xatolik: ${parseErrorMessage(err, "Xatolik yuz berdi")}`,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReverseLegacyDebt = async (legacyId: string, currentDelta: number) => {
+    const reason = window.prompt("Eski qarz yozuvini bekor qilish sababini kiriting:");
+    if (!reason || !reason.trim()) return;
+
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("rpc_reverse_client_legacy_debt", {
+        p_legacy_debt_id: legacyId,
+        p_reason: reason.trim(),
+      });
+      if (error) throw error;
+
+      setMessage({
+        type: "success",
+        text: `Eski qarz yozuvi muvaffaqiyatli bekor qilindi (farq: ${currentDelta} g qaytarildi).`,
+      });
+      setLegacyDebtModalOpen(false);
+      await loadCustomers();
+    } catch (err: unknown) {
+      setMessage({
+        type: "error",
+        text: `Bekor qilishda xatolik: ${parseErrorMessage(err, "Xatolik yuz berdi")}`,
       });
     } finally {
       setBusy(false);
@@ -827,7 +979,120 @@ export function CustomerLedgerAndSheetsSection() {
             </span>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
+          {/* Mobile responsive customer cards view */}
+          <div className="md:hidden space-y-3">
+            {filteredCustomers.map((c) => (
+              <div key={c.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-amber-400 text-xs">{c.customer_code}</span>
+                      <span className="font-bold text-white text-sm">{c.contact_name}</span>
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">
+                      {c.phone || "Telefon yo'q"} • {c.seller?.full_name || c.seller?.name || "Biriktirilmagan"}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] text-slate-400 uppercase tracking-wider">Sof Qarz (585)</div>
+                    <div className="font-mono font-black text-rose-400 text-sm">
+                      {Number(c.current_debt_grams || 0) > 0 ? formatScreenGrams(c.current_debt_grams) : "0.00 g"}
+                    </div>
+                    {Number(c.advance_balance_grams || 0) > 0 && (
+                      <div className="text-[10px] font-mono text-cyan-400 font-bold">
+                        +{formatScreenGrams(c.advance_balance_grams)} avans
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">To&apos;langan Lom:</span>
+                    <span className="font-mono text-amber-300 font-bold">{formatScreenGrams(c.total_scrap_paid_grams)}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">To&apos;langan Naqd:</span>
+                    <span className="font-mono text-emerald-400 font-bold">{formatScreenUZS(c.total_cash_paid_amount)}</span>
+                  </div>
+                </div>
+
+                {/* 3 Action Buttons Permanently Visible on Mobile */}
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => void openLegacyDebtModal(c)}
+                    className="px-2 py-2 bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/80 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-sm"
+                  >
+                    <span>📋</span> Eski qarz
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTargetCustomer(c);
+                      setSaleMode("weight");
+                      setSaleWeightGrams("");
+                      setSalePieceId("");
+                      setSaleMarkupPct("12.0");
+                      setSaleNotes("");
+                      setSellerAvailableStock(null);
+                      setSaleModalOpen(true);
+                      const sellerId = c.seller_id || currentEmployeeId || sellers[0]?.id;
+                      if (sellerId) {
+                        void (async () => {
+                          try {
+                            const { data } = await supabase.rpc("get_seller_available_stock_grams", { p_seller_id: sellerId });
+                            setSellerAvailableStock(Number(data || 0));
+                          } catch {
+                            setSellerAvailableStock(0);
+                          }
+                        })();
+                      }
+                    }}
+                    className="px-2 py-2 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 rounded-xl text-[11px] font-bold transition flex items-center justify-center"
+                  >
+                    + Nasiya
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTargetCustomer(c);
+                      setPayScrapWeight("");
+                      setPayScrapPurity("585");
+                      setPayCashAmount("");
+                      setPayUsdAmount("");
+                      setPayNotes("");
+                      setPaymentModalOpen(true);
+                      supabase.from("daily_gold_rates").select("rate_per_gram").order("rate_date", { ascending: false }).limit(1)
+                        .then(({ data }) => {
+                          if (data && data[0]?.rate_per_gram) setPayRate(String(data[0].rate_per_gram));
+                        });
+                      fetch("/api/sales/currency/cbu")
+                        .then(res => res.json())
+                        .then(json => {
+                          if (json.success && json.data?.rate) {
+                            setCbuUsdRate(json.data.rate);
+                            setPayUsdRate(String(json.data.rate));
+                          }
+                        })
+                        .catch(() => {});
+                    }}
+                    className="px-2 py-2 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-xl text-[11px] font-bold transition flex items-center justify-center"
+                  >
+                    💰 To&apos;lov
+                  </button>
+                </div>
+              </div>
+            ))}
+            {filteredCustomers.length === 0 && (
+              <div className="py-8 text-center text-slate-500 bg-slate-950 rounded-2xl border border-slate-800">
+                Mijozlar topilmadi.
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-900/80 text-slate-400 font-semibold border-b border-slate-800">
                 <tr>
@@ -867,8 +1132,17 @@ export function CustomerLedgerAndSheetsSection() {
                       {Number(c.current_debt_grams || 0) > 0 ? formatScreenGrams(c.current_debt_grams) : "0.00 g"}
                     </td>
                     <td className="py-2.5 px-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
+                          type="button"
+                          onClick={() => void openLegacyDebtModal(c)}
+                          className="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/80 rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-sm"
+                          title="Daftar bo'yicha eski qarz yoki avansni kiritish / qayta solishtirish"
+                        >
+                          <span>📋</span> Eski qarz
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => {
                             setTargetCustomer(c);
                             setSaleMode("weight");
@@ -895,6 +1169,7 @@ export function CustomerLedgerAndSheetsSection() {
                           + Nasiya Sotuv
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
                             setTargetCustomer(c);
                             setPayScrapWeight("");
@@ -1755,6 +2030,341 @@ export function CustomerLedgerAndSheetsSection() {
           </div>
         </div>
       )}
+
+      {/* MODAL: LEGACY DEBT ENTRY & SMART RECONCILIATION */}
+      {legacyDebtModalOpen && targetCustomer && (() => {
+        const curDebt = Number(targetCustomer.current_debt_grams || 0);
+        const curAdv = Number(targetCustomer.advance_balance_grams || 0);
+        const curNet = curDebt - curAdv; // Positive = debt, Negative = advance
+
+        const isReconciliation = legacyCalculationMode === "reconciliation";
+        const targetVal = parseFloat(legacyTargetBalance) || 0;
+        const targetNet = isReconciliation
+          ? (legacyBalanceType === "debt" ? targetVal : -targetVal)
+          : 0;
+        const directAmt = parseFloat(legacyAmount) || 0;
+        const directDelta = legacyBalanceType === "debt" ? directAmt : -directAmt;
+
+        const delta = isReconciliation ? (targetNet - curNet) : directDelta;
+        const projectedNet = curNet + delta;
+        const projectedDebt = projectedNet > 0 ? projectedNet : 0;
+        const projectedAdv = projectedNet < 0 ? Math.abs(projectedNet) : 0;
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-xl w-full p-6 text-white space-y-5 shadow-2xl my-8">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-base">
+                  <span>📋</span>
+                  <h3>Mijoz Eski Qarzini Kiritish / Qayta Solishtirish</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLegacyDebtModalOpen(false)}
+                  className="text-slate-400 hover:text-white text-lg font-mono font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Customer Information (Read-only) */}
+              <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl space-y-1.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Mijoz (Tanlangan):</span>
+                  <span className="font-bold text-white text-sm">
+                    {targetCustomer.contact_name} <span className="text-amber-400 font-mono">({targetCustomer.customer_code})</span>
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Biriktirilgan sotuvchi:</span>
+                  <span className="text-slate-200">
+                    {targetCustomer.seller?.full_name || targetCustomer.seller?.name || "Biriktirilmagan"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-slate-800/80">
+                  <span className="text-slate-400">Tizimdagi joriy qoldiq:</span>
+                  <span className="font-mono font-bold">
+                    {curDebt > 0 ? (
+                      <span className="text-rose-400">{formatScreenGrams(curDebt, 4)} (Qarzdor)</span>
+                    ) : curAdv > 0 ? (
+                      <span className="text-cyan-400">+{formatScreenGrams(curAdv, 4)} (Avans/Haqdor)</span>
+                    ) : (
+                      <span className="text-slate-400">0.0000 g (Nol balans)</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mandatory Notices */}
+              <div className="p-3.5 bg-amber-950/40 border border-amber-800/80 rounded-2xl text-xs space-y-2">
+                <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                  <span>⚠️</span> DIQQAT: Bu ustamasi qo&apos;shilgan yakuniy qarz. Tizim qayta foiz qo&apos;shmaydi.
+                </div>
+                <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                  ℹ️ Ushbu amal omborni kamaytirmaydi, kassaga pul/lom kiritmaydi, zavod qarzini o&apos;zgartirmaydi va bugungi savdo tushumi yoki operatsion foyda hisoblanmaydi. Sotuvchi mijozdan pul yoki lom yig&apos;ib olgandagina javobgar bo&apos;ladi.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveLegacyDebt} className="space-y-4">
+                {/* Mode Selector */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Hisoblash usuli</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLegacyCalculationMode("reconciliation")}
+                      className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        isReconciliation
+                          ? "bg-amber-500/20 border-amber-500 text-amber-300"
+                          : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <span>🔄</span> Qayta solishtirish
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLegacyCalculationMode("direct")}
+                      className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        !isReconciliation
+                          ? "bg-amber-500/20 border-amber-500 text-amber-300"
+                          : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <span>➕</span> Qo&apos;lda qo&apos;shish
+                    </button>
+                  </div>
+                </div>
+
+                {/* Balance Type Selector */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Balans turi</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLegacyBalanceType("debt")}
+                      className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        legacyBalanceType === "debt"
+                          ? "bg-rose-500/20 border-rose-500 text-rose-300"
+                          : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <span>🔴</span> Mijoz bizga qarzdor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLegacyBalanceType("advance")}
+                      className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        legacyBalanceType === "advance"
+                          ? "bg-cyan-500/20 border-cyan-500 text-cyan-300"
+                          : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <span>🔵</span> Biz mijozga qarzdormiz (Avans)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Amount / Target Input */}
+                {isReconciliation ? (
+                  <div>
+                    <label className="text-xs font-semibold text-amber-300 block mb-1">
+                      Daftar bo&apos;yicha joriy haqiqiy qoldiq (585 lom g ekv) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      required
+                      placeholder="Masalan: 15.0000"
+                      value={legacyTargetBalance}
+                      onChange={(e) => setLegacyTargetBalance(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm focus:outline-none focus:border-amber-500"
+                    />
+                    <span className="text-[11px] text-slate-400 mt-1 block">
+                      Daftarda yozilgan yakuniy qoldiqni kiriting. Tizim farqni (Δ) avtomatik hisoblab auditli yozadi.
+                    </span>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-xs font-semibold text-amber-300 block mb-1">
+                      Qo&apos;shiladigan summa (585 lom g ekv) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0.0001"
+                      required
+                      placeholder="Masalan: 10.0000"
+                      value={legacyAmount}
+                      onChange={(e) => setLegacyAmount(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                )}
+
+                {/* Live Preview Box */}
+                <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs space-y-1.5 font-mono">
+                  <div className="font-sans font-bold text-slate-300 text-[11px] uppercase tracking-wider">
+                    Aqlli Solishtirish Hisob-Kitobi (Preview):
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span className="font-sans">Tizimdagi joriy holat:</span>
+                    <span className="text-white font-bold">
+                      {curNet > 0 ? `${formatScreenGrams(curNet, 4)} qarz` : curNet < 0 ? `+${formatScreenGrams(Math.abs(curNet), 4)} avans` : "0.0000 g"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span className="font-sans">Daftardagi maqsad:</span>
+                    <span className="text-amber-300 font-bold">
+                      {isReconciliation
+                        ? (targetNet > 0 ? `${formatScreenGrams(targetNet, 4)} qarz` : targetNet < 0 ? `+${formatScreenGrams(Math.abs(targetNet), 4)} avans` : "0.0000 g")
+                        : (directDelta > 0 ? `+${formatScreenGrams(directDelta, 4)} qarz` : `-${formatScreenGrams(Math.abs(directDelta), 4)} avans`)}
+                    </span>
+                  </div>
+                  <div className="border-t border-slate-800 pt-1 flex justify-between font-bold">
+                    <span className="font-sans text-amber-400">Kiritiladigan farq (Δ):</span>
+                    <span className={`text-sm ${delta > 0 ? "text-rose-400" : delta < 0 ? "text-cyan-400" : "text-emerald-400"}`}>
+                      {delta >= 0 ? `+${formatScreenGrams(delta, 4)}` : formatScreenGrams(delta, 4)} 585g
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-400 pt-0.5">
+                    <span className="font-sans">Hosil bo&apos;ladigan yangi qoldiq:</span>
+                    <span className="text-white font-bold">
+                      {projectedDebt > 0 ? `${formatScreenGrams(projectedDebt, 4)} qarz` : projectedAdv > 0 ? `+${formatScreenGrams(projectedAdv, 4)} avans` : "0.0000 g"}
+                    </span>
+                  </div>
+                  {Math.abs(delta) < 0.0001 && isReconciliation && (
+                    <div className="text-emerald-400 font-sans text-[11px] pt-1">
+                      ✓ Tizim va daftar qoldiqlari to&apos;liq mos. O&apos;zgarish talab etilmaydi (Δ = 0).
+                    </div>
+                  )}
+                </div>
+
+                {/* As of Date and Notes */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">Qaysi sanadagi holat *</label>
+                    <input
+                      type="date"
+                      required
+                      value={legacyAsOfDate}
+                      onChange={(e) => setLegacyAsOfDate(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">Daftar raqami / Izoh *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Daftar 14-bet, sentyabr qoldig'i..."
+                      value={legacyNotes}
+                      onChange={(e) => setLegacyNotes(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setLegacyDebtModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition"
+                  >
+                    Bekor Qilish
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition disabled:opacity-50 shadow-md"
+                  >
+                    {busy ? "Saqlanmoqda..." : "Tasdiqlash & Saqlash"}
+                  </button>
+                </div>
+              </form>
+
+              {/* Past Legacy Debts Table for this customer */}
+              <div className="pt-3 border-t border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                    Ushbu mijoz bo&apos;yicha kiritilgan eski qarzlar tarixi ({legacyCustomerHistory.length})
+                  </h4>
+                  {legacyHistoryLoading && <span className="text-[11px] text-amber-400">Yuklanmoqda...</span>}
+                </div>
+
+                <div className="overflow-x-auto max-h-48 rounded-xl border border-slate-800 bg-slate-950 text-xs">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-900 text-slate-400 border-b border-slate-800">
+                      <tr>
+                        <th className="py-2 px-2.5">Sana</th>
+                        <th className="py-2 px-2.5">Turi</th>
+                        <th className="py-2 px-2.5 font-mono text-right">Farq (Δ 585g)</th>
+                        <th className="py-2 px-2.5">Izoh / Daftar</th>
+                        <th className="py-2 px-2.5">Holat</th>
+                        <th className="py-2 px-2.5 text-right">Amal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {legacyCustomerHistory.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-900/50">
+                          <td className="py-2 px-2.5 text-slate-300">{item.as_of_date || item.created_at?.substring(0, 10)}</td>
+                          <td className="py-2 px-2.5 font-sans">
+                            {item.balance_type === "debt" ? (
+                              <span className="text-rose-400 font-bold">Qarz</span>
+                            ) : (
+                              <span className="text-cyan-400 font-bold">Avans</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-2.5 text-right font-bold">
+                            <span className={Number(item.delta_585_g || 0) >= 0 ? "text-rose-400" : "text-cyan-400"}>
+                              {Number(item.delta_585_g || 0) >= 0 ? `+${formatScreenGrams(item.delta_585_g, 4)}` : formatScreenGrams(item.delta_585_g, 4)}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2.5 font-sans text-slate-400 max-w-xs truncate" title={item.notes || undefined}>
+                            {item.notes || "—"}
+                          </td>
+                          <td className="py-2 px-2.5 font-sans">
+                            {item.status === "reversed" ? (
+                              <span className="px-2 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-800 text-[10px]">
+                                Bekor qilingan
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800 text-[10px]">
+                                Faol
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-2.5 text-right font-sans">
+                            {item.status !== "reversed" && (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => void handleReverseLegacyDebt(item.id, Number(item.delta_585_g || 0))}
+                                className="px-2 py-0.5 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded text-[10px] font-bold transition"
+                                title="Ushbu yozuvni bekor qilish"
+                              >
+                                ↩️ Bekor qilish
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {legacyCustomerHistory.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-4 text-center text-slate-500 font-sans">
+                            Eski qarz yozuvlari mavjud emas.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

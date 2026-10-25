@@ -25,3 +25,4 @@ memory/*.db
 scripts/backups/
 .staging-credentials.txt
 *.credentials*
+scratch/
