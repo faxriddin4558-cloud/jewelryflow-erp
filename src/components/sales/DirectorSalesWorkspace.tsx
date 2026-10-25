@@ -21,6 +21,7 @@ import {
   type RefiningBatchRow,
   type GoldPurchaseRow,
   type FactoryGoldHandoverRow,
+  type AccountingProfitSummary,
 } from "@/lib/erp-engine";
 import { SalesReceiptModal, type ReceiptData } from "./SalesReceiptModal";
 import { ScannerDiagnostics } from "./ScannerDiagnostics";
@@ -152,6 +153,26 @@ export function DirectorSalesWorkspace({
   const [newRateDate, setNewRateDate] = useState<string>(() => (new Date().toISOString().split("T")[0] as string));
   const [newRateNotes, setNewRateNotes] = useState<string>("");
   const [showRateModal, setShowRateModal] = useState(false);
+
+  // Automated Management Accounting & Profit Module (Migration 047)
+  const [profitSummary, setProfitSummary] = useState<AccountingProfitSummary | null>(null);
+  const [profitLoading, setProfitLoading] = useState(false);
+  const [profitStartDate, setProfitStartDate] = useState<string>("");
+  const [profitEndDate, setProfitEndDate] = useState<string>("");
+  const [showComponentModal, setShowComponentModal] = useState(false);
+  const [showBaselineModal, setShowBaselineModal] = useState(false);
+  const [showFinTxModal, setShowFinTxModal] = useState(false);
+  const [baselineNotes, setBaselineNotes] = useState("");
+
+  // Financial Transaction Modal Form
+  const [txType, setTxType] = useState<"capital_contribution" | "capital_distribution" | "business_expense">("business_expense");
+  const [txTill, setTxTill] = useState<"manager_uzs" | "manager_usd" | "manager_vault_gold">("manager_uzs");
+  const [txAmount, setTxAmount] = useState("");
+  const [txCurrency, setTxCurrency] = useState<"UZS" | "USD" | "585_GOLD">("UZS");
+  const [txCategory, setTxCategory] = useState("Ofis va operatsion xarajat");
+  const [txNotes, setTxNotes] = useState("");
+  const [txGoldRate, setTxGoldRate] = useState<string>("");
+  const [txUsdRate, setTxUsdRate] = useState<string>("12800");
 
   // 7-Step Seller Reconciliation Modal
   const [reconModalOpen, setReconModalOpen] = useState(false);
@@ -293,6 +314,85 @@ export function DirectorSalesWorkspace({
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  // Load management accounting profit summary
+  const loadProfitSummary = useCallback(async () => {
+    try {
+      setProfitLoading(true);
+      const { data, error } = await supabase.rpc("rpc_get_accounting_profit_summary", {
+        p_start_date: profitStartDate || null,
+        p_end_date: profitEndDate || null,
+      });
+      if (error) {
+        console.error("rpc_get_accounting_profit_summary error:", error);
+      } else if (data) {
+        setProfitSummary(data as unknown as AccountingProfitSummary);
+      }
+    } catch (err: unknown) {
+      console.error("loadProfitSummary error:", err);
+    } finally {
+      setProfitLoading(false);
+    }
+  }, [profitStartDate, profitEndDate]);
+
+  useEffect(() => {
+    void loadProfitSummary();
+  }, [loadProfitSummary]);
+
+  const handleConfirmBaseline = async () => {
+    setBusy(true);
+    try {
+      const idempKey = generateIdempotencyKey("confirm_baseline");
+      const { error } = await supabase.rpc("rpc_confirm_accounting_baseline", {
+        p_notes: baselineNotes || null,
+        p_idempotency_key: idempKey,
+      });
+      if (error) throw error;
+      notifySuccess("Boshlang'ich hisob holati muvaffaqiyatli muzlatildi va tasdiqlandi!");
+      setShowBaselineModal(false);
+      setBaselineNotes("");
+      await loadData();
+      await loadProfitSummary();
+    } catch (err: unknown) {
+      notifyError(err, "Hisobni boshlashda xatolik");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRecordFinTx = async () => {
+    const amt = parseFloat(txAmount);
+    if (!amt || amt <= 0) {
+      notifyError("Iltimos, summani to'g'ri kiriting");
+      return;
+    }
+    setBusy(true);
+    try {
+      const idempKey = generateIdempotencyKey("fin_tx");
+      const { error } = await supabase.rpc("rpc_record_financial_transaction", {
+        p_transaction_type: txType,
+        p_source_till: txTill,
+        p_amount: amt,
+        p_currency: txCurrency,
+        p_category: txCategory || null,
+        p_notes: txNotes || null,
+        p_gold_rate: txGoldRate ? parseFloat(txGoldRate) : (dailyRate ? Number(dailyRate.rate_per_gram) : null),
+        p_usd_rate: txUsdRate ? parseFloat(txUsdRate) : null,
+        p_idempotency_key: idempKey,
+      });
+      if (error) throw error;
+      notifySuccess("Moliyaviy operatsiya muvaffaqiyatli yozildi va kassa yangilandi!");
+      setShowFinTxModal(false);
+      setTxAmount("");
+      setTxNotes("");
+      await loadData();
+      await loadProfitSummary();
+    } catch (err: unknown) {
+      notifyError(err, "Xarajat/Kapital operatsiyasida xatolik");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleExecuteReversal = async () => {
     if (!reversalTarget || !reversalReason.trim()) {
@@ -1134,6 +1234,224 @@ export function DirectorSalesWorkspace({
                 {todaySalesCount} <span className="text-xs font-bold text-slate-100">dona</span>
               </div>
               <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">{todaySalesGrams.toFixed(4)} g bazaviy</div>
+            </div>
+          </div>
+
+          {/* Automated Management Accounting Card: Davr hisobiy foyda / zarar — 585 g */}
+          <div className="mt-5 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 border-2 border-indigo-500/30 rounded-3xl p-5 shadow-2xl text-white">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                    Boshqaruv Hisobi (585 Oltin Bazasi)
+                  </span>
+                  {profitSummary?.is_complete ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      ✓ Rasmiy Kurs Tasdiqlangan
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      ⚠️ Vaqtinchalik Kurs
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-xl md:text-2xl font-black mt-1 text-white flex items-center gap-2">
+                  Davr hisobiy foyda / zarar — 585 g
+                </h2>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Boshlang&apos;ich nuqtadan yoki tanlangan davrdan beri korxona sof oltin kapitalining o&apos;zgarishi
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowComponentModal(true)}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow"
+                >
+                  🔍 Tarkibini ko&apos;rish
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (dailyRate) setTxGoldRate(String(dailyRate.rate_per_gram));
+                    setShowFinTxModal(true);
+                  }}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20"
+                >
+                  💸 Xarajat / Kapital amali
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBaselineModal(true)}
+                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-amber-500/20"
+                >
+                  🎯 Hisobni boshlash
+                </button>
+              </div>
+            </div>
+
+            {/* Profit Metrics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              {/* Main Profit Figure */}
+              <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                <div className="text-xs text-slate-400 font-bold">Davr Hisobiy Natijasi</div>
+                <div className="mt-1">
+                  {profitLoading ? (
+                    <div className="text-xl font-bold text-slate-400 animate-pulse">Yuklanmoqda...</div>
+                  ) : (
+                    <div
+                      className={`text-2xl md:text-3xl font-black font-mono ${
+                        (profitSummary?.period_accounting_result_585_g ?? 0) > 0
+                          ? "text-emerald-400"
+                          : (profitSummary?.period_accounting_result_585_g ?? 0) < 0
+                          ? "text-rose-400"
+                          : "text-slate-200"
+                      }`}
+                    >
+                      {(profitSummary?.period_accounting_result_585_g ?? 0) > 0 ? "+" : ""}
+                      {(profitSummary?.period_accounting_result_585_g ?? 0).toFixed(4)}
+                      <span className="text-sm font-bold text-slate-300"> g (585)</span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 text-[11px] text-slate-400 flex flex-wrap gap-2 border-t border-slate-800/80 pt-2 font-mono">
+                  <span>
+                    Savdo marjasi:{" "}
+                    <strong className="text-indigo-300">
+                      {(profitSummary?.operational_trading_result_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    FX effekti:{" "}
+                    <strong className="text-amber-300">
+                      {(profitSummary?.fx_valuation_impact_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Net Assets */}
+              <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                <div>
+                  <div className="text-xs text-slate-400 font-bold">Joriy Sof Aktiv (585 g)</div>
+                  <div className="text-xl md:text-2xl font-black font-mono text-cyan-300 mt-1">
+                    {(profitSummary?.current_net_assets_585_g ?? 0).toFixed(4)}{" "}
+                    <span className="text-xs text-slate-300">g</span>
+                  </div>
+                </div>
+                <div className="mt-2 text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 font-mono">
+                  Aktivlar:{" "}
+                  <strong className="text-emerald-400">
+                    {(profitSummary?.current_total_assets_585_g ?? 0).toFixed(4)} g
+                  </strong>{" "}
+                  — Majburiyat:{" "}
+                  <strong className="text-rose-400">
+                    {(profitSummary?.current_total_liabilities_585_g ?? 0).toFixed(4)} g
+                  </strong>
+                </div>
+              </div>
+
+              {/* Baseline Info */}
+              <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                <div>
+                  <div className="text-xs text-slate-400 font-bold">Boshlang&apos;ich Hisob (Muzlatilgan)</div>
+                  <div className="text-xl md:text-2xl font-black font-mono text-amber-300 mt-1">
+                    {profitSummary?.baseline
+                      ? `${profitSummary.baseline.net_assets_585_g.toFixed(4)} g`
+                      : "Muzlatilmagan"}
+                  </div>
+                </div>
+                <div className="mt-2 text-[11px] text-slate-400 border-t border-slate-800/80 pt-2">
+                  {profitSummary?.baseline ? (
+                    <span>
+                      Sana:{" "}
+                      <strong className="text-white">
+                        {new Date(profitSummary.baseline.baseline_date).toLocaleDateString()}
+                      </strong>{" "}
+                      ({profitSummary.baseline.baseline_no})
+                    </span>
+                  ) : (
+                    <span className="text-amber-400/90 font-medium">Boshlang&apos;ich nuqtani tasdiqlang</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Capital Adjustments & Expenses */}
+              <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                <div className="text-xs text-slate-400 font-bold">Kapital va Rasmiy Xarajatlar</div>
+                <div className="space-y-1 mt-1 text-xs font-mono">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Qo&apos;shilgan kapital:</span>
+                    <strong className="text-emerald-400">
+                      +{(profitSummary?.capital_contributions_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Chiqarilgan foyda:</span>
+                    <strong className="text-amber-400">
+                      -{(profitSummary?.capital_distributions_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Rasmiy xarajatlar:</span>
+                    <strong className="text-rose-400">
+                      -{(profitSummary?.business_expenses_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </div>
+                </div>
+                <div className="mt-2 text-[10px] text-slate-500 border-t border-slate-800/80 pt-1">
+                  Formula: Joriy Aktiv — Boshlang&apos;ich — Kiritilgan + Yechilgan
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Period Filter Bar */}
+            <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-slate-400 font-semibold">Davrni filtrlash:</span>
+                <input
+                  type="date"
+                  value={profitStartDate}
+                  onChange={(e) => setProfitStartDate(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-white font-mono text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
+                  placeholder="Boshlanish"
+                />
+                <span className="text-slate-500">—</span>
+                <input
+                  type="date"
+                  value={profitEndDate}
+                  onChange={(e) => setProfitEndDate(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-white font-mono text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
+                  placeholder="Tugash"
+                />
+                {(profitStartDate || profitEndDate) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfitStartDate("");
+                      setProfitEndDate("");
+                    }}
+                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition text-[11px]"
+                  >
+                    ✕ Tozalash
+                  </button>
+                )}
+              </div>
+
+              <div className="text-[11px] text-slate-400">
+                Hisoblash vaqti:{" "}
+                <span className="font-mono text-slate-300">
+                  {profitSummary?.as_of_time
+                    ? new Date(profitSummary.as_of_time).toLocaleTimeString("uz-UZ", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "—"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -3491,6 +3809,475 @@ export function DirectorSalesWorkspace({
                 className="px-5 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 {reversalBusy ? "Bajarilmoqda..." : "Tasdiqlash & Bekor qilish"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: TARKIBINI KO'RISH (ASSETS & LIABILITIES BREAKDOWN) */}
+      {showComponentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full p-6 space-y-5 text-slate-800 my-8">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="font-black text-lg text-slate-900">
+                  Sof Aktiv Tarkibi (585 g Bazasi)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Barcha aktivlar va tashqi majburiyatlarning bandma-band holati
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowComponentModal(false)}
+                className="text-slate-400 hover:text-slate-700 font-bold p-1 text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Rates banner */}
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex flex-wrap justify-between items-center text-xs">
+              <div>
+                <span className="text-indigo-900 font-bold">Qo&apos;llangan Kurs: </span>
+                <span className="font-mono font-bold text-indigo-700">
+                  585 Lom = {(profitSummary?.rates.gold_rate_585 ?? 950000).toLocaleString()} UZS/g
+                </span>
+                <span className="mx-2 text-indigo-300">|</span>
+                <span className="font-mono font-bold text-indigo-700">
+                  USD = {(profitSummary?.rates.usd_rate ?? 12800).toLocaleString()} UZS
+                </span>
+              </div>
+              <span className="text-[11px] text-indigo-600 font-medium">
+                {profitSummary?.is_complete ? "✓ Tasdiqlangan" : "⚠️ Taxminiy"}
+              </span>
+            </div>
+
+            {/* Two Column Table: Assets vs Liabilities */}
+            <div className="space-y-4 text-xs">
+              {/* ASSETS SECTION */}
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider text-emerald-700 mb-2 flex items-center justify-between">
+                  <span>1. Jami Aktivlar (585 g Ekvivalenti)</span>
+                  <span className="font-mono text-sm">
+                    {(profitSummary?.current_total_assets_585_g ?? 0).toFixed(4)} g
+                  </span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl divide-y divide-slate-200 overflow-hidden font-mono">
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <span className="font-sans text-slate-600">Menejerdagi tayyor mahsulot:</span>
+                    <strong className="text-slate-900">
+                      {(profitSummary?.components.manager_finished_goods_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </div>
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <span className="font-sans text-slate-600">Sotuvchilardagi tayyor mahsulot:</span>
+                    <strong className="text-slate-900">
+                      {(profitSummary?.components.sellers_finished_goods_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </div>
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <span className="font-sans text-slate-600">Menejerdagi lom oltin (585 eq):</span>
+                    <div className="text-right">
+                      <strong className="text-slate-900">
+                        {(profitSummary?.components.manager_scrap_585_eq_g ?? 0).toFixed(4)} g
+                      </strong>
+                      <div className="text-[10px] text-slate-400 font-sans">
+                        Fizik: {(profitSummary?.components.manager_scrap_physical_g ?? 0).toFixed(4)} g
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <span className="font-sans text-slate-600">Sotuvchilardagi lom oltin (585 eq):</span>
+                    <div className="text-right">
+                      <strong className="text-slate-900">
+                        {(profitSummary?.components.sellers_scrap_585_eq_g ?? 0).toFixed(4)} g
+                      </strong>
+                      <div className="text-[10px] text-slate-400 font-sans">
+                        Fizik: {(profitSummary?.components.sellers_scrap_physical_g ?? 0).toFixed(4)} g
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <span className="font-sans text-slate-600">Menejerdagi afinaj toza oltin (585 eq):</span>
+                    <strong className="text-slate-900">
+                      {(profitSummary?.components.manager_refined_gold_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </div>
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <span className="font-sans text-slate-600">Menejerdagi xarid qilingan oltin (585 eq):</span>
+                    <strong className="text-slate-900">
+                      {(profitSummary?.components.manager_purchased_gold_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </div>
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <span className="font-sans text-slate-600">Mijozlarning haqiqiy qarzlari (585 eq):</span>
+                    <strong className="text-slate-900">
+                      {(profitSummary?.components.customer_debts_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </div>
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <div>
+                      <span className="font-sans text-slate-600">Naqd pul (UZS): </span>
+                      <span className="text-slate-500 font-sans text-[11px]">
+                        (Seyf: {(profitSummary?.components.manager_cash_uzs ?? 0).toLocaleString()} | Kassalar: {(profitSummary?.components.sellers_cash_uzs ?? 0).toLocaleString()})
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <strong className="text-slate-900">
+                        {(profitSummary?.components.cash_uzs_585_eq_g ?? 0).toFixed(4)} g
+                      </strong>
+                      <div className="text-[10px] text-slate-400 font-sans">
+                        {(profitSummary?.components.cash_uzs_amount ?? 0).toLocaleString()} UZS
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <div>
+                      <span className="font-sans text-slate-600">Dollar (USD): </span>
+                      <span className="text-slate-500 font-sans text-[11px]">
+                        (Seyf: ${(profitSummary?.components.manager_cash_usd ?? 0).toLocaleString()} | Kassalar: ${(profitSummary?.components.sellers_cash_usd ?? 0).toLocaleString()})
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <strong className="text-slate-900">
+                        {(profitSummary?.components.cash_usd_585_eq_g ?? 0).toFixed(4)} g
+                      </strong>
+                      <div className="text-[10px] text-slate-400 font-sans">
+                        ${(profitSummary?.components.cash_usd_amount ?? 0).toLocaleString()} USD
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* LIABILITIES SECTION */}
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider text-rose-700 mb-2 flex items-center justify-between">
+                  <span>2. Tashqi Majburiyatlar</span>
+                  <span className="font-mono text-sm">
+                    {(profitSummary?.current_total_liabilities_585_g ?? 0).toFixed(4)} g
+                  </span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl divide-y divide-slate-200 overflow-hidden font-mono">
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <span className="font-sans text-slate-600">Zavod oldidagi tovar majburiyati:</span>
+                    <strong className="text-rose-600">
+                      {(profitSummary?.components.factory_obligation_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </div>
+                  <div className="p-2.5 px-3 flex justify-between items-center">
+                    <span className="font-sans text-slate-600">Mijozlarning haqi / avanslari:</span>
+                    <strong className="text-rose-600">
+                      {(profitSummary?.components.customer_advances_585_g ?? 0).toFixed(4)} g
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* NET ASSETS SUMMARY */}
+              <div className="bg-slate-900 text-white rounded-2xl p-4 flex justify-between items-center">
+                <div>
+                  <div className="text-xs font-bold text-slate-400">JAMI SOF AKTIV (585 G)</div>
+                  <div className="text-xs text-slate-300 font-sans">Aktivlar minus Tashqi Majburiyatlar</div>
+                </div>
+                <div className="text-2xl font-black font-mono text-cyan-300">
+                  {(profitSummary?.current_net_assets_585_g ?? 0).toFixed(4)} g
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setShowComponentModal(false)}
+                className="px-5 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition"
+              >
+                Yopish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: HISOBNI BOSHLASH / CONFIRM BASELINE */}
+      {showBaselineModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-amber-200 max-w-md w-full p-6 space-y-4 text-slate-800">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🎯</span>
+                <h3 className="font-black text-lg text-slate-900">
+                  Boshlang&apos;ich Hisobni Muzlatish
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBaselineModal(false)}
+                className="text-slate-400 hover:text-slate-700 font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1.5">
+              <p className="font-bold flex items-center gap-1.5 text-amber-950">
+                <span>⚠️</span> Muhim Boshqaruv Qadami:
+              </p>
+              <p>
+                Ushbu amal joriy omborlar, kassalar, mijoz qarzlari va zavod majburiyatlarini o&apos;sha holaticha <strong>muzlatadi</strong>.
+              </p>
+              <p>
+                Kelgusi sof foyda yoki zarar aynan shu boshlang&apos;ich nuqtadan boshlab hisoblanadi.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs space-y-1 font-mono">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-sans">Joriy Sof Aktiv:</span>
+                <strong className="text-slate-900 font-bold">
+                  {(profitSummary?.current_net_assets_585_g ?? 0).toFixed(4)} g (585)
+                </strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-sans">Bugungi 585 kursi:</span>
+                <strong className="text-slate-900">
+                  {(profitSummary?.rates.gold_rate_585 ?? 950000).toLocaleString()} UZS/g
+                </strong>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Boshlang&apos;ich hisob izohi:
+              </label>
+              <textarea
+                rows={2}
+                value={baselineNotes}
+                onChange={(e) => setBaselineNotes(e.target.value)}
+                placeholder="Masalan: 2026-yil 25-oktabr Goldia Sales MVP rasmiy ishga tushishi"
+                className="w-full text-xs p-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setShowBaselineModal(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 transition"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void handleConfirmBaseline()}
+                className="px-5 py-2 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20 disabled:opacity-50 transition"
+              >
+                {busy ? "Muzlatilmoqda..." : "Ha, Boshlang'ich Nuqtani Tasdiqlash"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: XARAJAT / KAPITAL AMALI */}
+      {showFinTxModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-slate-800 my-8">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">💸</span>
+                <h3 className="font-black text-lg text-slate-900">
+                  Xarajat / Kapital Operatsiyasi
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFinTxModal(false)}
+                className="text-slate-400 hover:text-slate-700 font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              {/* Type Selector */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Operatsiya turi:</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTxType("business_expense");
+                      setTxCategory("Ofis va operatsion xarajat");
+                    }}
+                    className={`p-2 rounded-xl border text-center font-bold text-[11px] transition ${
+                      txType === "business_expense"
+                        ? "bg-rose-50 border-rose-400 text-rose-800 ring-2 ring-rose-400/20"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    🏢 Xarajat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTxType("capital_contribution");
+                      setTxCategory("Ta'sischi kapitali");
+                    }}
+                    className={`p-2 rounded-xl border text-center font-bold text-[11px] transition ${
+                      txType === "capital_contribution"
+                        ? "bg-emerald-50 border-emerald-400 text-emerald-800 ring-2 ring-emerald-400/20"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    📥 Kapital Kiritish
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTxType("capital_distribution");
+                      setTxCategory("Foyda taqsimoti");
+                    }}
+                    className={`p-2 rounded-xl border text-center font-bold text-[11px] transition ${
+                      txType === "capital_distribution"
+                        ? "bg-amber-50 border-amber-400 text-amber-800 ring-2 ring-amber-400/20"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    📤 Foyda Yechish
+                  </button>
+                </div>
+              </div>
+
+              {/* Source Till Selector */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Menejer Kassasi / Seyfi:</label>
+                <select
+                  value={txTill}
+                  onChange={(e) => {
+                    const val = e.target.value as "manager_uzs" | "manager_usd" | "manager_vault_gold";
+                    setTxTill(val);
+                    if (val === "manager_uzs") setTxCurrency("UZS");
+                    else if (val === "manager_usd") setTxCurrency("USD");
+                    else if (val === "manager_vault_gold") setTxCurrency("585_GOLD");
+                  }}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="manager_uzs">Menejer UZS Seyfi</option>
+                  <option value="manager_usd">Menejer USD Seyfi</option>
+                  <option value="manager_vault_gold">Menejer Oltin Seyfi (585)</option>
+                </select>
+              </div>
+
+              {/* Amount and Currency */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Summa / Miqdor:</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={txAmount}
+                    onChange={(e) => setTxAmount(e.target.value)}
+                    placeholder="0"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Valyuta:</label>
+                  <select
+                    value={txCurrency}
+                    onChange={(e) => setTxCurrency(e.target.value as "UZS" | "USD" | "585_GOLD")}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="UZS">UZS (So&apos;m)</option>
+                    <option value="USD">USD (Dollar)</option>
+                    <option value="585_GOLD">585 Oltin (Gramm)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Rates preview and equivalent calculation */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-1.5 font-mono">
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-500 font-sans">585 Oltin Kursi:</span>
+                  <input
+                    type="number"
+                    value={txGoldRate}
+                    onChange={(e) => setTxGoldRate(e.target.value)}
+                    placeholder="950000"
+                    className="w-28 p-1 bg-white border border-slate-300 rounded text-right font-mono text-xs"
+                  />
+                </div>
+                {txCurrency === "USD" && (
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-slate-500 font-sans">USD Kursi:</span>
+                    <input
+                      type="number"
+                      value={txUsdRate}
+                      onChange={(e) => setTxUsdRate(e.target.value)}
+                      placeholder="12800"
+                      className="w-28 p-1 bg-white border border-slate-300 rounded text-right font-mono text-xs"
+                    />
+                  </div>
+                )}
+                <div className="border-t border-slate-200 pt-1.5 flex justify-between items-center text-xs">
+                  <span className="text-slate-700 font-sans font-bold">585g Ekvivalenti:</span>
+                  <strong className="text-indigo-600 font-bold">
+                    {(() => {
+                      const amt = parseFloat(txAmount) || 0;
+                      const gr = parseFloat(txGoldRate) || (dailyRate ? Number(dailyRate.rate_per_gram) : 950000);
+                      const ur = parseFloat(txUsdRate) || 12800;
+                      if (txCurrency === "585_GOLD") return `${amt.toFixed(4)} g`;
+                      if (txCurrency === "UZS") return `${(amt / gr).toFixed(4)} g`;
+                      if (txCurrency === "USD") return `${((amt * ur) / gr).toFixed(4)} g`;
+                      return "0.0000 g";
+                    })()}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Category and Notes */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Toifa:</label>
+                <input
+                  type="text"
+                  value={txCategory}
+                  onChange={(e) => setTxCategory(e.target.value)}
+                  placeholder="Ofis ijara, xodimlar maoshi, kommunal..."
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Izoh:</label>
+                <textarea
+                  rows={2}
+                  value={txNotes}
+                  onChange={(e) => setTxNotes(e.target.value)}
+                  placeholder="Batafsil ma'lumot..."
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setShowFinTxModal(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 transition"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={busy || !txAmount || parseFloat(txAmount) <= 0}
+                onClick={() => void handleRecordFinTx()}
+                className="px-5 py-2 text-xs font-black rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 disabled:opacity-50 transition"
+              >
+                {busy ? "Yozilmoqda..." : "Seyfga Yozish"}
               </button>
             </div>
           </div>

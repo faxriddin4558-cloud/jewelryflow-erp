@@ -1088,6 +1088,109 @@ export interface FactoryGoldHandoverRow {
   created_at?: string;
 }
 
+export interface AccountingBaselineRow {
+  id: string;
+  organization_id: string;
+  baseline_no: string;
+  baseline_date: string;
+  confirmed_by?: string | null;
+  status: "active" | "archived";
+  gold_rate_585: number;
+  usd_rate: number;
+  manager_finished_g: number;
+  seller_finished_g: number;
+  manager_scrap_585_eq_g: number;
+  seller_scrap_585_eq_g: number;
+  manager_refined_gold_g: number;
+  manager_purchased_gold_g: number;
+  customer_debts_585_g: number;
+  cash_uzs_amount: number;
+  cash_uzs_585_eq_g: number;
+  cash_usd_amount: number;
+  cash_usd_585_eq_g: number;
+  total_assets_585_g: number;
+  factory_obligation_585_g: number;
+  customer_advances_585_g: number;
+  total_liabilities_585_g: number;
+  net_assets_585_g: number;
+  components_snapshot: Record<string, unknown>;
+  notes?: string | null;
+  created_at?: string;
+}
+
+export interface FinancialTransactionRow {
+  id: string;
+  organization_id: string;
+  transaction_no: string;
+  transaction_date: string;
+  transaction_type: "capital_contribution" | "capital_distribution" | "business_expense";
+  source_till: "manager_uzs" | "manager_usd" | "manager_vault_gold";
+  amount_num: number;
+  currency: "UZS" | "USD" | "585_GOLD";
+  gold_rate_applied?: number | null;
+  usd_rate_applied?: number | null;
+  equiv_585_grams: number;
+  category?: string | null;
+  notes?: string | null;
+  recorded_by?: string | null;
+  idempotency_key?: string | null;
+  created_at?: string;
+}
+
+export interface AccountingProfitSummary {
+  status: string;
+  has_baseline: boolean;
+  as_of_time: string;
+  period_start?: string | null;
+  period_end?: string | null;
+  is_complete: boolean;
+  rates: {
+    gold_rate_585: number;
+    is_confirmed: boolean;
+    usd_rate: number;
+  };
+  baseline?: {
+    id: string;
+    baseline_no: string;
+    baseline_date: string;
+    net_assets_585_g: number;
+    total_assets_585_g: number;
+    total_liabilities_585_g: number;
+    gold_rate_585: number;
+    usd_rate: number;
+  } | null;
+  current_net_assets_585_g: number;
+  current_total_assets_585_g: number;
+  current_total_liabilities_585_g: number;
+  period_accounting_result_585_g: number;
+  fx_valuation_impact_585_g: number;
+  operational_trading_result_585_g: number;
+  capital_contributions_585_g: number;
+  capital_distributions_585_g: number;
+  business_expenses_585_g: number;
+  components: {
+    manager_finished_goods_585_g: number;
+    sellers_finished_goods_585_g: number;
+    manager_scrap_585_eq_g: number;
+    manager_scrap_physical_g: number;
+    sellers_scrap_585_eq_g: number;
+    sellers_scrap_physical_g: number;
+    manager_refined_gold_585_g: number;
+    manager_purchased_gold_585_g: number;
+    customer_debts_585_g: number;
+    customer_advances_585_g: number;
+    manager_cash_uzs: number;
+    sellers_cash_uzs: number;
+    cash_uzs_amount: number;
+    cash_uzs_585_eq_g: number;
+    manager_cash_usd: number;
+    sellers_cash_usd: number;
+    cash_usd_amount: number;
+    cash_usd_585_eq_g: number;
+    factory_obligation_585_g: number;
+  };
+}
+
 export interface DailyGoldRateRow {
   id: string;
   rate_per_gram: number;
