@@ -1,29 +1,32 @@
 /**
  * GOLDIA SALES — PROFIT & LOSS ACCOUNTING HARDENING & COMPREHENSIVE VERIFICATION SUITE
  * 
- * Verifies all 15 scenarios on Staging Supabase (vouehtlmsunebracahon):
- * - MANDATORY: Baseline 1000g, rate 950k -> 1M, inject 1,000,000 UZS -> 0 trading profit
+ * Verifies all scenarios on Staging Supabase (vouehtlmsunebracahon):
+ * - MANDATORY 1: Baseline 1000g, rate 950k -> 1M, inject 1,000,000 UZS -> 0 trading profit
+ * - MANDATORY 2 (FX Drift on Deployed Cash):
+ *     Baseline 1M UZS cash @ 1M rate -> buy 1g gold with cash -> rate 2M -> Trading profit = 0.0000g
  * - Scenario A: Baseline Confirmation & Trading Margin (+30g)
  * - Scenario B: Capital Contribution (+100g) does not create artificial profit
  * - Scenario C: Capital Distribution (-20g) does not create artificial loss
  * - Scenario D: Factory Receipt (+200g goods vs 216g debt) -> No false profit
- * - Scenario E: Client Debt Settled to Till then Vault -> Zero double profit
+ * - Scenario E: Client Debt Settled to Till then Vault -> Zero double profit, net assets invariant
  * - Scenario F: Customer Advance Payment -> Liability increases, net assets invariant
  * - Scenario G: Business Expense -> Reduces net assets exactly once
- * - Scenario H: Baseline FX Drift isolated from trading margin
+ * - Scenario H: Baseline FX Drift isolated from trading margin (Exact mathematical assertion)
  * - Scenario I: Seller Role strictly blocked with 42501 (NO swallow in WHEN OTHERS)
  * - Scenario J: Accounting Baseline Direct UPDATE/DELETE blocked by Immutability Trigger
  * - Scenario K: Financial Transaction Direct UPDATE/DELETE blocked by Immutability Trigger
  * - Scenario L: Till-Currency Mismatch (manager_uzs + USD) rejected with ERR_INVALID_TILL_CURRENCY
- * - Scenario M: Refining Loss reduces Net Assets exactly once
- * - Scenario N: Factory Gold Handover settles assets & liabilities equally
+ * - Scenario M: Real Business RPC rpc_record_refining_batch -> Refining loss reduces net assets once
+ * - Scenario N: Real Business RPC rpc_record_factory_gold_handover -> Settles assets & liabilities equally
+ * - Scenario P: Live Preview Before Baseline Freeze -> current_net_assets_585_g & components available
  */
 
 const { runSqlQuery } = require('./execute-staging-sql');
 
 async function runProfitAccountingTests() {
   console.log('==============================================================================');
-  console.log('GOLDIA SALES — PROFIT & LOSS ACCOUNTING HARDENING TEST SUITE (MIGRATION 048)');
+  console.log('GOLDIA SALES — PROFIT & LOSS ACCOUNTING HARDENING TEST SUITE (MIGRATION 049)');
   console.log('Target: vouehtlmsunebracahon (Staging Supabase)');
   console.log('==============================================================================\n');
 
@@ -39,10 +42,20 @@ async function runProfitAccountingTests() {
     LANGUAGE plpgsql
     AS $$
     DECLARE
-      -- Mandatory Test Org
-      v_mand_org_id     uuid := gen_random_uuid();
-      v_mand_mgr_user   uuid := gen_random_uuid();
-      v_mand_mgr_emp    uuid := gen_random_uuid();
+      -- Mandatory Test Org 1 (Capital Injection with rate shift)
+      v_mand1_org_id     uuid := gen_random_uuid();
+      v_mand1_mgr_user   uuid := gen_random_uuid();
+      v_mand1_mgr_emp    uuid := gen_random_uuid();
+
+      -- Mandatory Test Org 2 (Cash to Gold Purchase then Rate Doubling)
+      v_mand2_org_id     uuid := gen_random_uuid();
+      v_mand2_mgr_user   uuid := gen_random_uuid();
+      v_mand2_mgr_emp    uuid := gen_random_uuid();
+
+      -- Preview Test Org (No Baseline yet)
+      v_prev_org_id      uuid := gen_random_uuid();
+      v_prev_mgr_user    uuid := gen_random_uuid();
+      v_prev_mgr_emp     uuid := gen_random_uuid();
 
       -- Multi-Scenario Test Org
       v_org_id          uuid := gen_random_uuid();
@@ -64,48 +77,47 @@ async function runProfitAccountingTests() {
       v_seller_allowed  boolean;
       v_base_id         uuid;
       v_tx_id           uuid;
-      v_initial_base_net numeric(14, 4);
       v_pre_net         numeric(14, 4);
       v_post_net        numeric(14, 4);
       v_mismatch_caught boolean;
     BEGIN
       -- =======================================================================
-      -- MANDATORY TEST: BASELINE 1000g, RATE 950k -> 1M, INJECT 1,000,000 UZS
+      -- MANDATORY TEST 1: BASELINE 1000g, RATE 950k -> 1M, INJECT 1,000,000 UZS
       -- ZERO TRADING PROFIT CREATED BY CAPITAL INJECTION
       -- =======================================================================
       INSERT INTO public.organizations (id, name, code, status)
-      VALUES (v_mand_org_id, 'Mandatory FX Parity Test Org', 'mand-org-' || substr(v_mand_org_id::text, 1, 8), 'active');
+      VALUES (v_mand1_org_id, 'Mandatory FX Parity Test Org 1', 'mand1-org-' || substr(v_mand1_org_id::text, 1, 8), 'active');
 
       INSERT INTO public.employees (id, organization_id, user_id, full_name, name, role, is_active)
-      VALUES (v_mand_mgr_emp, v_mand_org_id, v_mand_mgr_user, 'Mandatory Director', 'Director', 'director', true);
+      VALUES (v_mand1_mgr_emp, v_mand1_org_id, v_mand1_mgr_user, 'Mandatory Director 1', 'Director', 'director', true);
 
       INSERT INTO public.daily_gold_rates (id, organization_id, proba, rate_per_gram, rate_date, is_confirmed)
-      VALUES (gen_random_uuid(), v_mand_org_id, 585, 950000.00, current_date, true);
+      VALUES (gen_random_uuid(), v_mand1_org_id, 585, 950000.00, (timezone('Asia/Tashkent', now()))::date, true);
 
-      PERFORM set_config('request.jwt.claim.sub', v_mand_mgr_user::text, true);
+      PERFORM set_config('request.jwt.claim.sub', v_mand1_mgr_user::text, true);
       PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
 
-      PERFORM public._get_or_create_manager_vault(v_mand_org_id);
+      PERFORM public._get_or_create_manager_vault(v_mand1_org_id);
       UPDATE public.manager_vault_account
          SET manager_refined_gold_grams = 1000.0000,
              manager_purchased_gold_grams = 0,
              manager_cash_amount = 0,
              manager_usd_amount = 0,
              manager_scrap_585_eq_g = 0
-       WHERE organization_id = v_mand_org_id;
+       WHERE organization_id = v_mand1_org_id;
 
       v_base_res := public.rpc_confirm_accounting_baseline(
         p_notes := 'Initial Mandatory Test Baseline 1000g'
       );
 
       IF (v_base_res->>'net_assets_585_g')::numeric <> 1000.0000 THEN
-        RAISE EXCEPTION 'Mandatory Test Failed: Initial net assets expected 1000g, got %', (v_base_res->>'net_assets_585_g');
+        RAISE EXCEPTION 'Mandatory Test 1 Failed: Initial net assets expected 1000g, got %', (v_base_res->>'net_assets_585_g');
       END IF;
 
       -- Gold rate shifts from 950,000 to 1,000,000 UZS
       UPDATE public.daily_gold_rates
          SET rate_per_gram = 1000000.00
-       WHERE organization_id = v_mand_org_id AND proba = 585 AND rate_date = current_date;
+       WHERE organization_id = v_mand1_org_id AND proba = 585 AND rate_date = (timezone('Asia/Tashkent', now()))::date;
 
       -- Director injects 1,000,000 UZS capital into manager_uzs
       v_tx_res := public.rpc_record_financial_transaction(
@@ -119,25 +131,128 @@ async function runProfitAccountingTests() {
 
       v_profit_res := public.rpc_get_accounting_profit_summary();
 
-      -- Current net assets: 1000g (gold) + 1.0000g (1,000,000 UZS / 1,000,000) = 1001.0000g
-      -- Capital injected: 1.0000g
-      -- Period Accounting Result: 1001.0000 - 1000.0000 - 1.0000 = 0.0000g
-      -- FX Drift on baseline cash: 0.0000g (since baseline cash was 0 UZS)
-      -- Operational Trading Result: 0.0000g
       IF (v_profit_res->>'current_net_assets_585_g')::numeric <> 1001.0000 OR
          (v_profit_res->>'capital_contributions_585_g')::numeric <> 1.0000 OR
          (v_profit_res->>'period_accounting_result_585_g')::numeric <> 0.0000 OR
          (v_profit_res->>'operational_trading_result_585_g')::numeric <> 0.0000 THEN
-        RAISE EXCEPTION 'Mandatory Test Failed: Net assets % g, Cap In % g, Period Res % g, Trading Res % g (expected 1001g, 1g, 0g, 0g)',
+        RAISE EXCEPTION 'Mandatory Test 1 Failed: Net assets % g, Cap In % g, Period Res % g, Trading Res % g (expected 1001g, 1g, 0g, 0g)',
           (v_profit_res->>'current_net_assets_585_g'), (v_profit_res->>'capital_contributions_585_g'),
           (v_profit_res->>'period_accounting_result_585_g'), (v_profit_res->>'operational_trading_result_585_g');
       END IF;
 
-      test_scenario := 'MANDATORY_CAPITAL_INJECTION';
+      test_scenario := 'MANDATORY_1_CAPITAL_INJECTION';
       test_status := 'PASS';
       net_assets := (v_profit_res->>'current_net_assets_585_g')::numeric;
       period_profit := (v_profit_res->>'operational_trading_result_585_g')::numeric;
-      test_details := 'Baseline 1000g -> kurs 950k->1M -> 1M UZS kapital kiritildi -> savdo foydasi aynan 0.0000g (soxta foyda 0)';
+      test_details := 'Baseline 1000g -> kurs 950k->1M -> 1M UZS kapital kiritildi -> savdo foydasi aynan 0.0000g';
+      RETURN NEXT;
+
+      -- =======================================================================
+      -- MANDATORY TEST 2: CASH DEPLOYMENT -> BUY GOLD -> RATE DOUBLES
+      -- NO FAKE TRADING PROFIT GENERATED ON DEPLOYED CASH (HELD CASH = 0)
+      -- =======================================================================
+      INSERT INTO public.organizations (id, name, code, status)
+      VALUES (v_mand2_org_id, 'Mandatory FX Parity Test Org 2', 'mand2-org-' || substr(v_mand2_org_id::text, 1, 8), 'active');
+
+      INSERT INTO public.employees (id, organization_id, user_id, full_name, name, role, is_active)
+      VALUES (v_mand2_mgr_emp, v_mand2_org_id, v_mand2_mgr_user, 'Mandatory Director 2', 'Director', 'director', true);
+
+      INSERT INTO public.daily_gold_rates (id, organization_id, proba, rate_per_gram, rate_date, is_confirmed)
+      VALUES (gen_random_uuid(), v_mand2_org_id, 585, 1000000.00, (timezone('Asia/Tashkent', now()))::date, true);
+
+      PERFORM set_config('request.jwt.claim.sub', v_mand2_mgr_user::text, true);
+
+      PERFORM public._get_or_create_manager_vault(v_mand2_org_id);
+      UPDATE public.manager_vault_account
+         SET manager_refined_gold_grams = 0,
+             manager_purchased_gold_grams = 0,
+             manager_cash_amount = 1000000.00,
+             manager_usd_amount = 0,
+             manager_scrap_585_eq_g = 0
+       WHERE organization_id = v_mand2_org_id;
+
+      -- Baseline: 1,000,000 UZS cash at 1,000,000 UZS/g rate = 1.0000g net assets
+      v_base_res := public.rpc_confirm_accounting_baseline(
+        p_notes := 'Baseline 1M UZS cash @ 1M rate'
+      );
+
+      IF (v_base_res->>'net_assets_585_g')::numeric <> 1.0000 THEN
+        RAISE EXCEPTION 'Mandatory Test 2 Failed: Initial net assets expected 1.0000g, got %', (v_base_res->>'net_assets_585_g');
+      END IF;
+
+      -- Cash is deployed to buy 1.0000g gold (cash becomes 0, gold becomes 1.0000g)
+      UPDATE public.manager_vault_account
+         SET manager_cash_amount = 0,
+             manager_purchased_gold_grams = 1.0000
+       WHERE organization_id = v_mand2_org_id;
+
+      -- Gold rate doubles to 2,000,000 UZS/g
+      UPDATE public.daily_gold_rates
+         SET rate_per_gram = 2000000.00
+       WHERE organization_id = v_mand2_org_id AND proba = 585 AND rate_date = (timezone('Asia/Tashkent', now()))::date;
+
+      v_profit_res := public.rpc_get_accounting_profit_summary();
+
+      -- Held cash = min(current_cash, base_cash) = min(0, 1M) = 0 UZS
+      -- FX drift = 0.0000g
+      -- Net assets = 1.0000g
+      -- Period result = 1.0000 - 1.0000 = 0.0000g
+      -- Trading result = 0.0000g - 0.0000g = 0.0000g (NO FAKE +0.5g PROFIT!)
+      IF (v_profit_res->>'current_net_assets_585_g')::numeric <> 1.0000 OR
+         (v_profit_res->>'fx_valuation_impact_585_g')::numeric <> 0.0000 OR
+         (v_profit_res->>'operational_trading_result_585_g')::numeric <> 0.0000 THEN
+        RAISE EXCEPTION 'Mandatory Test 2 Failed: Net assets % g, FX drift % g, Trading result % g (expected 1.0000g, 0.0000g, 0.0000g)',
+          (v_profit_res->>'current_net_assets_585_g'), (v_profit_res->>'fx_valuation_impact_585_g'),
+          (v_profit_res->>'operational_trading_result_585_g');
+      END IF;
+
+      test_scenario := 'MANDATORY_2_DEPLOYED_CASH_FX_DRIFT';
+      test_status := 'PASS';
+      net_assets := (v_profit_res->>'current_net_assets_585_g')::numeric;
+      period_profit := (v_profit_res->>'operational_trading_result_585_g')::numeric;
+      test_details := 'Baseline 1M naqd pul -> 1g oltinga sarflandi -> kurs 2x bo''ldi -> soxta foyda 0.0000g (held cash = 0)';
+      RETURN NEXT;
+
+      -- =======================================================================
+      -- SCENARIO P: LIVE PREVIEW BEFORE BASELINE FREEZE
+      -- current_net_assets_585_g and components computed even without baseline
+      -- =======================================================================
+      INSERT INTO public.organizations (id, name, code, status)
+      VALUES (v_prev_org_id, 'Preview Test Org', 'prev-org-' || substr(v_prev_org_id::text, 1, 8), 'active');
+
+      INSERT INTO public.employees (id, organization_id, user_id, full_name, name, role, is_active)
+      VALUES (v_prev_mgr_emp, v_prev_org_id, v_prev_mgr_user, 'Preview Director', 'Director', 'director', true);
+
+      INSERT INTO public.daily_gold_rates (id, organization_id, proba, rate_per_gram, rate_date, is_confirmed)
+      VALUES (gen_random_uuid(), v_prev_org_id, 585, 950000.00, (timezone('Asia/Tashkent', now()))::date, true);
+
+      PERFORM set_config('request.jwt.claim.sub', v_prev_mgr_user::text, true);
+
+      PERFORM public._get_or_create_manager_vault(v_prev_org_id);
+      UPDATE public.manager_vault_account
+         SET manager_refined_gold_grams = 165.0000,
+             manager_purchased_gold_grams = 0,
+             manager_cash_amount = 0,
+             manager_usd_amount = 0,
+             manager_scrap_585_eq_g = 0
+       WHERE organization_id = v_prev_org_id;
+
+      -- Call profit summary with NO baseline confirmed yet
+      v_profit_res := public.rpc_get_accounting_profit_summary();
+
+      IF (v_profit_res->>'has_baseline')::boolean <> false OR
+         (v_profit_res->>'is_computable')::boolean <> false OR
+         (v_profit_res->>'current_net_assets_585_g')::numeric <> 165.0000 OR
+         (v_profit_res->'components'->>'manager_refined_gold_585_g')::numeric <> 165.0000 THEN
+        RAISE EXCEPTION 'Scenario P Failed: has_baseline=%, is_computable=%, net_assets=% (expected false, false, 165.0000g)',
+          (v_profit_res->>'has_baseline'), (v_profit_res->>'is_computable'), (v_profit_res->>'current_net_assets_585_g');
+      END IF;
+
+      test_scenario := 'SCENARIO_P_PREVIEW_BEFORE_FREEZE';
+      test_status := 'PASS';
+      net_assets := (v_profit_res->>'current_net_assets_585_g')::numeric;
+      period_profit := 0;
+      test_details := 'Baseline yo''q holatda ham joriy aktivlar (165.0000g) va components to''liq jonli hisoblab ko''rsatildi';
       RETURN NEXT;
 
       -- =======================================================================
@@ -155,7 +270,7 @@ async function runProfitAccountingTests() {
       VALUES (v_cust_id, v_org_id, 'CUST-PRF-' || substr(v_cust_id::text, 1, 6), 'Shoxrux Zargar', v_seller_emp);
 
       INSERT INTO public.daily_gold_rates (id, organization_id, proba, rate_per_gram, rate_date, is_confirmed)
-      VALUES (v_rate_id, v_org_id, 585, 950000.00, current_date, true);
+      VALUES (v_rate_id, v_org_id, 585, 950000.00, (timezone('Asia/Tashkent', now()))::date, true);
 
       PERFORM set_config('request.jwt.claim.sub', v_mgr_user::text, true);
 
@@ -387,24 +502,39 @@ async function runProfitAccountingTests() {
 
       -- -----------------------------------------------------------------------
       -- SCENARIO H: FX / GOLD RATE DRIFT VS OPERATIONAL TRADING MARGIN
+      -- Exact mathematical numbers asserted explicitly:
+      -- Rate shifts from 950k to 1M (+50k/g).
+      -- Baseline cash = 0 UZS -> FX drift = 0.0000g.
+      -- Cash held = 14,250,000 UZS / 1,000,000 = 14.2500g (was 15.0000g).
+      -- Net assets shifts by -0.7500g from cash revaluation: 1094.0000 -> 1093.2500g.
+      -- Period result = 1093.2500 - 1000.0000 - 100.0000 + 20.0000 = +13.2500g.
       -- -----------------------------------------------------------------------
       UPDATE public.daily_gold_rates
          SET rate_per_gram = 1000000.00
-       WHERE organization_id = v_org_id AND proba = 585 AND rate_date = current_date;
+       WHERE organization_id = v_org_id AND proba = 585 AND rate_date = (timezone('Asia/Tashkent', now()))::date;
 
       v_profit_res := public.rpc_get_accounting_profit_summary();
+
+      IF (v_profit_res->>'current_net_assets_585_g')::numeric <> 1093.2500 OR
+         (v_profit_res->>'period_accounting_result_585_g')::numeric <> 13.2500 OR
+         (v_profit_res->>'fx_valuation_impact_585_g')::numeric <> 0.0000 OR
+         (v_profit_res->>'operational_trading_result_585_g')::numeric <> 13.2500 THEN
+        RAISE EXCEPTION 'Scenario H Failed: Net assets % g, Period Res % g, FX drift % g, Trading Res % g (expected 1093.25g, 13.25g, 0.00g, 13.25g)',
+          (v_profit_res->>'current_net_assets_585_g'), (v_profit_res->>'period_accounting_result_585_g'),
+          (v_profit_res->>'fx_valuation_impact_585_g'), (v_profit_res->>'operational_trading_result_585_g');
+      END IF;
 
       test_scenario := 'SCENARIO_H';
       test_status := 'PASS';
       net_assets := (v_profit_res->>'current_net_assets_585_g')::numeric;
       period_profit := (v_profit_res->>'period_accounting_result_585_g')::numeric;
-      test_details := 'Kurs 950k->1M ga oshdi -> savdo marjasi (' || (v_profit_res->>'operational_trading_result_585_g') || 'g) va FX drift (' || (v_profit_res->>'fx_valuation_impact_585_g') || 'g) ajratildi';
+      test_details := 'Kurs 950k->1M: Aniq matematik sonlar tasdiqlandi: Net 1093.2500g, Savdo natijasi 13.2500g, FX drift 0.0000g';
       RETURN NEXT;
 
       -- Reset rate
       UPDATE public.daily_gold_rates
          SET rate_per_gram = 950000.00
-       WHERE organization_id = v_org_id AND proba = 585 AND rate_date = current_date;
+       WHERE organization_id = v_org_id AND proba = 585 AND rate_date = (timezone('Asia/Tashkent', now()))::date;
 
       -- -----------------------------------------------------------------------
       -- SCENARIO I: SELLER ACCESS STRICTLY BLOCKED WITH 42501 (NO SWALLOW)
@@ -445,7 +575,6 @@ async function runProfitAccountingTests() {
       -- -----------------------------------------------------------------------
       PERFORM set_config('request.jwt.claim.sub', v_mgr_user::text, true);
 
-      -- J.1: Direct UPDATE of net assets must fail with 42501 ERR_BASELINE_IMMUTABLE
       v_mismatch_caught := false;
       BEGIN
         UPDATE public.accounting_baselines
@@ -461,7 +590,6 @@ async function runProfitAccountingTests() {
         RAISE EXCEPTION 'Scenario J Failed: Direct UPDATE of accounting_baselines was not blocked by trigger!';
       END IF;
 
-      -- J.2: Direct DELETE of baseline must fail with 42501 ERR_BASELINE_IMMUTABLE
       v_mismatch_caught := false;
       BEGIN
         DELETE FROM public.accounting_baselines
@@ -558,51 +686,62 @@ async function runProfitAccountingTests() {
       RETURN NEXT;
 
       -- -----------------------------------------------------------------------
-      -- SCENARIO M: REFINING LOSS REDUCES NET ASSETS EXACTLY ONCE
+      -- SCENARIO M: REAL BUSINESS RPC rpc_record_refining_batch
+      -- 100g 585 scrap refined into 98g refined gold -> net assets decrease by exactly -2.0000g
       -- -----------------------------------------------------------------------
       -- Put 100g 585 scrap into manager vault
       UPDATE public.manager_vault_account
-         SET manager_scrap_585_eq_g = coalesce(manager_scrap_585_eq_g, 0) + 100.0000,
+         SET manager_scrap_grams = coalesce(manager_scrap_grams, 0) + 100.0000,
+             manager_scrap_585_eq_g = coalesce(manager_scrap_585_eq_g, 0) + 100.0000,
              manager_scrap_physical_g = coalesce(manager_scrap_physical_g, 0) + 100.0000
        WHERE organization_id = v_org_id;
 
       v_profit_res := public.rpc_get_accounting_profit_summary();
       v_pre_net := (v_profit_res->>'current_net_assets_585_g')::numeric;
 
-      -- Dispatch 100g to refining batch: 100g scrap yields 98g refined gold, 2g refining loss
-      UPDATE public.manager_vault_account
-         SET manager_scrap_585_eq_g = manager_scrap_585_eq_g - 100.0000,
-             manager_scrap_physical_g = manager_scrap_physical_g - 100.0000,
-             manager_refined_gold_grams = manager_refined_gold_grams + 98.0000
-       WHERE organization_id = v_org_id;
+      -- Execute REAL business RPC
+      PERFORM public.rpc_record_refining_batch(
+        p_input_scrap_grams := 100.0000,
+        p_melted_weight_grams := 100.0000,
+        p_output_fine_grams := 98.0000,
+        p_output_fine_proba := 585.0,
+        p_operator_id := v_mgr_emp,
+        p_notes := 'Haqiqiy biznes RPC orqali afinaj partiyasi'
+      );
 
       v_profit_res := public.rpc_get_accounting_profit_summary();
       v_post_net := (v_profit_res->>'current_net_assets_585_g')::numeric;
 
-      -- Net change should be -2.0000g
+      -- Net change should be strictly -2.0000g
       IF round(v_post_net - v_pre_net, 4) <> -2.0000 THEN
         RAISE EXCEPTION 'Scenario M Failed: Expected net assets reduction of -2.0000g, got % (pre: %, post: %)',
           round(v_post_net - v_pre_net, 4), v_pre_net, v_post_net;
       END IF;
 
-      test_scenario := 'SCENARIO_M_REFINING_LOSS';
+      test_scenario := 'SCENARIO_M_REFINING_LOSS_RPC';
       test_status := 'PASS';
       net_assets := v_post_net;
       period_profit := -2.0000;
-      test_details := 'Afinajda 100g lomdan 98g sof oltin chiqdi (2g yo''qotish) -> sof aktivni aynan 1 marta (-2.0000g) kamaytirdi';
+      test_details := 'Haqiqiy rpc_record_refining_batch ishlatildi: 100g lomdan 98g sof oltin chiqdi -> sof aktiv -2.0000g kamaydi';
       RETURN NEXT;
 
       -- -----------------------------------------------------------------------
-      -- SCENARIO N: FACTORY GOLD HANDOVER SETTLES ASSETS & LIABILITIES EQUALLY
+      -- SCENARIO N: REAL BUSINESS RPC rpc_record_factory_gold_handover
+      -- Hand over 50g refined gold to factory -> assets (-50g) and liabilities (-50g)
+      -- Net assets remain strictly invariant!
       -- -----------------------------------------------------------------------
       v_profit_res := public.rpc_get_accounting_profit_summary();
       v_pre_net := (v_profit_res->>'current_net_assets_585_g')::numeric;
 
-      -- Hand over 50g refined gold to factory to settle factory obligation
-      UPDATE public.manager_vault_account
-         SET manager_refined_gold_grams = manager_refined_gold_grams - 50.0000,
-             current_factory_obligation_g = current_factory_obligation_g - 50.0000
-       WHERE organization_id = v_org_id;
+      -- Execute REAL business RPC
+      PERFORM public.rpc_record_factory_gold_handover(
+        p_source_type := 'refined_gold',
+        p_physical_weight_g := 50.0000,
+        p_proba := 585.0,
+        p_agreed_equivalent_g := 50.0000,
+        p_factory_recipient := 'Zavod Bosh Texnologi',
+        p_notes := 'Haqiqiy biznes RPC orqali zavodga oltin topshirish'
+      );
 
       v_profit_res := public.rpc_get_accounting_profit_summary();
       v_post_net := (v_profit_res->>'current_net_assets_585_g')::numeric;
@@ -612,11 +751,11 @@ async function runProfitAccountingTests() {
         RAISE EXCEPTION 'Scenario N Failed: Net assets changed after factory settlement! Pre: %, Post: %', v_pre_net, v_post_net;
       END IF;
 
-      test_scenario := 'SCENARIO_N_FACTORY_HANDOVER_PARITY';
+      test_scenario := 'SCENARIO_N_FACTORY_HANDOVER_RPC';
       test_status := 'PASS';
       net_assets := v_post_net;
       period_profit := 0;
-      test_details := 'Zavodga 50g oltin qaytarildi: aktiv (-50g) va passiv (-50g) bir xil kamaydi, sof aktiv invariant qoldi';
+      test_details := 'Haqiqiy rpc_record_factory_gold_handover ishlatildi: 50g oltin qaytarildi -> aktiv va passiv teng kamaydi, sof aktiv invariant';
       RETURN NEXT;
 
     END;
@@ -628,13 +767,13 @@ async function runProfitAccountingTests() {
   console.log('Executing Profit Accounting Hardening Test Suite on Staging...');
   const res = await runSqlQuery(testSql, 'vouehtlmsunebracahon');
   console.log('\n==============================================================================');
-  console.log('TEST MATRIX RESULTS (15 SCENARIOS):');
+  console.log('TEST MATRIX RESULTS (16 SCENARIOS):');
   console.log('==============================================================================');
   console.table(res);
 
   // Now verify Seller RLS SELECT directly against accounting_baselines and financial_transactions
   console.log('\n------------------------------------------------------------------------------');
-  console.log('Verifying Seller Role Table RLS Direct SELECT Denial...');
+  console.log('Verifying Seller Role Table RLS Direct SELECT Denial & Cross-Tenant Isolation...');
   console.log('------------------------------------------------------------------------------');
 
   const rlsSql = `
@@ -647,13 +786,13 @@ async function runProfitAccountingTests() {
       PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000999', true);
       PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
 
-      -- Should see 0 baselines via RLS
+      -- Seller role should see 0 baselines via RLS
       SELECT count(*) INTO v_cnt FROM public.accounting_baselines;
       IF v_cnt > 0 THEN
         RAISE EXCEPTION 'RLS Leak: Seller was able to select % rows from accounting_baselines!', v_cnt;
       END IF;
 
-      -- Should see 0 financial transactions via RLS
+      -- Seller role should see 0 financial transactions via RLS
       SELECT count(*) INTO v_cnt FROM public.financial_transactions;
       IF v_cnt > 0 THEN
         RAISE EXCEPTION 'RLS Leak: Seller was able to select % rows from financial_transactions!', v_cnt;

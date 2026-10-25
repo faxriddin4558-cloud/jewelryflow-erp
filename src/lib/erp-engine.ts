@@ -1161,16 +1161,16 @@ export interface AccountingProfitSummary {
     gold_rate_585: number;
     usd_rate: number;
   } | null;
-  current_net_assets_585_g: number;
-  current_total_assets_585_g: number;
-  current_total_liabilities_585_g: number;
-  period_accounting_result_585_g: number;
-  fx_valuation_impact_585_g: number;
-  operational_trading_result_585_g: number;
-  capital_contributions_585_g: number;
-  capital_distributions_585_g: number;
-  business_expenses_585_g: number;
-  components: {
+  current_net_assets_585_g: number | null;
+  current_total_assets_585_g: number | null;
+  current_total_liabilities_585_g: number | null;
+  period_accounting_result_585_g: number | null;
+  fx_valuation_impact_585_g: number | null;
+  operational_trading_result_585_g: number | null;
+  capital_contributions_585_g?: number | null;
+  capital_distributions_585_g?: number | null;
+  business_expenses_585_g?: number | null;
+  components?: {
     manager_finished_goods_585_g: number;
     sellers_finished_goods_585_g: number;
     manager_scrap_585_eq_g: number;
@@ -1190,7 +1190,7 @@ export interface AccountingProfitSummary {
     cash_usd_amount: number;
     cash_usd_585_eq_g: number;
     factory_obligation_585_g: number;
-  };
+  } | null;
 }
 
 export interface DailyGoldRateRow {

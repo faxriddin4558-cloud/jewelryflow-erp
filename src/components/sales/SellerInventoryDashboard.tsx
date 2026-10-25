@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { formatGrams, formatScreenGrams, type JewelryModelItem } from "@/lib/barcode-scanner-engine";
-import { supabase, type ConsignmentPieceRow, type SellerGoldAccountRow } from "@/lib/erp-engine";
+import { supabase, type ConsignmentPieceRow, type SellerGoldAccountRow, type FactoryReceiptRow } from "@/lib/erp-engine";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
 import { parseErrorMessage } from "@/lib/error-utils";
 
@@ -18,11 +18,13 @@ interface Props {
   sellers: SellerItem[];
   sellerAccounts: SellerGoldAccountRow[];
   models?: JewelryModelItem[];
+  factoryReceipts?: FactoryReceiptRow[];
   onRefresh?: () => Promise<void>;
 }
 
-export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, models, onRefresh }: Props) {
-  const [viewMode, setViewMode] = useState<"pieces" | "aggregated">("aggregated");
+export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, models, factoryReceipts, onRefresh }: Props) {
+  const [internalReceipts, setInternalReceipts] = useState<FactoryReceiptRow[]>([]);
+  const [viewMode, setViewMode] = useState<"batches" | "pieces" | "aggregated">("batches");
   const [selectedSellerFilter, setSelectedSellerFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [modelSearch, setModelSearch] = useState("");
@@ -30,6 +32,53 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
   const [returnNotes, setReturnNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (factoryReceipts && factoryReceipts.length > 0) return;
+    let isMounted = true;
+    async function loadReceipts() {
+      try {
+        const { data } = await supabase.from("factory_receipts").select("*").order("created_at", { ascending: false });
+        if (isMounted && data) setInternalReceipts(data as FactoryReceiptRow[]);
+      } catch {
+        // ignore
+      }
+    }
+    void loadReceipts();
+    return () => {
+      isMounted = false;
+    };
+  }, [factoryReceipts]);
+
+  const allReceipts = useMemo(() => {
+    return (factoryReceipts && factoryReceipts.length > 0) ? factoryReceipts : internalReceipts;
+  }, [factoryReceipts, internalReceipts]);
+
+  const activeBatches = useMemo(() => {
+    return allReceipts.filter((r) => Number(r.available_physical_g || 0) > 0);
+  }, [allReceipts]);
+
+  const batchesAvailableGrams = useMemo(() => {
+    return activeBatches.reduce((acc, r) => acc + Number(r.available_physical_g || 0), 0);
+  }, [activeBatches]);
+
+  const managerReturnedPieces = useMemo(() => {
+    return pieces.filter((p) => p.status === "in_manager_stock" || p.status === "returned_to_manager");
+  }, [pieces]);
+
+  const managerPiecesGrams = useMemo(() => {
+    return managerReturnedPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+  }, [managerReturnedPieces]);
+
+  const totalManagerStockGrams = batchesAvailableGrams + managerPiecesGrams;
+
+  const sellerAvailablePieces = useMemo(() => {
+    return pieces.filter((p) => p.status === "held_by_seller");
+  }, [pieces]);
+
+  const sellerStockGrams = useMemo(() => {
+    return sellerAvailablePieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+  }, [sellerAvailablePieces]);
 
   const filteredPieces = useMemo(() => {
     return pieces.filter((p) => {
@@ -227,6 +276,16 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
           {/* View mode toggle */}
           <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
             <button
+              onClick={() => setViewMode("batches")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                viewMode === "batches"
+                  ? "bg-amber-500 text-slate-950 shadow-md"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              <span>📦</span> Zavod Partiyalari ({activeBatches.length})
+            </button>
+            <button
               onClick={() => setViewMode("pieces")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 viewMode === "pieces"
@@ -286,24 +345,27 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1">
+          <div className="bg-slate-950 p-4 rounded-2xl border border-blue-500/30 space-y-1">
             <div className="text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
-              Topshirilgan (Jami)
+              Menejer Ombori (Jami)
             </div>
-            <div className="text-xl font-black text-amber-300 font-mono">
-              {totals.consignedQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatScreenGrams(totals.consignedGrams, 2)}</span>
+            <div className="text-xl font-black text-cyan-300 font-mono">
+              {formatScreenGrams(totalManagerStockGrams, 4)}
+            </div>
+            <div className="text-[10px] text-slate-400 font-mono">
+              Partiyalar: {formatScreenGrams(batchesAvailableGrams, 2)} | Donalar: {formatScreenGrams(managerPiecesGrams, 2)}
             </div>
           </div>
 
           <div className="bg-slate-950 p-4 rounded-2xl border border-emerald-800/40 space-y-1">
             <div className="text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
-              Fizik Oltin Qoldig&apos;i
+              Sotuvchilar Vitrinasida
             </div>
             <div className="text-xl font-black text-emerald-400 font-mono">
-              {formatScreenGrams(totals.truePhysicalStock, 2)}
+              {formatScreenGrams(sellerStockGrams, 4)}
             </div>
-            <div className="text-[11px] text-slate-400 font-mono">
-              Donalarda: {totals.availableQty} dona ({formatScreenGrams(totals.availableGrams, 2)})
+            <div className="text-[10px] text-slate-400 font-mono">
+              Donalarda: {sellerAvailablePieces.length} ta unsold dona
             </div>
           </div>
 
@@ -311,7 +373,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
             <div className="text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
               Mijozlarga Sotilgan
             </div>
-            <div className="text-xl font-black text-cyan-300 font-mono">
+            <div className="text-xl font-black text-amber-300 font-mono">
               {totals.soldQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatScreenGrams(totals.soldGrams, 2)}</span>
             </div>
           </div>
@@ -320,7 +382,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
             <div className="text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
               Menejerga Qaytarilgan
             </div>
-            <div className="text-xl font-black text-amber-400 font-mono">
+            <div className="text-xl font-black text-purple-300 font-mono">
               {totals.returnedQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatScreenGrams(totals.returnedGrams, 2)}</span>
             </div>
           </div>
@@ -336,6 +398,72 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
           }`}
         >
           {actionMessage.text}
+        </div>
+      )}
+
+      {/* VIEW 0: FACTORY RECEIPT BATCHES (UNSEPARATED BULK STOCK) */}
+      {viewMode === "batches" && (
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-[#F8FAFC] space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                <span>📦</span> Zavoddan Qabul Qilingan Partiyalar (Dona qilinmagan qoldiqlar)
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Ushbu partiyalar hali shtrixkodli donalarga (JF-PIECE) ajratilmagan yoki qisman ajratilgan qoldiqlar.
+              </p>
+            </div>
+            <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-950/80 px-2.5 py-1 rounded-xl border border-cyan-800">
+              Jami Partiyalar Qoldig&apos;i: {formatScreenGrams(batchesAvailableGrams, 4)}
+            </span>
+          </div>
+
+          {activeBatches.length === 0 ? (
+            <div className="bg-slate-950 rounded-2xl p-8 text-center text-xs text-slate-500 border border-slate-800">
+              Zavoddan qabul qilingan qoldiq partiyalar mavjud emas (barcha qabul qilingan tovarlar to&apos;liq donalarga ajratilgan).
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold text-[11px] bg-slate-900/60">
+                    <th className="p-3">Hujjat No</th>
+                    <th className="p-3">Mahsulot Nomi</th>
+                    <th className="p-3 text-center">Proba</th>
+                    <th className="p-3 text-right">Boshlang&apos;ich Vazn</th>
+                    <th className="p-3 text-right">Taqsimlangan</th>
+                    <th className="p-3 text-right text-cyan-400 font-bold">Mavjud Qoldiq</th>
+                    <th className="p-3 text-center">Ustama</th>
+                    <th className="p-3 text-right">Zavod Majburiyati</th>
+                    <th className="p-3 text-center">Sana</th>
+                    <th className="p-3 text-center">Holat</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-mono">
+                  {activeBatches.map((b) => (
+                    <tr key={b.id} className="hover:bg-slate-900/40 transition">
+                      <td className="p-3 font-bold text-amber-300">{b.receipt_no}</td>
+                      <td className="p-3 font-sans text-slate-200">{b.product_name}</td>
+                      <td className="p-3 text-center text-slate-300">{b.proba}</td>
+                      <td className="p-3 text-right text-slate-300">{formatScreenGrams(b.original_physical_g, 2)}</td>
+                      <td className="p-3 text-right text-slate-400">{formatScreenGrams(b.transferred_physical_g, 2)}</td>
+                      <td className="p-3 text-right font-black text-cyan-300">{formatScreenGrams(b.available_physical_g, 2)}</td>
+                      <td className="p-3 text-center text-slate-400 font-sans">{b.factory_markup_pct}%</td>
+                      <td className="p-3 text-right text-rose-300 font-bold">{formatScreenGrams(b.factory_obligation_g, 2)}</td>
+                      <td className="p-3 text-center text-slate-400 text-[11px] font-sans">
+                        {new Date(b.receipt_date || b.created_at || "").toLocaleDateString()}
+                      </td>
+                      <td className="p-3 text-center font-sans">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                          {b.status === "in_manager_stock" ? "Seyfda" : b.status === "partially_transferred" ? "Qisman taqsimlangan" : b.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

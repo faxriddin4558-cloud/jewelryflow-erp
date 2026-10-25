@@ -16,6 +16,7 @@ import {
   type ErpUser,
 } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
+import { ProfitAccountingBanner } from "@/components/sales/ProfitAccountingBanner";
 
 
 function SalesDashboardContent() {
@@ -186,6 +187,11 @@ function SalesDashboardContent() {
           <span>🔄</span> {loading ? "Yuklanmoqda..." : "Yangilash"}
         </button>
       </div>
+
+      {/* Management Accounting Profit & Loss Banner */}
+      {!isSeller && (
+        <ProfitAccountingBanner onDataMutated={loadData} canManageAccounting={!isSeller} />
+      )}
 
       {/* 2. Key Financial Indicators (6 Master Cards) */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
