@@ -134,17 +134,17 @@ async function runProfitAccountingTests() {
       IF (v_profit_res->>'current_net_assets_585_g')::numeric <> 1001.0000 OR
          (v_profit_res->>'capital_contributions_585_g')::numeric <> 1.0000 OR
          (v_profit_res->>'period_accounting_result_585_g')::numeric <> 0.0000 OR
-         (v_profit_res->>'operational_trading_result_585_g')::numeric <> 0.0000 THEN
-        RAISE EXCEPTION 'Mandatory Test 1 Failed: Net assets % g, Cap In % g, Period Res % g, Trading Res % g (expected 1001g, 1g, 0g, 0g)',
+         v_profit_res->>'operational_trading_result_585_g' IS NOT NULL THEN
+        RAISE EXCEPTION 'Mandatory Test 1 Failed: Net assets % g, Cap In % g, Period Res % g (expected 1001g, 1g, 0g)',
           (v_profit_res->>'current_net_assets_585_g'), (v_profit_res->>'capital_contributions_585_g'),
-          (v_profit_res->>'period_accounting_result_585_g'), (v_profit_res->>'operational_trading_result_585_g');
+          (v_profit_res->>'period_accounting_result_585_g');
       END IF;
 
       test_scenario := 'MANDATORY_1_CAPITAL_INJECTION';
       test_status := 'PASS';
       net_assets := (v_profit_res->>'current_net_assets_585_g')::numeric;
-      period_profit := (v_profit_res->>'operational_trading_result_585_g')::numeric;
-      test_details := 'Baseline 1000g -> kurs 950k->1M -> 1M UZS kapital kiritildi -> savdo foydasi aynan 0.0000g';
+      period_profit := (v_profit_res->>'period_accounting_result_585_g')::numeric;
+      test_details := 'Baseline 1000g -> kurs 950k->1M -> 1M UZS kapital kiritildi -> sof hisobiy natija aynan 0.0000g (savdo marjasi/FX ajratish yashirilgan)';
       RETURN NEXT;
 
       -- =======================================================================
@@ -199,17 +199,16 @@ async function runProfitAccountingTests() {
       -- Period result = 1.0000 - 1.0000 = 0.0000g
       -- Trading result = 0.0000g - 0.0000g = 0.0000g (NO FAKE +0.5g PROFIT!)
       IF (v_profit_res->>'current_net_assets_585_g')::numeric <> 1.0000 OR
-         (v_profit_res->>'fx_valuation_impact_585_g')::numeric <> 0.0000 OR
-         (v_profit_res->>'operational_trading_result_585_g')::numeric <> 0.0000 THEN
-        RAISE EXCEPTION 'Mandatory Test 2 Failed: Net assets % g, FX drift % g, Trading result % g (expected 1.0000g, 0.0000g, 0.0000g)',
-          (v_profit_res->>'current_net_assets_585_g'), (v_profit_res->>'fx_valuation_impact_585_g'),
-          (v_profit_res->>'operational_trading_result_585_g');
+         (v_profit_res->>'period_accounting_result_585_g')::numeric <> 0.0000 OR
+         v_profit_res->>'operational_trading_result_585_g' IS NOT NULL THEN
+        RAISE EXCEPTION 'Mandatory Test 2 Failed: Net assets % g, Period Res % g (expected 1.0000g, 0.0000g)',
+          (v_profit_res->>'current_net_assets_585_g'), (v_profit_res->>'period_accounting_result_585_g');
       END IF;
 
       test_scenario := 'MANDATORY_2_DEPLOYED_CASH_FX_DRIFT';
       test_status := 'PASS';
       net_assets := (v_profit_res->>'current_net_assets_585_g')::numeric;
-      period_profit := (v_profit_res->>'operational_trading_result_585_g')::numeric;
+      period_profit := (v_profit_res->>'period_accounting_result_585_g')::numeric;
       test_details := 'Baseline 1M naqd pul -> 1g oltinga sarflandi -> kurs 2x bo''ldi -> soxta foyda 0.0000g (held cash = 0)';
       RETURN NEXT;
 
@@ -517,18 +516,16 @@ async function runProfitAccountingTests() {
 
       IF (v_profit_res->>'current_net_assets_585_g')::numeric <> 1093.2500 OR
          (v_profit_res->>'period_accounting_result_585_g')::numeric <> 13.2500 OR
-         (v_profit_res->>'fx_valuation_impact_585_g')::numeric <> 0.0000 OR
-         (v_profit_res->>'operational_trading_result_585_g')::numeric <> 13.2500 THEN
-        RAISE EXCEPTION 'Scenario H Failed: Net assets % g, Period Res % g, FX drift % g, Trading Res % g (expected 1093.25g, 13.25g, 0.00g, 13.25g)',
-          (v_profit_res->>'current_net_assets_585_g'), (v_profit_res->>'period_accounting_result_585_g'),
-          (v_profit_res->>'fx_valuation_impact_585_g'), (v_profit_res->>'operational_trading_result_585_g');
+         v_profit_res->>'operational_trading_result_585_g' IS NOT NULL THEN
+        RAISE EXCEPTION 'Scenario H Failed: Net assets % g, Period Res % g (expected 1093.25g, 13.25g)',
+          (v_profit_res->>'current_net_assets_585_g'), (v_profit_res->>'period_accounting_result_585_g');
       END IF;
 
       test_scenario := 'SCENARIO_H';
       test_status := 'PASS';
       net_assets := (v_profit_res->>'current_net_assets_585_g')::numeric;
       period_profit := (v_profit_res->>'period_accounting_result_585_g')::numeric;
-      test_details := 'Kurs 950k->1M: Aniq matematik sonlar tasdiqlandi: Net 1093.2500g, Savdo natijasi 13.2500g, FX drift 0.0000g';
+      test_details := 'Kurs 950k->1M: Aniq matematik sonlar tasdiqlandi: Net 1093.2500g, Sof o''sish 13.2500g (savdo marjasi/FX ajratish yashirilgan)';
       RETURN NEXT;
 
       -- Reset rate
@@ -756,6 +753,32 @@ async function runProfitAccountingTests() {
       net_assets := v_post_net;
       period_profit := 0;
       test_details := 'Haqiqiy rpc_record_factory_gold_handover ishlatildi: 50g oltin qaytarildi -> aktiv va passiv teng kamaydi, sof aktiv invariant';
+      RETURN NEXT;
+
+      -- -----------------------------------------------------------------------
+      -- SCENARIO Q: PILOT DATE LOCK ENFORCEMENT
+      -- Calling with arbitrary start or end dates must be strictly rejected
+      -- -----------------------------------------------------------------------
+      v_profit_res := public.rpc_get_accounting_profit_summary(p_end_date := '2026-01-01');
+      IF (v_profit_res->>'status') <> 'unsupported_pilot_period' OR (v_profit_res->>'is_computable')::boolean <> false THEN
+        RAISE EXCEPTION 'Scenario Q Failed: Historical p_end_date was not rejected!';
+      END IF;
+
+      v_profit_res := public.rpc_get_accounting_profit_summary(p_start_date := '2025-01-01');
+      IF (v_profit_res->>'status') <> 'unsupported_pilot_period' OR (v_profit_res->>'is_computable')::boolean <> false THEN
+        RAISE EXCEPTION 'Scenario Q Failed: Arbitrary p_start_date was not rejected!';
+      END IF;
+
+      v_profit_res := public.rpc_get_accounting_profit_summary();
+      IF (v_profit_res->>'status') <> 'ok' OR (v_profit_res->>'is_computable')::boolean <> true THEN
+        RAISE EXCEPTION 'Scenario Q Failed: Standard call without dates failed!';
+      END IF;
+
+      test_scenario := 'SCENARIO_Q_PILOT_DATE_LOCK';
+      test_status := 'PASS';
+      net_assets := (v_profit_res->>'current_net_assets_585_g')::numeric;
+      period_profit := (v_profit_res->>'period_accounting_result_585_g')::numeric;
+      test_details := 'Server ixtiyoriy sana oraliqlarini to''liq rad etdi; faqat baseline -> hozirgacha rejim ruxsat etildi';
       RETURN NEXT;
 
     END;

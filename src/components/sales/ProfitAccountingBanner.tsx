@@ -13,8 +13,6 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
   const [profitSummary, setProfitSummary] = useState<AccountingProfitSummary | null>(null);
   const [profitLoading, setProfitLoading] = useState(false);
   const [profitError, setProfitError] = useState<string | null>(null);
-  const [profitStartDate, setProfitStartDate] = useState("");
-  const [profitEndDate, setProfitEndDate] = useState("");
   const [dailyRate, setDailyRate] = useState<DailyGoldRateRow | null>(null);
   const [cbuUsdRate, setCbuUsdRate] = useState<number | null>(null);
 
@@ -97,14 +95,14 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
     }
   }, [txTill, cbuUsdRate, txUsdRate]);
 
-  // Load accounting profit summary strictly
+  // Load accounting profit summary strictly from baseline to now
   const loadProfitSummary = useCallback(async () => {
     setProfitLoading(true);
     setProfitError(null);
     try {
       const { data, error } = await supabase.rpc("rpc_get_accounting_profit_summary", {
-        p_start_date: profitStartDate || null,
-        p_end_date: profitEndDate || null,
+        p_start_date: null,
+        p_end_date: null,
         p_gold_rate: dailyRate?.is_confirmed ? Number(dailyRate.rate_per_gram) : null,
         p_usd_rate: cbuUsdRate || null,
       });
@@ -121,7 +119,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
     } finally {
       setProfitLoading(false);
     }
-  }, [profitStartDate, profitEndDate, dailyRate?.is_confirmed, dailyRate?.rate_per_gram, cbuUsdRate]);
+  }, [dailyRate?.is_confirmed, dailyRate?.rate_per_gram, cbuUsdRate]);
 
   useEffect(() => {
     void loadProfitSummary();
@@ -303,8 +301,11 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
             {/* 1. Main Profit Figure (FAIL-CLOSED: NEVER "?? 0") */}
             <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
-              <div className="text-xs text-slate-400 font-bold">Davr Hisobiy Natijasi</div>
-              <div className="mt-1">
+              <div>
+                <div className="text-xs text-slate-400 font-bold">Sof Aktiv O&apos;zgarishi (585 g)</div>
+                <div className="text-[10px] text-slate-500 font-medium">Kapital harakatlariga tuzatilgan</div>
+              </div>
+              <div className="my-2">
                 {profitLoading ? (
                   <div className="text-xl font-bold text-slate-400 animate-pulse">Yuklanmoqda...</div>
                 ) : profitSummary && profitSummary.is_computable && profitSummary.period_accounting_result_585_g !== null ? (
@@ -329,30 +330,10 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                 )}
               </div>
 
-              <div className="mt-2 text-[11px] text-slate-400 flex flex-wrap gap-2 border-t border-slate-800/80 pt-2 font-mono">
-                {profitSummary && profitSummary.is_computable && profitSummary.operational_trading_result_585_g !== null ? (
-                  <>
-                    <span>
-                      Savdo marjasi:{" "}
-                      <strong className="text-indigo-300">
-                        {profitSummary.operational_trading_result_585_g.toFixed(4)} g
-                      </strong>
-                    </span>
-                    <span>•</span>
-                    <span>
-                      FX effekti:{" "}
-                      <strong className="text-amber-300">
-                        {profitSummary.fx_valuation_impact_585_g !== null
-                          ? `${profitSummary.fx_valuation_impact_585_g.toFixed(4)} g`
-                          : "0.0000 g"}
-                      </strong>
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-slate-500 italic">
-                    Boshlang&apos;ich hisob tasdiqlangach savdo marjasi va kurs farqi alohida ko&apos;rsatiladi
-                  </span>
-                )}
+              <div className="text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 font-sans">
+                <span className="text-slate-400 leading-tight block">
+                  ℹ️ Pilot davrida korxona sof aktivlarining 585 ekvivalentidagi o&apos;zgarishi asosiy boshqaruv mezoni hisoblanadi. Savdo marjasi va kurs tafovutini alohida ajratish to&apos;liq partiyaviy konvertatsiya tahlili yakunlangach taqdim etiladi.
+                </span>
               </div>
             </div>
 
@@ -450,37 +431,27 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
             </div>
           </div>
 
-          {/* Period Filter Bar */}
+          {/* Pilot Period Status Bar */}
           <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-slate-400 font-semibold">Davrni filtrlash:</span>
-              <input
-                type="date"
-                value={profitStartDate}
-                onChange={(e) => setProfitStartDate(e.target.value)}
-                className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-white font-mono text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
-                placeholder="Boshlanish"
-              />
-              <span className="text-slate-500">—</span>
-              <input
-                type="date"
-                value={profitEndDate}
-                onChange={(e) => setProfitEndDate(e.target.value)}
-                className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-white font-mono text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
-                placeholder="Tugash"
-              />
-              {(profitStartDate || profitEndDate) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProfitStartDate("");
-                    setProfitEndDate("");
-                  }}
-                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition text-[11px]"
-                >
-                  ✕ Tozalash
-                </button>
-              )}
+              <span className="text-amber-400 font-bold flex items-center gap-1.5">
+                <span>🔒</span> Pilot Hisob Davri:
+              </span>
+              <span className="font-mono bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 text-xs">
+                {profitSummary?.baseline?.baseline_date
+                  ? new Date(profitSummary.baseline.baseline_date).toLocaleDateString("uz-UZ", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "Boshlang'ich hisob kutilmoqda"}{" "}
+                → Hozirgacha (Jonli real-time)
+              </span>
+              <span className="text-slate-400 text-[11px] hidden md:inline italic">
+                (Oylik tarixiy snapshotlar moduli keyingi bosqichda yoqiladi)
+              </span>
             </div>
 
             <div className="text-[11px] text-slate-400">

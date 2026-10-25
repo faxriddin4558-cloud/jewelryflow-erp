@@ -1170,6 +1170,8 @@ export interface AccountingProfitSummary {
   capital_contributions_585_g?: number | null;
   capital_distributions_585_g?: number | null;
   business_expenses_585_g?: number | null;
+  accounting_method?: string;
+  pilot_notice?: string;
   components?: {
     manager_finished_goods_585_g: number;
     sellers_finished_goods_585_g: number;
