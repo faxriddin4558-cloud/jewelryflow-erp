@@ -202,14 +202,27 @@ async function run() {
 
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '04-settings-test-cleanup-tab.png'), fullPage: true });
 
-    const previewSection = page.locator('text=Sinov Ma\'lumotlarini Tanlab Tozalash');
+    const previewSection = page.locator('text=Sinov Ma\'lumotlarini Xavfsiz Tozalash');
     await previewSection.waitFor({ state: 'visible', timeout: 5000 });
     console.log('✅ Selective test data cleanup section rendered successfully!');
 
+    // Click "Sinov Partiyalarini Tekshirish (Preview)" button
+    const fetchPreviewBtn = page.locator('button:has-text("Sinov Partiyalarini Tekshirish")');
+    await fetchPreviewBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await fetchPreviewBtn.click();
+    await page.waitForTimeout(2000);
+
     // Check if test receipt 165g is listed in selective preview
     const receiptPreview = page.locator('text=ZVD-20261023-DD88F2');
-    const isReceiptVisible = await receiptPreview.isVisible();
-    console.log(`✅ 165g test factory receipt ZVD-20261023-DD88F2 selective preview visible: ${isReceiptVisible}`);
+    await receiptPreview.waitFor({ state: 'visible', timeout: 5000 });
+    console.log('✅ 165g test factory receipt ZVD-20261023-DD88F2 selective preview verified and visible!');
+
+    // Check confirm code input field
+    const codeInput = page.locator('input[placeholder="CONFIRM_TEST_CLEANUP_2026"]');
+    await codeInput.waitFor({ state: 'visible', timeout: 5000 });
+    console.log('✅ Confirmation safety code field verified ("CONFIRM_TEST_CLEANUP_2026").');
+
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, '05-settings-test-cleanup-preview-active.png'), fullPage: true });
 
     console.log('\n==============================================================================');
     console.log('🎉 ALL PRODUCTION LIVE UI TESTS VERIFIED AND PASSED 100%!');
