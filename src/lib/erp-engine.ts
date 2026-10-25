@@ -1144,6 +1144,8 @@ export interface AccountingProfitSummary {
   period_start?: string | null;
   period_end?: string | null;
   is_complete: boolean;
+  is_computable?: boolean;
+  missing_data?: string[];
   rates: {
     gold_rate_585: number;
     is_confirmed: boolean;
@@ -1197,6 +1199,8 @@ export interface DailyGoldRateRow {
   currency: string;
   rate_date: string;
   is_active: boolean;
+  is_confirmed?: boolean;
+  proba?: number;
   notes?: string;
 }
 

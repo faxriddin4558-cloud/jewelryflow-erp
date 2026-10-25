@@ -163,6 +163,7 @@ export function DirectorSalesWorkspace({
   const [showBaselineModal, setShowBaselineModal] = useState(false);
   const [showFinTxModal, setShowFinTxModal] = useState(false);
   const [baselineNotes, setBaselineNotes] = useState("");
+  const [baselineUsdRate, setBaselineUsdRate] = useState<string>("");
 
   // Financial Transaction Modal Form
   const [txType, setTxType] = useState<"capital_contribution" | "capital_distribution" | "business_expense">("business_expense");
@@ -172,7 +173,7 @@ export function DirectorSalesWorkspace({
   const [txCategory, setTxCategory] = useState("Ofis va operatsion xarajat");
   const [txNotes, setTxNotes] = useState("");
   const [txGoldRate, setTxGoldRate] = useState<string>("");
-  const [txUsdRate, setTxUsdRate] = useState<string>("12800");
+  const [txUsdRate, setTxUsdRate] = useState<string>("");
 
   // 7-Step Seller Reconciliation Modal
   const [reconModalOpen, setReconModalOpen] = useState(false);
@@ -322,6 +323,8 @@ export function DirectorSalesWorkspace({
       const { data, error } = await supabase.rpc("rpc_get_accounting_profit_summary", {
         p_start_date: profitStartDate || null,
         p_end_date: profitEndDate || null,
+        p_gold_rate: dailyRate?.is_confirmed ? Number(dailyRate.rate_per_gram) : null,
+        p_usd_rate: cbuUsdRate || null,
       });
       if (error) {
         console.error("rpc_get_accounting_profit_summary error:", error);
@@ -333,7 +336,7 @@ export function DirectorSalesWorkspace({
     } finally {
       setProfitLoading(false);
     }
-  }, [profitStartDate, profitEndDate]);
+  }, [profitStartDate, profitEndDate, dailyRate?.is_confirmed, dailyRate?.rate_per_gram, cbuUsdRate]);
 
   useEffect(() => {
     void loadProfitSummary();
@@ -346,11 +349,13 @@ export function DirectorSalesWorkspace({
       const { error } = await supabase.rpc("rpc_confirm_accounting_baseline", {
         p_notes: baselineNotes || null,
         p_idempotency_key: idempKey,
+        p_usd_rate: baselineUsdRate ? parseFloat(baselineUsdRate) : null,
       });
       if (error) throw error;
       notifySuccess("Boshlang'ich hisob holati muvaffaqiyatli muzlatildi va tasdiqlandi!");
       setShowBaselineModal(false);
       setBaselineNotes("");
+      setBaselineUsdRate("");
       await loadData();
       await loadProfitSummary();
     } catch (err: unknown) {
@@ -1261,6 +1266,18 @@ export function DirectorSalesWorkspace({
                 <p className="text-xs text-slate-300 mt-0.5">
                   Boshlang&apos;ich nuqtadan yoki tanlangan davrdan beri korxona sof oltin kapitalining o&apos;zgarishi
                 </p>
+                {profitSummary && (!profitSummary.is_complete || (profitSummary.missing_data && profitSummary.missing_data.length > 0)) && (
+                  <div className="mt-3 p-3 bg-rose-950/80 border border-rose-600/50 rounded-2xl text-rose-200 text-xs shadow-lg">
+                    <div className="font-bold flex items-center gap-1.5 text-rose-300">
+                      <span>⚠️</span> Diqqat: Moliyaviy hisob to&apos;liq emas (Hisoblash to&apos;xtatildi)
+                    </div>
+                    <ul className="list-disc list-inside mt-1.5 space-y-0.5 text-rose-200/90 font-mono text-[11px]">
+                      {profitSummary.missing_data?.map((m: string, idx: number) => (
+                        <li key={idx}>{m}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -4042,10 +4059,25 @@ export function DirectorSalesWorkspace({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-sans">Bugungi 585 kursi:</span>
-                <strong className="text-slate-900">
-                  {(profitSummary?.rates.gold_rate_585 ?? 950000).toLocaleString()} UZS/g
+                <strong className={profitSummary?.rates?.gold_rate_585 ? "text-slate-900" : "text-rose-600 font-bold"}>
+                  {profitSummary?.rates?.gold_rate_585
+                    ? `${profitSummary.rates.gold_rate_585.toLocaleString()} UZS/g`
+                    : "Tasdiqlanmagan"}
                 </strong>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Bugungi USD kursi (Kassada dollar bo&apos;lsa):
+              </label>
+              <input
+                type="number"
+                value={baselineUsdRate}
+                onChange={(e) => setBaselineUsdRate(e.target.value)}
+                placeholder={cbuUsdRate ? `${cbuUsdRate} UZS (CBU kursi)` : "Masalan: 12850"}
+                className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono focus:ring-2 focus:ring-amber-500 outline-none"
+              />
             </div>
 
             <div>
@@ -4207,7 +4239,7 @@ export function DirectorSalesWorkspace({
                     type="number"
                     value={txGoldRate}
                     onChange={(e) => setTxGoldRate(e.target.value)}
-                    placeholder="950000"
+                    placeholder={dailyRate?.is_confirmed ? String(dailyRate.rate_per_gram) : "Kurs kiritilishi shart"}
                     className="w-28 p-1 bg-white border border-slate-300 rounded text-right font-mono text-xs"
                   />
                 </div>
@@ -4218,7 +4250,7 @@ export function DirectorSalesWorkspace({
                       type="number"
                       value={txUsdRate}
                       onChange={(e) => setTxUsdRate(e.target.value)}
-                      placeholder="12800"
+                      placeholder={cbuUsdRate ? String(cbuUsdRate) : "Masalan: 12850"}
                       className="w-28 p-1 bg-white border border-slate-300 rounded text-right font-mono text-xs"
                     />
                   </div>
@@ -4228,11 +4260,11 @@ export function DirectorSalesWorkspace({
                   <strong className="text-indigo-600 font-bold">
                     {(() => {
                       const amt = parseFloat(txAmount) || 0;
-                      const gr = parseFloat(txGoldRate) || (dailyRate ? Number(dailyRate.rate_per_gram) : 950000);
-                      const ur = parseFloat(txUsdRate) || 12800;
+                      const gr = parseFloat(txGoldRate) || (dailyRate?.is_confirmed ? Number(dailyRate.rate_per_gram) : null);
+                      const ur = parseFloat(txUsdRate) || cbuUsdRate || null;
                       if (txCurrency === "585_GOLD") return `${amt.toFixed(4)} g`;
-                      if (txCurrency === "UZS") return `${(amt / gr).toFixed(4)} g`;
-                      if (txCurrency === "USD") return `${((amt * ur) / gr).toFixed(4)} g`;
+                      if (txCurrency === "UZS") return gr ? `${(amt / gr).toFixed(4)} g` : "Kurs kiritilmagan";
+                      if (txCurrency === "USD") return gr && ur ? `${((amt * ur) / gr).toFixed(4)} g` : "Kurs kiritilmagan";
                       return "0.0000 g";
                     })()}
                   </strong>
