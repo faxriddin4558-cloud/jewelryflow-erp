@@ -1087,7 +1087,7 @@ export interface FactoryGoldHandoverRow {
   organization_id?: string;
   handover_no: string;
   handover_date: string;
-  source_type: "refined_gold" | "purchased_gold" | "scrap_gold";
+  source_type: "refined_gold" | "purchased_gold" | "scrap_gold" | "capital_pure_gold";
   physical_weight_g: number;
   proba: number;
   agreed_equivalent_g: number;

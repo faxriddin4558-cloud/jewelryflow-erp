@@ -143,7 +143,7 @@ export function DirectorSalesWorkspace({
   const [buyNotes, setBuyNotes] = useState("");
 
   // Form: Factory Handover ("Zavodga topshirish")
-  const [hndSourceType, setHndSourceType] = useState<"refined_gold" | "purchased_gold" | "scrap_gold">("refined_gold");
+  const [hndSourceType, setHndSourceType] = useState<"refined_gold" | "purchased_gold" | "scrap_gold" | "capital_pure_gold">("refined_gold");
   const [hndWeight, setHndWeight] = useState("");
   const [hndProba, setHndProba] = useState("585");
   const [hndRecipient, setHndRecipient] = useState("Zavod");
@@ -1563,13 +1563,34 @@ export function DirectorSalesWorkspace({
                     <label className="block text-xs font-bold text-[#475569] mb-1">Topshirilayotgan Oltin Manbasi:</label>
                     <select
                       value={hndSourceType}
-                      onChange={(e) => setHndSourceType(e.target.value as "refined_gold" | "purchased_gold" | "scrap_gold")}
+                      onChange={(e) => {
+                        const val = e.target.value as "refined_gold" | "purchased_gold" | "scrap_gold" | "capital_pure_gold";
+                        setHndSourceType(val);
+                        if (val === "capital_pure_gold" || val === "refined_gold") {
+                          setHndProba("995");
+                        } else {
+                          setHndProba("585");
+                        }
+                      }}
                       className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-[#0F172A]"
                     >
                       <option value="refined_gold">Afinaj qilingan toza oltin (995/999.9)</option>
+                      <option value="capital_pure_gold">🏆 Ta&apos;sischi toza oltin kapitali (Quyma 995/999.9)</option>
                       <option value="purchased_gold">Bozordan naqdga olingan oltin</option>
                       <option value="scrap_gold">Seyfdagi 585 lom oltin</option>
                     </select>
+                    <div className="text-[11px] text-[#475569] mt-1">
+                      Mavjud seyf qoldig&apos;i:{" "}
+                      <span className="font-bold text-[#0F172A]">
+                        {hndSourceType === "capital_pure_gold"
+                          ? `${formatScreenGrams(managerVault?.manager_capital_pure_gold_g || 0)} (585 eq) / ${formatScreenGrams(managerVault?.manager_capital_pure_gold_fine_g || 0)} (toza g)`
+                          : hndSourceType === "refined_gold"
+                          ? `${formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)} (585 eq)`
+                          : hndSourceType === "purchased_gold"
+                          ? `${formatScreenGrams(managerVault?.manager_purchased_gold_grams || 0)}`
+                          : `${formatScreenGrams(managerVault?.manager_scrap_grams || 0)}`}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -1765,7 +1786,7 @@ export function DirectorSalesWorkspace({
                           <td className="p-2.5 font-bold text-[#0F172A]">{h.handover_no}</td>
                           <td className="p-2.5 text-[#475569]">{h.handover_date}</td>
                           <td className="p-2.5 font-sans font-medium text-[#0F172A]">
-                            {h.source_type === "refined_gold" ? "Afinaj toza oltin" : h.source_type === "purchased_gold" ? "Bozordan xarid" : "Lom oltin"}
+                            {h.source_type === "capital_pure_gold" ? "🏆 Ta'sischi kapital quyma" : h.source_type === "refined_gold" ? "Afinaj toza oltin" : h.source_type === "purchased_gold" ? "Bozordan xarid" : "Lom oltin"}
                           </td>
                           <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(h.physical_weight_g)}</td>
                           <td className="p-2.5 text-right text-[#475569]">{h.proba}</td>
