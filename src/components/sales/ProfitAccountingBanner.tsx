@@ -37,7 +37,35 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Load today's rate & CBU USD rate
+  // Capital contribution multi-asset states
+  const [capAssetType, setCapAssetType] = useState<"cash_uzs" | "cash_usd" | "scrap_gold" | "fine_gold" | "finished_goods">("cash_uzs");
+  const [capDestination, setCapDestination] = useState<"manager" | "seller">("manager");
+  const [capSellerId, setCapSellerId] = useState<string>("");
+  const [capGoldProba, setCapGoldProba] = useState<string>("585");
+  const [capPhysicalWeight, setCapPhysicalWeight] = useState<string>("");
+  const [capProductName, setCapProductName] = useState<string>("Kapital Tayyor Mahsulot");
+  const [sellersList, setSellersList] = useState<{ id: string; name: string }[]>([]);
+
+  // Reclassification modal states
+  const [showReclassifyModal, setShowReclassifyModal] = useState(false);
+  const [capitalTxList, setCapitalTxList] = useState<{
+    id: string;
+    transaction_no: string;
+    transaction_date: string;
+    source_till: string;
+    amount_num: number;
+    currency: string;
+    equiv_585_grams: number;
+    notes: string | null;
+    reclassification_reason: string | null;
+    status: string;
+  }[]>([]);
+  const [selectedTxId, setSelectedTxId] = useState<string>("");
+  const [reclassDestination, setReclassDestination] = useState<string>("manager_fine_gold");
+  const [reclassReason, setReclassReason] = useState<string>("");
+  const [reclassProba, setReclassProba] = useState<string>("995");
+
+  // Load today's rate, CBU USD rate & sellers
   useEffect(() => {
     let isMounted = true;
     async function loadRates() {
@@ -72,6 +100,24 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
           }
         } catch {
           // ignore external API failure
+        }
+
+        // Fetch sellers
+        try {
+          const { data: sellers } = await supabase
+            .from("employees")
+            .select("id, name, full_name")
+            .eq("role", "sales")
+            .eq("is_active", true);
+          if (isMounted && sellers && sellers.length > 0) {
+            setSellersList(sellers.map((s: { id: string; name?: string; full_name?: string }) => ({
+              id: s.id,
+              name: s.full_name || s.name || s.id,
+            })));
+            setCapSellerId((prev) => prev || sellers[0]?.id || "");
+          }
+        } catch {
+          // ignore
         }
       } catch {
         // ignore
@@ -150,33 +196,141 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
     }
   };
 
-  // Handle financial transaction
-  const handleRecordFinTx = async () => {
-    const amt = parseFloat(txAmount);
-    if (!amt || amt <= 0) {
-      setActionError("Iltimos, summani to'g'ri kiriting (0 dan katta bo'lishi shart)");
+  // Load capital transactions for audited reclassification
+  const loadCapitalTransactions = async () => {
+    try {
+      const { data } = await supabase
+        .from("financial_transactions")
+        .select("id, transaction_no, transaction_date, source_till, amount_num, currency, equiv_585_grams, notes, reclassification_reason, status")
+        .eq("transaction_type", "capital_contribution")
+        .order("created_at", { ascending: false });
+      if (data) {
+        setCapitalTxList(data);
+        if (data.length > 0 && data[0]?.id) {
+          setSelectedTxId(data[0].id);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  // Handle audited capital reclassification by Director
+  const handleReclassify = async () => {
+    if (!selectedTxId) {
+      setActionError("Iltimos, qayta tasniflash uchun operatsiyani tanlang");
+      return;
+    }
+    if (!reclassReason.trim()) {
+      setActionError("Iltimos, audit qayta tasniflash sababini/asosini yozing");
       return;
     }
     setBusy(true);
     setActionError(null);
     setActionSuccess(null);
     try {
+      const { error } = await supabase.rpc("rpc_reclassify_capital_transaction", {
+        p_transaction_id: selectedTxId,
+        p_new_destination: reclassDestination,
+        p_reason: reclassReason.trim(),
+        p_new_proba: parseFloat(reclassProba) || null,
+      });
+      if (error) throw error;
+      setActionSuccess("Kapital operatsiyasi muvaffaqiyatli qayta tasniflandi va seyf balanslari yangilandi!");
+      setShowReclassifyModal(false);
+      setSelectedTxId("");
+      setReclassReason("");
+      if (onDataMutated) await onDataMutated();
+      await loadProfitSummary();
+    } catch (err: unknown) {
+      setActionError(parseErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Handle financial transaction
+  const handleRecordFinTx = async () => {
+    setBusy(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      let finalTill = txTill as string;
+      let finalCurrency = txCurrency as string;
+      let finalAmount = parseFloat(txAmount);
+      let physWeight: number | null = null;
+      let proba: number | null = null;
+      let sellerId: string | null = null;
+      let prodName: string | null = null;
+
+      if (txType === "capital_contribution") {
+        if (capAssetType === "cash_uzs") {
+          finalTill = capDestination === "seller" ? "seller_till_uzs" : "manager_uzs";
+          finalCurrency = "UZS";
+          finalAmount = parseFloat(txAmount);
+          if (capDestination === "seller") sellerId = capSellerId;
+        } else if (capAssetType === "cash_usd") {
+          finalTill = capDestination === "seller" ? "seller_till_usd" : "manager_usd";
+          finalCurrency = "USD";
+          finalAmount = parseFloat(txAmount);
+          if (capDestination === "seller") sellerId = capSellerId;
+        } else if (capAssetType === "scrap_gold") {
+          finalTill = capDestination === "seller" ? "seller_till_scrap" : "manager_scrap";
+          finalCurrency = "SCRAP_GOLD";
+          physWeight = parseFloat(capPhysicalWeight || txAmount);
+          finalAmount = physWeight;
+          proba = parseFloat(capGoldProba) || 585;
+          if (capDestination === "seller") sellerId = capSellerId;
+        } else if (capAssetType === "fine_gold") {
+          finalTill = "manager_fine_gold";
+          finalCurrency = "FINE_GOLD";
+          physWeight = parseFloat(capPhysicalWeight || txAmount);
+          finalAmount = physWeight;
+          proba = parseFloat(capGoldProba) || 995;
+        } else if (capAssetType === "finished_goods") {
+          finalTill = "manager_finished";
+          finalCurrency = "FINISHED_GOODS";
+          physWeight = parseFloat(capPhysicalWeight || txAmount);
+          finalAmount = physWeight;
+          proba = parseFloat(capGoldProba) || 585;
+          prodName = capProductName || "Kapital Tayyor Mahsulot";
+        }
+
+        if (!finalAmount || finalAmount <= 0) {
+          setActionError("Iltimos, miqdor/vaznni to'g'ri kiriting (0 dan katta bo'lishi shart)");
+          setBusy(false);
+          return;
+        }
+      } else {
+        if (!finalAmount || finalAmount <= 0) {
+          setActionError("Iltimos, summani to'g'ri kiriting (0 dan katta bo'lishi shart)");
+          setBusy(false);
+          return;
+        }
+      }
+
       const idempKey = generateIdempotencyKey("fin_tx");
       const { error } = await supabase.rpc("rpc_record_financial_transaction", {
         p_transaction_type: txType,
-        p_source_till: txTill,
-        p_amount: amt,
-        p_currency: txCurrency,
+        p_source_till: finalTill,
+        p_amount: finalAmount,
+        p_currency: finalCurrency,
         p_category: txCategory || null,
         p_notes: txNotes || null,
         p_gold_rate: txGoldRate ? parseFloat(txGoldRate) : (dailyRate ? Number(dailyRate.rate_per_gram) : null),
         p_usd_rate: txUsdRate ? parseFloat(txUsdRate) : null,
         p_idempotency_key: idempKey,
+        p_physical_weight: physWeight,
+        p_gold_proba: proba,
+        p_seller_id: sellerId,
+        p_product_name: prodName,
+        p_quantity: capAssetType === "finished_goods" ? 1 : null,
       });
       if (error) throw error;
-      setActionSuccess("Moliyaviy operatsiya muvaffaqiyatli yozildi va kassa yangilandi!");
+      setActionSuccess("Moliyaviy operatsiya muvaffaqiyatli yozildi va tegishli aktiv yangilandi!");
       setShowFinTxModal(false);
       setTxAmount("");
+      setCapPhysicalWeight("");
       setTxNotes("");
       if (onDataMutated) await onDataMutated();
       await loadProfitSummary();
@@ -285,6 +439,16 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                   className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20"
                 >
                   💸 Xarajat / Kapital amali
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void loadCapitalTransactions();
+                    setShowReclassifyModal(true);
+                  }}
+                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-purple-600/20"
+                >
+                  🔄 Kapitalni qayta tasniflash
                 </button>
                 <button
                   type="button"
@@ -822,40 +986,192 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                 </div>
               </div>
 
-              {/* Source Till Selector */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Kassa / Seyf:</label>
-                <select
-                  value={txTill}
-                  onChange={(e) => setTxTill(e.target.value as "manager_uzs" | "manager_usd" | "manager_vault_gold")}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-                >
-                  <option value="manager_uzs">Menejer Seyfi (UZS Naqd Pul)</option>
-                  <option value="manager_usd">Menejer Seyfi (USD Dollar)</option>
-                  <option value="manager_vault_gold">Menejer Seyfi (585 Sof/Afinaj Oltin)</option>
-                </select>
-              </div>
+              {txType === "capital_contribution" ? (
+                /* Multi-Asset Capital Contribution Form */
+                <div className="space-y-3 bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-200">
+                  <div>
+                    <label className="block font-bold text-emerald-950 mb-1">Kiritilayotgan Aktiv Turi:</label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                      {[
+                        { key: "cash_uzs", label: "💵 Pul UZS" },
+                        { key: "cash_usd", label: "💵 Pul USD" },
+                        { key: "scrap_gold", label: "🪙 Lom Oltin" },
+                        { key: "fine_gold", label: "🏆 Toza Quyma" },
+                        { key: "finished_goods", label: "💍 Tayyor Buyum" },
+                      ].map((asset) => (
+                        <button
+                          key={asset.key}
+                          type="button"
+                          onClick={() => setCapAssetType(asset.key as "cash_uzs" | "cash_usd" | "scrap_gold" | "fine_gold" | "finished_goods")}
+                          className={`p-2 rounded-xl border text-center font-bold text-[11px] transition ${
+                            capAssetType === asset.key
+                              ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                          }`}
+                        >
+                          {asset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* Amount & Currency */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Miqdor ({txCurrency === "585_GOLD" ? "Gramm (585)" : txCurrency}):
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step={txCurrency === "585_GOLD" ? "0.0001" : "1"}
-                    value={txAmount}
-                    onChange={(e) => setTxAmount(e.target.value)}
-                    placeholder={txCurrency === "585_GOLD" ? "0.0000" : "0"}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none pr-16"
-                    required
-                  />
-                  <span className="absolute right-3 top-2.5 text-slate-400 font-bold font-mono text-xs">
-                    {txCurrency}
-                  </span>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Joylashuv (Qabul qiluvchi):</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCapDestination("manager")}
+                        className={`p-2 rounded-xl border text-center font-bold text-xs transition ${
+                          capDestination === "manager"
+                            ? "bg-indigo-600 text-white border-indigo-600"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        🏛️ Menejer Seyfi / Ombori
+                      </button>
+                      <button
+                        type="button"
+                        disabled={capAssetType === "fine_gold" || capAssetType === "finished_goods"}
+                        onClick={() => setCapDestination("seller")}
+                        className={`p-2 rounded-xl border text-center font-bold text-xs transition disabled:opacity-40 ${
+                          capDestination === "seller"
+                            ? "bg-indigo-600 text-white border-indigo-600"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        🏪 Sotuvchi Kassasi
+                      </button>
+                    </div>
+                  </div>
+
+                  {capDestination === "seller" && (
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Sotuvchini tanlang:</label>
+                      <select
+                        value={capSellerId}
+                        onChange={(e) => setCapSellerId(e.target.value)}
+                        className="w-full p-2 bg-white border border-slate-300 rounded-xl font-medium outline-none text-xs"
+                      >
+                        {sellersList.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Gold inputs */}
+                  {(capAssetType === "scrap_gold" || capAssetType === "fine_gold" || capAssetType === "finished_goods") && (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Fizik Vazn (gramm):</label>
+                          <input
+                            type="number"
+                            step="0.0001"
+                            value={capPhysicalWeight}
+                            onChange={(e) => setCapPhysicalWeight(e.target.value)}
+                            placeholder="0.0000"
+                            className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-sm font-bold outline-none"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Oltin Probasi:</label>
+                          <input
+                            type="number"
+                            step="1"
+                            value={capGoldProba}
+                            onChange={(e) => setCapGoldProba(e.target.value)}
+                            placeholder={capAssetType === "fine_gold" ? "995" : "585"}
+                            className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-sm font-bold outline-none"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {capAssetType === "finished_goods" && (
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Mahsulot nomi:</label>
+                          <input
+                            type="text"
+                            value={capProductName}
+                            onChange={(e) => setCapProductName(e.target.value)}
+                            placeholder="Masalan: Kapital Zanjir 585"
+                            className="w-full p-2 bg-white border border-slate-300 rounded-xl outline-none text-xs"
+                          />
+                        </div>
+                      )}
+
+                      {/* 585 eq live preview */}
+                      {(() => {
+                        const w = parseFloat(capPhysicalWeight) || 0;
+                        const p = parseFloat(capGoldProba) || (capAssetType === "fine_gold" ? 995 : 585);
+                        const eq = (w * p) / 585.0;
+                        return (
+                          <div className="bg-emerald-100/70 p-2 rounded-xl text-xs font-mono text-emerald-950 flex justify-between">
+                            <span>585 Oltin Ekvivalenti:</span>
+                            <strong className="font-bold">{eq.toFixed(4)} g</strong>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Cash inputs */}
+                  {(capAssetType === "cash_uzs" || capAssetType === "cash_usd") && (
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Miqdor ({capAssetType === "cash_usd" ? "USD" : "UZS"}):
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        value={txAmount}
+                        onChange={(e) => setTxAmount(e.target.value)}
+                        placeholder="0"
+                        className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-sm font-bold outline-none"
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                /* Standard Till & Amount Form for Expenses / Distribution */
+                <>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Kassa / Seyf:</label>
+                    <select
+                      value={txTill}
+                      onChange={(e) => setTxTill(e.target.value as "manager_uzs" | "manager_usd" | "manager_vault_gold")}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                    >
+                      <option value="manager_uzs">Menejer Seyfi (UZS Naqd Pul)</option>
+                      <option value="manager_usd">Menejer Seyfi (USD Dollar)</option>
+                      <option value="manager_vault_gold">Menejer Seyfi (585 Sof/Afinaj Oltin)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Miqdor ({txCurrency === "585_GOLD" ? "Gramm (585)" : txCurrency}):
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step={txCurrency === "585_GOLD" ? "0.0001" : "1"}
+                        value={txAmount}
+                        onChange={(e) => setTxAmount(e.target.value)}
+                        placeholder={txCurrency === "585_GOLD" ? "0.0000" : "0"}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none pr-16"
+                        required
+                      />
+                      <span className="absolute right-3 top-2.5 text-slate-400 font-bold font-mono text-xs">
+                        {txCurrency}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Category */}
               <div>
@@ -911,6 +1227,157 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                 className="px-5 py-2 text-xs font-black rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 disabled:opacity-50 transition"
               >
                 {busy ? "Saqlanmoqda..." : "Tasdiqlash & Yozish"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: AUDITED CAPITAL RECLASSIFICATION */}
+      {showReclassifyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-purple-200 max-w-lg w-full p-6 space-y-4 text-slate-800 my-8">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🔄</span>
+                <h3 className="font-black text-lg text-slate-900">
+                  Kapital Operatsiyasini Qayta Tasniflash
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReclassifyModal(false)}
+                className="text-slate-400 hover:text-slate-700 font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 bg-purple-50 rounded-2xl border border-purple-200 text-xs text-purple-900 space-y-1">
+              <p className="font-bold flex items-center gap-1.5 text-purple-950">
+                <span>🛡️</span> Direktor Auditi & Boshqaruv Qoidasi:
+              </p>
+              <p>
+                Ushbu operatsiya muzlatilgan boshlang&apos;ich hisob tarixiga tegmasdan, avval kiritilgan ta&apos;sischi kapitali (masalan, 300g yoki boshqa partiyalar) qaysi aktivga tushishini auditli to&apos;g&apos;irlaydi.
+              </p>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              {/* Select Transaction */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Qayta tasniflanadigan operatsiya:</label>
+                {capitalTxList.length === 0 ? (
+                  <p className="text-slate-400 italic">Kapital kiritish yozuvlari topilmadi</p>
+                ) : (
+                  <select
+                    value={selectedTxId}
+                    onChange={(e) => setSelectedTxId(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold outline-none"
+                  >
+                    {capitalTxList.map((tx) => (
+                      <option key={tx.id} value={tx.id}>
+                        {tx.transaction_no} ({tx.transaction_date}) — {Number(tx.equiv_585_grams).toFixed(4)}g 585 [{tx.source_till}]
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Selected Tx Detail */}
+              {(() => {
+                const cur = capitalTxList.find((t) => t.id === selectedTxId);
+                if (!cur) return null;
+                return (
+                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-1 font-mono text-[11px]">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">Hujjat raqami:</span>
+                      <strong>{cur.transaction_no}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">585 Ekvivalenti:</span>
+                      <strong className="text-purple-700">{Number(cur.equiv_585_grams).toFixed(4)} g</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">Hozirgi joylashuv:</span>
+                      <strong className="text-amber-700">{cur.source_till}</strong>
+                    </div>
+                    {cur.notes && (
+                      <div className="text-slate-600 font-sans pt-1 border-t border-slate-200">
+                        Izoh: {cur.notes}
+                      </div>
+                    )}
+                    {cur.reclassification_reason && (
+                      <div className="text-purple-900 font-sans bg-purple-100 p-1.5 rounded-lg">
+                        Oldingi audit sababi: {cur.reclassification_reason}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* New Destination */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Yangi to&apos;g&apos;ri joylashuv:</label>
+                <select
+                  value={reclassDestination}
+                  onChange={(e) => setReclassDestination(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium outline-none text-xs"
+                >
+                  <option value="manager_fine_gold">🏆 Menejer Seyfi — Kapital Quyma Toza Oltin (995)</option>
+                  <option value="manager_scrap">🪙 Menejer Seyfi — 585 Lom Oltin</option>
+                  <option value="manager_finished">💍 Menejer Ombori — Kapital Tayyor Mahsulot</option>
+                  <option value="manager_uzs">💵 Menejer Seyfi — UZS Naqd Pul</option>
+                  <option value="manager_usd">💵 Menejer Seyfi — USD Valyuta</option>
+                </select>
+              </div>
+
+              {/* If gold, proba */}
+              {(reclassDestination === "manager_fine_gold" || reclassDestination === "manager_scrap" || reclassDestination === "manager_finished") && (
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Yangi Proba:</label>
+                  <input
+                    type="number"
+                    step="1"
+                    value={reclassProba}
+                    onChange={(e) => setReclassProba(e.target.value)}
+                    placeholder={reclassDestination === "manager_fine_gold" ? "995" : "585"}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold outline-none"
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Audit Reason */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Qayta tasniflash sababi / Asos (Audit jurnali uchun):
+                </label>
+                <textarea
+                  rows={2}
+                  value={reclassReason}
+                  onChange={(e) => setReclassReason(e.target.value)}
+                  placeholder="Masalan: Ta'sischi tomonidan kiritilgan 200g aslida toza quyma 995 bo'lganligi sababli to'g'irlandi"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none text-xs"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setShowReclassifyModal(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 transition"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={busy || !selectedTxId || !reclassReason.trim()}
+                onClick={() => void handleReclassify()}
+                className="px-5 py-2 text-xs font-black rounded-xl bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/20 disabled:opacity-50 transition"
+              >
+                {busy ? "Saqlanmoqda..." : "Ha, Qayta Tasniflashni Tasdiqlash"}
               </button>
             </div>
           </div>

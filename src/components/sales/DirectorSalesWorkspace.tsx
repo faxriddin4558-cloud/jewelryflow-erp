@@ -127,6 +127,7 @@ export function DirectorSalesWorkspace({
 
   // Form: Refining Batch ("Lom pateriya")
   const [refInputScrap, setRefInputScrap] = useState("");
+  const [refInputProba, setRefInputProba] = useState("585");
   const [refMeltedWeight, setRefMeltedWeight] = useState("");
   const [refFineWeight, setRefFineWeight] = useState("");
   const [refFineProba, setRefFineProba] = useState("995");
@@ -610,6 +611,7 @@ export function DirectorSalesWorkspace({
 
     setBusy(true);
     try {
+      const inProba = parseFloat(refInputProba) || 585;
       const idempotencyKey = generateIdempotencyKey("ref");
       const { data, error } = await supabase.rpc("rpc_record_refining_batch", {
         p_input_scrap_grams: inW,
@@ -618,6 +620,8 @@ export function DirectorSalesWorkspace({
         p_output_fine_proba: fineP,
         p_notes: refNotes.trim() || null,
         p_idempotency_key: idempotencyKey,
+        p_physical_scrap_grams: inW,
+        p_input_scrap_proba: inProba,
       });
 
       if (error) throw error;
@@ -2080,49 +2084,83 @@ export function DirectorSalesWorkspace({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
-                <div className="text-xs font-bold text-amber-200">Seyfdagi Lom Oltin (585)</div>
-                <div className="text-2xl font-black font-mono text-amber-300 mt-1">
-                  {formatScreenGrams(managerVault?.manager_scrap_585_eq_g ?? managerVault?.manager_scrap_grams ?? 0)}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-amber-200 uppercase tracking-wide">Seyfdagi Lom (585)</div>
+                  <div className="text-xl md:text-2xl font-black font-mono text-amber-300 mt-1">
+                    {formatScreenGrams(managerVault?.manager_scrap_585_eq_g ?? managerVault?.manager_scrap_grams ?? 0)}
+                  </div>
                 </div>
-                <div className="text-[11px] text-amber-200 mt-1">
+                <div className="text-[10px] text-amber-200 mt-2">
                   {managerVault?.manager_scrap_physical_g && Number(managerVault.manager_scrap_physical_g) > 0
                     ? `${formatScreenGrams(managerVault.manager_scrap_physical_g)} fizik lom`
-                    : "Sotuvchilardan qabul qilingan lom"}
+                    : "Sotuvchilardan olingan lom"}
                 </div>
               </div>
 
-              <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
-                <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd (UZS)</div>
-                <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
-                  {formatScreenUZS(managerVault?.manager_cash_amount || 0)}
+              <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-cyan-300 uppercase tracking-wide">Afinaj Toza (585 eq)</div>
+                  <div className="text-xl md:text-2xl font-black font-mono text-cyan-300 mt-1">
+                    {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)}
+                  </div>
                 </div>
-                <div className="text-[11px] text-emerald-200 mt-1">Boshqaruvchi kassasidagi naqd</div>
+                <div className="text-[10px] text-cyan-200 mt-2">
+                  {managerVault?.manager_refined_gold_fine_grams && Number(managerVault.manager_refined_gold_fine_grams) > 0
+                    ? `${formatScreenGrams(managerVault.manager_refined_gold_fine_grams)} toza 995`
+                    : "Afinajdan chiqqan toza oltin"}
+                </div>
               </div>
 
-              <div className="bg-blue-950 text-white p-4 rounded-3xl border border-blue-800 shadow-sm">
-                <div className="text-xs font-bold text-blue-300">Kassadagi Valyuta (USD)</div>
-                <div className="text-2xl font-black font-mono text-blue-400 mt-1">
-                  ${Number(managerVault?.manager_usd_amount || 0).toLocaleString()} USD
+              <div className="bg-purple-950 text-white p-4 rounded-3xl border border-purple-800 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-purple-300 uppercase tracking-wide">Kapital Quyma (585 eq)</div>
+                  <div className="text-xl md:text-2xl font-black font-mono text-purple-300 mt-1">
+                    {formatScreenGrams(managerVault?.manager_capital_pure_gold_g || 0)}
+                  </div>
                 </div>
-                <div className="text-[11px] text-blue-200 mt-1">Boshqaruvchi seyfidagi USD</div>
+                <div className="text-[10px] text-purple-200 mt-2">
+                  {managerVault?.manager_capital_pure_gold_fine_g && Number(managerVault.manager_capital_pure_gold_fine_g) > 0
+                    ? `${formatScreenGrams(managerVault.manager_capital_pure_gold_fine_g)} toza quyma`
+                    : "Ta'sischi kiritgan toza quyma"}
+                </div>
               </div>
 
-              <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
-                <div className="text-xs font-bold text-cyan-300">Afinaj Qilingan Toza Oltin</div>
-                <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
-                  {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)}
+              <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-300 uppercase tracking-wide">Kassadagi Naqd (UZS)</div>
+                  <div className="text-xl md:text-2xl font-black font-mono text-emerald-400 mt-1">
+                    {formatScreenUZS(managerVault?.manager_cash_amount || 0)}
+                  </div>
                 </div>
-                <div className="text-[11px] text-cyan-200 mt-1">Afinajdan chiqqan toza oltin zaxirasi</div>
+                <div className="text-[10px] text-emerald-200 mt-2">Boshqaruvchi seyfidagi UZS</div>
               </div>
 
-              <div className="bg-indigo-950 text-white p-4 rounded-3xl border border-indigo-800 shadow-sm">
-                <div className="text-xs font-bold text-indigo-300">Bozordan Xarid Qilingan Oltin</div>
-                <div className="text-2xl font-black font-mono text-indigo-300 mt-1">
-                  {formatScreenGrams(managerVault?.manager_purchased_gold_grams || 0)}
+              <div className="bg-blue-950 text-white p-4 rounded-3xl border border-blue-800 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-blue-300 uppercase tracking-wide">Valyuta (USD)</div>
+                  <div className="text-xl md:text-2xl font-black font-mono text-blue-400 mt-1">
+                    ${Number(managerVault?.manager_usd_amount || 0).toLocaleString()} USD
+                  </div>
                 </div>
-                <div className="text-[11px] text-indigo-200 mt-1">Naqd pulga sotib olingan oltin</div>
+                <div className="text-[10px] text-blue-200 mt-2">Boshqaruvchi seyfidagi USD</div>
+              </div>
+
+              <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-rose-300 uppercase tracking-wide">Afinaj Pateriya (585)</div>
+                  <div className="text-xl md:text-2xl font-black font-mono text-rose-300 mt-1">
+                    {formatScreenGrams(
+                      refiningBatches
+                        .filter((b) => b.status !== "reversed")
+                        .reduce((sum, b) => sum + (Number(b.total_loss_grams) || 0), 0)
+                    )}
+                  </div>
+                </div>
+                <div className="text-[10px] text-rose-200 mt-2">
+                  {refiningBatches.filter((b) => b.status !== "reversed").length} ta afinaj partiyasi
+                </div>
               </div>
             </div>
           )}
@@ -2181,8 +2219,8 @@ export function DirectorSalesWorkspace({
                   </div>
 
                   <div className="space-y-3 text-sm">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2">
                         <label className="block text-xs font-bold text-[#475569] mb-1">Kiruvchi Lom Vazni (g):</label>
                         <input
                           type="number"
@@ -2196,6 +2234,23 @@ export function DirectorSalesWorkspace({
                         />
                       </div>
                       <div>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Lom Probasi:</label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="300"
+                          max="1000"
+                          value={refInputProba}
+                          onChange={(e) => setRefInputProba(e.target.value)}
+                          placeholder="585"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-amber-800"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
                         <label className="block text-xs font-bold text-[#475569] mb-1">Eritilgan Vazn (g):</label>
                         <input
                           type="number"
@@ -2208,24 +2263,21 @@ export function DirectorSalesWorkspace({
                           required
                         />
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs font-bold text-[#475569] mb-1">Chiqqan Toza Vazn (g):</label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Chiqqan Toza (g):</label>
                         <input
                           type="number"
                           step="0.0001"
                           min="0.0001"
                           value={refFineWeight}
                           onChange={(e) => setRefFineWeight(e.target.value)}
-                          placeholder="Afinajdan chiqqan"
+                          placeholder="Toza vazn"
                           className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-[#475569] mb-1">Toza Oltin Probasi:</label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Toza Probasi:</label>
                         <input
                           type="number"
                           step="1"
@@ -2240,29 +2292,42 @@ export function DirectorSalesWorkspace({
                     </div>
 
                     {/* Live Preview */}
-                    <div className="bg-cyan-50 p-3 rounded-2xl border border-cyan-200 text-xs space-y-1 font-mono text-[#0F172A]">
-                      <div className="flex justify-between text-[#475569]">
-                        <span>Eritish yo&apos;qotishi (kuya):</span>
-                        <span className="font-bold text-[#0F172A]">
-                          {formatScreenGrams(Math.max(0, (parseFloat(refInputScrap) || 0) - (parseFloat(refMeltedWeight) || 0)))}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-[#475569]">
-                        <span>585 Ekvivalenti:</span>
-                        <span className="font-bold text-cyan-800">
-                          {formatScreenGrams(((parseFloat(refFineWeight) || 0) * (parseFloat(refFineProba) || 995)) / 585.0)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-[#B91C1C] font-black border-t border-cyan-300 pt-1 text-sm">
-                        <span>Jami Yo&apos;qotish (Lom Pateriya):</span>
-                        <span>
-                          {formatScreenGrams(Math.max(0, (parseFloat(refInputScrap) || 0) - (((parseFloat(refFineWeight) || 0) * (parseFloat(refFineProba) || 995)) / 585.0)))}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-cyan-800 font-sans mt-1">
-                        ℹ️ Pateriya to&apos;liq boshqaruvchi hisobiga yoziladi, zavod qarzi o&apos;zgarmaydi.
-                      </div>
-                    </div>
+                    {(() => {
+                      const inW = parseFloat(refInputScrap) || 0;
+                      const inP = parseFloat(refInputProba) || 585;
+                      const in585Eq = (inW * inP) / 585.0;
+                      const meltW = parseFloat(refMeltedWeight) || 0;
+                      const fineW = parseFloat(refFineWeight) || 0;
+                      const fineP = parseFloat(refFineProba) || 995;
+                      const out585Eq = (fineW * fineP) / 585.0;
+                      const pateriya585 = Math.max(0, in585Eq - out585Eq);
+
+                      return (
+                        <div className="bg-cyan-50 p-3 rounded-2xl border border-cyan-200 text-xs space-y-1 font-mono text-[#0F172A]">
+                          <div className="flex justify-between text-[#475569]">
+                            <span>Kiruvchi Lom 585 Ekvivalenti:</span>
+                            <span className="font-bold text-[#0F172A]">{formatScreenGrams(in585Eq)}</span>
+                          </div>
+                          <div className="flex justify-between text-[#475569]">
+                            <span>Eritish yo&apos;qotishi (kuya):</span>
+                            <span className="font-bold text-[#0F172A]">
+                              {formatScreenGrams(Math.max(0, inW - meltW))}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-[#475569]">
+                            <span>Chiqqan Toza 585 Ekvivalenti:</span>
+                            <span className="font-bold text-cyan-800">{formatScreenGrams(out585Eq)}</span>
+                          </div>
+                          <div className="flex justify-between text-[#B91C1C] font-black border-t border-cyan-300 pt-1 text-sm">
+                            <span>Jami Yo&apos;qotish (Lom Pateriya 585 g):</span>
+                            <span>{formatScreenGrams(pateriya585)}</span>
+                          </div>
+                          <div className="text-[10px] text-cyan-800 font-sans mt-1">
+                            ℹ️ Pateriya 585 ekvivalent bo&apos;yicha hisoblanadi va korxona foydasini aynan bir marta kamaytiradi; zavod qarzi o&apos;zgarmaydi.
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     <div>
                       <label className="block text-xs font-bold text-[#475569] mb-1">Izoh:</label>

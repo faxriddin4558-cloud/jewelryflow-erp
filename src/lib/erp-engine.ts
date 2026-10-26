@@ -978,6 +978,7 @@ export interface SellerGoldAccountRow {
   seller_owes_manager_g?: number;
   manager_owes_seller_g?: number;
   bozor_qarzi_signed_g?: number;
+  seller_legacy_debt_obligation_g?: number;
   market_debt_balance_grams?: number;
   seller?: {
     id: string;
@@ -1026,6 +1027,9 @@ export interface ManagerVaultAccountRow {
   manager_usd_amount?: number;
   manager_refined_gold_grams: number;
   manager_refined_gold_fine_grams?: number;
+  manager_capital_pure_gold_g?: number;
+  manager_capital_pure_gold_fine_g?: number;
+  manager_finished_capital_g?: number;
   manager_purchased_gold_grams: number;
   total_factory_received_g: number;
   total_factory_obligation_g: number;
@@ -1043,6 +1047,8 @@ export interface RefiningBatchRow {
   batch_no: string;
   batch_date: string;
   input_scrap_grams: number;
+  input_scrap_proba?: number;
+  input_585_equiv_grams?: number;
   melted_weight_grams: number;
   output_fine_grams: number;
   output_fine_proba: number;
