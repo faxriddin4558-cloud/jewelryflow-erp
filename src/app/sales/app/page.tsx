@@ -143,6 +143,11 @@ function SalesDashboardContent() {
     (acc, s) => acc + Math.abs(Number(s.bozor_qarzi_signed_g ?? s.seller_owes_manager_g ?? s.current_factory_obligation_grams ?? 0)),
     0
   );
+  const totalSellerLegacyObligation = sellerAccounts.reduce(
+    (acc, s) => acc + Number(s.seller_legacy_debt_obligation_g || 0),
+    0
+  );
+  const totalSellerConsignedObligation = Math.max(0, totalSellerObligation - totalSellerLegacyObligation);
 
   const managerScrap = Number(managerVault?.manager_scrap_585_eq_g ?? managerVault?.manager_scrap_grams ?? managerVault?.vault_scrap_gold_grams ?? 0);
   const managerCash = Number(managerVault?.manager_cash_amount ?? managerVault?.vault_cash_amount ?? 0);
@@ -354,6 +359,11 @@ function SalesDashboardContent() {
             <div className="text-lg font-black font-mono text-blue-300">
               {formatScreenGrams(totalSellerObligation)}
             </div>
+            {totalSellerLegacyObligation > 0 && (
+              <div className="text-[10px] text-cyan-400 font-mono">
+                {formatScreenGrams(totalSellerConsignedObligation)} tovar + {formatScreenGrams(totalSellerLegacyObligation)} eski mijoz qarzi
+              </div>
+            )}
             <p className="text-[11px] text-slate-400 leading-tight">
               Sotuvchilar tovar va to&apos;lovlar uchun javobgar (bozor qarzi). Faqat tushum menejerga topshirilganda kamayadi.
             </p>

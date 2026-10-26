@@ -960,6 +960,7 @@ export interface SellerGoldAccountRow {
   organization_id?: string;
   seller_id: string;
   total_consigned_weight_grams?: number;
+  total_consigned_gold_grams?: number;
   total_factory_gold_due_grams?: number;
   total_factory_settled_gold_grams?: number;
   settled_factory_gold_grams?: number;

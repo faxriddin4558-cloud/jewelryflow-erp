@@ -13,6 +13,7 @@ export interface SellerReconciliationData {
     original_grams: number;
     seller_markup_pct: number;
     seller_markup_obligation_grams: number;
+    legacy_customer_debt_assigned_g?: number;
   };
   section_b: {
     item_count: number;
@@ -178,6 +179,12 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     <span>Sotuvchi majburiyati (12% ustama):</span>
                     <span className="font-bold text-amber-400">{formatScreenGrams(data.section_a.seller_markup_obligation_grams)}</span>
                   </div>
+                  {Number(data.section_a.legacy_customer_debt_assigned_g || 0) > 0 && (
+                    <div className="flex justify-between text-cyan-300 text-[11px]">
+                      <span>Biriktirilgan eski mijoz qarzi:</span>
+                      <span className="font-bold">+{formatScreenGrams(data.section_a.legacy_customer_debt_assigned_g)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-slate-400 text-[11px]">
                     <span>Jami donalar soni:</span>
                     <span>{data.section_a.item_count} dona</span>

@@ -97,6 +97,7 @@ export interface MonthlyReportItem {
   customer_name: string;
   phone?: string | null;
   opening_debt_g: number;
+  legacy_added_month_g?: number;
   sales_in_month_g: number;
   scrap_received_g: number;
   cash_received_uzs: number;
@@ -108,6 +109,7 @@ export interface MonthlyReportItem {
 export interface MonthlyReportSummary {
   total_customers?: number;
   total_opening_debt_g?: number;
+  total_legacy_added_month_g?: number;
   total_distributed_month_g: number;
   total_collected_scrap_g?: number;
   total_collected_cash_uzs?: number;
@@ -1348,7 +1350,7 @@ export function CustomerLedgerAndSheetsSection() {
                   <tr>
                     <th className="py-3 px-3">Mijoz Ismi</th>
                     <th className="py-3 px-3">Kod</th>
-                    <th className="py-3 px-3 font-mono text-amber-200">Boshlang&apos;ich Qarz</th>
+                    <th className="py-3 px-3 font-mono text-amber-200">Boshlang&apos;ich / Eski Qarz</th>
                     <th className="py-3 px-3 font-mono text-cyan-300">Oy Davomida Sotuv</th>
                     <th className="py-3 px-3 font-mono text-amber-300">Lom Tushumi</th>
                     <th className="py-3 px-3 font-mono text-emerald-300">Pul Tushumi (UZS)</th>
@@ -1363,7 +1365,12 @@ export function CustomerLedgerAndSheetsSection() {
                       <td className="py-2.5 px-3 font-bold text-white">{it.customer_name}</td>
                       <td className="py-2.5 px-3 font-mono text-slate-400">{it.customer_code}</td>
                       <td className="py-2.5 px-3 font-mono text-amber-200">
-                        {formatScreenGrams(it.opening_debt_g)}
+                        <div>{formatScreenGrams(Number(it.opening_debt_g || 0) + Number(it.legacy_added_month_g || 0))}</div>
+                        {Number(it.legacy_added_month_g || 0) > 0 && (
+                          <span className="text-[10px] text-amber-400 font-sans block">
+                            ({formatScreenGrams(it.legacy_added_month_g)} eski qarz)
+                          </span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-cyan-300">
                         {formatScreenGrams(it.sales_in_month_g)}
@@ -1402,7 +1409,20 @@ export function CustomerLedgerAndSheetsSection() {
             <h4 className="text-base font-black text-amber-300 flex items-center gap-2">
               <span>📊</span> Umumiy Kassa & Bozor Qarzi Xulosasi
             </h4>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs font-mono">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 text-xs font-mono">
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1">
+                <div className="text-slate-400 font-sans font-bold text-[11px]">Boshlang&apos;ich / Eski Qarz</div>
+                <div className="text-lg font-black text-amber-300">
+                  {formatScreenGrams(
+                    monthlyReportData.summary.total_opening_debt_g ??
+                      monthlyReportData.items.reduce(
+                        (sum: number, it: MonthlyReportItem) => sum + Number(it.opening_debt_g || 0) + Number(it.legacy_added_month_g || 0),
+                        0
+                      )
+                  )}
+                </div>
+              </div>
+
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1">
                 <div className="text-slate-400 font-sans font-bold text-[11px]">Jami Tarqatilgan (Oyda)</div>
                 <div className="text-lg font-black text-cyan-300">

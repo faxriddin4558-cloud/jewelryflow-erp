@@ -2010,6 +2010,11 @@ export function DirectorSalesWorkspace({
                       <div>
                         <span className="text-[#475569] block text-[10px]">Sotuvchi Majburiyati:</span>
                         <span className="font-bold text-amber-900">{formatScreenGrams(Number(acc.total_seller_obligation_g || factoryObligation), 2)}</span>
+                        {Number(acc.seller_legacy_debt_obligation_g || 0) > 0 && (
+                          <div className="text-[9px] text-[#475569] font-sans leading-tight mt-0.5">
+                            {formatScreenGrams(Number(acc.total_consigned_gold_grams || (Number(acc.total_seller_obligation_g || 0) - Number(acc.seller_legacy_debt_obligation_g || 0))), 2)} tovar + {formatScreenGrams(Number(acc.seller_legacy_debt_obligation_g), 2)} eski qarz
+                          </div>
+                        )}
                       </div>
                       <div>
                         <span className="text-[#475569] block text-[10px]">Topshirildi:</span>
