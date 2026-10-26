@@ -204,7 +204,7 @@ function SalesDashboardContent() {
           <div className="text-xl font-black font-mono text-amber-400 mt-1">
             {formatScreenGrams(totalFactoryObligation)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">8% ustama bilan zavod oldidagi qarz</div>
+          <div className="text-[10px] text-slate-400 mt-1">Zavod oldidagi sof qarz (ustama bilan)</div>
         </div>
 
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-blue-500/40 transition">
@@ -340,7 +340,7 @@ function SalesDashboardContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
-            <div className="text-amber-400 text-xs font-black uppercase">1-Daraja: Zavod Majburiyati (8%)</div>
+            <div className="text-amber-400 text-xs font-black uppercase">1-Daraja: Zavod Majburiyati (Kirimlar bo&apos;yicha)</div>
             <div className="text-lg font-black font-mono text-amber-300">
               {formatScreenGrams(totalFactoryObligation)}
             </div>
@@ -535,7 +535,7 @@ function SalesDashboardContent() {
             <thead className="bg-slate-950 text-[#CBD5E1]">
               <tr>
                 <th className="py-2.5 px-3 font-bold">Sotuvchi</th>
-                <th className="py-2.5 px-3 font-bold">Zavod Majburiyati (8%)</th>
+                <th className="py-2.5 px-3 font-bold">Topshirilgan Majburiyat</th>
                 <th className="py-2.5 px-3 font-bold">Kassadagi Lom</th>
                 <th className="py-2.5 px-3 font-bold">Kassadagi Naqd Pul</th>
                 <th className="py-2.5 px-3 font-bold">Bozor Qarzi</th>
