@@ -1035,6 +1035,7 @@ export interface ManagerVaultAccountRow {
   total_factory_obligation_g: number;
   total_factory_handed_over_g: number;
   current_factory_obligation_g: number;
+  current_factory_advance_g?: number;
   vault_scrap_gold_grams?: number;
   vault_cash_amount?: number;
   vault_refined_gold_grams?: number;
@@ -1096,6 +1097,7 @@ export interface FactoryGoldHandoverRow {
   status?: string | null;
   reversed_at?: string | null;
   notes?: string | null;
+  capital_tx_id?: string | null;
   created_at?: string;
 }
 
@@ -1121,6 +1123,7 @@ export interface AccountingBaselineRow {
   cash_usd_585_eq_g: number;
   total_assets_585_g: number;
   factory_obligation_585_g: number;
+  factory_advance_585_g?: number;
   customer_advances_585_g: number;
   total_liabilities_585_g: number;
   net_assets_585_g: number;
@@ -1191,7 +1194,9 @@ export interface AccountingProfitSummary {
     sellers_scrap_585_eq_g: number;
     sellers_scrap_physical_g: number;
     manager_refined_gold_585_g: number;
+    manager_capital_pure_gold_585_g?: number;
     manager_purchased_gold_585_g: number;
+    refining_wip_585_g?: number;
     customer_debts_585_g: number;
     customer_advances_585_g: number;
     manager_cash_uzs: number;
@@ -1203,6 +1208,8 @@ export interface AccountingProfitSummary {
     cash_usd_amount: number;
     cash_usd_585_eq_g: number;
     factory_obligation_585_g: number;
+    factory_debt_585_g?: number;
+    factory_advance_585_g?: number;
   } | null;
 }
 

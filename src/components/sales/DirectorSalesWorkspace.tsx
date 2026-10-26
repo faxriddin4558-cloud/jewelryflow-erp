@@ -148,6 +148,8 @@ export function DirectorSalesWorkspace({
   const [hndProba, setHndProba] = useState("585");
   const [hndRecipient, setHndRecipient] = useState("Zavod");
   const [hndNotes, setHndNotes] = useState("");
+  const [hndCapitalTxId, setHndCapitalTxId] = useState<string>("");
+  const [capitalPureTxs, setCapitalPureTxs] = useState<{ id: string; transaction_no: string; physical_weight_grams?: number; gold_proba?: number; equiv_585_grams?: number }[]>([]);
 
   // Daily rate form
   const [newRateAmount, setNewRateAmount] = useState<string>("");
@@ -241,6 +243,7 @@ export function DirectorSalesWorkspace({
         refiningRes,
         purchasesRes,
         handoversRes,
+        capTxsRes,
       ] = await Promise.all([
         supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(20),
         supabase.from("sales_markup_presets").select("*").order("display_order", { ascending: true }),
@@ -259,6 +262,7 @@ export function DirectorSalesWorkspace({
         supabase.from("refining_batches").select("*").order("batch_date", { ascending: false }),
         supabase.from("gold_purchases").select("*").order("purchase_date", { ascending: false }),
         supabase.from("factory_gold_handovers").select("*").order("handover_date", { ascending: false }),
+        supabase.from("financial_transactions").select("id, transaction_no, physical_weight_grams, gold_proba, equiv_585_grams").eq("transaction_type", "capital_contribution").in("source_till", ["manager_fine_gold", "fine_gold"]).neq("status", "reversed").order("created_at", { ascending: false }),
       ]);
 
       if (ratesRes.data && ratesRes.data.length > 0) {
@@ -279,6 +283,7 @@ export function DirectorSalesWorkspace({
       if (refiningRes.data) setRefiningBatches(refiningRes.data as RefiningBatchRow[]);
       if (purchasesRes.data) setGoldPurchases(purchasesRes.data as GoldPurchaseRow[]);
       if (handoversRes.data) setFactoryHandovers(handoversRes.data as FactoryGoldHandoverRow[]);
+      if (capTxsRes.data) setCapitalPureTxs(capTxsRes.data as { id: string; transaction_no: string; physical_weight_grams?: number; gold_proba?: number; equiv_585_grams?: number }[]);
       if (empRes.data) {
         setEmployees(empRes.data as EmployeeRow[]);
       }
@@ -716,12 +721,18 @@ export function DirectorSalesWorkspace({
         p_factory_recipient: hndRecipient.trim() || "Zavod",
         p_notes: hndNotes.trim() || null,
         p_idempotency_key: idempotencyKey,
+        p_capital_tx_id: hndSourceType === "capital_pure_gold" && hndCapitalTxId ? hndCapitalTxId : null,
       });
 
       if (error) throw error;
-      notifySuccess(`Zavodga oltin topshirildi: ${w}g (${agreedEq}g 585 eq). Zavod qarzi ${data.current_factory_obligation_g}g ga tushirildi!`);
+      if (Number(data?.current_factory_advance_g || 0) > 0) {
+        notifySuccess(`Zavodga oltin topshirildi: ${w}g (${agreedEq}g 585 eq). Zavod qarzi to'liq yopildi! Zavoddagi avansimiz: ${data.current_factory_advance_g}g 585 eq.`);
+      } else {
+        notifySuccess(`Zavodga oltin topshirildi: ${w}g (${agreedEq}g 585 eq). Zavod qarzi ${data?.current_factory_obligation_g || 0}g ga tushirildi!`);
+      }
       setHndWeight("");
       setHndNotes("");
+      setHndCapitalTxId("");
       await loadData();
     } catch (err: unknown) {
       notifyError(`Zavodga topshirishda xatolik: ${parseErrorMessage(err)}`);
@@ -1347,10 +1358,11 @@ export function DirectorSalesWorkspace({
             const totalRcpObligation = activeReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0);
             const totalHndPaid = activeHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0);
             const netFactoryDebt = Math.max(0, totalRcpObligation - totalHndPaid);
+            const factoryAdvance = Math.max(0, Number(managerVault?.current_factory_advance_g || 0), totalHndPaid - totalRcpObligation);
             const mgrAvailStock = activeReceipts.reduce((sum, r) => sum + Number(r.available_physical_g || 0), 0);
 
             return (
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className={`grid grid-cols-1 ${factoryAdvance > 0 ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6" : "md:grid-cols-5"} gap-4`}>
                 <div className="bg-slate-900 text-white p-4 rounded-3xl border border-slate-800 shadow-sm">
                   <div className="text-xs font-bold text-[#CBD5E1]">Jami Qabul Qilingan Tovar</div>
                   <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
@@ -1392,8 +1404,20 @@ export function DirectorSalesWorkspace({
                   <div className="text-2xl font-black font-mono text-rose-400 mt-1">
                     {formatScreenGrams(netFactoryDebt)} <span className="text-xs font-normal">585</span>
                   </div>
-                  <div className="text-[11px] text-rose-200 mt-1">Zavod oldidagi toza qoldiq qarz</div>
+                  <div className="text-[11px] text-rose-200 mt-1">
+                    {netFactoryDebt === 0 ? "Qarz yo'q (to'liq yopilgan)" : "Zavod oldidagi toza qoldiq qarz"}
+                  </div>
                 </div>
+
+                {factoryAdvance > 0 && (
+                  <div className="bg-teal-950 text-white p-4 rounded-3xl border border-teal-700 shadow-sm">
+                    <div className="text-xs font-bold text-teal-200">🏆 Zavoddagi Avansimiz (Haqdorlik)</div>
+                    <div className="text-2xl font-black font-mono text-teal-300 mt-1">
+                      {formatScreenGrams(factoryAdvance)} <span className="text-xs font-normal">585 eq</span>
+                    </div>
+                    <div className="text-[11px] text-teal-200 mt-1">Bizning aktivimiz; keyingi kirimda yopiladi</div>
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -1593,6 +1617,34 @@ export function DirectorSalesWorkspace({
                     </div>
                   </div>
 
+                  {hndSourceType === "capital_pure_gold" && capitalPureTxs.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">
+                        Bog&apos;langan Kapital Kirimi (Ixtiyoriy/Tavsiya etiladi):
+                      </label>
+                      <select
+                        value={hndCapitalTxId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setHndCapitalTxId(val);
+                          const sel = capitalPureTxs.find((c) => c.id === val);
+                          if (sel && sel.physical_weight_grams) {
+                            setHndWeight(String(sel.physical_weight_grams));
+                            if (sel.gold_proba) setHndProba(String(sel.gold_proba));
+                          }
+                        }}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-[#0F172A]"
+                      >
+                        <option value="">-- Kapital partiyasini tanlang (yoki to&apos;g&apos;ridan-to&apos;g&apos;ri kiriting) --</option>
+                        {capitalPureTxs.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            №{c.transaction_no} — {c.physical_weight_grams}g ({c.gold_proba}°) / {c.equiv_585_grams}g 585 eq
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs font-bold text-[#475569] mb-1">Fizik Vazn (g):</label>
@@ -1623,16 +1675,39 @@ export function DirectorSalesWorkspace({
                   </div>
 
                   {/* Live Preview */}
-                  <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono text-[#0F172A]">
-                    <div className="flex justify-between text-[#475569]">
-                      <span>Topshirilayotgan vazn:</span>
-                      <span className="font-bold text-[#0F172A]">{formatScreenGrams(parseFloat(hndWeight) || 0)} ({parseFloat(hndProba) || 585} proba)</span>
-                    </div>
-                    <div className="flex justify-between text-[#0F172A] font-black border-t border-emerald-300 pt-1 text-sm">
-                      <span>585 Ekvivalenti (Qarz kamayishi):</span>
-                      <span className="text-[#047857]">{formatScreenGrams(((parseFloat(hndWeight) || 0) * (parseFloat(hndProba) || 585)) / 585.0)}</span>
-                    </div>
-                  </div>
+                  {(() => {
+                    const hndPhysW = parseFloat(hndWeight) || 0;
+                    const hndPr = parseFloat(hndProba) || 585;
+                    const hndEq = (hndPhysW * hndPr) / 585.0;
+                    const curDebt = Number(managerVault?.current_factory_obligation_g || 0);
+                    const debtCovered = Math.min(curDebt, hndEq);
+                    const newAdvance = Math.max(0, hndEq - curDebt);
+
+                    return (
+                      <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono text-[#0F172A]">
+                        <div className="flex justify-between text-[#475569]">
+                          <span>Topshirilayotgan vazn:</span>
+                          <span className="font-bold text-[#0F172A]">
+                            {formatScreenGrams(hndPhysW)} ({hndPr} proba)
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[#0F172A] font-black border-t border-emerald-300 pt-1 text-sm">
+                          <span>585 Ekvivalenti:</span>
+                          <span className="text-[#047857]">{formatScreenGrams(hndEq)}</span>
+                        </div>
+                        <div className="flex justify-between text-[#475569] pt-0.5">
+                          <span>Qarz kamayishi:</span>
+                          <span className="font-bold text-rose-700">-{formatScreenGrams(debtCovered)}</span>
+                        </div>
+                        {newAdvance > 0 && (
+                          <div className="flex justify-between text-teal-900 font-bold bg-teal-100/70 p-1.5 rounded-lg border border-teal-300 mt-1">
+                            <span>🏆 Zavodga yangi avans (haqdorlik):</span>
+                            <span className="font-mono">+{formatScreenGrams(newAdvance)} 585 eq</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -1787,6 +1862,11 @@ export function DirectorSalesWorkspace({
                           <td className="p-2.5 text-[#475569]">{h.handover_date}</td>
                           <td className="p-2.5 font-sans font-medium text-[#0F172A]">
                             {h.source_type === "capital_pure_gold" ? "🏆 Ta'sischi kapital quyma" : h.source_type === "refined_gold" ? "Afinaj toza oltin" : h.source_type === "purchased_gold" ? "Bozordan xarid" : "Lom oltin"}
+                            {h.capital_tx_id && (
+                              <span className="block text-[10px] text-amber-700 font-mono font-bold mt-0.5">
+                                🔗 Kapitalga bog&apos;langan
+                              </span>
+                            )}
                           </td>
                           <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(h.physical_weight_g)}</td>
                           <td className="p-2.5 text-right text-[#475569]">{h.proba}</td>

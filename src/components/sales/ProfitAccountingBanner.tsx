@@ -723,12 +723,39 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                       {Number(profitSummary?.components?.manager_refined_gold_585_g || 0).toFixed(4)} g
                     </strong>
                   </div>
+                  {Number(profitSummary?.components?.manager_capital_pure_gold_585_g || 0) > 0 && (
+                    <div className="p-2.5 px-3 flex justify-between items-center bg-amber-50/40">
+                      <span className="font-sans text-slate-700 font-medium">🏆 Ta&apos;sischi toza oltin kapitali (585 eq):</span>
+                      <strong className="text-amber-800">
+                        {Number(profitSummary?.components?.manager_capital_pure_gold_585_g || 0).toFixed(4)} g
+                      </strong>
+                    </div>
+                  )}
+                  {Number(profitSummary?.components?.refining_wip_585_g || 0) > 0 && (
+                    <div className="p-2.5 px-3 flex justify-between items-center">
+                      <span className="font-sans text-slate-600">Afinaj jarayonidagi oltin (585 eq):</span>
+                      <strong className="text-slate-900">
+                        {Number(profitSummary?.components?.refining_wip_585_g || 0).toFixed(4)} g
+                      </strong>
+                    </div>
+                  )}
                   <div className="p-2.5 px-3 flex justify-between items-center">
                     <span className="font-sans text-slate-600">Menejerdagi xarid qilingan oltin (585 eq):</span>
                     <strong className="text-slate-900">
                       {Number(profitSummary?.components?.manager_purchased_gold_585_g || 0).toFixed(4)} g
                     </strong>
                   </div>
+                  {Number(profitSummary?.components?.factory_advance_585_g || 0) > 0 && (
+                    <div className="p-2.5 px-3 flex justify-between items-center bg-emerald-50/60">
+                      <div>
+                        <span className="font-sans text-emerald-800 font-bold">Zavoddagi avansimiz / haqdorligimiz:</span>
+                        <div className="text-[10px] text-emerald-600 font-sans">Ortiqcha topshirilgan oltin (aktiv)</div>
+                      </div>
+                      <strong className="text-emerald-700">
+                        {Number(profitSummary?.components?.factory_advance_585_g || 0).toFixed(4)} g
+                      </strong>
+                    </div>
+                  )}
                   <div className="p-2.5 px-3 flex justify-between items-center">
                     <span className="font-sans text-slate-600">Mijozlarning haqiqiy qarzlari (585 eq):</span>
                     <strong className="text-slate-900">
