@@ -57,6 +57,7 @@ export async function updateSupabaseSession(request: NextRequest) {
     pathname.startsWith("/api/sales/employees") ||
     pathname.startsWith("/api/sales/currency") ||
     pathname.startsWith("/api/models/photo") ||
+    pathname.startsWith("/api/version") ||
     pathname === "/manifest.json" ||
     pathname === "/sw.js";
 
