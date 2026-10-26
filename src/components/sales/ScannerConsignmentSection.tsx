@@ -16,6 +16,7 @@ import {
   type JewelryModelItem,
   type Scanner564Config,
   DEFAULT_SCANNER_CONFIG,
+  STANDARD_VAZN_MODEL_ID,
 } from "@/lib/barcode-scanner-engine";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
 import { parseErrorMessage } from "@/lib/error-utils";
@@ -85,6 +86,7 @@ export function ScannerConsignmentSection({
     text: string;
     type: "success" | "warning" | "error" | "info";
   } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const initializedPresetRef = useRef(false);
@@ -224,8 +226,10 @@ export function ScannerConsignmentSection({
   };
 
   const handleConfirm = async () => {
+    if (isBusy || isSubmitting) return;
+
     if (!selectedSellerId) {
-      setStatusNotice({ text: "Iltimos, sotuvchini tanlang!", type: "error" });
+      setStatusNotice({ text: "Iltimos, avval qabul qiluvchi sotuvchini tanlang!", type: "error" });
       return;
     }
     if (session.pieces.length === 0) {
@@ -244,15 +248,28 @@ export function ScannerConsignmentSection({
       return;
     }
 
-    const piecesPayload = session.pieces.map((p) => ({
-      model_id: p.modelId,
-      model_code: p.modelCode,
-      model_name: p.modelName,
-      category: p.category,
-      purity: p.purity,
-      weight_grams: p.weightGrams,
-      raw_barcode: p.rawBarcode,
-    }));
+    setIsSubmitting(true);
+
+    const piecesPayload = session.pieces.map((p) => {
+      let resolvedModelId = p.modelId;
+      if (!resolvedModelId || resolvedModelId === "00000000-0000-0000-0000-000000000000") {
+        const found = availableModels.find(
+          (m) =>
+            (m.model_code || "").toUpperCase() === (p.modelCode || "").toUpperCase() ||
+            (m.model_code || "").toUpperCase() === "VAZN"
+        );
+        resolvedModelId = found?.id || STANDARD_VAZN_MODEL_ID;
+      }
+      return {
+        model_id: resolvedModelId,
+        model_code: p.modelCode || "VAZN",
+        model_name: p.modelName || "Zargarlik Buyumi (Standart 585)",
+        category: p.category || "Buyum",
+        purity: p.purity || 585,
+        weight_grams: p.weightGrams,
+        raw_barcode: p.rawBarcode,
+      };
+    });
 
     try {
       await onConfirmConsignment({
@@ -276,6 +293,8 @@ export function ScannerConsignmentSection({
         text: `Topshirishda xatolik: ${parseErrorMessage(err)}. Skaner qoralamasi to'liq saqlab qolindi!`,
         type: "error",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -724,17 +743,28 @@ export function ScannerConsignmentSection({
               />
             </div>
 
-            <button
-              id="confirmConsignmentBtn"
-              onClick={handleConfirm}
-              disabled={isBusy || session.pieces.length === 0 || !selectedSellerId || !operatorConfirmed}
-              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black text-sm rounded-xl transition flex items-center gap-2 shadow-lg"
-            >
-              <span>✓</span>
-              {isBusy
-                ? "Tasdiqlanmoqda..."
-                : `Konsignatsiyani Tasdiqlash (${session.totalPieces} dona, ${formatScreenGrams(session.totalWeightGrams, 2)})`}
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              {!selectedSellerId && (
+                <span
+                  id="scannerMissingSellerNotice"
+                  className="text-amber-300 text-xs font-bold flex items-center gap-1.5 bg-amber-950/70 border border-amber-700/80 px-3 py-2.5 rounded-xl shadow-sm"
+                >
+                  <span>⚠️</span> Avval qabul qiluvchi sotuvchini tanlang
+                </span>
+              )}
+
+              <button
+                id="confirmConsignmentBtn"
+                onClick={handleConfirm}
+                disabled={isBusy || isSubmitting || session.pieces.length === 0 || !selectedSellerId || !operatorConfirmed}
+                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black text-sm rounded-xl transition flex items-center gap-2 shadow-lg"
+              >
+                <span>✓</span>
+                {isBusy || isSubmitting
+                  ? "Tasdiqlanmoqda..."
+                  : `Konsignatsiyani Tasdiqlash (${session.totalPieces} dona, ${formatScreenGrams(session.totalWeightGrams, 2)})`}
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -40,10 +40,12 @@ export const DEFAULT_SCANNER_CONFIG: Scanner564Config = {
   operatingMode: 'weight_only',
 };
 
+export const STANDARD_VAZN_MODEL_ID = '00000000-0000-4001-8001-000000000585';
+
 export const DEFAULT_WEIGHT_ONLY_MODEL: JewelryModelItem = {
-  id: '00000000-0000-0000-0000-000000000000',
+  id: STANDARD_VAZN_MODEL_ID,
   model_code: 'VAZN',
-  name: 'Zargarlik Buyumi (Vazn)',
+  name: 'Zargarlik Buyumi (Standart 585)',
   category: 'Buyum',
   decorations: 'Standart',
   gold_purity: 585,
@@ -333,7 +335,10 @@ export function processScannedCode(
 
     if (!targetModel) {
       if (effectiveMode === 'weight_only') {
-        targetModel = DEFAULT_WEIGHT_ONLY_MODEL;
+        const foundVazn = availableModels.find(
+          (m) => (m.model_code || '').toUpperCase() === 'VAZN'
+        );
+        targetModel = foundVazn || DEFAULT_WEIGHT_ONLY_MODEL;
       } else {
         return {
           success: false,
