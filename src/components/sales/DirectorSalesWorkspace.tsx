@@ -198,6 +198,7 @@ export function DirectorSalesWorkspace({
   } | null>(null);
   const [reversalReason, setReversalReason] = useState("");
   const [reversalBusy, setReversalBusy] = useState(false);
+  const [reversalError, setReversalError] = useState<string | null>(null);
 
   // Notification helper
   const notifySuccess = (msg: string) => {
@@ -301,10 +302,11 @@ export function DirectorSalesWorkspace({
 
   const handleExecuteReversal = async () => {
     if (!reversalTarget || !reversalReason.trim()) {
-      notifyError("Iltimos, bekor qilish sababini batafsil kiriting.");
+      setReversalError("Iltimos, bekor qilish sababini batafsil kiriting.");
       return;
     }
     setReversalBusy(true);
+    setReversalError(null);
     try {
       if (reversalTarget.type === "factory_receipt") {
         const { error } = await supabase.rpc("rpc_reverse_factory_receipt", {
@@ -367,9 +369,10 @@ export function DirectorSalesWorkspace({
       }
       setReversalTarget(null);
       setReversalReason("");
+      setReversalError(null);
       await loadData();
     } catch (err: unknown) {
-      notifyError(err, "Bekor qilishda xatolik");
+      setReversalError(parseErrorMessage(err, "Bekor qilishda server xatoligi yuz berdi"));
     } finally {
       setReversalBusy(false);
     }
@@ -1334,50 +1337,62 @@ export function DirectorSalesWorkspace({
           </div>
 
           {/* Metric Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="bg-slate-900 text-white p-4 rounded-3xl border border-slate-800 shadow-sm">
-              <div className="text-xs font-bold text-[#CBD5E1]">Jami Qabul Qilingan Tovar</div>
-              <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
-                {formatScreenGrams(factoryReceipts.reduce((sum, r) => sum + Number(r.original_physical_g || 0), 0))} <span className="text-xs font-normal">fizik</span>
-              </div>
-              <div className="text-[11px] text-[#CBD5E1] mt-1">{factoryReceipts.length} ta kvitansiya</div>
-            </div>
+          {(() => {
+            const activeReceipts = factoryReceipts.filter((r) => r.status !== "reversed");
+            const activeHandovers = factoryHandovers.filter((h) => h.status !== "reversed");
+            const totalRcpObligation = activeReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0);
+            const totalHndPaid = activeHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0);
+            const netFactoryDebt = Math.max(0, totalRcpObligation - totalHndPaid);
+            const mgrAvailStock = activeReceipts.reduce((sum, r) => sum + Number(r.available_physical_g || 0), 0);
 
-            <div className="bg-blue-950 text-white p-4 rounded-3xl border border-blue-800 shadow-sm">
-              <div className="text-xs font-bold text-blue-200">Menejer Omboridagi Mavjud Tovar</div>
-              <div className="text-2xl font-black font-mono text-blue-400 mt-1">
-                {formatScreenGrams(Number(managerVault?.manager_physical_stock_g ?? factoryReceipts.reduce((sum, r) => sum + Number(r.available_physical_g || 0), 0)))} <span className="text-xs font-normal">fizik</span>
-              </div>
-              <div className="text-[11px] text-blue-200 mt-1">Sotuvchilarga tarqatish uchun tayyor</div>
-            </div>
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="bg-slate-900 text-white p-4 rounded-3xl border border-slate-800 shadow-sm">
+                  <div className="text-xs font-bold text-[#CBD5E1]">Jami Qabul Qilingan Tovar</div>
+                  <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
+                    {formatScreenGrams(activeReceipts.reduce((sum, r) => sum + Number(r.original_physical_g || 0), 0))} <span className="text-xs font-normal">fizik</span>
+                  </div>
+                  <div className="text-[11px] text-[#CBD5E1] mt-1">
+                    {activeReceipts.length} ta kvitansiya {factoryReceipts.length > activeReceipts.length ? `(${factoryReceipts.length - activeReceipts.length} bekor qilingan)` : ""}
+                  </div>
+                </div>
 
-            <div className="bg-amber-950 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
-              <div className="text-xs font-bold text-amber-200">Zavod Oldidagi Majburiyat</div>
-              <div className="text-2xl font-black font-mono text-amber-400 mt-1">
-                {formatScreenGrams(factoryReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0))} <span className="text-xs font-normal">585</span>
-              </div>
-              <div className="text-[11px] text-amber-200 mt-1">Ustama foizlari bilan hisoblangan</div>
-            </div>
+                <div className="bg-blue-950 text-white p-4 rounded-3xl border border-blue-800 shadow-sm">
+                  <div className="text-xs font-bold text-blue-200">Menejer Omboridagi Mavjud Tovar</div>
+                  <div className="text-2xl font-black font-mono text-blue-400 mt-1">
+                    {formatScreenGrams(mgrAvailStock)} <span className="text-xs font-normal">fizik</span>
+                  </div>
+                  <div className="text-[11px] text-blue-200 mt-1">Sotuvchilarga tarqatish uchun tayyor</div>
+                </div>
 
-            <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
-              <div className="text-xs font-bold text-emerald-200">Zavodga Qaytarilgan Oltin</div>
-              <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
-                {formatScreenGrams(Number(managerVault?.total_factory_handed_over_g || factoryHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0)))} <span className="text-xs font-normal">585 eq</span>
-              </div>
-              <div className="text-[11px] text-emerald-200 mt-1">{factoryHandovers.length} ta topshirish hujjati</div>
-            </div>
+                <div className="bg-amber-950 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
+                  <div className="text-xs font-bold text-amber-200">Zavod Oldidagi Majburiyat</div>
+                  <div className="text-2xl font-black font-mono text-amber-400 mt-1">
+                    {formatScreenGrams(totalRcpObligation)} <span className="text-xs font-normal">585</span>
+                  </div>
+                  <div className="text-[11px] text-amber-200 mt-1">Ustama foizlari bilan hisoblangan</div>
+                </div>
 
-            <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm">
-              <div className="text-xs font-bold text-rose-200">Hozirgi Sof Zavod Qarzi</div>
-              <div className="text-2xl font-black font-mono text-rose-400 mt-1">
-                {formatScreenGrams(Number(managerVault?.current_factory_obligation_g ?? (
-                  factoryReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0) -
-                  factoryHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0)
-                )))} <span className="text-xs font-normal">585</span>
+                <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
+                  <div className="text-xs font-bold text-emerald-200">Zavodga Qaytarilgan Oltin</div>
+                  <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
+                    {formatScreenGrams(totalHndPaid)} <span className="text-xs font-normal">585 eq</span>
+                  </div>
+                  <div className="text-[11px] text-emerald-200 mt-1">
+                    {activeHandovers.length} ta topshirish hujjati {factoryHandovers.length > activeHandovers.length ? `(${factoryHandovers.length - activeHandovers.length} bekor qilingan)` : ""}
+                  </div>
+                </div>
+
+                <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm">
+                  <div className="text-xs font-bold text-rose-200">Hozirgi Sof Zavod Qarzi</div>
+                  <div className="text-2xl font-black font-mono text-rose-400 mt-1">
+                    {formatScreenGrams(netFactoryDebt)} <span className="text-xs font-normal">585</span>
+                  </div>
+                  <div className="text-[11px] text-rose-200 mt-1">Zavod oldidagi toza qoldiq qarz</div>
+                </div>
               </div>
-              <div className="text-[11px] text-rose-200 mt-1">Zavod oldidagi toza qoldiq qarz</div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Subview Segmented Control for Factory Accounting */}
           <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-900 border border-slate-800 rounded-2xl w-fit text-xs font-bold">
@@ -3154,7 +3169,7 @@ export function DirectorSalesWorkspace({
           activeSellers={activeSellers}
           availableModels={models}
           factoryPresets={factoryPresets}
-          availableFactoryReceipts={factoryReceipts}
+          availableFactoryReceipts={factoryReceipts.filter((r) => r.status !== "reversed")}
           onConfirmConsignment={handleConfirmBarcodeConsignment}
           isBusy={busy}
         />
@@ -3563,7 +3578,10 @@ export function DirectorSalesWorkspace({
               </div>
               <button
                 type="button"
-                onClick={() => setReversalTarget(null)}
+                onClick={() => {
+                  setReversalTarget(null);
+                  setReversalError(null);
+                }}
                 className="text-slate-400 hover:text-slate-700 font-bold p-1"
               >
                 ✕
@@ -3576,6 +3594,15 @@ export function DirectorSalesWorkspace({
                 Ushbu operatsiya bazadan fizik o&apos;chirilmaydi! Barcha tegishli ombor, qarz va kassalarga audit qilingan teskari kompensatsiya yoziladi.
               </p>
             </div>
+
+            {reversalError && (
+              <div className="p-3 bg-rose-50 rounded-xl border border-rose-200 text-xs text-rose-900 space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-rose-700">
+                  <span>🛑</span> Server Xatoligi (Reversal Error):
+                </div>
+                <div className="font-mono text-[11px] whitespace-pre-wrap break-words">{reversalError}</div>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -3593,7 +3620,10 @@ export function DirectorSalesWorkspace({
             <div className="flex justify-end gap-2 pt-2 border-t">
               <button
                 type="button"
-                onClick={() => setReversalTarget(null)}
+                onClick={() => {
+                  setReversalTarget(null);
+                  setReversalError(null);
+                }}
                 className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 transition"
               >
                 Bekor qilmaslik

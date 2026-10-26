@@ -55,7 +55,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
   }, [factoryReceipts, internalReceipts]);
 
   const activeBatches = useMemo(() => {
-    return allReceipts.filter((r) => Number(r.available_physical_g || 0) > 0);
+    return allReceipts.filter((r) => r.status !== "reversed" && Number(r.available_physical_g || 0) > 0);
   }, [allReceipts]);
 
   const batchesAvailableGrams = useMemo(() => {

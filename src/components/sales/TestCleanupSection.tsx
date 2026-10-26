@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/erp-engine";
+import { useState, useEffect, useCallback } from "react";
+import { supabase, RBAC } from "@/lib/erp-engine";
 import { formatScreenGrams } from "@/lib/barcode-scanner-engine";
 import { parseErrorMessage } from "@/lib/error-utils";
 
@@ -34,7 +34,15 @@ interface CleanupPreview {
 }
 
 export function TestCleanupSection() {
-  const [currentRole, setCurrentRole] = useState<string>("seller");
+  const [currentRole, setCurrentRole] = useState<string>(() => {
+    try {
+      const u = RBAC.getCurrentUser();
+      if (u?.role) return u.role.toLowerCase();
+    } catch {}
+    return "";
+  });
+  const [roleLoading, setRoleLoading] = useState<boolean>(true);
+  const [roleError, setRoleError] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [executingCleanup, setExecutingCleanup] = useState(false);
   const [preview, setPreview] = useState<CleanupPreview | null>(null);
@@ -43,15 +51,39 @@ export function TestCleanupSection() {
   const [cleanupReason, setCleanupReason] = useState("");
   const [resultMessage, setResultMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  useEffect(() => {
-    supabase.rpc("current_employee_role_text").then(({ data }) => {
-      if (data) setCurrentRole(String(data).toLowerCase());
-    });
+  const fetchRole = useCallback(async () => {
+    setRoleLoading(true);
+    setRoleError(null);
+    try {
+      const rbacUser = RBAC.getCurrentUser();
+      if (rbacUser?.role) {
+        setCurrentRole(rbacUser.role.toLowerCase());
+      }
+
+      const { data, error } = await supabase.rpc("current_employee_role_text");
+      if (error) {
+        console.error("Error fetching employee role:", error);
+        if (!rbacUser?.role) {
+          setRoleError(parseErrorMessage(error, "Xodim rolini aniqlab bo'lmadi"));
+        }
+      } else if (data) {
+        setCurrentRole(String(data).toLowerCase());
+      }
+    } catch (err: unknown) {
+      console.error("Role resolution exception:", err);
+      setRoleError(parseErrorMessage(err, "Rolni tekshirishda xatolik"));
+    } finally {
+      setRoleLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void fetchRole();
+  }, [fetchRole]);
+
   const isPrivileged = [
-    "admin", "director", "owner", "direktor", "rahbar"
-  ].includes(currentRole);
+    "admin", "director", "owner", "direktor", "rahbar", "manager", "boshqaruvchi"
+  ].includes(currentRole.toLowerCase());
 
   const handleFetchPreview = async () => {
     setLoadingPreview(true);
@@ -133,6 +165,37 @@ export function TestCleanupSection() {
     );
   };
 
+  if (roleLoading && !isPrivileged) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-white text-center space-y-3">
+        <div className="text-3xl animate-spin">⏳</div>
+        <h3 className="text-base font-bold text-amber-300">Foydalanuvchi Ruxsati Tekshirilmoqda...</h3>
+        <p className="text-xs text-slate-400">
+          Iltimos kuting, xodim roli va xavfsizlik ruxsatlari tasdiqlanmoqda.
+        </p>
+      </div>
+    );
+  }
+
+  if (roleError && !isPrivileged) {
+    return (
+      <div className="bg-slate-900 border border-rose-900/50 rounded-3xl p-8 text-white text-center space-y-4">
+        <div className="text-3xl">⚠️</div>
+        <h3 className="text-base font-bold text-rose-400">Rolni Aniqlashda Xatolik</h3>
+        <p className="text-xs text-slate-300 max-w-md mx-auto">
+          {roleError}
+        </p>
+        <button
+          type="button"
+          onClick={() => void fetchRole()}
+          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition"
+        >
+          🔄 Qayta tekshirish
+        </button>
+      </div>
+    );
+  }
+
   if (!isPrivileged) {
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 text-white text-center">
@@ -140,6 +203,7 @@ export function TestCleanupSection() {
         <h3 className="text-base font-bold text-amber-300">Ruxsat Cheklangan</h3>
         <p className="text-xs text-slate-400 mt-1">
           Sinov ma&apos;lumotlarini tozalash vositasi faqat korxona direktori va admin uchun ochiq.
+          {currentRole ? ` (Joriy rol: ${currentRole})` : ""}
         </p>
       </div>
     );

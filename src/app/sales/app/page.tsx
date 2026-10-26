@@ -47,8 +47,8 @@ function SalesDashboardContent() {
         supabase.from("consignment_pieces").select("*"),
         supabase.from("manager_vault_account").select("*").limit(1).maybeSingle(),
         supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("factory_receipts").select("factory_obligation_g, original_physical_g, available_physical_g, transferred_physical_g"),
-        supabase.from("factory_gold_handovers").select("agreed_equivalent_g"),
+        supabase.from("factory_receipts").select("factory_obligation_g, original_physical_g, available_physical_g, transferred_physical_g, status"),
+        supabase.from("factory_gold_handovers").select("agreed_equivalent_g, status"),
         supabase.from("jewelry_sales").select("base_weight_grams, status"),
       ]);
 
@@ -79,9 +79,13 @@ function SalesDashboardContent() {
   }, [loadData]);
 
   // Calculations
+  // Active non-reversed receipts and handovers
+  const activeReceipts = factoryReceipts.filter((r) => r.status !== "reversed");
+  const activeHandovers = factoryHandovers.filter((h) => h.status !== "reversed");
+
   // Tier 1: Canonical Factory Ledger (receipts - handovers)
-  const factoryReceiptsObligation = factoryReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0);
-  const factoryHandoversSettled = factoryHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0);
+  const factoryReceiptsObligation = activeReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0);
+  const factoryHandoversSettled = activeHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0);
   const totalFactoryObligation = Math.max(0, factoryReceiptsObligation - factoryHandoversSettled);
 
   const totalSellerTillScrap = sellerAccounts.reduce(
@@ -115,8 +119,8 @@ function SalesDashboardContent() {
   );
 
   // Physical Gold Reconciliation (Pure 585g Base Weight)
-  const totalFactoryPhysicalGrams = factoryReceipts.reduce((sum, r) => sum + Number(r.original_physical_g || 0), 0);
-  const managerReceiptAvailableGrams = factoryReceipts.reduce((sum, r) => sum + Number(r.available_physical_g || 0), 0);
+  const totalFactoryPhysicalGrams = activeReceipts.reduce((sum, r) => sum + Number(r.original_physical_g || 0), 0);
+  const managerReceiptAvailableGrams = activeReceipts.reduce((sum, r) => sum + Number(r.available_physical_g || 0), 0);
   const managerReturnedPieces = pieces.filter((p) => p.status === "in_manager_stock" || p.status === "returned_to_manager");
   const managerReturnedGrams = managerReturnedPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
   const totalManagerPhysicalGrams = Number(managerVault?.manager_physical_stock_g ?? (managerReceiptAvailableGrams + managerReturnedGrams));

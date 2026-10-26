@@ -214,6 +214,7 @@ export function CustomerLedgerAndSheetsSection() {
   const [reversalModalOpen, setReversalModalOpen] = useState(false);
   const [reversalTarget, setReversalTarget] = useState<DailyLedgerEntry | null>(null);
   const [reversalReason, setReversalReason] = useState("");
+  const [reversalError, setReversalError] = useState<string | null>(null);
 
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string>("");
 
@@ -588,6 +589,7 @@ export function CustomerLedgerAndSheetsSection() {
   const openReversalModal = (tx: DailyLedgerEntry) => {
     setReversalTarget(tx);
     setReversalReason("");
+    setReversalError(null);
     setReversalModalOpen(true);
   };
 
@@ -598,6 +600,7 @@ export function CustomerLedgerAndSheetsSection() {
       return;
     }
     setBusy(true);
+    setReversalError(null);
     try {
       if (reversalTarget.tx_type === "sale") {
         const { error } = await supabase.rpc("rpc_reverse_client_sale", {
@@ -626,12 +629,15 @@ export function CustomerLedgerAndSheetsSection() {
       setReversalModalOpen(false);
       setReversalTarget(null);
       setReversalReason("");
+      setReversalError(null);
       await loadDailyLedger();
       await loadCustomers();
     } catch (err: unknown) {
+      const errMsg = parseErrorMessage(err, "Bekor qilib bo'lmadi");
+      setReversalError(errMsg);
       setMessage({
         type: "error",
-        text: `Bekor qilishda xatolik: ${parseErrorMessage(err, "Bekor qilib bo'lmadi")}`,
+        text: `Bekor qilishda xatolik: ${errMsg}`,
       });
     } finally {
       setBusy(false);
@@ -1948,7 +1954,7 @@ export function CustomerLedgerAndSheetsSection() {
               </div>
               <button
                 type="button"
-                onClick={() => setReversalModalOpen(false)}
+                onClick={() => { setReversalModalOpen(false); setReversalError(null); }}
                 className="text-slate-400 hover:text-white text-lg font-mono font-bold"
               >
                 ✕
@@ -2010,10 +2016,20 @@ export function CustomerLedgerAndSheetsSection() {
               />
             </div>
 
+            {reversalError && (
+              <div className="p-3 bg-rose-950/80 border border-rose-500 rounded-xl text-xs text-rose-200 flex items-start gap-2">
+                <span className="text-base leading-none">⚠️</span>
+                <div className="flex-1 font-sans">
+                  <div className="font-bold text-rose-100">Xatolik yuz berdi:</div>
+                  <div className="mt-0.5 text-rose-200 break-words">{reversalError}</div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setReversalModalOpen(false)}
+                onClick={() => { setReversalModalOpen(false); setReversalError(null); }}
                 className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition"
               >
                 Orqaga

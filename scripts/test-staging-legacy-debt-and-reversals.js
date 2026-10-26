@@ -74,7 +74,7 @@ async function run() {
 
     -- Setup Customer
     INSERT INTO public.customers (id, organization_id, customer_code, contact_name, phone, seller_id)
-    VALUES (v_cust_id, v_org_id, 'CUST-051-A', 'Dilshod Sinovchi', '+998901234567', v_seller_emp);
+    VALUES (v_cust_id, v_org_id, 'CUST-' || upper(substr(gen_random_uuid()::text, 1, 8)), 'Dilshod Sinovchi', '+998901234567', v_seller_emp);
 
     -- Act as Director
     PERFORM set_config('request.jwt.claim.sub', v_dir_user::text, true);
@@ -315,7 +315,7 @@ async function run() {
     -- =========================================================================
     -- 1. Create a model and give seller stock to make a sale
     INSERT INTO public.jewelry_models (id, organization_id, model_code, name, category, is_active)
-    VALUES (v_model_id, v_org_id, 'MOD-051', 'Uzuk 051', 'rings', true);
+    VALUES (v_model_id, v_org_id, 'MOD-' || upper(substr(gen_random_uuid()::text, 1, 8)), 'Uzuk 051', 'rings', true);
 
     -- Insert factory receipt
     INSERT INTO public.factory_receipts (
@@ -487,30 +487,34 @@ async function run() {
     -- 3. Idempotency test (Director)
     PERFORM set_config('request.jwt.claim.sub', v_dir_user::text, true);
 
-    v_rec_res := public.rpc_record_client_legacy_debt(
-      p_customer_id := v_cust_id,
-      p_balance_type := 'debt',
-      p_amount_585_g := 1.2345,
-      p_as_of_date := v_today,
-      p_notes := 'Idempotency test entry',
-      p_idempotency_key := 'IDEM-KEY-051-TEST'
-    );
+    DECLARE
+      v_test_idem text := 'IDEM-KEY-' || upper(substr(gen_random_uuid()::text, 1, 8));
+    BEGIN
+      v_rec_res := public.rpc_record_client_legacy_debt(
+        p_customer_id := v_cust_id,
+        p_balance_type := 'debt',
+        p_amount_585_g := 1.2345,
+        p_as_of_date := v_today,
+        p_notes := 'Idempotency test entry',
+        p_idempotency_key := v_test_idem
+      );
 
-    v_legacy_id := (v_rec_res->>'legacy_debt_id')::uuid;
+      v_legacy_id := (v_rec_res->>'legacy_debt_id')::uuid;
 
-    -- Replaying with same idempotency key must return the SAME legacy debt ID
-    v_rec_res := public.rpc_record_client_legacy_debt(
-      p_customer_id := v_cust_id,
-      p_balance_type := 'debt',
-      p_amount_585_g := 1.2345,
-      p_as_of_date := v_today,
-      p_notes := 'Idempotency test entry replay',
-      p_idempotency_key := 'IDEM-KEY-051-TEST'
-    );
+      -- Replaying with same idempotency key must return the SAME legacy debt ID
+      v_rec_res := public.rpc_record_client_legacy_debt(
+        p_customer_id := v_cust_id,
+        p_balance_type := 'debt',
+        p_amount_585_g := 1.2345,
+        p_as_of_date := v_today,
+        p_notes := 'Idempotency test entry replay',
+        p_idempotency_key := v_test_idem
+      );
 
-    IF (v_rec_res->>'legacy_debt_id')::uuid <> v_legacy_id THEN
-      RAISE EXCEPTION 'Scenario H Failed: Idempotency replay did not return original record!';
-    END IF;
+      IF (v_rec_res->>'legacy_debt_id')::uuid <> v_legacy_id THEN
+        RAISE EXCEPTION 'Scenario H Failed: Idempotency replay did not return original record!';
+      END IF;
+    END;
 
     -- 4. Customer Deletion Guard: Deleting customer with transactions MUST fail
     BEGIN

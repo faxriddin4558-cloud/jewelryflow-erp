@@ -43,6 +43,7 @@ interface Props {
     receipt_no: string;
     product_name: string;
     available_physical_g?: number;
+    factory_markup_pct?: number;
   }>;
   onConfirmConsignment: (payload: {
     sellerId: string;
@@ -86,6 +87,7 @@ export function ScannerConsignmentSection({
   } | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const initializedPresetRef = useRef(false);
 
   // Load persisted draft session from storage on mount
   useEffect(() => {
@@ -108,16 +110,14 @@ export function ScannerConsignmentSection({
     }
   }, [session]);
 
-  // Set default factory markup preset
+  // Set default factory markup preset once on mount if not already set
   useEffect(() => {
-    if (factoryPresets.length > 0) {
-      const exists = factoryPresets.some(
-        (p) => String(p.percentage) === factoryMarkupPct || Number(p.percentage) === parseFloat(factoryMarkupPct)
-      );
-      if (!exists) {
-        const def = factoryPresets.find((p) => p.is_default) || factoryPresets[0];
-        if (def) setFactoryMarkupPct(String(def.percentage));
+    if (!initializedPresetRef.current && factoryPresets.length > 0) {
+      const def = factoryPresets.find((p) => p.is_default) || factoryPresets[0];
+      if (def && (!factoryMarkupPct || factoryMarkupPct === "8.00")) {
+        setFactoryMarkupPct(String(def.percentage));
       }
+      initializedPresetRef.current = true;
     }
   }, [factoryPresets, factoryMarkupPct]);
 
@@ -125,8 +125,8 @@ export function ScannerConsignmentSection({
     setSelectedReceiptId(id);
     if (id && availableFactoryReceipts) {
       const match = availableFactoryReceipts.find((r) => r.id === id);
-      const rMarkup = (match as { factory_markup_pct?: number | null } | undefined)?.factory_markup_pct;
-      if (typeof rMarkup === "number" && rMarkup > 0) {
+      const rMarkup = match?.factory_markup_pct;
+      if (typeof rMarkup === "number" && rMarkup >= 0) {
         setFactoryMarkupPct(String(rMarkup));
       }
     }
@@ -336,26 +336,53 @@ export function ScannerConsignmentSection({
 
           <div className="space-y-1">
             <label className="font-bold text-slate-300 block">2. Zavod Ustamasi (%):</label>
-            <select
-              id="scannerFactoryMarkupSelect"
-              value={factoryMarkupPct}
-              onChange={(e) => setFactoryMarkupPct(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-bold text-amber-300"
-            >
-              {factoryPresets.length > 0 ? (
-                factoryPresets.map((p) => (
+            <div className="flex gap-2">
+              <select
+                id="scannerFactoryMarkupSelect"
+                value={
+                  factoryPresets.some(
+                    (p) => String(p.percentage) === factoryMarkupPct || Number(p.percentage) === parseFloat(factoryMarkupPct)
+                  )
+                    ? factoryMarkupPct
+                    : "custom"
+                }
+                onChange={(e) => {
+                  if (e.target.value !== "custom") {
+                    setFactoryMarkupPct(e.target.value);
+                  }
+                }}
+                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-bold text-amber-300"
+              >
+                {factoryPresets.map((p) => (
                   <option key={p.id} value={String(p.percentage)}>
                     {p.name} ({p.percentage}%)
                   </option>
-                ))
-              ) : (
-                <>
-                  <option value="6">Zavod 6%</option>
-                  <option value="8">Zavod 8% (Standart)</option>
-                  <option value="10">Zavod 10%</option>
-                </>
-              )}
-            </select>
+                ))}
+                {factoryPresets.length === 0 && (
+                  <>
+                    <option value="6">Zavod 6%</option>
+                    <option value="8">Zavod 8% (Standart)</option>
+                    <option value="10">Zavod 10%</option>
+                  </>
+                )}
+                {!factoryPresets.some(
+                  (p) => String(p.percentage) === factoryMarkupPct || Number(p.percentage) === parseFloat(factoryMarkupPct)
+                ) && (
+                  <option value="custom">Tanlangan / Kirim ({factoryMarkupPct}%)</option>
+                )}
+              </select>
+              <input
+                id="scannerFactoryMarkupInput"
+                type="number"
+                step="0.1"
+                min="0"
+                value={factoryMarkupPct}
+                onChange={(e) => setFactoryMarkupPct(e.target.value)}
+                placeholder="8.00"
+                className="w-24 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-bold text-amber-300 text-center focus:ring-2 focus:ring-amber-400"
+                title="Aniq zavod ustamasi (%)"
+              />
+            </div>
           </div>
 
           <div className="space-y-1">
