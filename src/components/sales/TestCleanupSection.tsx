@@ -33,6 +33,38 @@ interface CleanupPreview {
   };
 }
 
+interface FullResetPreview {
+  status: string;
+  preview_token: string;
+  has_active_baseline: boolean;
+  active_baseline_no?: string;
+  active_baseline_net_assets_g?: number;
+  affected_records: {
+    factory_receipts_count: number;
+    factory_receipts_grams: number;
+    seller_consignments_count: number;
+    seller_consignments_grams: number;
+    consignment_pieces_count: number;
+    jewelry_sales_count: number;
+    gold_settlements_count: number;
+    refining_batches_count: number;
+    financial_transactions_count: number;
+    customer_active_debt_g: number;
+    seller_tills_scrap_g: number;
+    manager_scrap_vault_g: number;
+    manager_refined_vault_g: number;
+    manager_cash_vault_uzs: number;
+  };
+  preserved_master_data: {
+    employees_count: number;
+    customers_count: number;
+    jewelry_models_count: number;
+    organizations_preserved: boolean;
+    audit_history_preserved: boolean;
+  };
+  confirmation_code_required: string;
+}
+
 export function TestCleanupSection() {
   const [currentRole, setCurrentRole] = useState<string>(() => {
     try {
@@ -50,6 +82,13 @@ export function TestCleanupSection() {
   const [confirmCode, setConfirmCode] = useState("");
   const [cleanupReason, setCleanupReason] = useState("");
   const [resultMessage, setResultMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [fullResetPreview, setFullResetPreview] = useState<FullResetPreview | null>(null);
+  const [loadingFullResetPreview, setLoadingFullResetPreview] = useState(false);
+  const [executingFullReset, setExecutingFullReset] = useState(false);
+  const [fullResetConfirmCode, setFullResetConfirmCode] = useState("");
+  const [fullResetReason, setFullResetReason] = useState("");
+  const [fullResetResult, setFullResetResult] = useState<{ type: "success" | "error"; text: string; details?: unknown } | null>(null);
 
   const fetchRole = useCallback(async () => {
     setRoleLoading(true);
@@ -163,6 +202,65 @@ export function TestCleanupSection() {
     setSelectedReceiptIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  };
+
+  const handleFetchFullResetPreview = async () => {
+    setLoadingFullResetPreview(true);
+    setFullResetResult(null);
+    try {
+      const { data, error } = await supabase.rpc("rpc_preview_full_test_reset");
+      if (error) throw error;
+      setFullResetPreview(data as FullResetPreview);
+    } catch (err: unknown) {
+      setFullResetResult({
+        type: "error",
+        text: `To'liq tozalash tekshiruvida xatolik: ${parseErrorMessage(err, "Tekshirib bo'lmadi")}`,
+      });
+    } finally {
+      setLoadingFullResetPreview(false);
+    }
+  };
+
+  const handleExecuteFullReset = async () => {
+    if (fullResetConfirmCode.trim() !== "RESET_TEST_ACCOUNT_2026") {
+      setFullResetResult({
+        type: "error",
+        text: "Tasdiqlash kodi noto'g'ri! Iltimos, aynan RESET_TEST_ACCOUNT_2026 deb yozing.",
+      });
+      return;
+    }
+    if (!fullResetReason.trim()) {
+      setFullResetResult({
+        type: "error",
+        text: "Iltimos, test hisobini to'liq tozalash sababi va asosini yozing.",
+      });
+      return;
+    }
+
+    setExecutingFullReset(true);
+    setFullResetResult(null);
+    try {
+      const { data, error } = await supabase.rpc("rpc_execute_full_test_reset", {
+        p_confirmation_code: fullResetConfirmCode.trim(),
+        p_reason: fullResetReason.trim(),
+      });
+      if (error) throw error;
+      setFullResetResult({
+        type: "success",
+        text: "Test hisobi to'liq nolga qaytarildi! Barcha faol balanslar (seyflar, kassalar, mijoz va zavod qarzlari) 0.0000 g ga tenglashtirildi. Muzlatilgan boshlang'ich hisob arxivlandi va noldan yangi hisob kiritish ochildi.",
+        details: data,
+      });
+      setFullResetPreview(null);
+      setFullResetConfirmCode("");
+      setFullResetReason("");
+    } catch (err: unknown) {
+      setFullResetResult({
+        type: "error",
+        text: `To'liq tozalashni amalga oshirishda xatolik: ${parseErrorMessage(err, "Tozalab bo'lmadi")}`,
+      });
+    } finally {
+      setExecutingFullReset(false);
+    }
   };
 
   if (roleLoading && !isPrivileged) {
@@ -444,6 +542,183 @@ export function TestCleanupSection() {
           )}
         </div>
       )}
+
+      {/* SECTION 2: FULL TEST ACCOUNT RESET (ZERO-RESET FOR DIRECTOR) */}
+      <div className="bg-slate-900 border border-amber-900/40 rounded-3xl p-6 text-white space-y-5 shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🔄</span>
+              <h3 className="text-base font-black text-amber-400">
+                Test Hisobini Tozalab Qayta Boshlash (Zero-Reset)
+              </h3>
+            </div>
+            <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+              Direktor uchun noldan haqiqiy boshlang&apos;ich hisob kiritish imkoniyati. Barcha sinov operatsiyalari,
+              konsignatsiyalar, afinaj va vaqtinchalik baseline audit bilan arxivlanadi. Barcha faol seyflar, kassalar,
+              sotuvchi mas&apos;uliyati va mijoz qarzlari <strong className="text-amber-300 font-mono">0.0000 g</strong> ga keltiriladi.
+              Xodimlar, mijozlar va modellar bazasi tegilmaydi.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleFetchFullResetPreview()}
+            disabled={loadingFullResetPreview}
+            className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-2 whitespace-nowrap self-start sm:self-auto"
+          >
+            {loadingFullResetPreview ? (
+              <span>⏳ Tekshirilmoqda...</span>
+            ) : (
+              <>
+                <span>🔍</span> Qayta Boshlashni Tekshirish
+              </>
+            )}
+          </button>
+        </div>
+
+        {fullResetResult && (
+          <div
+            className={`p-4 rounded-2xl text-xs font-medium border ${
+              fullResetResult.type === "success"
+                ? "bg-emerald-950/80 border-emerald-800 text-emerald-200"
+                : "bg-rose-950/80 border-rose-800 text-rose-200"
+            }`}
+          >
+            <div className="font-bold mb-1 flex items-center gap-1.5">
+              <span>{fullResetResult.type === "success" ? "✓" : "✕"}</span>
+              {fullResetResult.type === "success" ? "Muvaffaqiyatli:" : "Xatolik:"}
+            </div>
+            <p>{fullResetResult.text}</p>
+            {fullResetResult.type === "success" && (
+              <div className="mt-3 pt-2 border-t border-emerald-800/60 flex items-center justify-between">
+                <span className="text-[11px] text-emerald-300">
+                  Tizim yangilandi. Iltimos, bosh sahifani yangilang va yangi boshlang&apos;ich hisobni kiriting.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-[11px] font-bold transition"
+                >
+                  Sahifani Yangilash ⟳
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {fullResetPreview && (
+          <div className="space-y-4 pt-2">
+            {/* Impact Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* Baseline Card */}
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1.5">
+                <div className="text-[11px] font-bold text-amber-400 uppercase">Muzlatilgan Boshlang&apos;ich Hisob</div>
+                <div className="text-sm font-bold text-white">
+                  {fullResetPreview.has_active_baseline ? (
+                    <span className="text-amber-300 font-mono">{fullResetPreview.active_baseline_no}</span>
+                  ) : (
+                    <span className="text-slate-500 font-sans">Faol baseline mavjud emas</span>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  {fullResetPreview.has_active_baseline
+                    ? `Sof kapital: ${formatScreenGrams(Number(fullResetPreview.active_baseline_net_assets_g || 0))} (Arxivlanadi)`
+                    : "Yangi boshlang'ich hisob oynasi ochiq"}
+                </div>
+              </div>
+
+              {/* Transactions to be Reversed */}
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1.5">
+                <div className="text-[11px] font-bold text-rose-400 uppercase">Arxivlanadigan Operatsiyalar</div>
+                <div className="text-xs font-mono text-slate-300 space-y-0.5">
+                  <div>Zavod kirimlari: {fullResetPreview.affected_records.factory_receipts_count} ta ({formatScreenGrams(fullResetPreview.affected_records.factory_receipts_grams)})</div>
+                  <div>Konsignatsiyalar: {fullResetPreview.affected_records.seller_consignments_count} ta ({formatScreenGrams(fullResetPreview.affected_records.seller_consignments_grams)})</div>
+                  <div>Sotuvlar: {fullResetPreview.affected_records.jewelry_sales_count} ta</div>
+                  <div>Topshirishlar: {fullResetPreview.affected_records.gold_settlements_count} ta</div>
+                  <div>Afinaj partiyalari: {fullResetPreview.affected_records.refining_batches_count} ta</div>
+                  <div>Moliyaviy tranzaksiyalar: {fullResetPreview.affected_records.financial_transactions_count} ta</div>
+                </div>
+              </div>
+
+              {/* Preserved Master Data */}
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1.5">
+                <div className="text-[11px] font-bold text-emerald-400 uppercase">Saqlanadigan Doimiy Ma&apos;lumotlar</div>
+                <div className="text-xs font-mono text-slate-300 space-y-0.5">
+                  <div>Xodimlar (Sotuvchilar): {fullResetPreview.preserved_master_data.employees_count} nafar ✓</div>
+                  <div>Mijozlar ro&apos;yxati: {fullResetPreview.preserved_master_data.customers_count} nafar ✓</div>
+                  <div>Mahsulot modellari: {fullResetPreview.preserved_master_data.jewelry_models_count} ta ✓</div>
+                  <div>Tashkilot va audit: To&apos;liq saqlanadi ✓</div>
+                </div>
+                <div className="text-[10px] text-emerald-300/80 pt-1">
+                  Ushbu ma&apos;lumotlar o&apos;chirilmaydi va o&apos;zgarishsiz qoladi.
+                </div>
+              </div>
+            </div>
+
+            {/* Balances Zeroed Notice */}
+            <div className="p-3 bg-amber-950/30 border border-amber-800/60 rounded-xl text-xs text-amber-200 space-y-1">
+              <span className="font-bold flex items-center gap-1 text-amber-300">
+                <span>⚠️</span> Natijaviy Balanslar Holati:
+              </span>
+              <p>
+                Ushbu amal bajarilgandan so&apos;ng barcha kassa, seyf va qarzlar (zavod qarzi: 0.0000g, sotuvchilar mas&apos;uliyati: 0.0000g, mijozlar qarzi: 0.0000g, menejer seyfi: 0.0000g) sof nol (0.0000) holatiga keltiriladi. Shundan so&apos;ng haqiqiy boshlang&apos;ich hisobni kiritishingiz mumkin bo&apos;ladi.
+              </p>
+            </div>
+
+            {/* Execution Form */}
+            <div className="bg-slate-950 p-5 rounded-2xl border border-rose-900/60 space-y-4">
+              <h4 className="text-xs font-black text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
+                <span>🔐</span> Test Hisobini Qayta Boshlashni Tasdiqlash
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Tasdiqlash Kodi: <span className="text-rose-400 font-mono">RESET_TEST_ACCOUNT_2026</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={fullResetConfirmCode}
+                    onChange={(e) => setFullResetConfirmCode(e.target.value)}
+                    placeholder="RESET_TEST_ACCOUNT_2026"
+                    className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-mono text-white focus:ring-2 focus:ring-rose-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Tozalash Sababi / Asos:
+                  </label>
+                  <input
+                    type="text"
+                    value={fullResetReason}
+                    onChange={(e) => setFullResetReason(e.target.value)}
+                    placeholder="Masalan: Test hisobini tozalab, haqiqiy boshlang'ich hisobni kiritish"
+                    className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:ring-2 focus:ring-rose-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => void handleExecuteFullReset()}
+                  disabled={executingFullReset || fullResetConfirmCode.trim() !== "RESET_TEST_ACCOUNT_2026"}
+                  className="px-6 py-2.5 bg-rose-700 hover:bg-rose-600 disabled:opacity-40 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-700/30 transition flex items-center gap-2"
+                >
+                  {executingFullReset ? (
+                    <span>⏳ Nolga Qaytarilmoqda...</span>
+                  ) : (
+                    <>
+                      <span>💥</span> Test Hisobini To&apos;liq Nolga Qaytarish (Zero-Reset)
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

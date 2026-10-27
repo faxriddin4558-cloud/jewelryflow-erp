@@ -20,9 +20,10 @@ interface Props {
   models?: JewelryModelItem[];
   factoryReceipts?: FactoryReceiptRow[];
   onRefresh?: () => Promise<void>;
+  loading?: boolean;
 }
 
-export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, models, factoryReceipts, onRefresh }: Props) {
+export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, models, factoryReceipts, onRefresh, loading }: Props) {
   const [internalReceipts, setInternalReceipts] = useState<FactoryReceiptRow[]>([]);
   const [viewMode, setViewMode] = useState<"batches" | "pieces" | "aggregated">("batches");
   const [selectedSellerFilter, setSelectedSellerFilter] = useState("all");
@@ -258,6 +259,24 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
       setBusy(false);
     }
   };
+
+  const returningPiece = useMemo(() => {
+    if (!returningPieceId) return null;
+    return pieces.find((p) => p.id === returningPieceId) || null;
+  }, [returningPieceId, pieces]);
+
+  const returningMarkupPct = Number(returningPiece?.consignment?.seller_markup_pct ?? 12);
+  const returningPieceWeight = Number(returningPiece?.weight_grams ?? 0);
+  const returningObligationG = Math.round(returningPieceWeight * (1 + returningMarkupPct / 100) * 10000) / 10000;
+
+  if (loading) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 flex flex-col items-center justify-center min-h-[350px] text-slate-400 space-y-3">
+        <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs font-medium tracking-wide">Ombor va donalar ma&apos;lumotlari yuklanmoqda...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -663,8 +682,35 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
             </h3>
             <p className="text-xs text-slate-300">
               Sotilmagan ushbu dona sotuvchi javonidan chiqarilib, boshqaruvchi omboriga qaytariladi.
-              Sotuvchining majburiyati asl konsignatsiya ustamasi (12%) bo&apos;yicha avtomatik kamaytiriladi.
+              Sotuvchining majburiyati asl konsignatsiya ustamasi ({returningMarkupPct}%) bo&apos;yicha avtomatik kamaytiriladi.
             </p>
+
+            {returningPiece && (
+              <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs space-y-1.5 font-mono">
+                <div className="flex justify-between text-slate-400">
+                  <span className="font-sans">Dona / Model:</span>
+                  <span className="text-white font-bold">{returningPiece.model_name || returningPiece.model_code}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span className="font-sans">Fizik vazn (585):</span>
+                  <span className="text-white font-bold">{formatScreenGrams(returningPieceWeight)}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span className="font-sans">Konsignatsiya ustamasi:</span>
+                  <span className="text-amber-400 font-bold">{returningMarkupPct}%</span>
+                </div>
+                <div className="flex justify-between text-slate-400 pt-1 border-t border-slate-800">
+                  <span className="font-sans">Kamayadigan majburiyat:</span>
+                  <span className="text-emerald-400 font-bold">-{formatScreenGrams(returningObligationG)} (585 eq)</span>
+                </div>
+                {returningPiece.consignment?.consignment_no && (
+                  <div className="flex justify-between text-slate-500 text-[10px] pt-0.5">
+                    <span className="font-sans">Hujjat raqami:</span>
+                    <span>{returningPiece.consignment.consignment_no}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-400">Qaytarish sababi / Izoh</label>

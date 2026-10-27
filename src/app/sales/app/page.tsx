@@ -44,7 +44,7 @@ function SalesDashboardContent() {
       const [sellersRes, clientsRes, piecesRes, vaultRes, rateRes, rcpRes, hndRes, salesRes] = await Promise.all([
         supabase.from("seller_gold_accounts").select("*, employee:employees(name, full_name)"),
         supabase.from("client_gold_accounts").select("*"),
-        supabase.from("consignment_pieces").select("*"),
+        supabase.from("consignment_pieces").select("*, consignment:seller_consignments(id, consignment_no, seller_markup_pct, factory_markup_pct)"),
         supabase.from("manager_vault_account").select("*").limit(1).maybeSingle(),
         supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("factory_receipts").select("factory_obligation_g, original_physical_g, available_physical_g, transferred_physical_g, status"),
@@ -355,7 +355,7 @@ function SalesDashboardContent() {
           </div>
 
           <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
-            <div className="text-blue-400 text-xs font-black uppercase">2-Daraja: Sotuvchilar Mas&apos;uliyati (12%)</div>
+            <div className="text-blue-400 text-xs font-black uppercase">2-Daraja: Sotuvchilar Mas&apos;uliyati</div>
             <div className="text-lg font-black font-mono text-blue-300">
               {formatScreenGrams(totalSellerObligation)}
             </div>
@@ -365,12 +365,12 @@ function SalesDashboardContent() {
               </div>
             )}
             <p className="text-[11px] text-slate-400 leading-tight">
-              Sotuvchilar tovar va to&apos;lovlar uchun javobgar (bozor qarzi). Faqat tushum menejerga topshirilganda kamayadi.
+              Sotuvchilar to&apos;lovlar va qoldiq tovarlar uchun mas&apos;ul (bozor qarzi). Faqat tushum menejerga topshirilganda kamayadi.
             </p>
           </div>
 
           <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
-            <div className="text-rose-400 text-xs font-black uppercase">3-Daraja: Mijozlar Nasiyasi (12-15%)</div>
+            <div className="text-rose-400 text-xs font-black uppercase">3-Daraja: Mijozlar Nasiyasi</div>
             <div className="text-lg font-black font-mono text-rose-300">
               {formatScreenGrams(totalClientDebtGrams)}
             </div>
@@ -471,7 +471,7 @@ function SalesDashboardContent() {
                 Zavod Bilan Hisob-Kitob
               </div>
               <div className="text-xs text-slate-400 mt-1">
-                Tovar qabul qilish (8%) va qaytarilgan oltin balansi
+                Tovar qabul qilish va qaytarilgan oltin balansi
               </div>
             </Link>
 
@@ -497,7 +497,7 @@ function SalesDashboardContent() {
                 Mijozga Nasiya Sotish
               </div>
               <div className="text-xs text-slate-400 mt-1">
-                12% ustama va mijoz hisobida 585 qarz yozish
+                Kelishilgan ustama va mijoz hisobida 585 qarz yozish
               </div>
             </Link>
 

@@ -321,6 +321,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
         p_usd_rate: txUsdRate ? parseFloat(txUsdRate) : null,
         p_idempotency_key: idempKey,
         p_physical_weight: physWeight,
+        p_physical_weight_g: physWeight,
         p_gold_proba: proba,
         p_seller_id: sellerId,
         p_product_name: prodName,

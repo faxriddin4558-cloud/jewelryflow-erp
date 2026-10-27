@@ -565,9 +565,15 @@ export function CustomerLedgerAndSheetsSection() {
 
         if (error) throw error;
 
+        const selectedPiece = availablePieces.find((p) => p.id === salePieceId);
+        const resolvedModelName = data?.model_name || selectedPiece?.model_name || selectedPiece?.model_code || "Zargarlik buyumi";
+        const resolvedWeight = Number(data?.weight_grams ?? selectedPiece?.weight_grams ?? 0);
+        const resolvedMarkup = Number(data?.client_markup_pct ?? markup);
+        const resolvedGrossGold = data?.gross_gold_due_grams || data?.client_gold_due_grams || (resolvedWeight * (1 + resolvedMarkup / 100));
+
         setMessage({
           type: "success",
-          text: `Savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${data.model_name} (${formatScreenGrams(data.weight_grams, 2)} @ ${data.client_markup_pct}%). Mahsulot qiymati: ${formatScreenGrams(data.gross_gold_due_grams || data.client_gold_due_grams, 2)}.${Number(data.advance_applied_grams || 0) > 0 ? ` Qoplangan avans: -${formatScreenGrams(Number(data.advance_applied_grams), 2)}.` : ""} Sof qolgan qarz: ${formatScreenGrams(data.net_remaining_debt_grams ?? data.remaining_gold_grams, 2)}.`,
+          text: `Savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${resolvedModelName} (${formatScreenGrams(resolvedWeight, 2)} @ ${resolvedMarkup}%). Mahsulot qiymati: ${formatScreenGrams(resolvedGrossGold, 2)}.${Number(data?.advance_applied_grams || 0) > 0 ? ` Qoplangan avans: -${formatScreenGrams(Number(data.advance_applied_grams), 2)}.` : ""} Sof qolgan qarz: ${formatScreenGrams(data?.net_remaining_debt_grams ?? data?.remaining_gold_grams ?? 0, 2)}.`,
         });
       }
 
@@ -2137,7 +2143,7 @@ export function CustomerLedgerAndSheetsSection() {
                   <span>⚠️</span> DIQQAT: Bu ustamasi qo&apos;shilgan yakuniy qarz. Tizim qayta foiz qo&apos;shmaydi.
                 </div>
                 <p className="text-[11px] text-amber-200/90 leading-relaxed">
-                  ℹ️ Ushbu amal omborni kamaytirmaydi, kassaga pul/lom kiritmaydi, zavod qarzini o&apos;zgartirmaydi va bugungi savdo tushumi yoki operatsion foyda hisoblanmaydi. Sotuvchi mijozdan pul yoki lom yig&apos;ib olgandagina javobgar bo&apos;ladi.
+                  ℹ️ Ushbu amal omborni kamaytirmaydi, yangi savdo yaratmaydi, zavod qarzini o&apos;zgartirmaydi va foyda hisoblanmaydi. Kiritilgan qarz biriktirilgan sotuvchi mas&apos;uliyatiga 1:1 qo&apos;shiladi va mijozdan undirilib, boshqaruvchiga topshirilmaguncha sotuvchi hisobida turadi.
                 </p>
               </div>
 

@@ -92,6 +92,7 @@ export function DirectorSalesWorkspace({
 
 
   // State
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -224,6 +225,7 @@ export function DirectorSalesWorkspace({
 
   // Load all director data
   const loadData = useCallback(async () => {
+    setLoading(true);
     try {
       const [
         ratesRes,
@@ -297,6 +299,8 @@ export function DirectorSalesWorkspace({
       }
     } catch (err: unknown) {
       notifyError(`Ma'lumotlarni yuklashda xatolik: ${parseErrorMessage(err)}`);
+    } finally {
+      setLoading(false);
     }
   }, [consignProductId]);
 
@@ -2166,7 +2170,7 @@ export function DirectorSalesWorkspace({
               <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm">
                 <div className="text-xs font-bold text-rose-300">Jami Afinaj Yo&apos;qotishi (Pateriya)</div>
                 <div className="text-2xl font-black font-mono text-rose-300 mt-1">
-                  {formatScreenGrams(refiningBatches.reduce((sum, b) => sum + Number(b.total_loss_grams || 0), 0))} <span className="text-xs font-normal">585</span>
+                  {formatScreenGrams(refiningBatches.filter((b) => b.status === "completed").reduce((sum, b) => sum + Number(b.total_loss_grams || 0), 0))} <span className="text-xs font-normal">585</span>
                 </div>
                 <div className="text-[11px] text-rose-200 mt-1">Boshqaruvchi hisobiga yozilgan zarar</div>
               </div>
@@ -2259,13 +2263,13 @@ export function DirectorSalesWorkspace({
                   <div className="text-xl md:text-2xl font-black font-mono text-rose-300 mt-1">
                     {formatScreenGrams(
                       refiningBatches
-                        .filter((b) => b.status !== "reversed")
+                        .filter((b) => b.status === "completed")
                         .reduce((sum, b) => sum + (Number(b.total_loss_grams) || 0), 0)
                     )}
                   </div>
                 </div>
                 <div className="text-[10px] text-rose-200 mt-2">
-                  {refiningBatches.filter((b) => b.status !== "reversed").length} ta afinaj partiyasi
+                  {refiningBatches.filter((b) => b.status === "completed").length} ta afinaj partiyasi
                 </div>
               </div>
             </div>
@@ -3272,7 +3276,7 @@ export function DirectorSalesWorkspace({
                             ? "bg-purple-100 text-purple-800"
                             : "bg-emerald-100 text-emerald-800"
                         }`}>
-                          {isReversed ? "Bekor qilingan" : s.direction === "client_to_seller" ? "Mijoz → Sotuvchi" : "Sotuvchi → Zavod"}
+                          {isReversed ? "Bekor qilingan" : s.direction === "client_to_seller" ? "Mijoz → Sotuvchi" : "Sotuvchi → Menejer"}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 font-medium text-[#0F172A]">
@@ -3307,7 +3311,7 @@ export function DirectorSalesWorkspace({
                                 id: s.id,
                                 docNo: s.settlement_no || s.id.slice(0, 8),
                                 title: `To'lov №${s.settlement_no || s.id.slice(0, 8)}`,
-                                details: `${s.direction === "client_to_seller" ? "Mijoz → Sotuvchi" : "Sotuvchi → Zavod"}: ${partyName} — Lom: ${formatScreenGrams(s.scrap_weight_grams, 2)}, Pul: ${formatScreenUZS(s.cash_paid_amount)}`,
+                                details: `${s.direction === "client_to_seller" ? "Mijoz → Sotuvchi" : "Sotuvchi → Menejer"}: ${partyName} — Lom: ${formatScreenGrams(s.scrap_weight_grams, 2)}, Pul: ${formatScreenUZS(s.cash_paid_amount)}`,
                                 direction: s.direction,
                               });
                               setReversalReason("");
@@ -3355,6 +3359,7 @@ export function DirectorSalesWorkspace({
           models={models}
           factoryReceipts={factoryReceipts}
           onRefresh={loadData}
+          loading={loading}
         />
       )}
 

@@ -14,8 +14,8 @@ async function checkDeployment() {
       if (verRes.status === 200) {
         const verData = await verRes.json();
         console.log(`[Attempt ${i}] /api/version Status: 200 | Commit: ${verData.commit} (${verData.full_commit?.slice(0, 7)}) | DB: ${verData.supabase_ref} | Elapsed: ${elapsed}ms | Vercel ID: ${vercelId}`);
-        if (verData.commit === 'eacfed3' || verData.commit === '18bd1a7' || verData.full_commit?.startsWith('eacfed3') || verData.full_commit?.startsWith('18bd1a7')) {
-          console.log('🎉 Production has deployed the new Migration 058 commit!');
+        if (verData.commit === '73b582b' || verData.commit === '52293ef' || verData.full_commit?.startsWith('73b582b') || verData.full_commit?.startsWith('52293ef')) {
+          console.log('🎉 Production has deployed the new Migration 059 commit!');
           break;
         }
       } else {

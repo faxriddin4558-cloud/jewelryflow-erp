@@ -176,7 +176,7 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     <span className="font-bold text-white">{formatScreenGrams(data.section_a.original_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-300">
-                    <span>Sotuvchi majburiyati (12% ustama):</span>
+                    <span>Sotuvchi majburiyati:</span>
                     <span className="font-bold text-amber-400">{formatScreenGrams(data.section_a.seller_markup_obligation_grams)}</span>
                   </div>
                   {Number(data.section_a.legacy_customer_debt_assigned_g || 0) > 0 && (
@@ -204,7 +204,7 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     <span className="font-bold text-white">{formatScreenGrams(data.section_b.original_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-300">
-                    <span>Majburiyat ekvivalenti (12%):</span>
+                    <span>Majburiyat ekvivalenti:</span>
                     <span className="font-bold text-emerald-400">{formatScreenGrams(data.section_b.seller_markup_equivalent_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-400 text-[11px]">
@@ -226,7 +226,7 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     <span className="font-bold text-white">{formatScreenGrams(data.section_c.original_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-300">
-                    <span>Menejer oldidagi majburiyat (12%):</span>
+                    <span>Menejer oldidagi majburiyat:</span>
                     <span className="font-bold text-cyan-400">{formatScreenGrams(data.section_c.seller_markup_equivalent_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-400 text-[11px]">
@@ -244,7 +244,7 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                 </div>
                 <div className="space-y-1 font-mono">
                   <div className="flex justify-between text-slate-300">
-                    <span>Mijozga yozilgan qarz (12-15%):</span>
+                    <span>Mijozga yozilgan qarz (nasiya):</span>
                     <span className="font-bold text-rose-300">{formatScreenGrams(data.section_d.customer_markup_obligation_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-300">

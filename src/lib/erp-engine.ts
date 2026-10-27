@@ -830,6 +830,12 @@ export interface ConsignmentPieceRow {
     decorations?: string;
     primary_image_url?: string | null;
   };
+  consignment?: {
+    id?: string;
+    consignment_no?: string;
+    seller_markup_pct?: number;
+    factory_markup_pct?: number;
+  };
 }
 
 export interface JewelrySaleRow {
