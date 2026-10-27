@@ -33,6 +33,28 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
   const [returnNotes, setReturnNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [salesRecords, setSalesRecords] = useState<Array<{ seller_id?: string | null; base_weight_grams?: number | null; model_code?: string | null }>>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadSales() {
+      try {
+        const { data } = await supabase
+          .from("jewelry_sales")
+          .select("seller_id, base_weight_grams, model_code, status")
+          .not("status", "in", '("cancelled","reversed")');
+        if (isMounted && data) {
+          setSalesRecords(data as Array<{ seller_id?: string | null; base_weight_grams?: number | null; model_code?: string | null }>);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    void loadSales();
+    return () => {
+      isMounted = false;
+    };
+  }, [pieces]);
 
   useEffect(() => {
     if (factoryReceipts && factoryReceipts.length > 0) return;
@@ -171,8 +193,21 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
       }
     }
 
+    // Add sales from salesRecords for each group
+    for (const s of salesRecords) {
+      if (selectedSellerFilter !== "all" && String(s.seller_id) !== selectedSellerFilter) continue;
+      const key = `${s.seller_id}_${s.model_code || "VAZN"}`;
+      if (groups[key]) {
+        const sw = Number(s.base_weight_grams || 0);
+        if (groups[key].soldGrams === 0) {
+          groups[key].soldGrams = sw;
+          groups[key].soldQty = 1;
+        }
+      }
+    }
+
     return Object.values(groups);
-  }, [filteredPieces, sellers, models]);
+  }, [filteredPieces, sellers, models, salesRecords, selectedSellerFilter]);
 
   // Overall totals
   const totals = useMemo(() => {
@@ -202,6 +237,16 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
       }
     }
 
+    // Include weight-based and piece-based sales from jewelry_sales table
+    const relevantSales = salesRecords.filter((s) => {
+      if (selectedSellerFilter !== "all" && String(s.seller_id) !== selectedSellerFilter) {
+        return false;
+      }
+      return true;
+    });
+    const salesTableSoldGrams = relevantSales.reduce((acc, s) => acc + Number(s.base_weight_grams || 0), 0);
+    const finalSoldGrams = Math.max(soldGrams, salesTableSoldGrams);
+
     const tillScrap = sellerAccounts.reduce(
       (acc, s) => acc + Number(s.seller_till_scrap_585_eq_g ?? s.seller_till_scrap_grams ?? 0),
       0
@@ -222,8 +267,8 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
     return {
       consignedQty,
       consignedGrams,
-      soldQty,
-      soldGrams,
+      soldQty: Math.max(soldQty, relevantSales.length),
+      soldGrams: finalSoldGrams,
       availableQty,
       availableGrams,
       returnedQty,
@@ -233,7 +278,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
       tillUSD,
       truePhysicalStock,
     };
-  }, [filteredPieces, sellerAccounts, selectedSellerFilter]);
+  }, [filteredPieces, sellerAccounts, selectedSellerFilter, salesRecords]);
 
   // Return piece to manager handler
   const handleConfirmReturn = async () => {
@@ -444,7 +489,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
 
           {activeBatches.length === 0 ? (
             <div className="bg-slate-950 rounded-2xl p-8 text-center text-xs text-slate-500 border border-slate-800">
-              Zavoddan qabul qilingan qoldiq partiyalar mavjud emas (barcha qabul qilingan tovarlar to&apos;liq donalarga ajratilgan).
+              Zavoddan qabul qilingan qoldiq partiyalar mavjud emas (barcha tovarlar to&apos;liq tarqatilgan).
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">

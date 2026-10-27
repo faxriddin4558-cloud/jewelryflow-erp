@@ -186,8 +186,8 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     </div>
                   )}
                   <div className="flex justify-between text-slate-400 text-[11px]">
-                    <span>Jami donalar soni:</span>
-                    <span>{data.section_a.item_count} dona</span>
+                    <span>Jami mahsulot soni:</span>
+                    <span>{data.section_a.item_count} ta</span>
                   </div>
                 </div>
               </div>
@@ -208,8 +208,8 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     <span className="font-bold text-emerald-400">{formatScreenGrams(data.section_b.seller_markup_equivalent_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-400 text-[11px]">
-                    <span>Qoldiq donalar soni:</span>
-                    <span>{data.section_b.item_count} dona</span>
+                    <span>Qoldiq mahsulot soni:</span>
+                    <span>{data.section_b.item_count} ta</span>
                   </div>
                 </div>
               </div>
@@ -230,8 +230,8 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     <span className="font-bold text-cyan-400">{formatScreenGrams(data.section_c.seller_markup_equivalent_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-400 text-[11px]">
-                    <span>Sotilgan donalar soni:</span>
-                    <span>{data.section_c.item_count} dona</span>
+                    <span>Sotilgan mahsulot soni:</span>
+                    <span>{data.section_c.item_count} ta</span>
                   </div>
                 </div>
               </div>
@@ -297,7 +297,7 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                   <div className="flex justify-between text-slate-300">
                     <span>Qaytarilgan sotilmagan tovar:</span>
                     <span className="font-bold text-amber-400">
-                      {data.section_f.returned_unsold_items_count} dona ({formatScreenGrams(data.section_f.returned_unsold_original_grams)})
+                      {data.section_f.returned_unsold_items_count} ta ({formatScreenGrams(data.section_f.returned_unsold_original_grams)})
                     </span>
                   </div>
                   <div className="flex justify-between text-slate-400 text-[11px]">

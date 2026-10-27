@@ -35,6 +35,8 @@ interface CustomerRow {
   total_scrap_paid_grams?: number;
   total_cash_paid_amount?: number;
   paid_cash_equivalent_g?: number;
+  total_usd_paid_amount?: number;
+  total_usd_equiv_grams?: number;
   seller?: { name: string; full_name?: string } | null;
 }
 
@@ -135,6 +137,8 @@ interface CustomerAccountData {
   advance_balance_grams?: number | null;
   total_scrap_paid_grams?: number | null;
   total_cash_paid_amount?: number | null;
+  total_usd_paid_amount?: number | null;
+  total_usd_equiv_grams?: number | null;
 }
 
 interface CustomerQueryRow {
@@ -284,6 +288,8 @@ export function CustomerLedgerAndSheetsSection() {
           paid_scrap_equivalent_g?: number;
           paid_cash_equivalent_g?: number;
           paid_cash_amount_uzs?: number;
+          paid_usd_amount?: number;
+          paid_usd_equivalent_g?: number;
         }
         let mapped: CustomerRow[] = ledgerData.items.map((i: UnifiedItem) => ({
           id: i.customer_id,
@@ -299,6 +305,8 @@ export function CustomerLedgerAndSheetsSection() {
           total_scrap_paid_grams: Number(i.paid_scrap_equivalent_g || 0),
           total_cash_paid_amount: Number(i.paid_cash_amount_uzs || 0),
           paid_cash_equivalent_g: Number(i.paid_cash_equivalent_g || 0),
+          total_usd_paid_amount: Number(i.paid_usd_amount || 0),
+          total_usd_equiv_grams: Number(i.paid_usd_equivalent_g || 0),
         }));
         if (selectedSeller !== "all") {
           mapped = mapped.filter((c) => c.seller_id === selectedSeller);
@@ -310,7 +318,7 @@ export function CustomerLedgerAndSheetsSection() {
           .select(`
             id, customer_code, contact_name, phone, company_name, seller_id,
             seller:employees!customers_seller_id_fkey(name, full_name),
-            accounts:client_gold_accounts(current_debt_grams, advance_balance_grams, total_scrap_paid_grams, total_cash_paid_amount)
+            accounts:client_gold_accounts(current_debt_grams, advance_balance_grams, total_scrap_paid_grams, total_cash_paid_amount, total_usd_paid_amount, total_usd_equiv_grams)
           `)
           .order("contact_name", { ascending: true });
 
@@ -342,6 +350,8 @@ export function CustomerLedgerAndSheetsSection() {
             advance_balance_grams: rawAdv,
             total_scrap_paid_grams: Number(accObj?.total_scrap_paid_grams || 0),
             total_cash_paid_amount: Number(accObj?.total_cash_paid_amount || 0),
+            total_usd_paid_amount: Number(accObj?.total_usd_paid_amount || 0),
+            total_usd_equiv_grams: Number(accObj?.total_usd_equiv_grams || 0),
           };
         });
 
@@ -1020,7 +1030,7 @@ export function CustomerLedgerAndSheetsSection() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+                <div className="grid grid-cols-3 gap-2 text-[11px] bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
                   <div>
                     <span className="text-slate-400 block text-[10px]">To&apos;langan Lom:</span>
                     <span className="font-mono text-amber-300 font-bold">{formatScreenGrams(c.total_scrap_paid_grams)}</span>
@@ -1028,6 +1038,17 @@ export function CustomerLedgerAndSheetsSection() {
                   <div>
                     <span className="text-slate-400 block text-[10px]">To&apos;langan Naqd:</span>
                     <span className="font-mono text-emerald-400 font-bold">{formatScreenUZS(c.total_cash_paid_amount)}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">To&apos;langan USD:</span>
+                    <span className="font-mono text-blue-400 font-bold">
+                      {Number(c.total_usd_paid_amount || 0) > 0 ? `$${Number(c.total_usd_paid_amount).toLocaleString()}` : "—"}
+                    </span>
+                    {Number(c.total_usd_equiv_grams || 0) > 0 && (
+                      <span className="text-[10px] text-blue-300/80 block font-mono">
+                        ({formatScreenGrams(c.total_usd_equiv_grams)})
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1116,6 +1137,7 @@ export function CustomerLedgerAndSheetsSection() {
                   <th className="py-3 px-3">Biriktirilgan Sotuvchi</th>
                   <th className="py-3 px-3 font-mono text-amber-300">To&apos;langan Lom</th>
                   <th className="py-3 px-3 font-mono text-emerald-300">To&apos;langan Naqd</th>
+                  <th className="py-3 px-3 font-mono text-blue-300">To&apos;langan USD</th>
                   <th className="py-3 px-3 font-mono text-cyan-300">Avans (Haqdorlik)</th>
                   <th className="py-3 px-3 font-mono text-rose-400">Sof Qarz (585g)</th>
                   <th className="py-3 px-3 text-right">Amallar</th>
@@ -1137,6 +1159,18 @@ export function CustomerLedgerAndSheetsSection() {
                       <div>{formatScreenUZS(c.total_cash_paid_amount)}</div>
                       {Number(c.paid_cash_equivalent_g || 0) > 0 && (
                         <div className="text-[10px] text-emerald-500/80">({formatScreenGrams(c.paid_cash_equivalent_g)})</div>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 font-mono text-blue-400">
+                      {Number(c.total_usd_paid_amount || 0) > 0 ? (
+                        <div>
+                          <div className="font-bold">${Number(c.total_usd_paid_amount).toLocaleString()} USD</div>
+                          {Number(c.total_usd_equiv_grams || 0) > 0 && (
+                            <div className="text-[10px] text-blue-300/80">({formatScreenGrams(c.total_usd_equiv_grams)})</div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-600">—</span>
                       )}
                     </td>
                     <td className="py-2.5 px-3 font-mono font-bold text-cyan-400">
@@ -1866,7 +1900,7 @@ export function CustomerLedgerAndSheetsSection() {
                 ) : (
                   <div>
                     <label className="font-bold text-amber-300 block mb-1">
-                      Sotuvchi Javonidagi Aniq Fizik Dona *
+                      Sotuvchi Javonidagi Mahsulot Kodi *
                     </label>
                     <select
                       required
@@ -1874,7 +1908,7 @@ export function CustomerLedgerAndSheetsSection() {
                       onChange={(e) => setSalePieceId(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
                     >
-                      <option value="">Donani tanlang...</option>
+                      <option value="">Mahsulotni tanlang...</option>
                       {availablePieces
                         .filter((p) => !targetCustomer.seller_id || String(p.seller_id) === String(targetCustomer.seller_id))
                         .map((p) => (

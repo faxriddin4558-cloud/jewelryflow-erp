@@ -1252,7 +1252,7 @@ export function DirectorSalesWorkspace({
                 : "border-transparent hover:text-slate-900"
             }`}
           >
-            <span>📊</span> Sotuvchilar Ombori (Donalar)
+            <span>📊</span> Sotuvchilar Ombori (Mahsulotlar)
           </button>
           <button
             onClick={() => setActiveTab("models")}
@@ -2206,13 +2206,21 @@ export function DirectorSalesWorkspace({
               </div>
             </div>
           ) : activeVaultSection === "purchases" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
-                <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd Pul</div>
+                <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd Pul (UZS)</div>
                 <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
                   {formatScreenUZS(managerVault?.manager_cash_amount || 0)}
                 </div>
-                <div className="text-[11px] text-emerald-200 mt-1">Oltin xarid qilish uchun mavjud mablag&apos;</div>
+                <div className="text-[11px] text-emerald-200 mt-1">Oltin xarid qilish uchun mavjud so&apos;m</div>
+              </div>
+
+              <div className="bg-blue-950 text-white p-4 rounded-3xl border border-blue-800 shadow-sm">
+                <div className="text-xs font-bold text-blue-300">Kassadagi Valyuta ($ USD)</div>
+                <div className="text-2xl font-black font-mono text-blue-400 mt-1">
+                  ${Number(managerVault?.manager_usd_amount || 0).toLocaleString()} USD
+                </div>
+                <div className="text-[11px] text-blue-200 mt-1">Oltin xarid qilish uchun mavjud dollar</div>
               </div>
 
               <div className="bg-indigo-950 text-white p-4 rounded-3xl border border-indigo-800 shadow-sm">
@@ -2508,9 +2516,18 @@ export function DirectorSalesWorkspace({
                   </div>
 
                   <div className="space-y-3 text-sm">
-                    {/* Currency selector */}
-                    <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                      <span className="text-xs font-bold text-[#475569]">To&apos;lov Manbasi / Valyuta:</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                      <div>
+                        <span className="text-xs font-bold text-[#475569] block">To&apos;lov Manbasi / Valyuta:</span>
+                        <span className="text-[11px] font-mono text-slate-500">
+                          Mavjud kassa:{" "}
+                          {buyCurrency === "USD" ? (
+                            <strong className="text-blue-600 font-bold">${Number(managerVault?.manager_usd_amount || 0).toLocaleString()} USD</strong>
+                          ) : (
+                            <strong className="text-emerald-600 font-bold">{formatScreenUZS(managerVault?.manager_cash_amount || 0)}</strong>
+                          )}
+                        </span>
+                      </div>
                       <div className="inline-flex rounded-xl p-1 bg-slate-200 border border-slate-300 text-xs font-bold">
                         <button
                           type="button"
