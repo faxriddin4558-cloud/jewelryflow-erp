@@ -78,8 +78,13 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
   }, [pieces]);
 
   const sellerStockGrams = useMemo(() => {
-    return sellerAvailablePieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
-  }, [sellerAvailablePieces]);
+    if (selectedSellerFilter && selectedSellerFilter !== "all") {
+      const match = sellerAccounts.find((s) => String(s.seller_id) === selectedSellerFilter);
+      return match ? Number(match.current_physical_stock_g || 0) : sellerAvailablePieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+    }
+    const accTotal = sellerAccounts.reduce((acc, s) => acc + Number(s.current_physical_stock_g || 0), 0);
+    return accTotal > 0 ? accTotal : sellerAvailablePieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+  }, [sellerAccounts, selectedSellerFilter, sellerAvailablePieces]);
 
   const filteredPieces = useMemo(() => {
     return pieces.filter((p) => {
@@ -245,7 +250,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
 
       setActionMessage({
         type: "success",
-        text: `Dona (${data?.model_code || ""}, ${Number(data?.weight_grams || 0).toFixed(4)}g) boshqaruvchi omboriga qaytarildi! Sotuvchi majburiyati -${Number(data?.seller_obligation_deducted_g || 0).toFixed(4)}g kamaydi.`,
+        text: `Mahsulot (${data?.model_code || ""}, ${Number(data?.weight_grams || 0).toFixed(2)}g) boshqaruvchi omboriga qaytarildi! Sotuvchi majburiyati -${Number(data?.seller_obligation_deducted_g || 0).toFixed(2)}g kamaydi.`,
       });
       setReturningPieceId(null);
       setReturnNotes("");
@@ -273,7 +278,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 flex flex-col items-center justify-center min-h-[350px] text-slate-400 space-y-3">
         <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs font-medium tracking-wide">Ombor va donalar ma&apos;lumotlari yuklanmoqda...</span>
+        <span className="text-xs font-medium tracking-wide">Ombor va mahsulotlar ma&apos;lumotlari yuklanmoqda...</span>
       </div>
     );
   }
@@ -285,10 +290,10 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3">
           <div>
             <h2 className="text-xl font-black text-amber-300 flex items-center gap-2">
-              <span>💍</span> Donabay Zargarlik Ombori & Fizik Qoldiqlar
+              <span>💍</span> Zargarlik Ombori & Fizik Qoldiqlar
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Har bir fizik dona (JF-PIECE), individual vazn, rasm, sotuv va boshqaruvchiga qaytarish holati.
+              Partiyalar va mahsulotlar, individual vazn, rasm, sotuv va boshqaruvchiga qaytarish holati.
             </p>
           </div>
 
@@ -312,7 +317,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
                   : "text-slate-400 hover:text-white"
               }`}
             >
-              <span>🔍</span> Donabay Ro&apos;yxat ({filteredPieces.length})
+              <span>🔍</span> Mahsulotlar Ro&apos;yxati ({filteredPieces.length})
             </button>
             <button
               onClick={() => setViewMode("aggregated")}
@@ -369,10 +374,10 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
               Menejer Ombori (Jami)
             </div>
             <div className="text-xl font-black text-cyan-300 font-mono">
-              {formatScreenGrams(totalManagerStockGrams, 4)}
+              {formatScreenGrams(totalManagerStockGrams, 2)}
             </div>
             <div className="text-[10px] text-slate-400 font-mono">
-              Partiyalar: {formatScreenGrams(batchesAvailableGrams, 2)} | Donalar: {formatScreenGrams(managerPiecesGrams, 2)}
+              Partiyalar: {formatScreenGrams(batchesAvailableGrams, 2)} | Qaytarilgan: {formatScreenGrams(managerPiecesGrams, 2)}
             </div>
           </div>
 
@@ -381,10 +386,10 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
               Sotuvchilar Vitrinasida
             </div>
             <div className="text-xl font-black text-emerald-400 font-mono">
-              {formatScreenGrams(sellerStockGrams, 4)}
+              {formatScreenGrams(sellerStockGrams, 2)}
             </div>
             <div className="text-[10px] text-slate-400 font-mono">
-              Donalarda: {sellerAvailablePieces.length} ta unsold dona
+              Mavjud: {sellerAvailablePieces.length} ta mahsulot
             </div>
           </div>
 
@@ -393,7 +398,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
               Mijozlarga Sotilgan
             </div>
             <div className="text-xl font-black text-amber-300 font-mono">
-              {totals.soldQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatScreenGrams(totals.soldGrams, 2)}</span>
+              {formatScreenGrams(totals.soldGrams, 2)}
             </div>
           </div>
 
@@ -402,7 +407,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
               Menejerga Qaytarilgan
             </div>
             <div className="text-xl font-black text-purple-300 font-mono">
-              {totals.returnedQty} dona <span className="text-xs text-slate-400 font-normal">/ {formatScreenGrams(totals.returnedGrams, 2)}</span>
+              {formatScreenGrams(totals.returnedGrams, 2)}
             </div>
           </div>
         </div>
@@ -426,14 +431,14 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                <span>📦</span> Zavoddan Qabul Qilingan Partiyalar (Dona qilinmagan qoldiqlar)
+                <span>📦</span> Zavoddan Qabul Qilingan Partiyalar
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Ushbu partiyalar hali shtrixkodli donalarga (JF-PIECE) ajratilmagan yoki qisman ajratilgan qoldiqlar.
+                Zavod kvitansiyalari bo&apos;yicha menejer omboridagi mavjud partiyalar.
               </p>
             </div>
             <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-950/80 px-2.5 py-1 rounded-xl border border-cyan-800">
-              Jami Partiyalar Qoldig&apos;i: {formatScreenGrams(batchesAvailableGrams, 4)}
+              Jami Partiyalar Qoldig&apos;i: {formatScreenGrams(batchesAvailableGrams, 2)}
             </span>
           </div>
 
@@ -491,16 +496,16 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-[#F8FAFC] space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
-              Aniq Jismoniy Donalar Ro&apos;yxati ({filteredPieces.length})
+              Aniq Mahsulotlar Ro&apos;yxati ({filteredPieces.length})
             </h3>
             <span className="text-xs text-slate-400">
-              Har bir dona mustaqil ichki identifikatorga ega
+              Har bir mahsulot mustaqil ichki identifikatorga ega
             </span>
           </div>
 
           {filteredPieces.length === 0 ? (
             <div className="bg-slate-950 rounded-2xl p-8 text-center text-xs text-slate-500 border border-slate-800">
-              Hech qanday fizik dona topilmadi.
+              Hech qanday mahsulot topilmadi.
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
@@ -603,7 +608,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
 
           {aggregatedInventory.length === 0 ? (
             <div className="bg-slate-950 rounded-2xl p-8 text-center text-xs text-slate-500 border border-slate-800">
-              Hech qanday mahsulot donasi topilmadi.
+              Hech qanday mahsulot topilmadi.
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
@@ -614,9 +619,9 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
                     <th className="py-3 px-4">Sotuvchi</th>
                     <th className="py-3 px-4">Model Kodi</th>
                     <th className="py-3 px-4">Model Nomi</th>
-                    <th className="py-3 px-4 font-mono text-amber-200">Topshirildi (Dona / Vazn)</th>
-                    <th className="py-3 px-4 font-mono text-cyan-200">Sotildi (Dona / Vazn)</th>
-                    <th className="py-3 px-4 font-mono text-emerald-300">Qoldiq Ombor (Dona / Vazn)</th>
+                    <th className="py-3 px-4 font-mono text-amber-200">Topshirildi (Vazn)</th>
+                    <th className="py-3 px-4 font-mono text-cyan-200">Sotildi (Vazn)</th>
+                    <th className="py-3 px-4 font-mono text-emerald-300">Qoldiq Ombor (Vazn)</th>
                     <th className="py-3 px-4 text-center">Mutanosiblik</th>
                   </tr>
                 </thead>
@@ -644,13 +649,13 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
                         <td className="py-3 px-4 font-mono text-amber-300">{item.modelCode}</td>
                         <td className="py-3 px-4 text-slate-300">{item.modelName}</td>
                         <td className="py-3 px-4 font-mono text-amber-200">
-                          {item.consignedQty} dona ({formatScreenGrams(item.consignedGrams, 2)})
+                          {formatScreenGrams(item.consignedGrams, 2)}
                         </td>
                         <td className="py-3 px-4 font-mono text-cyan-200">
-                          {item.soldQty} dona ({formatScreenGrams(item.soldGrams, 2)})
+                          {formatScreenGrams(item.soldGrams, 2)}
                         </td>
                         <td className="py-3 px-4 font-mono font-bold text-emerald-400 text-sm">
-                          {item.availableQty} dona ({formatScreenGrams(item.availableGrams, 2)})
+                          {formatScreenGrams(item.availableGrams, 2)}
                         </td>
                         <td className="py-3 px-4 text-center">
                           {isBalanced ? (
@@ -678,17 +683,17 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl">
             <h3 className="text-lg font-black text-amber-300 flex items-center gap-2">
-              <span>↩️</span> Donani Menejerga Qaytarish
+              <span>↩️</span> Mahsulotni Menejerga Qaytarish
             </h3>
             <p className="text-xs text-slate-300">
-              Sotilmagan ushbu dona sotuvchi javonidan chiqarilib, boshqaruvchi omboriga qaytariladi.
+              Sotilmagan ushbu mahsulot sotuvchi javonidan chiqarilib, boshqaruvchi omboriga qaytariladi.
               Sotuvchining majburiyati asl konsignatsiya ustamasi ({returningMarkupPct}%) bo&apos;yicha avtomatik kamaytiriladi.
             </p>
 
             {returningPiece && (
               <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs space-y-1.5 font-mono">
                 <div className="flex justify-between text-slate-400">
-                  <span className="font-sans">Dona / Model:</span>
+                  <span className="font-sans">Mahsulot / Model:</span>
                   <span className="text-white font-bold">{returningPiece.model_name || returningPiece.model_code}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">

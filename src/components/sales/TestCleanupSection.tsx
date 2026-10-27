@@ -182,7 +182,7 @@ export function TestCleanupSection() {
 
       setResultMessage({
         type: "success",
-        text: `Muvaffaqiyatli tozalandi! ${data?.message || ""} Jami kamaytirilgan zavod qarzi: ${formatScreenGrams(data?.total_deducted_obligation_g || 0)} g.`,
+        text: `Muvaffaqiyatli tozalandi! ${data?.message || ""} Jami kamaytirilgan zavod qarzi: ${formatScreenGrams(data?.total_deducted_obligation_g || 0)}.`,
       });
       setPreview(null);
       setConfirmCode("");

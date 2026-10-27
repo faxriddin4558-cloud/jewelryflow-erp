@@ -564,7 +564,7 @@ export function SellerMobileWorkspace() {
         if (match) {
           setMatchedPiece(match);
           playScannerBeep("success");
-          notifySuccess(`Dona topildi: ${match.model_name || match.model_code} (${match.weight_grams} g)`);
+          notifySuccess(`Mahsulot topildi: ${match.model_name || match.model_code} (${match.weight_grams} g)`);
         }
       }
       return;
@@ -591,10 +591,10 @@ export function SellerMobileWorkspace() {
         if (match.model_code && !scanModelCode) {
           setScanModelCode(match.model_code);
         }
-        notifySuccess(`Dona tasdiqlandi: ${match.model_name || match.model_code} (${match.weight_grams} g)`);
+        notifySuccess(`Mahsulot tasdiqlandi: ${match.model_name || match.model_code} (${match.weight_grams} g)`);
       } else {
         playScannerBeep("duplicate_warning");
-        notifyError(`Ogohlantirish: ${targetW}g vaznli dona hisobingizda topilmadi!`);
+        notifyError(`Ogohlantirish: ${targetW}g vaznli mahsulot hisobingizda topilmadi!`);
       }
     } else {
       playScannerBeep("error");
@@ -627,7 +627,7 @@ export function SellerMobileWorkspace() {
         p_idempotency_key: idempotencyKey,
       });
       if (error) throw error;
-      notifySuccess(`Dona zavodga qaytarildi va majburiyat ${formatScreenGrams(data.factory_due_deducted_grams, 2)} ga kamaytirildi!`);
+      notifySuccess(`Mahsulot zavodga qaytarildi va majburiyat ${formatScreenGrams(data.factory_due_deducted_grams, 2)} ga kamaytirildi!`);
       await loadSellerWorkspace();
     } catch (err: unknown) {
       notifyError(err, "Qaytarishda xatolik");
@@ -675,7 +675,7 @@ export function SellerMobileWorkspace() {
 
       if (livePieceSaleCalc) {
         setReceiptData({
-          title: "Skaner Savdo Cheki (Dona Barcode)",
+          title: "Skaner Savdo Cheki",
           receiptNo: data.sale_no || "SALE-SCAN",
           date: new Date().toLocaleDateString("uz-UZ"),
           sellerName: currentSeller?.name || currentSeller?.full_name || "Sotuvchi",
@@ -847,7 +847,7 @@ export function SellerMobileWorkspace() {
             activeTab === "pieces" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
-          📦 Donalar ({availablePieces.length})
+          📦 Mahsulotlar ({availablePieces.length})
         </button>
         <button
           id="tabStock"
@@ -856,7 +856,7 @@ export function SellerMobileWorkspace() {
             activeTab === "stock" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
-          💎 Mahsulotlar ({availableConsignments.length})
+          💎 Partiyalar ({availableConsignments.length})
         </button>
         <button
           id="tabSale"
@@ -914,7 +914,7 @@ export function SellerMobileWorkspace() {
                 <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
                   Scanner 564 + Kamera Skaner
                 </span>
-                <h2 className="text-lg font-black text-white mt-0.5">Shtrix-kodli Dona Savdo</h2>
+                <h2 className="text-lg font-black text-white mt-0.5">Shtrix-kodli Savdo</h2>
               </div>
               <button
                 type="button"
@@ -1012,7 +1012,7 @@ export function SellerMobileWorkspace() {
               </div>
             ) : (
               <div className="bg-slate-950/80 border border-dashed border-slate-700 rounded-2xl p-3 text-center text-slate-400 text-xs">
-                🔍 Model kodi yoki vazn shtrix-kodini skanerlang. Omboringizdagi mos dona avtomatik tanlanadi.
+                🔍 Model kodi yoki vazn shtrix-kodini skanerlang. Omboringizdagi mos mahsulot avtomatik tanlanadi.
               </div>
             )}
           </div>
@@ -1130,14 +1130,14 @@ export function SellerMobileWorkspace() {
       {activeTab === "pieces" && (
         <div className="space-y-3">
           <div className="flex justify-between items-center px-1">
-            <h2 className="text-base font-bold text-[#F8FAFC]">Vitrinamdagi Donalar Ro&apos;yxati</h2>
-            <span id="piecesCountBadge" className="text-xs text-[#CBD5E1] font-medium">Jami: {availablePieces.length} dona</span>
+            <h2 className="text-base font-bold text-[#F8FAFC]">Vitrinadagi Mahsulotlar Ro&apos;yxati</h2>
+            <span id="piecesCountBadge" className="text-xs text-[#CBD5E1] font-medium">Jami: {availablePieces.length} ta mahsulot</span>
           </div>
 
           {availablePieces.length === 0 ? (
             <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center text-[#475569] space-y-2 text-[#0F172A]">
               <div className="text-3xl">📦</div>
-              <div className="font-bold text-sm text-[#0F172A]">Hozirda sizning hisobingizda dona mahsulotlar yo&apos;q</div>
+              <div className="font-bold text-sm text-[#0F172A]">Hozirda sizning hisobingizda mahsulotlar yo&apos;q</div>
               <p className="text-xs text-[#475569]">
                 Direktor &quot;Shtrix-kodli Mahsulot Topshirish&quot; orqali sizga mahsulot yuklaganda bu yerda paydo bo&apos;ladi.
               </p>
@@ -1187,7 +1187,7 @@ export function SellerMobileWorkspace() {
                       <button
                         type="button"
                         onClick={() => void handleReturnPieceToFactory(p)}
-                        title="Ushbu donani zavod omboriga qaytarish"
+                        title="Ushbu mahsulotni menejer omboriga qaytarish"
                         className="bg-slate-100 hover:bg-slate-200 text-[#0F172A] font-bold text-xs px-2.5 py-2 rounded-xl transition"
                       >
                         ↩️ Qaytarish
@@ -1213,7 +1213,7 @@ export function SellerMobileWorkspace() {
         <div className="space-y-3">
           <div className="flex justify-between items-center px-1">
             <h2 className="text-base font-bold text-[#F8FAFC]">O&apos;zimdagi Mahsulotlar (Vitrina)</h2>
-            <span className="text-xs text-[#CBD5E1] font-medium">Jami: {availableConsignments.length} dona</span>
+            <span className="text-xs text-[#CBD5E1] font-medium">Jami: {availableConsignments.length} ta partiya</span>
           </div>
 
           {availableConsignments.length === 0 ? (
@@ -1888,7 +1888,7 @@ export function SellerMobileWorkspace() {
               <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-200">
                 <span className="font-bold text-indigo-900 block mb-1">Fizik Oltin Qoldig&apos;i:</span>
                 <span className="font-mono font-black text-indigo-950 text-base">
-                  {formatScreenGrams(myTillAccount?.current_physical_stock_g || 0, 4)}
+                  {formatScreenGrams(myTillAccount?.current_physical_stock_g || 0, 2)}
                 </span>
               </div>
             </div>

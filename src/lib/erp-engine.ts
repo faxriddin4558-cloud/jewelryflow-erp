@@ -813,7 +813,7 @@ export interface ConsignmentPieceRow {
   category?: string;
   purity: number;
   weight_grams: number;
-  status: "in_factory" | "in_manager_stock" | "held_by_seller" | "sold" | "returned_to_manager" | "returned_to_factory" | "reconciled";
+  status: "in_factory" | "in_manager_stock" | "held_by_seller" | "sold" | "returned_to_manager" | "returned_to_factory" | "reconciled" | "cancelled" | "reversed";
   seller_id: string;
   sale_id?: string | null;
   sold_at?: string | null;

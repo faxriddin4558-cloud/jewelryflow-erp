@@ -150,6 +150,7 @@ export function DirectorSalesWorkspace({
   const [hndRecipient, setHndRecipient] = useState("Zavod");
   const [hndNotes, setHndNotes] = useState("");
   const [hndCapitalTxId, setHndCapitalTxId] = useState<string>("");
+  const [hndRefiningBatchId, setHndRefiningBatchId] = useState<string>("");
   const [capitalPureTxs, setCapitalPureTxs] = useState<{ id: string; transaction_no: string; physical_weight_grams?: number; gold_proba?: number; equiv_585_grams?: number }[]>([]);
 
   // Daily rate form
@@ -726,6 +727,7 @@ export function DirectorSalesWorkspace({
         p_notes: hndNotes.trim() || null,
         p_idempotency_key: idempotencyKey,
         p_capital_tx_id: hndSourceType === "capital_pure_gold" && hndCapitalTxId ? hndCapitalTxId : null,
+        p_refining_batch_id: hndSourceType === "refined_gold" && hndRefiningBatchId ? hndRefiningBatchId : null,
       });
 
       if (error) throw error;
@@ -1621,6 +1623,34 @@ export function DirectorSalesWorkspace({
                     </div>
                   </div>
 
+                  {hndSourceType === "refined_gold" && refiningBatches.filter((b) => b.status === "completed").length > 0 && (
+                    <div>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">
+                        Bog&apos;langan Afinaj Partiyasi (Ixtiyoriy/Tavsiya etiladi):
+                      </label>
+                      <select
+                        value={hndRefiningBatchId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setHndRefiningBatchId(val);
+                          const sel = refiningBatches.find((b) => b.id === val);
+                          if (sel && sel.output_fine_grams) {
+                            setHndWeight(String(sel.output_fine_grams));
+                            if (sel.output_fine_proba) setHndProba(String(sel.output_fine_proba));
+                          }
+                        }}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-[#0F172A]"
+                      >
+                        <option value="">-- Afinaj partiyasini tanlang (yoki to&apos;g&apos;ridan-to&apos;g&apos;ri kiriting) --</option>
+                        {refiningBatches.filter((b) => b.status === "completed").map((b) => (
+                          <option key={b.id} value={b.id}>
+                            №{b.batch_no} — {b.output_fine_grams}g ({b.output_fine_proba}°) = {b.output_585_equiv_grams}g 585 eq
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   {hndSourceType === "capital_pure_gold" && capitalPureTxs.length > 0 && (
                     <div>
                       <label className="block text-xs font-bold text-[#475569] mb-1">
@@ -2163,7 +2193,7 @@ export function DirectorSalesWorkspace({
                   )} <span className="text-xs font-normal text-cyan-400">995</span>
                 </div>
                 <div className="text-[11px] text-cyan-300 mt-1">
-                  {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)} g (585 ekvivalent) • Sof quyma
+                  {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)} (585 ekvivalent) • Sof quyma
                 </div>
               </div>
 
@@ -2721,7 +2751,7 @@ export function DirectorSalesWorkspace({
                         <th className="p-2.5">Sana</th>
                         <th className="p-2.5">Yetkazib Beruvchi</th>
                         <th className="p-2.5 text-right">Sarflangan Naqd</th>
-                        <th className="p-2.5 text-right">Kurs (UZS/g)</th>
+                        <th className="p-2.5 text-right">Kurs</th>
                         <th className="p-2.5 text-right">Vazn</th>
                         <th className="p-2.5 text-right">Proba</th>
                         <th className="p-2.5 text-right font-bold text-[#047857]">585 Eq</th>
@@ -2734,8 +2764,16 @@ export function DirectorSalesWorkspace({
                           <td className="p-2.5 font-bold text-[#0F172A]">{p.purchase_no}</td>
                           <td className="p-2.5 text-[#475569]">{p.purchase_date}</td>
                           <td className="p-2.5 font-sans font-medium text-[#0F172A]">{p.supplier_name}</td>
-                          <td className="p-2.5 text-right font-bold text-[#047857]">{formatScreenUZS(p.cash_spent_uzs)}</td>
-                          <td className="p-2.5 text-right text-[#475569]">{Number(p.rate_per_gram).toLocaleString()}</td>
+                          <td className="p-2.5 text-right font-bold text-[#047857]">
+                            {p.currency === "USD" || Number(p.usd_spent || 0) > 0
+                              ? `$${Number(p.usd_spent).toLocaleString()} USD`
+                              : formatScreenUZS(p.cash_spent_uzs)}
+                          </td>
+                          <td className="p-2.5 text-right text-[#475569]">
+                            {p.currency === "USD" || Number(p.usd_spent || 0) > 0
+                              ? `$${Number(p.rate_per_gram).toLocaleString()}/g`
+                              : `${Number(p.rate_per_gram).toLocaleString()} UZS`}
+                          </td>
                           <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(p.gold_weight_grams)}</td>
                           <td className="p-2.5 text-right text-[#475569]">{p.proba}</td>
                           <td className="p-2.5 text-right font-black text-[#047857]">{formatScreenGrams(p.equiv_585_grams)}</td>

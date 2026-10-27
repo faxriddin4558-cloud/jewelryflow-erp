@@ -123,7 +123,9 @@ function SalesDashboardContent() {
   const managerReceiptAvailableGrams = activeReceipts.reduce((sum, r) => sum + Number(r.available_physical_g || 0), 0);
   const managerReturnedPieces = pieces.filter((p) => p.status === "in_manager_stock" || p.status === "returned_to_manager");
   const managerReturnedGrams = managerReturnedPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
-  const totalManagerPhysicalGrams = Number(managerVault?.manager_physical_stock_g ?? (managerReceiptAvailableGrams + managerReturnedGrams));
+  const totalManagerPhysicalGrams = managerVault?.manager_physical_stock_g !== undefined && managerVault?.manager_physical_stock_g !== null
+    ? Number(managerVault.manager_physical_stock_g)
+    : (managerReceiptAvailableGrams + managerReturnedGrams);
 
   const availableSellerPieces = pieces.filter((p) => p.status === "held_by_seller");
   const totalSellerPhysicalGrams = sellerAccounts.reduce((acc, s) => acc + Number(s.current_physical_stock_g || 0), 0);
@@ -203,75 +205,92 @@ function SalesDashboardContent() {
       )}
 
       {/* 2. Key Financial Indicators (6 Master Cards) */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-amber-500/40 transition">
-          <div className="text-slate-400 text-xs font-bold">1. Zavod Majburiyati</div>
-          <div className="text-xl font-black font-mono text-amber-400 mt-1">
-            {formatScreenGrams(totalFactoryObligation)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-1">Zavod oldidagi sof qarz (ustama bilan)</div>
-        </div>
-
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-blue-500/40 transition">
-          <div className="text-slate-400 text-xs font-bold">2. Ombor & Sotuvchidagi Tovar</div>
-          <div className="text-xl font-black font-mono text-cyan-400 mt-1">
-            {formatScreenGrams(totalManagerPhysicalGrams + totalSellerPhysicalGrams)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-1">
-            Menejer: {formatScreenGrams(totalManagerPhysicalGrams)} | Sotuvchilar: {formatScreenGrams(totalSellerPhysicalGrams)}
-          </div>
-        </div>
-
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-rose-500/40 transition">
-          <div className="text-slate-400 text-xs font-bold">3. Mijozlar Sof Nasiyasi</div>
-          <div className="text-xl font-black font-mono text-rose-400 mt-1">
-            {formatScreenGrams(totalClientDebtGrams)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-1">
-            Sof qarz (avans: +{formatScreenGrams(totalClientAdvanceGrams)})
-          </div>
-        </div>
-
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-amber-500/40 transition">
-          <div className="text-slate-400 text-xs font-bold">4. Sotuvchilar Kassasi</div>
-          <div className="text-xl font-black font-mono text-amber-300 mt-1">
-            {formatScreenGrams(totalSellerTillScrap)} lom
-          </div>
-          <div className="text-[10px] text-amber-200/80 font-mono">
-            {formatScreenGrams(totalSellerTillScrapPhys)} fizik lom
-          </div>
-          <div className="text-[10px] text-emerald-400 font-mono mt-1">
-            +{formatScreenUZS(totalSellerTillCash)}
-            {totalSellerTillUSD > 0 && ` | +$${totalSellerTillUSD.toLocaleString()} USD`}
-          </div>
-        </div>
-
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-emerald-500/40 transition">
-          <div className="text-slate-400 text-xs font-bold">5. Menejer Seyfi</div>
-          <div className="text-xl font-black font-mono text-emerald-400 mt-1">
-            {formatScreenGrams(managerScrap)} lom
-          </div>
-          <div className="text-[10px] text-emerald-300 font-mono mt-1">
-            +{formatScreenUZS(managerCash)}
-            {managerUSD > 0 && ` | +$${managerUSD.toLocaleString()} USD`}
-          </div>
-          {managerPurchased > 0 && (
-            <div className="text-[10px] text-indigo-300 font-mono">
-              +{formatScreenGrams(managerPurchased)} xarid oltin
+      {loading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 animate-pulse">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 h-24 space-y-2">
+              <div className="h-3 bg-slate-800 rounded w-20"></div>
+              <div className="h-6 bg-slate-800 rounded w-28"></div>
             </div>
-          )}
+          ))}
         </div>
-
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-purple-500/40 transition">
-          <div className="text-slate-400 text-xs font-bold">6. Afinaj Oltin (585 Eq)</div>
-          <div className="text-xl font-black font-mono text-purple-300 mt-1">
-            {formatScreenGrams(managerRefined)}
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-amber-500/40 transition">
+            <div className="text-slate-400 text-xs font-bold">1. Zavod Majburiyati</div>
+            <div className="text-xl font-black font-mono text-amber-400 mt-1">
+              {formatScreenGrams(totalFactoryObligation)}
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1">Zavod oldidagi sof qarz (ustama bilan)</div>
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">585 ekvivalentidagi toza quyma</div>
+
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-blue-500/40 transition">
+            <div className="text-slate-400 text-xs font-bold">2. Ombor & Sotuvchidagi Tovar</div>
+            <div className="text-xl font-black font-mono text-cyan-400 mt-1">
+              {formatScreenGrams(totalManagerPhysicalGrams + totalSellerPhysicalGrams)}
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1">
+              Menejer: {formatScreenGrams(totalManagerPhysicalGrams)} | Sotuvchilar: {formatScreenGrams(totalSellerPhysicalGrams)}
+            </div>
+          </div>
+
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-rose-500/40 transition">
+            <div className="text-slate-400 text-xs font-bold">3. Mijozlar Sof Nasiyasi</div>
+            <div className="text-xl font-black font-mono text-rose-400 mt-1">
+              {formatScreenGrams(totalClientDebtGrams)}
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1">
+              Sof qarz (avans: +{formatScreenGrams(totalClientAdvanceGrams)})
+            </div>
+          </div>
+
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-amber-500/40 transition">
+            <div className="text-slate-400 text-xs font-bold">4. Sotuvchilar Kassasi</div>
+            <div className="text-xl font-black font-mono text-amber-300 mt-1">
+              {formatScreenGrams(totalSellerTillScrap)} lom
+            </div>
+            <div className="text-[10px] text-amber-200/80 font-mono">
+              {formatScreenGrams(totalSellerTillScrapPhys)} fizik lom
+            </div>
+            <div className="text-[10px] text-emerald-400 font-mono mt-1">
+              +{formatScreenUZS(totalSellerTillCash)}
+              {totalSellerTillUSD > 0 && ` | +$${totalSellerTillUSD.toLocaleString()} USD`}
+            </div>
+          </div>
+
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-emerald-500/40 transition">
+            <div className="text-slate-400 text-xs font-bold">5. Menejer Seyfi</div>
+            <div className="text-xl font-black font-mono text-emerald-400 mt-1">
+              {formatScreenGrams(managerScrap)} lom
+            </div>
+            <div className="text-[10px] text-emerald-300 font-mono mt-1">
+              +{formatScreenUZS(managerCash)}
+              {managerUSD > 0 && ` | +$${managerUSD.toLocaleString()} USD`}
+            </div>
+            {managerPurchased > 0 && (
+              <div className="text-[10px] text-indigo-300 font-mono">
+                +{formatScreenGrams(managerPurchased)} xarid oltin
+              </div>
+            )}
+          </div>
+
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-purple-500/40 transition">
+            <div className="text-slate-400 text-xs font-bold">6. Afinaj Oltin (585 Eq)</div>
+            <div className="text-xl font-black font-mono text-purple-300 mt-1">
+              {formatScreenGrams(managerRefined)}
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1">585 ekvivalentidagi toza quyma</div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 3A. Physical Inventory Balance (585g Pure Base Weight - Section 17) */}
+      {loading ? (
+        <div className="bg-slate-900 border-2 border-cyan-500/20 rounded-3xl p-6 shadow-xl animate-pulse space-y-4">
+          <div className="h-6 bg-slate-800 rounded w-64"></div>
+          <div className="h-16 bg-slate-950/80 rounded-2xl"></div>
+        </div>
+      ) : (
       <div className="bg-slate-900 border-2 border-cyan-500/30 rounded-3xl p-6 shadow-xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
@@ -307,7 +326,7 @@ function SalesDashboardContent() {
             <span className="text-slate-500">=</span>
             <span className="text-blue-400">{formatScreenGrams(totalManagerPhysicalGrams)} (Menejer Omborida)</span>
             <span className="text-slate-500">+</span>
-            <span className="text-amber-300">{formatScreenGrams(totalSellerPhysicalGrams)} (Sotuvchilarda Unsold)</span>
+            <span className="text-amber-300">{formatScreenGrams(totalSellerPhysicalGrams)} (Sotuvchilarda Mavjud)</span>
             <span className="text-slate-500">+</span>
             <span className="text-emerald-400">{formatScreenGrams(soldPhysicalGrams)} (Mijozga Sotilgan)</span>
             {returnedPhysicalGrams > 0 && (
@@ -318,10 +337,11 @@ function SalesDashboardContent() {
             )}
           </div>
           <div className="text-[11px] text-slate-400">
-            Menejer omborida mavjud: {formatScreenGrams(managerReceiptAvailableGrams)} (kvitansiyalar qoldig&apos;i) + {formatScreenGrams(managerReturnedGrams)} (qaytarilgan donalar). Jami taqsimlangan donalar: {pieces.length} ta (Sotuvchilarda: {availableSellerPieces.length}, Sotilgan: {soldPieces.length}).
+            Menejer omborida mavjud: {formatScreenGrams(managerReceiptAvailableGrams)} (kvitansiyalar qoldig&apos;i) + {formatScreenGrams(managerReturnedGrams)} (qaytarilgan tovarlar). Jami mahsulotlar: {pieces.filter((p) => p.status !== "cancelled" && p.status !== "reversed").length} ta (Sotuvchilarda: {availableSellerPieces.length}, Sotilgan: {soldPieces.length}).
           </div>
         </div>
       </div>
+      )}
 
       {/* 3B. 3-Tier Financial Obligations & Liquid Treasury (Section 17) */}
       <div className="bg-slate-900 border-2 border-amber-500/30 rounded-3xl p-6 shadow-xl space-y-4">

@@ -484,7 +484,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                     }`}
                   >
                     {profitSummary.period_accounting_result_585_g > 0 ? "+" : ""}
-                    {profitSummary.period_accounting_result_585_g.toFixed(4)}
+                    {profitSummary.period_accounting_result_585_g.toFixed(2)}
                     <span className="text-sm font-bold text-slate-300"> g (585)</span>
                   </div>
                 ) : (
@@ -516,7 +516,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                 <div className="text-xl md:text-2xl font-black font-mono text-cyan-300 mt-1">
                   {profitSummary && profitSummary.current_net_assets_585_g !== null ? (
                     <>
-                      {profitSummary.current_net_assets_585_g.toFixed(4)}{" "}
+                      {profitSummary.current_net_assets_585_g.toFixed(2)}{" "}
                       <span className="text-xs text-slate-300">g</span>
                     </>
                   ) : (
@@ -529,11 +529,11 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                   <>
                     Aktivlar:{" "}
                     <strong className="text-emerald-400">
-                      {profitSummary.current_total_assets_585_g.toFixed(4)} g
+                      {profitSummary.current_total_assets_585_g.toFixed(2)} g
                     </strong>{" "}
                     — Majburiyat:{" "}
                     <strong className="text-rose-400">
-                      {(profitSummary.current_total_liabilities_585_g ?? 0).toFixed(4)} g
+                      {(profitSummary.current_total_liabilities_585_g ?? 0).toFixed(2)} g
                     </strong>
                   </>
                 ) : (
@@ -548,7 +548,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                 <div className="text-xs text-slate-400 font-bold">Boshlang&apos;ich Hisob (Muzlatilgan)</div>
                 <div className="text-xl md:text-2xl font-black font-mono text-amber-300 mt-1">
                   {profitSummary?.baseline
-                    ? `${profitSummary.baseline.net_assets_585_g.toFixed(4)} g`
+                    ? `${profitSummary.baseline.net_assets_585_g.toFixed(2)} g`
                     : "Muzlatilmagan"}
                 </div>
               </div>
@@ -574,19 +574,19 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                 <div className="flex justify-between">
                   <span className="text-slate-400">Qo&apos;shilgan kapital:</span>
                   <strong className="text-emerald-400">
-                    +{Number(profitSummary?.capital_contributions_585_g || 0).toFixed(4)} g
+                    +{Number(profitSummary?.capital_contributions_585_g || 0).toFixed(2)} g
                   </strong>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Chiqarilgan foyda:</span>
                   <strong className="text-amber-400">
-                    -{Number(profitSummary?.capital_distributions_585_g || 0).toFixed(4)} g
+                    -{Number(profitSummary?.capital_distributions_585_g || 0).toFixed(2)} g
                   </strong>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Rasmiy xarajatlar:</span>
                   <strong className="text-rose-400">
-                    -{Number(profitSummary?.business_expenses_585_g || 0).toFixed(4)} g
+                    -{Number(profitSummary?.business_expenses_585_g || 0).toFixed(2)} g
                   </strong>
                 </div>
               </div>
@@ -680,30 +680,30 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                 <div className="text-xs font-black uppercase tracking-wider text-emerald-700 mb-2 flex items-center justify-between">
                   <span>1. Jami Aktivlar (585 g Ekvivalenti)</span>
                   <span className="font-mono text-sm">
-                    {Number(profitSummary?.current_total_assets_585_g || 0).toFixed(4)} g
+                    {Number(profitSummary?.current_total_assets_585_g || 0).toFixed(2)} g
                   </span>
                 </div>
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl divide-y divide-slate-200 overflow-hidden font-mono">
                   <div className="p-2.5 px-3 flex justify-between items-center">
                     <span className="font-sans text-slate-600">Menejerdagi tayyor mahsulot:</span>
                     <strong className="text-slate-900">
-                      {Number(profitSummary?.components?.manager_finished_goods_585_g || 0).toFixed(4)} g
+                      {Number(profitSummary?.components?.manager_finished_goods_585_g || 0).toFixed(2)} g
                     </strong>
                   </div>
                   <div className="p-2.5 px-3 flex justify-between items-center">
                     <span className="font-sans text-slate-600">Sotuvchilardagi tayyor mahsulot:</span>
                     <strong className="text-slate-900">
-                      {Number(profitSummary?.components?.sellers_finished_goods_585_g || 0).toFixed(4)} g
+                      {Number(profitSummary?.components?.sellers_finished_goods_585_g || 0).toFixed(2)} g
                     </strong>
                   </div>
                   <div className="p-2.5 px-3 flex justify-between items-center">
                     <span className="font-sans text-slate-600">Menejerdagi lom oltin (585 eq):</span>
                     <div className="text-right">
                       <strong className="text-slate-900">
-                        {Number(profitSummary?.components?.manager_scrap_585_eq_g || 0).toFixed(4)} g
+                        {Number(profitSummary?.components?.manager_scrap_585_eq_g || 0).toFixed(2)} g
                       </strong>
                       <div className="text-[10px] text-slate-400 font-sans">
-                        Fizik: {Number(profitSummary?.components?.manager_scrap_physical_g || 0).toFixed(4)} g
+                        Fizik: {Number(profitSummary?.components?.manager_scrap_physical_g || 0).toFixed(2)} g
                       </div>
                     </div>
                   </div>
@@ -711,24 +711,24 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                     <span className="font-sans text-slate-600">Sotuvchilardagi lom oltin (585 eq):</span>
                     <div className="text-right">
                       <strong className="text-slate-900">
-                        {Number(profitSummary?.components?.sellers_scrap_585_eq_g || 0).toFixed(4)} g
+                        {Number(profitSummary?.components?.sellers_scrap_585_eq_g || 0).toFixed(2)} g
                       </strong>
                       <div className="text-[10px] text-slate-400 font-sans">
-                        Fizik: {Number(profitSummary?.components?.sellers_scrap_physical_g || 0).toFixed(4)} g
+                        Fizik: {Number(profitSummary?.components?.sellers_scrap_physical_g || 0).toFixed(2)} g
                       </div>
                     </div>
                   </div>
                   <div className="p-2.5 px-3 flex justify-between items-center">
                     <span className="font-sans text-slate-600">Menejerdagi afinaj toza oltin (585 eq):</span>
                     <strong className="text-slate-900">
-                      {Number(profitSummary?.components?.manager_refined_gold_585_g || 0).toFixed(4)} g
+                      {Number(profitSummary?.components?.manager_refined_gold_585_g || 0).toFixed(2)} g
                     </strong>
                   </div>
                   {Number(profitSummary?.components?.manager_capital_pure_gold_585_g || 0) > 0 && (
                     <div className="p-2.5 px-3 flex justify-between items-center bg-amber-50/40">
                       <span className="font-sans text-slate-700 font-medium">🏆 Ta&apos;sischi toza oltin kapitali (585 eq):</span>
                       <strong className="text-amber-800">
-                        {Number(profitSummary?.components?.manager_capital_pure_gold_585_g || 0).toFixed(4)} g
+                        {Number(profitSummary?.components?.manager_capital_pure_gold_585_g || 0).toFixed(2)} g
                       </strong>
                     </div>
                   )}
@@ -736,14 +736,14 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                     <div className="p-2.5 px-3 flex justify-between items-center">
                       <span className="font-sans text-slate-600">Afinaj jarayonidagi oltin (585 eq):</span>
                       <strong className="text-slate-900">
-                        {Number(profitSummary?.components?.refining_wip_585_g || 0).toFixed(4)} g
+                        {Number(profitSummary?.components?.refining_wip_585_g || 0).toFixed(2)} g
                       </strong>
                     </div>
                   )}
                   <div className="p-2.5 px-3 flex justify-between items-center">
                     <span className="font-sans text-slate-600">Menejerdagi xarid qilingan oltin (585 eq):</span>
                     <strong className="text-slate-900">
-                      {Number(profitSummary?.components?.manager_purchased_gold_585_g || 0).toFixed(4)} g
+                      {Number(profitSummary?.components?.manager_purchased_gold_585_g || 0).toFixed(2)} g
                     </strong>
                   </div>
                   {Number(profitSummary?.components?.factory_advance_585_g || 0) > 0 && (
@@ -753,14 +753,14 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                         <div className="text-[10px] text-emerald-600 font-sans">Ortiqcha topshirilgan oltin (aktiv)</div>
                       </div>
                       <strong className="text-emerald-700">
-                        {Number(profitSummary?.components?.factory_advance_585_g || 0).toFixed(4)} g
+                        {Number(profitSummary?.components?.factory_advance_585_g || 0).toFixed(2)} g
                       </strong>
                     </div>
                   )}
                   <div className="p-2.5 px-3 flex justify-between items-center">
                     <span className="font-sans text-slate-600">Mijozlarning haqiqiy qarzlari (585 eq):</span>
                     <strong className="text-slate-900">
-                      {Number(profitSummary?.components?.customer_debts_585_g || 0).toFixed(4)} g
+                      {Number(profitSummary?.components?.customer_debts_585_g || 0).toFixed(2)} g
                     </strong>
                   </div>
                   <div className="p-2.5 px-3 flex justify-between items-center">
@@ -772,7 +772,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                     </div>
                     <div className="text-right">
                       <strong className="text-slate-900">
-                        {Number(profitSummary?.components?.cash_uzs_585_eq_g || 0).toFixed(4)} g
+                        {Number(profitSummary?.components?.cash_uzs_585_eq_g || 0).toFixed(2)} g
                       </strong>
                       <div className="text-[10px] text-slate-400 font-sans">
                         {Number(profitSummary?.components?.cash_uzs_amount || 0).toLocaleString()} UZS
@@ -788,7 +788,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                     </div>
                     <div className="text-right">
                       <strong className="text-slate-900">
-                        {Number(profitSummary?.components?.cash_usd_585_eq_g || 0).toFixed(4)} g
+                        {Number(profitSummary?.components?.cash_usd_585_eq_g || 0).toFixed(2)} g
                       </strong>
                       <div className="text-[10px] text-slate-400 font-sans">
                         ${Number(profitSummary?.components?.cash_usd_amount || 0).toLocaleString()} USD
@@ -803,20 +803,20 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                 <div className="text-xs font-black uppercase tracking-wider text-rose-700 mb-2 flex items-center justify-between">
                   <span>2. Tashqi Majburiyatlar</span>
                   <span className="font-mono text-sm">
-                    {Number(profitSummary?.current_total_liabilities_585_g || 0).toFixed(4)} g
+                    {Number(profitSummary?.current_total_liabilities_585_g || 0).toFixed(2)} g
                   </span>
                 </div>
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl divide-y divide-slate-200 overflow-hidden font-mono">
                   <div className="p-2.5 px-3 flex justify-between items-center">
                     <span className="font-sans text-slate-600">Zavod oldidagi tovar majburiyati:</span>
                     <strong className="text-rose-600">
-                      {Number(profitSummary?.components?.factory_obligation_585_g || 0).toFixed(4)} g
+                      {Number(profitSummary?.components?.factory_obligation_585_g || 0).toFixed(2)} g
                     </strong>
                   </div>
                   <div className="p-2.5 px-3 flex justify-between items-center">
                     <span className="font-sans text-slate-600">Mijozlarning haqi / avanslari:</span>
                     <strong className="text-rose-600">
-                      {Number(profitSummary?.components?.customer_advances_585_g || 0).toFixed(4)} g
+                      {Number(profitSummary?.components?.customer_advances_585_g || 0).toFixed(2)} g
                     </strong>
                   </div>
                 </div>
@@ -829,7 +829,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                   <div className="text-xs text-slate-300 font-sans">Aktivlar minus Tashqi Majburiyatlar</div>
                 </div>
                 <div className="text-2xl font-black font-mono text-cyan-300">
-                  {Number(profitSummary?.current_net_assets_585_g || 0).toFixed(4)} g
+                  {Number(profitSummary?.current_net_assets_585_g || 0).toFixed(2)} g
                 </div>
               </div>
             </div>
@@ -884,7 +884,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
               <div className="flex justify-between">
                 <span className="text-slate-500 font-sans">Joriy Sof Aktiv (Muzlatiladigan):</span>
                 <strong className="text-slate-900 font-bold">
-                  {Number(profitSummary?.current_net_assets_585_g || 0).toFixed(4)} g (585)
+                  {Number(profitSummary?.current_net_assets_585_g || 0).toFixed(2)} g (585)
                 </strong>
               </div>
               <div className="flex justify-between">
@@ -1138,7 +1138,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                         return (
                           <div className="bg-emerald-100/70 p-2 rounded-xl text-xs font-mono text-emerald-950 flex justify-between">
                             <span>585 Oltin Ekvivalenti:</span>
-                            <strong className="font-bold">{eq.toFixed(4)} g</strong>
+                            <strong className="font-bold">{eq.toFixed(2)} g</strong>
                           </div>
                         );
                       })()}
@@ -1304,7 +1304,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                   >
                     {capitalTxList.map((tx) => (
                       <option key={tx.id} value={tx.id}>
-                        {tx.transaction_no} ({tx.transaction_date}) — {Number(tx.equiv_585_grams).toFixed(4)}g 585 [{tx.source_till}]
+                        {tx.transaction_no} ({tx.transaction_date}) — {Number(tx.equiv_585_grams).toFixed(2)}g 585 [{tx.source_till}]
                       </option>
                     ))}
                   </select>
@@ -1323,7 +1323,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500 font-sans">585 Ekvivalenti:</span>
-                      <strong className="text-purple-700">{Number(cur.equiv_585_grams).toFixed(4)} g</strong>
+                      <strong className="text-purple-700">{Number(cur.equiv_585_grams).toFixed(2)} g</strong>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500 font-sans">Hozirgi joylashuv:</span>

@@ -502,7 +502,7 @@ export function CustomerLedgerAndSheetsSection() {
 
       setMessage({
         type: "success",
-        text: `To'lov qabul qilindi! (${targetCustomer.contact_name}): Jami yopildi ${formatScreenGrams(data.total_settled_grams, 4)}.${usd > 0 ? ` [USD: $${usd.toLocaleString()} @ ${usdRate.toLocaleString()}]` : ""} Qoldiq qarz: ${formatScreenGrams(data.remaining_debt_grams, 4)}.`,
+        text: `To'lov qabul qilindi! (${targetCustomer.contact_name}): Jami yopildi ${formatScreenGrams(data.total_settled_grams, 2)}.${usd > 0 ? ` [USD: $${usd.toLocaleString()} @ ${usdRate.toLocaleString()}]` : ""} Qoldiq qarz: ${formatScreenGrams(data.remaining_debt_grams, 2)}.`,
       });
 
       setPaymentModalOpen(false);
@@ -548,11 +548,11 @@ export function CustomerLedgerAndSheetsSection() {
 
         setMessage({
           type: "success",
-          text: `Vazn bo'yicha savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${formatScreenGrams(data.weight_grams, 4)} @ ${data.client_markup_pct}%. Mijozga hisoblangan qarz: ${formatScreenGrams(data.client_gold_due_grams, 4)}.${Number(data.advance_applied_grams || 0) > 0 ? ` Qoplangan avans: -${formatScreenGrams(Number(data.advance_applied_grams), 4)}.` : ""} Qolgan qarz: ${formatScreenGrams(data.remaining_debt_grams, 4)}. Sotuvchi ombor qoldig'i: ${formatScreenGrams(data.remaining_physical_stock_g, 4)}.`,
+          text: `Vazn bo'yicha savdo muvaffaqiyatli rasmiylashtirildi! (${targetCustomer.contact_name}): ${formatScreenGrams(data.weight_grams, 2)} @ ${data.client_markup_pct}%. Mijozga hisoblangan qarz: ${formatScreenGrams(data.client_gold_due_grams, 2)}.${Number(data.advance_applied_grams || 0) > 0 ? ` Qoplangan avans: -${formatScreenGrams(Number(data.advance_applied_grams), 2)}.` : ""} Qolgan qarz: ${formatScreenGrams(data.remaining_debt_grams, 2)}. Sotuvchi ombor qoldig'i: ${formatScreenGrams(data.remaining_physical_stock_g, 2)}.`,
         });
       } else {
         if (!salePieceId) {
-          throw new Error("Iltimos, sotilayotgan donani tanlang!");
+          throw new Error("Iltimos, sotilayotgan mahsulotni tanlang!");
         }
 
         const { data, error } = await supabase.rpc("rpc_record_barcode_piece_sale", {
@@ -1706,37 +1706,37 @@ export function CustomerLedgerAndSheetsSection() {
                     {scrap > 0 && (
                       <div className="flex justify-between text-slate-300">
                         <span>Lom oltin ({purity} proba):</span>
-                        <span className="font-mono text-amber-300">+{formatScreenGrams(scrap585Eq, 4)} (585 eq)</span>
+                        <span className="font-mono text-amber-300">+{formatScreenGrams(scrap585Eq, 2)} (585 eq)</span>
                       </div>
                     )}
                     {cash > 0 && (
                       <div className="flex justify-between text-slate-300">
                         <span>Naqd UZS ({formatScreenUZS(cash)}):</span>
-                        <span className="font-mono text-emerald-300">+{formatScreenGrams(cashGoldEq, 4)}</span>
+                        <span className="font-mono text-emerald-300">+{formatScreenGrams(cashGoldEq, 2)}</span>
                       </div>
                     )}
                     {usd > 0 && (
                       <div className="flex justify-between text-slate-300">
                         <span>Naqd USD (${usd.toLocaleString()} @ {dollarRate.toLocaleString()}):</span>
-                        <span className="font-mono text-blue-300">+{formatScreenGrams(usdGoldEq, 4)}</span>
+                        <span className="font-mono text-blue-300">+{formatScreenGrams(usdGoldEq, 2)}</span>
                       </div>
                     )}
                     <div className="border-t border-slate-800 pt-1.5 flex justify-between font-bold text-white">
                       <span>Jami hisobdan o&apos;chiriladigan:</span>
                       <span className="font-mono text-sm text-emerald-400">
-                        {formatScreenGrams(totalSettledPreview, 4)}
+                        {formatScreenGrams(totalSettledPreview, 2)}
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-400 pt-0.5">
                       <span>Qoladigan qarz:</span>
                       <span className={`font-mono font-bold ${remainingDebtPreview > 0 ? "text-rose-400" : "text-emerald-400"}`}>
-                        {formatScreenGrams(remainingDebtPreview, 4)}
+                        {formatScreenGrams(remainingDebtPreview, 2)}
                       </span>
                     </div>
                     {excessAdvancePreview > 0 && (
                       <div className="flex justify-between text-cyan-400 pt-0.5">
                         <span>Ortiqcha to&apos;lov (Avans balansi):</span>
-                        <span className="font-mono font-bold">+{formatScreenGrams(excessAdvancePreview, 4)}</span>
+                        <span className="font-mono font-bold">+{formatScreenGrams(excessAdvancePreview, 2)}</span>
                       </div>
                     )}
                   </div>
@@ -1825,7 +1825,7 @@ export function CustomerLedgerAndSheetsSection() {
                       : "text-slate-400 hover:text-white"
                   }`}
                 >
-                  🏷️ Aniq Fizik Dona
+                  🏷️ Mahsulot Kodi Bo&apos;yicha
                 </button>
               </div>
 
@@ -1837,7 +1837,7 @@ export function CustomerLedgerAndSheetsSection() {
                       <div className="flex justify-between text-slate-400">
                         <span>Sotuvchi Omboridagi Qoldiq:</span>
                         <span className="font-mono font-bold text-amber-300">
-                          {sellerAvailableStock != null ? formatScreenGrams(sellerAvailableStock, 4) : "Yuklanmoqda..."}
+                          {sellerAvailableStock != null ? formatScreenGrams(sellerAvailableStock, 2) : "Yuklanmoqda..."}
                         </span>
                       </div>
                       <div className="text-[10px] text-slate-500 italic">
@@ -1913,25 +1913,25 @@ export function CustomerLedgerAndSheetsSection() {
                     </div>
                     <div className="flex justify-between">
                       <span>Mahsulot vazni:</span>
-                      <span className="font-mono font-bold text-white">{formatScreenGrams(saleWeight, 4)}</span>
+                      <span className="font-mono font-bold text-white">{formatScreenGrams(saleWeight, 2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Mijoz ustamasi (+{markup}%):</span>
-                      <span className="font-mono text-cyan-300">+{formatScreenGrams(clientGoldDue - saleWeight, 4)}</span>
+                      <span className="font-mono text-cyan-300">+{formatScreenGrams(clientGoldDue - saleWeight, 2)}</span>
                     </div>
                     <div className="border-t border-slate-800 pt-1 flex justify-between font-bold text-white">
                       <span>Mijozga hisoblanadigan qarz:</span>
-                      <span className="font-mono text-rose-400 text-sm">{formatScreenGrams(clientGoldDue, 4)}</span>
+                      <span className="font-mono text-rose-400 text-sm">{formatScreenGrams(clientGoldDue, 2)}</span>
                     </div>
                     <div className="flex justify-between pt-1 border-t border-slate-800/60 text-slate-400">
                       <span>Sotuvchining yangi ombor qoldig&apos;i:</span>
                       <span className={`font-mono font-bold ${remainingStockPreview < 0 ? "text-rose-400" : "text-amber-300"}`}>
-                        {formatScreenGrams(remainingStockPreview, 4)}
+                        {formatScreenGrams(remainingStockPreview, 2)}
                       </span>
                     </div>
                     {isStockExceeded && (
                       <div className="text-rose-400 font-bold text-xs pt-1">
-                        ⚠️ Sotuvchi omborida buncha qoldiq yo&apos;q! (Mavjud: {formatScreenGrams(availStock, 4)})
+                        ⚠️ Sotuvchi omborida buncha qoldiq yo&apos;q! (Mavjud: {formatScreenGrams(availStock, 2)})
                       </div>
                     )}
                   </div>
@@ -2127,11 +2127,11 @@ export function CustomerLedgerAndSheetsSection() {
                   <span className="text-slate-400">Tizimdagi joriy qoldiq:</span>
                   <span className="font-mono font-bold">
                     {curDebt > 0 ? (
-                      <span className="text-rose-400">{formatScreenGrams(curDebt, 4)} (Qarzdor)</span>
+                      <span className="text-rose-400">{formatScreenGrams(curDebt, 2)} (Qarzdor)</span>
                     ) : curAdv > 0 ? (
-                      <span className="text-cyan-400">+{formatScreenGrams(curAdv, 4)} (Avans/Haqdor)</span>
+                      <span className="text-cyan-400">+{formatScreenGrams(curAdv, 2)} (Avans/Haqdor)</span>
                     ) : (
-                      <span className="text-slate-400">0.0000 g (Nol balans)</span>
+                      <span className="text-slate-400">0.00 g (Nol balans)</span>
                     )}
                   </span>
                 </div>
@@ -2252,27 +2252,27 @@ export function CustomerLedgerAndSheetsSection() {
                   <div className="flex justify-between text-slate-400">
                     <span className="font-sans">Tizimdagi joriy holat:</span>
                     <span className="text-white font-bold">
-                      {curNet > 0 ? `${formatScreenGrams(curNet, 4)} qarz` : curNet < 0 ? `+${formatScreenGrams(Math.abs(curNet), 4)} avans` : "0.0000 g"}
+                      {curNet > 0 ? `${formatScreenGrams(curNet, 2)} qarz` : curNet < 0 ? `+${formatScreenGrams(Math.abs(curNet), 2)} avans` : "0.00 g"}
                     </span>
                   </div>
                   <div className="flex justify-between text-slate-400">
                     <span className="font-sans">Daftardagi maqsad:</span>
                     <span className="text-amber-300 font-bold">
                       {isReconciliation
-                        ? (targetNet > 0 ? `${formatScreenGrams(targetNet, 4)} qarz` : targetNet < 0 ? `+${formatScreenGrams(Math.abs(targetNet), 4)} avans` : "0.0000 g")
-                        : (directDelta > 0 ? `+${formatScreenGrams(directDelta, 4)} qarz` : `-${formatScreenGrams(Math.abs(directDelta), 4)} avans`)}
+                        ? (targetNet > 0 ? `${formatScreenGrams(targetNet, 2)} qarz` : targetNet < 0 ? `+${formatScreenGrams(Math.abs(targetNet), 2)} avans` : "0.00 g")
+                        : (directDelta > 0 ? `+${formatScreenGrams(directDelta, 2)} qarz` : `-${formatScreenGrams(Math.abs(directDelta), 2)} avans`)}
                     </span>
                   </div>
                   <div className="border-t border-slate-800 pt-1 flex justify-between font-bold">
                     <span className="font-sans text-amber-400">Kiritiladigan farq (Δ):</span>
                     <span className={`text-sm ${delta > 0 ? "text-rose-400" : delta < 0 ? "text-cyan-400" : "text-emerald-400"}`}>
-                      {delta >= 0 ? `+${formatScreenGrams(delta, 4)}` : formatScreenGrams(delta, 4)} 585g
+                      {delta >= 0 ? `+${formatScreenGrams(delta, 2)}` : formatScreenGrams(delta, 2)} (585 eq)
                     </span>
                   </div>
                   <div className="flex justify-between text-slate-400 pt-0.5">
                     <span className="font-sans">Hosil bo&apos;ladigan yangi qoldiq:</span>
                     <span className="text-white font-bold">
-                      {projectedDebt > 0 ? `${formatScreenGrams(projectedDebt, 4)} qarz` : projectedAdv > 0 ? `+${formatScreenGrams(projectedAdv, 4)} avans` : "0.0000 g"}
+                      {projectedDebt > 0 ? `${formatScreenGrams(projectedDebt, 2)} qarz` : projectedAdv > 0 ? `+${formatScreenGrams(projectedAdv, 2)} avans` : "0.00 g"}
                     </span>
                   </div>
                   {Math.abs(delta) < 0.0001 && isReconciliation && (
@@ -2360,7 +2360,7 @@ export function CustomerLedgerAndSheetsSection() {
                           </td>
                           <td className="py-2 px-2.5 text-right font-bold">
                             <span className={Number(item.delta_585_g || 0) >= 0 ? "text-rose-400" : "text-cyan-400"}>
-                              {Number(item.delta_585_g || 0) >= 0 ? `+${formatScreenGrams(item.delta_585_g, 4)}` : formatScreenGrams(item.delta_585_g, 4)}
+                              {Number(item.delta_585_g || 0) >= 0 ? `+${formatScreenGrams(item.delta_585_g, 2)}` : formatScreenGrams(item.delta_585_g, 2)}
                             </span>
                           </td>
                           <td className="py-2 px-2.5 font-sans text-slate-400 max-w-xs truncate" title={item.notes || undefined}>
