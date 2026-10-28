@@ -224,7 +224,7 @@ export function CustomerLedgerAndSheetsSection() {
   const [saleNotes, setSaleNotes] = useState("");
 
   // Reversal / Correction states
-  const [currentRole, setCurrentRole] = useState<string>("seller");
+  const [currentRole, setCurrentRole] = useState<string>("");
   const [reversalModalOpen, setReversalModalOpen] = useState(false);
   const [reversalTarget, setReversalTarget] = useState<DailyLedgerEntry | null>(null);
   const [reversalReason, setReversalReason] = useState("");
@@ -244,23 +244,21 @@ export function CustomerLedgerAndSheetsSection() {
   const [legacyHistoryLoading, setLegacyHistoryLoading] = useState(false);
 
   useEffect(() => {
-    supabase.rpc("current_employee_role_text").then(({ data }) => {
-      if (data) setCurrentRole(String(data).toLowerCase());
-    });
-    supabase.rpc("current_employee_id").then(({ data }) => {
-      if (data) {
-        const empId = String(data);
-        setCurrentEmployeeId(empId);
+    Promise.all([
+      supabase.rpc("current_employee_role_text"),
+      supabase.rpc("current_employee_id"),
+    ]).then(([roleRes, empRes]) => {
+      const role = roleRes.data ? String(roleRes.data).toLowerCase() : "";
+      const empId = empRes.data ? String(empRes.data) : "";
+      if (role) setCurrentRole(role);
+      if (empId) setCurrentEmployeeId(empId);
+
+      if (["seller", "sotuvchi", "sales"].includes(role) && empId) {
+        setSelectedSeller(empId);
+        setNewCustSellerId(empId);
       }
     });
   }, []);
-
-  useEffect(() => {
-    if (["seller", "sotuvchi", "sales"].includes(currentRole) && currentEmployeeId) {
-      setSelectedSeller(currentEmployeeId);
-      setNewCustSellerId(currentEmployeeId);
-    }
-  }, [currentRole, currentEmployeeId]);
 
   // Load Sellers
   useEffect(() => {
