@@ -97,7 +97,7 @@ export function ScannerConsignmentSection({
     if (saved && saved.pieces && saved.pieces.length > 0) {
       setSession(saved);
       setStatusNotice({
-        text: `Avvalgi qoralama tiklandi (${saved.pieces.length} dona, ${formatScreenGrams(saved.totalWeightGrams, 2)})`,
+        text: `Avvalgi qoralama tiklandi (${formatScreenGrams(saved.totalWeightGrams, 2)}, ${saved.pieces.length} pozitsiya)`,
         type: "info",
       });
     }
@@ -203,7 +203,7 @@ export function ScannerConsignmentSection({
     setSession(newSession);
     if (removedPiece) {
       setStatusNotice({
-        text: `Oxirgi dona bekor qilindi: ${removedPiece.modelName} (${formatGrams(removedPiece.weightGrams)}g)`,
+        text: `Oxirgi pozitsiya bekor qilindi: ${removedPiece.modelName} (${formatGrams(removedPiece.weightGrams)}g)`,
         type: "info",
       });
     }
@@ -217,7 +217,7 @@ export function ScannerConsignmentSection({
   };
 
   const handleClearSession = () => {
-    if (confirm("Haqiqatan ham barcha skanerlangan donalarni o'chirmoqchimisiz?")) {
+    if (confirm("Haqiqatan ham barcha skanerlangan mahsulotlarni o'chirmoqchimisiz?")) {
       setSession(createEmptyScanSession());
       clearSessionFromStorage();
       setStatusNotice({ text: "Skanerlash sessiyasi tozalandi", type: "info" });
@@ -234,7 +234,7 @@ export function ScannerConsignmentSection({
     }
     if (session.pieces.length === 0) {
       setStatusNotice({
-        text: "Konsignatsiya uchun kamida bitta dona skaner qilinishi shart!",
+        text: "Konsignatsiya uchun kamida bitta mahsulot skaner qilinishi shart!",
         type: "error",
       });
       return;
@@ -242,7 +242,7 @@ export function ScannerConsignmentSection({
 
     if (!operatorConfirmed) {
       setStatusNotice({
-        text: "Iltimos, donalar soni va vazni to'g'riligini tasdiqlovchi katakchani belgilang!",
+        text: "Iltimos, vazn va ma'lumotlar to'g'riligini tasdiqlovchi katakchani belgilang!",
         type: "error",
       });
       return;
@@ -492,7 +492,7 @@ export function ScannerConsignmentSection({
               ) : (
                 <div className="text-sm font-bold text-amber-300 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Goldia Vazn Rejimi (Standart 585 dona): Vazn shtrix-kodini skaner qiling
+                  Goldia Vazn Rejimi (Standart 585): Vazn shtrix-kodini skaner qiling
                 </div>
               )}
             </div>
@@ -572,10 +572,10 @@ export function ScannerConsignmentSection({
         <div className="space-y-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-white space-y-3">
             <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
-              Jami Skanerlangan
+              Jami Pozitsiyalar
             </div>
             <div id="draftTotalPieces" className="text-3xl font-black text-amber-300 font-mono">
-              {session.totalPieces} <span className="text-base font-normal text-slate-400">dona</span>
+              {session.totalPieces}
             </div>
           </div>
 
@@ -631,7 +631,7 @@ export function ScannerConsignmentSection({
                       </div>
                     </div>
                     <div className="text-right font-mono">
-                      <div className="font-bold text-amber-300">{grp.count} dona</div>
+                      <div className="font-bold text-amber-300">{grp.count} pozitsiya</div>
                       <div className="text-slate-400">{formatScreenGrams(grp.totalWeightGrams, 2)}</div>
                     </div>
                   </div>
@@ -646,17 +646,17 @@ export function ScannerConsignmentSection({
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
-                Partiyadagi Donalar ({session.pieces.length})
+                Partiyadagi Mahsulotlar ({formatScreenGrams(session.totalWeightGrams, 2)})
               </h3>
               <span className="text-xs text-slate-500">
-                Har bir donaga tizim ichki unikal identifikator beradi
+                Har bir tovar pozitsiyasiga tizim ichki unikal identifikator beradi
               </span>
             </div>
 
             {session.pieces.length === 0 ? (
               <div className="bg-slate-950 rounded-2xl p-12 text-center text-xs text-slate-500 border border-slate-800">
                 <div className="text-3xl mb-2">📦</div>
-                Hozircha hech qanday dona skaner qilinmadi.
+                Hozircha hech qanday mahsulot skaner qilinmadi.
                 <div className="mt-1 text-slate-400">
                   Vazn shtrix-kodini skanerlang (zarurat bo&apos;lsa model QR kodi bilan).
                 </div>
@@ -716,7 +716,7 @@ export function ScannerConsignmentSection({
                 <span>⚠️</span> Operator Diqqatiga:
               </div>
               <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                Chiziqli shtrix-kod faqat vazn raqamini (masalan: 14.52g) o&apos;z ichiga oladi. Bir xil vaznli turli xil donalar bilan tasodifiy qayta skanerlangan donani farqlash uchun operator vizual nazorati shart.
+                Chiziqli shtrix-kod faqat vazn raqamini (masalan: 14.52g) o&apos;z ichiga oladi. Bir xil vaznli turli xil mahsulotlar bilan tasodifiy qayta skanerlangan mahsulotni farqlash uchun operator vizual nazorati shart.
               </p>
               <label className="flex items-center gap-2.5 pt-1 font-bold text-white cursor-pointer select-none">
                 <input
@@ -726,7 +726,7 @@ export function ScannerConsignmentSection({
                   onChange={(e) => setOperatorConfirmed(e.target.checked)}
                   className="w-4 h-4 rounded text-emerald-500 bg-slate-900 border-slate-700 focus:ring-emerald-400"
                 />
-                <span>Barcha {session.totalPieces} dona ({formatScreenGrams(session.totalWeightGrams, 2)}) to&apos;g&apos;ri sanalganini va dublikat yo&apos;qligini tasdiqlayman</span>
+                <span>Jami {formatScreenGrams(session.totalWeightGrams, 2)} ({session.totalPieces} pozitsiya) vazn to&apos;g&apos;riligini va dublikat yo&apos;qligini tasdiqlayman</span>
               </label>
             </div>
           )}
@@ -762,7 +762,7 @@ export function ScannerConsignmentSection({
                 <span>✓</span>
                 {isBusy || isSubmitting
                   ? "Tasdiqlanmoqda..."
-                  : `Konsignatsiyani Tasdiqlash (${session.totalPieces} dona, ${formatScreenGrams(session.totalWeightGrams, 2)})`}
+                  : `Konsignatsiyani Tasdiqlash (${formatScreenGrams(session.totalWeightGrams, 2)})`}
               </button>
             </div>
           </div>

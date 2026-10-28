@@ -122,7 +122,6 @@ export function DirectorSalesWorkspace({
   // Form: Factory Receipt ("Zavod bilan")
   const [rcpProductName, setRcpProductName] = useState("");
   const [rcpWeight, setRcpWeight] = useState("100.0000");
-  const [rcpPurity, setRcpPurity] = useState("585");
   const [rcpMarkup, setRcpMarkup] = useState("8.00");
   const [rcpNotes, setRcpNotes] = useState("");
 
@@ -138,7 +137,8 @@ export function DirectorSalesWorkspace({
   const [buySupplier, setBuySupplier] = useState("");
   const [buyCashUZS, setBuyCashUZS] = useState("");
   const [buyCashUSD, setBuyCashUSD] = useState("");
-  const [buyUsdRate, setBuyUsdRate] = useState("12800");
+  const [buyUsdRate, setBuyUsdRate] = useState("");
+  const [activeBaselineUsdRate, setActiveBaselineUsdRate] = useState<number | null>(null);
   const [buyRate, setBuyRate] = useState<string>("");
   const [buyWeight, setBuyWeight] = useState("");
   const [buyProba, setBuyProba] = useState("585");
@@ -249,6 +249,7 @@ export function DirectorSalesWorkspace({
         purchasesRes,
         handoversRes,
         capTxsRes,
+        baselineRes,
       ] = await Promise.all([
         supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(20),
         supabase.from("sales_markup_presets").select("*").order("display_order", { ascending: true }),
@@ -268,6 +269,7 @@ export function DirectorSalesWorkspace({
         supabase.from("gold_purchases").select("*").order("purchase_date", { ascending: false }),
         supabase.from("factory_gold_handovers").select("*").order("handover_date", { ascending: false }),
         supabase.from("financial_transactions").select("id, transaction_no, physical_weight_grams, gold_proba, equiv_585_grams").eq("transaction_type", "capital_contribution").in("source_till", ["manager_fine_gold", "fine_gold"]).neq("status", "reversed").order("created_at", { ascending: false }),
+        supabase.from("accounting_baselines").select("usd_rate").eq("status", "active").order("baseline_date", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       if (ratesRes.data && ratesRes.data.length > 0) {
@@ -289,6 +291,11 @@ export function DirectorSalesWorkspace({
       if (purchasesRes.data) setGoldPurchases(purchasesRes.data as GoldPurchaseRow[]);
       if (handoversRes.data) setFactoryHandovers(handoversRes.data as FactoryGoldHandoverRow[]);
       if (capTxsRes.data) setCapitalPureTxs(capTxsRes.data as { id: string; transaction_no: string; physical_weight_grams?: number; gold_proba?: number; equiv_585_grams?: number }[]);
+      if (baselineRes?.data && "usd_rate" in baselineRes.data && baselineRes.data.usd_rate) {
+        const bRate = Number(baselineRes.data.usd_rate);
+        setActiveBaselineUsdRate(bRate);
+        setBuyUsdRate((prev) => (!prev || prev === "12800" ? String(bRate) : prev));
+      }
       if (empRes.data) {
         setEmployees(empRes.data as EmployeeRow[]);
       }
@@ -588,7 +595,7 @@ export function DirectorSalesWorkspace({
         p_product_name: rcpProductName.trim() || "Zargarlik buyumi",
         p_quantity: 1,
         p_original_physical_g: w,
-        p_proba: parseFloat(rcpPurity) || 585,
+        p_proba: 585,
         p_factory_markup_pct: m,
         p_product_id: null,
         p_model_id: null,
@@ -655,13 +662,18 @@ export function DirectorSalesWorkspace({
     e.preventDefault();
     const spentUZS = parseFloat(buyCashUZS) || 0;
     const spentUSD = parseFloat(buyCashUSD) || 0;
-    const usdRate = parseFloat(buyUsdRate) || 12800;
+    const usdRate = parseFloat(buyUsdRate) || activeBaselineUsdRate || 0;
     const goldW = parseFloat(buyWeight) || 0;
     const pr = parseFloat(buyProba) || 585;
     const customRate = parseFloat(buyRate) || 0;
 
     if (spentUZS <= 0 && spentUSD <= 0) {
       notifyError("Kamida bitta to'lov valyutasi (UZS yoki USD) kiritilishi shart!");
+      return;
+    }
+
+    if (spentUSD > 0 && (!usdRate || usdRate <= 0)) {
+      notifyError("USD yoki MIXED xarid uchun musbat USD/UZS kursi kiritilishi majburiy!");
       return;
     }
 
@@ -1537,16 +1549,11 @@ export function DirectorSalesWorkspace({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-[#475569] mb-1">Proba:</label>
-                      <select
-                        value={rcpPurity}
-                        onChange={(e) => setRcpPurity(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold text-[#0F172A]"
-                      >
-                        <option value="585">585 (Asosiy)</option>
-                        <option value="750">750</option>
-                        <option value="999">999 (Toza)</option>
-                      </select>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">Proba (Ombor standarti):</label>
+                      <div className="w-full p-2.5 bg-slate-100 border border-slate-300 rounded-xl font-mono text-xs font-bold text-[#0F172A] flex items-center justify-between">
+                        <span>585 (Standart)</span>
+                        <span className="text-[10px] text-slate-500 font-sans font-medium">Faqat 585</span>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-[#475569] mb-1">Zavod Foizi (%):</label>
@@ -1701,7 +1708,7 @@ export function DirectorSalesWorkspace({
                         <option value="">-- Afinaj partiyasini tanlang (yoki to&apos;g&apos;ridan-to&apos;g&apos;ri kiriting) --</option>
                         {refiningBatches.filter((b) => b.status === "completed").map((b) => (
                           <option key={b.id} value={b.id}>
-                            №{b.batch_no} — {b.output_fine_grams}g ({b.output_fine_proba}°) = {b.output_585_equiv_grams}g 585 eq
+                            №{b.batch_no} — {formatScreenGrams(b.output_fine_grams, 2)} ({b.output_fine_proba}°) = {formatScreenGrams(b.output_585_equiv_grams, 2)} 585 eq
                           </option>
                         ))}
                       </select>
@@ -2037,7 +2044,12 @@ export function DirectorSalesWorkspace({
                 const factoryObligation = Number(acc.current_factory_obligation_grams || acc.remaining_factory_gold_due_grams || 0);
                 const tillScrap = Number(acc.seller_till_scrap_grams || 0);
                 const tillCash = Number(acc.seller_till_cash_amount || 0);
-                const bozorQarzi = acc.bozor_qarzi_signed_g !== undefined ? Number(acc.bozor_qarzi_signed_g) : -factoryObligation;
+                const tillUsd = Number(acc.seller_till_usd_amount || 0);
+                const sellerOwes = Number(acc.seller_owes_manager_g || 0);
+                const managerOwes = Number(acc.manager_owes_seller_g || 0);
+                const isSellerDebtor = sellerOwes > 0.001 || (acc.bozor_qarzi_signed_g !== undefined && Number(acc.bozor_qarzi_signed_g) < -0.001);
+                const isManagerDebtor = managerOwes > 0.001 || (acc.bozor_qarzi_signed_g !== undefined && Number(acc.bozor_qarzi_signed_g) > 0.001);
+                const activeDebtAmount = isSellerDebtor ? (sellerOwes || Math.abs(Number(acc.bozor_qarzi_signed_g || 0))) : (managerOwes || Number(acc.bozor_qarzi_signed_g || 0));
 
                 return (
                   <div key={acc.seller_id} className="bg-white text-[#0F172A] rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4 hover:shadow-md transition">
@@ -2053,41 +2065,41 @@ export function DirectorSalesWorkspace({
 
                     {/* Signed Bozor Qarzi Card */}
                     <div className={`p-4 rounded-2xl border space-y-1 ${
-                      bozorQarzi < 0
+                      isSellerDebtor
                         ? "bg-rose-50 border-rose-200 text-[#B91C1C]"
-                        : bozorQarzi > 0
+                        : isManagerDebtor
                         ? "bg-emerald-50 border-emerald-200 text-[#047857]"
                         : "bg-slate-50 border-slate-200 text-[#0F172A]"
                     }`}>
                       <div className="flex justify-between items-center text-xs font-bold">
-                        <span className={bozorQarzi < 0 ? "text-[#B91C1C]" : bozorQarzi > 0 ? "text-[#047857]" : "text-[#0F172A]"}>
+                        <span className={isSellerDebtor ? "text-[#B91C1C]" : isManagerDebtor ? "text-[#047857]" : "text-[#0F172A]"}>
                           Bozor Qarzi (Boshqaruvchi hisobi):
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                          bozorQarzi < 0
+                          isSellerDebtor
                             ? "bg-rose-200 text-[#B91C1C]"
-                            : bozorQarzi > 0
+                            : isManagerDebtor
                             ? "bg-emerald-200 text-[#047857]"
                             : "bg-slate-200 text-[#0F172A]"
                         }`}>
-                          {bozorQarzi < 0
+                          {isSellerDebtor
                             ? "Sotuvchi qarzdor (-)"
-                            : bozorQarzi > 0
+                            : isManagerDebtor
                             ? "Biz qarzdormiz (+)"
                             : "Hisob teng (0)"}
                         </span>
                       </div>
                       <div className={`text-2xl font-black font-mono ${
-                        bozorQarzi < 0 ? "text-[#B91C1C]" : bozorQarzi > 0 ? "text-[#047857]" : "text-[#0F172A]"
+                        isSellerDebtor ? "text-[#B91C1C]" : isManagerDebtor ? "text-[#047857]" : "text-[#0F172A]"
                       }`}>
-                        {bozorQarzi > 0 ? "+" : ""}
-                        {formatScreenGrams(bozorQarzi, 2)}
+                        {isSellerDebtor ? "-" : isManagerDebtor ? "+" : ""}
+                        {formatScreenGrams(activeDebtAmount, 2)}
                       </div>
                       <div className="text-[11px] text-[#475569] font-medium">
-                        {bozorQarzi < 0
-                          ? `Sotuvchi boshqaruvchiga ${formatScreenGrams(Math.abs(bozorQarzi), 2)} lom qaytarishi shart.`
-                          : bozorQarzi > 0
-                          ? `Boshqaruvchi sotuvchiga ${formatScreenGrams(bozorQarzi, 2)} ortiqcha tushum (avans) uchun qarzdor.`
+                        {isSellerDebtor
+                          ? `Sotuvchi boshqaruvchiga ${formatScreenGrams(activeDebtAmount, 2)} lom qaytarishi shart.`
+                          : isManagerDebtor
+                          ? `Boshqaruvchi sotuvchiga ${formatScreenGrams(activeDebtAmount, 2)} ortiqcha tushum (avans) uchun qarzdor.`
                           : "Barcha majburiyatlar to'liq yopilgan."}
                       </div>
                     </div>
@@ -2113,7 +2125,7 @@ export function DirectorSalesWorkspace({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-2xl border border-slate-200 text-[#0F172A]">
+                    <div className={`grid ${tillUsd > 0 ? "grid-cols-3" : "grid-cols-2"} gap-2 text-xs bg-slate-50 p-3 rounded-2xl border border-slate-200 text-[#0F172A]`}>
                       <div>
                         <span className="text-[#475569] block">Kassasidagi Lom:</span>
                         <span className="font-mono font-bold text-[#0F172A] text-sm">{formatScreenGrams(tillScrap, 2)}</span>
@@ -2122,6 +2134,14 @@ export function DirectorSalesWorkspace({
                         <span className="text-[#475569] block">Kassasidagi Naqd:</span>
                         <span className="font-mono font-bold text-[#047857] text-sm">{formatScreenUZS(tillCash)}</span>
                       </div>
+                      {tillUsd > 0 && (
+                        <div>
+                          <span className="text-[#475569] block">Kassasidagi USD:</span>
+                          <span className="font-mono font-bold text-blue-700 text-sm">
+                            ${tillUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2 pt-1">
@@ -2653,14 +2673,25 @@ export function DirectorSalesWorkspace({
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-[#475569] mb-1">Operatsiya USD Kursi:</label>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-xs font-bold text-[#475569]">Operatsiya USD Kursi:</label>
+                          {activeBaselineUsdRate && (
+                            <button
+                              type="button"
+                              onClick={() => setBuyUsdRate(String(activeBaselineUsdRate))}
+                              className="text-[10px] text-blue-600 hover:underline"
+                            >
+                              Tasdiqlangan: {activeBaselineUsdRate.toLocaleString()}
+                            </button>
+                          )}
+                        </div>
                         <input
                           type="number"
-                          step="10"
+                          step="0.01"
                           min="1"
                           value={buyUsdRate}
                           onChange={(e) => setBuyUsdRate(e.target.value)}
-                          placeholder="12800"
+                          placeholder={activeBaselineUsdRate ? String(activeBaselineUsdRate) : "Masalan: 11918.98"}
                           className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
                         />
                       </div>
@@ -2711,7 +2742,7 @@ export function DirectorSalesWorkspace({
                     {(() => {
                       const spentUZS = parseFloat(buyCashUZS) || 0;
                       const spentUSD = parseFloat(buyCashUSD) || 0;
-                      const usdRate = parseFloat(buyUsdRate) || 12800;
+                      const usdRate = parseFloat(buyUsdRate) || activeBaselineUsdRate || 0;
                       const goldW = parseFloat(buyWeight) || 0;
                       const pr = parseFloat(buyProba) || 585;
                       const totalCostUZS = spentUZS + (spentUSD * usdRate);
@@ -3429,8 +3460,9 @@ export function DirectorSalesWorkspace({
                   <th className="py-2.5 px-3 font-semibold">Yo&apos;nalish</th>
                   <th className="py-2.5 px-3 font-semibold">Sotuvchi / Mijoz</th>
                   <th className="py-2.5 px-3 font-semibold">Lom Oltin</th>
-                  <th className="py-2.5 px-3 font-semibold">Naqd Pul</th>
-                  <th className="py-2.5 px-3 font-semibold">Kurs</th>
+                  <th className="py-2.5 px-3 font-semibold">Naqd Pul (UZS)</th>
+                  <th className="py-2.5 px-3 font-semibold">Valyuta ($ USD)</th>
+                  <th className="py-2.5 px-3 font-semibold">Oltin Kursi</th>
                   <th className="py-2.5 px-3 font-semibold">Jami Yopilgan</th>
                   <th className="py-2.5 px-3 font-semibold">Sana</th>
                   <th className="py-2.5 px-3 font-semibold text-center">Amallar</th>
@@ -3461,11 +3493,27 @@ export function DirectorSalesWorkspace({
                       </td>
                       <td className="py-2.5 px-3 font-mono">{formatScreenGrams(s.scrap_weight_grams, 2)}</td>
                       <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">
-                        {Number(s.cash_paid_amount || 0) > 0 && <div>{formatScreenUZS(s.cash_paid_amount)}</div>}
-                        {Number(s.usd_amount || 0) > 0 && (
-                          <div className="text-[11px] text-blue-700 font-bold">${Number(s.usd_amount).toLocaleString()} USD</div>
-                        )}
-                        {!Number(s.cash_paid_amount || 0) && !Number(s.usd_amount || 0) && "—"}
+                        {Number(s.cash_paid_amount || 0) > 0 ? (
+                          <div>
+                            {formatScreenUZS(s.cash_paid_amount)}
+                            {Number(s.cash_equivalent_grams || 0) > 0 && (
+                              <span className="block text-[10px] text-slate-500 font-normal">
+                                ({formatScreenGrams(s.cash_equivalent_grams, 2)})
+                              </span>
+                            )}
+                          </div>
+                        ) : "—"}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-blue-700">
+                        {Number(s.usd_paid_amount || s.usd_amount || 0) > 0 ? (
+                          <div>
+                            ${Number(s.usd_paid_amount || s.usd_amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            <span className="block text-[10px] text-slate-500 font-normal">
+                              @ {Number(s.applied_usd_rate || s.usd_rate_applied || 0).toLocaleString()} (
+                              {formatScreenGrams(s.usd_equivalent_grams || 0, 2)})
+                            </span>
+                          </div>
+                        ) : "—"}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-[#475569]">
                         {Number(s.gold_rate_applied).toLocaleString()}
@@ -3504,7 +3552,7 @@ export function DirectorSalesWorkspace({
                 })}
                 {settlements.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="py-6 text-center text-[#475569]">
+                    <td colSpan={10} className="py-6 text-center text-[#475569]">
                       Hozircha hisob-kitoblar ro&apos;yxati bo&apos;sh.
                     </td>
                   </tr>

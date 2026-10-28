@@ -3,9 +3,12 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
+let cachedToken = null;
 function getSupabaseAccessToken() {
+  if (cachedToken) return cachedToken;
   const psPath = path.resolve(__dirname, 'get-token.ps1');
-  return execSync(`powershell -ExecutionPolicy Bypass -File "${psPath}"`, { encoding: 'utf8' }).trim();
+  cachedToken = execSync(`powershell -ExecutionPolicy Bypass -File "${psPath}"`, { encoding: 'utf8' }).trim();
+  return cachedToken;
 }
 
 async function runSqlQuery(sqlQuery, projectRef = 'vouehtlmsunebracahon') {

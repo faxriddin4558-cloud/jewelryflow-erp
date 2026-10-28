@@ -247,7 +247,7 @@ export function TestCleanupSection() {
       if (error) throw error;
       setFullResetResult({
         type: "success",
-        text: "Test hisobi to'liq nolga qaytarildi! Barcha faol balanslar (seyflar, kassalar, mijoz va zavod qarzlari) 0.0000 g ga tenglashtirildi. Muzlatilgan boshlang'ich hisob arxivlandi va noldan yangi hisob kiritish ochildi.",
+        text: "Test hisobi to'liq nolga qaytarildi! Barcha faol balanslar (seyflar, kassalar, mijoz va zavod qarzlari) 0.00 g ga tenglashtirildi. Muzlatilgan boshlang'ich hisob arxivlandi va noldan yangi hisob kiritish ochildi.",
         details: data,
       });
       setFullResetPreview(null);
@@ -556,7 +556,7 @@ export function TestCleanupSection() {
             <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
               Direktor uchun noldan haqiqiy boshlang&apos;ich hisob kiritish imkoniyati. Barcha sinov operatsiyalari,
               konsignatsiyalar, afinaj va vaqtinchalik baseline audit bilan arxivlanadi. Barcha faol seyflar, kassalar,
-              sotuvchi mas&apos;uliyati va mijoz qarzlari <strong className="text-amber-300 font-mono">0.0000 g</strong> ga keltiriladi.
+              sotuvchi mas&apos;uliyati va mijoz qarzlari <strong className="text-amber-300 font-mono">0.00 g</strong> ga keltiriladi.
               Xodimlar, mijozlar va modellar bazasi tegilmaydi.
             </p>
           </div>
@@ -661,7 +661,7 @@ export function TestCleanupSection() {
                 <span>⚠️</span> Natijaviy Balanslar Holati:
               </span>
               <p>
-                Ushbu amal bajarilgandan so&apos;ng barcha kassa, seyf va qarzlar (zavod qarzi: 0.0000g, sotuvchilar mas&apos;uliyati: 0.0000g, mijozlar qarzi: 0.0000g, menejer seyfi: 0.0000g) sof nol (0.0000) holatiga keltiriladi. Shundan so&apos;ng haqiqiy boshlang&apos;ich hisobni kiritishingiz mumkin bo&apos;ladi.
+                Ushbu amal bajarilgandan so&apos;ng barcha kassa, seyf va qarzlar (zavod qarzi: 0.00 g, sotuvchilar mas&apos;uliyati: 0.00 g, mijozlar qarzi: 0.00 g, menejer seyfi: 0.00 g) sof nol (0.00) holatiga keltiriladi. Shundan so&apos;ng haqiqiy boshlang&apos;ich hisobni kiritishingiz mumkin bo&apos;ladi.
               </p>
             </div>
 

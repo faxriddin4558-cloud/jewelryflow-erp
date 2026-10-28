@@ -104,6 +104,9 @@ export interface MonthlyReportItem {
   scrap_received_g: number;
   cash_received_uzs: number;
   cash_equivalent_g: number;
+  usd_received?: number;
+  usd_rate?: number;
+  usd_equivalent_g?: number;
   total_settled_g: number;
   closing_debt_g: number;
 }
@@ -111,16 +114,21 @@ export interface MonthlyReportItem {
 export interface MonthlyReportSummary {
   total_customers?: number;
   total_opening_debt_g?: number;
+  base_opening_debt_g?: number;
   total_legacy_added_month_g?: number;
   total_distributed_month_g: number;
   total_collected_scrap_g?: number;
   total_collected_cash_uzs?: number;
+  total_collected_usd?: number;
   total_collected_cash_gold_eq_g?: number;
   total_collected_month_g: number;
   total_closing_debt_g?: number;
   total_customer_debt_g: number;
   seller_held_cash_uzs: number;
   seller_held_scrap_g: number;
+  seller_held_usd?: number;
+  seller_owes_manager_total_g?: number;
+  manager_owes_seller_total_g?: number;
   seller_manager_bozor_qarzi_g: number;
   note?: string;
 }
@@ -1395,6 +1403,9 @@ export function CustomerLedgerAndSheetsSection() {
                     <th className="py-3 px-3 font-mono text-amber-300">Lom Tushumi</th>
                     <th className="py-3 px-3 font-mono text-emerald-300">Pul Tushumi (UZS)</th>
                     <th className="py-3 px-3 font-mono text-emerald-200">Pul Eq (g)</th>
+                    <th className="py-3 px-3 font-mono text-blue-300">USD Tushumi ($)</th>
+                    <th className="py-3 px-3 font-mono text-blue-200">USD Kursi</th>
+                    <th className="py-3 px-3 font-mono text-blue-100">USD Eq (g)</th>
                     <th className="py-3 px-3 font-mono text-emerald-400">Jami Yopilgan</th>
                     <th className="py-3 px-3 font-mono font-bold text-rose-400">Yakuniy Qarz</th>
                   </tr>
@@ -1424,6 +1435,19 @@ export function CustomerLedgerAndSheetsSection() {
                       <td className="py-2.5 px-3 font-mono text-emerald-200">
                         {formatScreenGrams(it.cash_equivalent_g)}
                       </td>
+                      <td className="py-2.5 px-3 font-mono text-blue-300">
+                        {Number(it.usd_received || 0) > 0 ? (
+                          `$${Number(it.usd_received).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-blue-200">
+                        {Number(it.usd_rate || 0) > 0 ? Number(it.usd_rate).toLocaleString("en-US") : "—"}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-blue-100">
+                        {Number(it.usd_equivalent_g || 0) > 0 ? formatScreenGrams(it.usd_equivalent_g) : "—"}
+                      </td>
                       <td className="py-2.5 px-3 font-mono font-bold text-emerald-400">
                         {formatScreenGrams(it.total_settled_g)}
                       </td>
@@ -1434,7 +1458,7 @@ export function CustomerLedgerAndSheetsSection() {
                   ))}
                   {monthlyReportData.items.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="py-8 text-center text-slate-500">
+                      <td colSpan={12} className="py-8 text-center text-slate-500">
                         Ushbu oyda hech qanday harakat qayd etilmagan.
                       </td>
                     </tr>
@@ -1454,11 +1478,12 @@ export function CustomerLedgerAndSheetsSection() {
                 <div className="text-slate-400 font-sans font-bold text-[11px]">Boshlang&apos;ich / Eski Qarz</div>
                 <div className="text-lg font-black text-amber-300">
                   {formatScreenGrams(
-                    monthlyReportData.summary.total_opening_debt_g ??
-                      monthlyReportData.items.reduce(
-                        (sum: number, it: MonthlyReportItem) => sum + Number(it.opening_debt_g || 0) + Number(it.legacy_added_month_g || 0),
-                        0
-                      )
+                    Number(monthlyReportData.summary.total_opening_debt_g || 0) > 0
+                      ? Number(monthlyReportData.summary.total_opening_debt_g)
+                      : monthlyReportData.items.reduce(
+                          (sum: number, it: MonthlyReportItem) => sum + Number(it.opening_debt_g || 0) + Number(it.legacy_added_month_g || 0),
+                          0
+                        )
                   )}
                 </div>
               </div>
@@ -1475,6 +1500,11 @@ export function CustomerLedgerAndSheetsSection() {
                 <div className="text-lg font-black text-emerald-400">
                   {formatScreenGrams(monthlyReportData.summary.total_collected_month_g)}
                 </div>
+                {Number(monthlyReportData.summary.total_collected_usd || 0) > 0 && (
+                  <div className="text-[10px] text-blue-300 font-sans">
+                    (${Number(monthlyReportData.summary.total_collected_usd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                  </div>
+                )}
               </div>
 
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1">
@@ -1490,16 +1520,34 @@ export function CustomerLedgerAndSheetsSection() {
                   <span className="text-amber-300">{formatScreenGrams(monthlyReportData.summary.seller_held_scrap_g)} lom</span>
                   <br />
                   <span className="text-emerald-400">{formatScreenUZS(monthlyReportData.summary.seller_held_cash_uzs)}</span>
+                  {Number(monthlyReportData.summary.seller_held_usd || 0) > 0 && (
+                    <>
+                      <br />
+                      <span className="text-blue-400">
+                        ${Number(monthlyReportData.summary.seller_held_usd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
               <div className="bg-slate-950 p-4 rounded-2xl border border-amber-800/40 space-y-1">
                 <div className="text-amber-300 font-sans font-bold text-[11px]">Boshqaruvchiga Bozor Qarzi</div>
                 <div className="text-lg font-black text-amber-400">
-                  {formatScreenGrams(Math.abs(monthlyReportData.summary.seller_manager_bozor_qarzi_g))}
+                  {formatScreenGrams(
+                    Number(monthlyReportData.summary.seller_owes_manager_total_g || 0) > 0
+                      ? Number(monthlyReportData.summary.seller_owes_manager_total_g)
+                      : Math.abs(monthlyReportData.summary.seller_manager_bozor_qarzi_g || 0)
+                  )}
                 </div>
                 <div className="text-[10px] text-slate-400 font-sans">
-                  {monthlyReportData.summary.seller_manager_bozor_qarzi_g < 0 ? "(Sotuvchi qarzdor)" : "(Haqdor)"}
+                  {Number(monthlyReportData.summary.seller_owes_manager_total_g || 0) > 0.001 || Number(monthlyReportData.summary.seller_manager_bozor_qarzi_g || 0) > 0.001 || Number(monthlyReportData.summary.seller_manager_bozor_qarzi_g || 0) < -0.001
+                    ? (Number(monthlyReportData.summary.manager_owes_seller_total_g || 0) > 0.001
+                        ? `Qarz: ${formatScreenGrams(monthlyReportData.summary.seller_owes_manager_total_g || 0)} | Haq: ${formatScreenGrams(monthlyReportData.summary.manager_owes_seller_total_g || 0)}`
+                        : "(Sotuvchi qarzdor)")
+                    : (Number(monthlyReportData.summary.manager_owes_seller_total_g || 0) > 0.001
+                        ? "(Sotuvchi haqdor / Menejer qarzdor)"
+                        : "(Hisob yopilgan)")}
                 </div>
               </div>
             </div>

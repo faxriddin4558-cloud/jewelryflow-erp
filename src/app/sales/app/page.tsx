@@ -127,10 +127,7 @@ function SalesDashboardContent() {
     ? Number(managerVault.manager_physical_stock_g)
     : (managerReceiptAvailableGrams + managerReturnedGrams);
 
-  const availableSellerPieces = pieces.filter((p) => p.status === "held_by_seller");
   const totalSellerPhysicalGrams = sellerAccounts.reduce((acc, s) => acc + Number(s.current_physical_stock_g || 0), 0);
-
-  const soldPieces = pieces.filter((p) => p.status === "sold");
   const soldPhysicalGrams = totalSoldGrams;
 
   const returnedPieces = pieces.filter((p) => p.status === "returned_to_factory");
@@ -337,7 +334,7 @@ function SalesDashboardContent() {
             )}
           </div>
           <div className="text-[11px] text-slate-400">
-            Menejer omborida mavjud: {formatScreenGrams(managerReceiptAvailableGrams)} (kvitansiyalar qoldig&apos;i) + {formatScreenGrams(managerReturnedGrams)} (qaytarilgan tovarlar). Jami mahsulotlar: {pieces.filter((p) => p.status !== "cancelled" && p.status !== "reversed").length} ta (Sotuvchilarda: {availableSellerPieces.length}, Sotilgan: {soldPieces.length}).
+            Menejer omborida mavjud: {formatScreenGrams(managerReceiptAvailableGrams)} (kvitansiyalar qoldig&apos;i) + {formatScreenGrams(managerReturnedGrams)} (qaytarilgan tovarlar). Oqimdagi jami tovar vazni: {formatScreenGrams(totalFactoryPhysicalGrams)} (Sotuvchilarda: {formatScreenGrams(totalSellerPhysicalGrams)}, Sotilgan: {formatScreenGrams(soldPhysicalGrams)}).
           </div>
         </div>
       </div>

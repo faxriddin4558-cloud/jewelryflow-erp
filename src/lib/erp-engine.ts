@@ -900,6 +900,8 @@ export interface GoldSettlementRow {
   scrap_purity?: number;
   cash_paid_amount?: number;
   cash_amount?: number;
+  usd_paid_amount?: number;
+  applied_usd_rate?: number;
   usd_amount?: number;
   usd_rate_applied?: number;
   usd_equivalent_grams?: number;
@@ -4052,7 +4054,7 @@ export function buildErpReportRows(
         "NOMALUM YO'QOTISH",
         "UNACCOUNTED LEAK",
         audit.unaccountedGoldLeakGram > 0.05 ? "CRITICAL" : "PASS",
-        "Tushuntirilmagan oltin kamomadi (0.0000g kutiladi)",
+        "Tushuntirilmagan oltin kamomadi (0.00 g kutiladi)",
         audit.unaccountedGoldLeakGram,
       ],
       [
