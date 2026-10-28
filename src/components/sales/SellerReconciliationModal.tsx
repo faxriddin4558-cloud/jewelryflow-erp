@@ -31,16 +31,21 @@ export interface SellerReconciliationData {
     scrap_collected_grams: number;
     cash_collected_uzs: number;
     cash_equivalent_grams: number;
+    usd_collected_amount?: number;
+    usd_equivalent_grams?: number;
     outstanding_customer_debt_grams: number;
   };
   section_e: {
     scrap_grams: number;
     cash_uzs: number;
+    cash_usd?: number;
   };
   section_f: {
     settlements_scrap_grams: number;
     settlements_cash_uzs: number;
     settlements_cash_equivalent_grams: number;
+    settlements_usd_amount?: number;
+    settlements_usd_equivalent_grams?: number;
     returned_unsold_items_count: number;
     returned_unsold_original_grams: number;
     returned_unsold_seller_obligation_grams: number;
@@ -186,8 +191,8 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     </div>
                   )}
                   <div className="flex justify-between text-slate-400 text-[11px]">
-                    <span>Jami mahsulot soni:</span>
-                    <span>{data.section_a.item_count} ta</span>
+                    <span>Asosiy faoliyat rejimi:</span>
+                    <span className="text-emerald-400 font-bold">Sof gramm hisobi (585)</span>
                   </div>
                 </div>
               </div>
@@ -208,8 +213,8 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     <span className="font-bold text-emerald-400">{formatScreenGrams(data.section_b.seller_markup_equivalent_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-400 text-[11px]">
-                    <span>Qoldiq mahsulot soni:</span>
-                    <span>{data.section_b.item_count} ta</span>
+                    <span>Hisob holati:</span>
+                    <span className="text-emerald-300">Javonda mavjud fizik oltin</span>
                   </div>
                 </div>
               </div>
@@ -230,8 +235,8 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     <span className="font-bold text-cyan-400">{formatScreenGrams(data.section_c.seller_markup_equivalent_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-400 text-[11px]">
-                    <span>Sotilgan mahsulot soni:</span>
-                    <span>{data.section_c.item_count} ta</span>
+                    <span>Hisob holati:</span>
+                    <span className="text-cyan-300">Mijozlarga chiqarilgan tovar</span>
                   </div>
                 </div>
               </div>
@@ -250,9 +255,21 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                   <div className="flex justify-between text-slate-300">
                     <span>Mijozlardan yig&apos;ilgan to&apos;lov:</span>
                     <span className="font-bold text-emerald-400">
-                      {formatScreenGrams(data.section_d.scrap_collected_grams + data.section_d.cash_equivalent_grams)} eq
+                      {formatScreenGrams(
+                        data.section_d.scrap_collected_grams +
+                        data.section_d.cash_equivalent_grams +
+                        (data.section_d.usd_equivalent_grams || 0)
+                      )} eq
                     </span>
                   </div>
+                  {Number(data.section_d.usd_collected_amount || 0) > 0 && (
+                    <div className="flex justify-between text-blue-300 text-[11px]">
+                      <span>Shundan dollar tushumi:</span>
+                      <span className="font-bold">
+                        ${Number(data.section_d.usd_collected_amount).toLocaleString()} USD ({formatScreenGrams(data.section_d.usd_equivalent_grams || 0)})
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-slate-300">
                     <span>Qoldiq mijozlar qarzi:</span>
                     <span className="font-black text-rose-400">{formatScreenGrams(data.section_d.outstanding_customer_debt_grams)}</span>
@@ -272,9 +289,15 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                     <span className="font-bold text-amber-300">{formatScreenGrams(data.section_e.scrap_grams)}</span>
                   </div>
                   <div className="flex justify-between text-slate-300">
-                    <span>Qo&apos;lidagi naqd pul:</span>
+                    <span>Qo&apos;lidagi naqd so&apos;m:</span>
                     <span className="font-bold text-emerald-400">{formatScreenUZS(data.section_e.cash_uzs)}</span>
                   </div>
+                  {Number(data.section_e.cash_usd || 0) > 0 && (
+                    <div className="flex justify-between text-blue-300 text-[11px]">
+                      <span>Qo&apos;lidagi valyuta ($):</span>
+                      <span className="font-bold">${Number(data.section_e.cash_usd).toLocaleString()} USD</span>
+                    </div>
+                  )}
                   <div className="text-[10px] text-slate-500 mt-1">
                     Mijoz to&apos;lagan pul/lom menejerga topshirilmaguncha bozor qarzini kamaytirmaydi.
                   </div>
@@ -289,21 +312,45 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                 </div>
                 <div className="space-y-1 font-mono">
                   <div className="flex justify-between text-slate-300">
-                    <span>Topshirilgan lom va pul eq:</span>
+                    <span>Topshirilgan to&apos;lovlar eq (Lom + UZS + USD):</span>
                     <span className="font-bold text-emerald-400">
-                      {formatScreenGrams(data.section_f.settlements_scrap_grams + data.section_f.settlements_cash_equivalent_grams)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span>Qaytarilgan sotilmagan tovar:</span>
-                    <span className="font-bold text-amber-400">
-                      {data.section_f.returned_unsold_items_count} ta ({formatScreenGrams(data.section_f.returned_unsold_original_grams)})
+                      {formatScreenGrams(
+                        data.section_f.settlements_scrap_grams +
+                        data.section_f.settlements_cash_equivalent_grams +
+                        (data.section_f.settlements_usd_equivalent_grams || 0)
+                      )}
                     </span>
                   </div>
                   <div className="flex justify-between text-slate-400 text-[11px]">
-                    <span>Qaytgan tovar majburiyat qiymati:</span>
-                    <span>-{formatScreenGrams(data.section_f.returned_unsold_seller_obligation_grams)}</span>
+                    <span>Topshirilgan lom oltin:</span>
+                    <span>{formatScreenGrams(data.section_f.settlements_scrap_grams)}</span>
                   </div>
+                  <div className="flex justify-between text-slate-400 text-[11px]">
+                    <span>Topshirilgan naqd so&apos;m:</span>
+                    <span>{formatScreenUZS(data.section_f.settlements_cash_uzs)} ({formatScreenGrams(data.section_f.settlements_cash_equivalent_grams)})</span>
+                  </div>
+                  {Number(data.section_f.settlements_usd_amount || 0) > 0 && (
+                    <div className="flex justify-between text-blue-300 text-[11px]">
+                      <span>Topshirilgan valyuta ($):</span>
+                      <span className="font-bold">
+                        ${Number(data.section_f.settlements_usd_amount).toLocaleString()} USD ({formatScreenGrams(data.section_f.settlements_usd_equivalent_grams || 0)})
+                      </span>
+                    </div>
+                  )}
+                  {Number(data.section_f.returned_unsold_original_grams || 0) > 0 && (
+                    <>
+                      <div className="flex justify-between text-slate-300 mt-1">
+                        <span>Qaytarilgan sotilmagan tovar:</span>
+                        <span className="font-bold text-amber-400">
+                          {formatScreenGrams(data.section_f.returned_unsold_original_grams)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-slate-400 text-[11px]">
+                        <span>Qaytgan tovar majburiyat qiymati:</span>
+                        <span>-{formatScreenGrams(data.section_f.returned_unsold_seller_obligation_grams)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -315,20 +362,24 @@ export function SellerReconciliationModal({ sellerId, sellerName, isOpen, onClos
                   G. Joriy Imzolangan Bozor Qarzi (Formula Tahlili)
                 </h3>
                 <span className="text-xs font-mono font-bold text-slate-400">
-                  Formula: Majburiyat (A) - Qaytgan tovar (F) - Topshirilgan to&apos;lov (F)
+                  Formula: Majburiyat (A) - Qaytgan tovar (F) - Topshirilgan to&apos;lovlar (Lom + UZS + USD) (F)
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center font-mono">
                 <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <div className="text-[11px] text-slate-400 font-sans">Sof Sotuvchi Majburiyati:</div>
+                  <div className="text-[11px] text-slate-400 font-sans">Sotuvchi Majburiyati (Menejer Oldida):</div>
                   <div className="text-base font-bold text-amber-400 mt-1">
                     {formatScreenGrams(data.section_g.seller_owes_manager_grams)}
                   </div>
                 </div>
 
                 <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <div className="text-[11px] text-slate-400 font-sans">Boshqaruvchi Haqdorligi:</div>
+                  <div className="text-[11px] text-slate-400 font-sans">
+                    {Number(data.section_g.manager_owes_seller_grams || 0) > 0
+                      ? "Sotuvchi Haqdorligi (Menejerdan Avans):"
+                      : "Menejer Qarzdorligi (Avans):"}
+                  </div>
                   <div className="text-base font-bold text-slate-300 mt-1">
                     {formatScreenGrams(data.section_g.manager_owes_seller_grams)}
                   </div>

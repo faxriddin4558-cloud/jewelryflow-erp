@@ -943,6 +943,8 @@ export interface ClientGoldAccountRow {
   total_scrap_paid_grams?: number;
   total_cash_paid_amount?: number;
   total_cash_equiv_grams?: number;
+  total_usd_paid_amount?: number;
+  total_usd_equiv_grams?: number;
   total_settled_grams?: number;
   total_gold_debt_grams?: number;
   total_gold_settled_grams?: number;
@@ -1078,7 +1080,9 @@ export interface GoldPurchaseRow {
   supplier_name: string;
   cash_spent_uzs: number;
   usd_spent?: number;
-  currency?: "UZS" | "USD";
+  usd_rate?: number;
+  total_cost_uzs?: number;
+  currency?: "UZS" | "USD" | "MIXED";
   rate_per_gram: number;
   gold_weight_grams: number;
   proba: number;

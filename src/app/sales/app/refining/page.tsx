@@ -11,7 +11,7 @@ export default function RefiningPage() {
             <span>⚗️</span> Afinaj & Lom Pateriya
           </h1>
           <p className="text-xs text-slate-400">
-            Sheets &quot;Lom pateriya&quot; pariteti: Yig&apos;ilgan lomni eritish, 995 sof oltin olish va yo&apos;qotish (pateriya) hisobi.
+            Sheets &quot;Lom pateriya&quot; pariteti: Yig&apos;ilgan lomni eritish, toza sof oltin olish va yo&apos;qotish (pateriya) hisobi.
           </p>
         </div>
       </div>

@@ -521,6 +521,10 @@ export function SellerMobileWorkspace() {
     return myPieces.filter(p => p.status === "held_by_seller");
   }, [myPieces]);
 
+  const availablePiecesGrams = useMemo(() => {
+    return availablePieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
+  }, [availablePieces]);
+
   // Selected customer for Barcode Scan Sale
   const selectedScanCustomer = useMemo(() => {
     return customers.find(c => String(c.id) === scanCustomerId) || null;
@@ -847,7 +851,7 @@ export function SellerMobileWorkspace() {
             activeTab === "pieces" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
           }`}
         >
-          📦 Mahsulotlar ({availablePieces.length})
+          📦 Mahsulotlar ({formatScreenGrams(availablePiecesGrams)})
         </button>
         <button
           id="tabStock"
@@ -1131,7 +1135,7 @@ export function SellerMobileWorkspace() {
         <div className="space-y-3">
           <div className="flex justify-between items-center px-1">
             <h2 className="text-base font-bold text-[#F8FAFC]">Vitrinadagi Mahsulotlar Ro&apos;yxati</h2>
-            <span id="piecesCountBadge" className="text-xs text-[#CBD5E1] font-medium">Jami: {availablePieces.length} ta mahsulot</span>
+            <span id="piecesCountBadge" className="text-xs text-[#CBD5E1] font-medium">Jami: {formatScreenGrams(availablePiecesGrams)}</span>
           </div>
 
           {availablePieces.length === 0 ? (

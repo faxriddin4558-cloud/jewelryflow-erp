@@ -434,7 +434,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
               {formatScreenGrams(sellerStockGrams, 2)}
             </div>
             <div className="text-[10px] text-slate-400 font-mono">
-              Mavjud: {sellerAvailablePieces.length} ta mahsulot
+              Faol vitrina tovari (585)
             </div>
           </div>
 

@@ -407,8 +407,20 @@ function SalesDashboardContent() {
             <span className="font-mono text-amber-300">{formatScreenGrams(totalSellerTillScrap + managerScrap)} lom</span>
             <span className="text-slate-500">|</span>
             <span className="font-mono text-emerald-400">{formatScreenUZS(totalSellerTillCash + managerCash)} naqd</span>
+            {managerUSD > 0 && (
+              <>
+                <span className="text-slate-500">|</span>
+                <span className="font-mono text-blue-300">${managerUSD.toLocaleString()} USD</span>
+              </>
+            )}
             <span className="text-slate-500">|</span>
-            <span className="font-mono text-purple-300">{formatScreenGrams(managerRefined)} sof quyma (995)</span>
+            <span className="font-mono text-purple-300">{formatScreenGrams(managerRefined)} sof quyma</span>
+            {managerPurchased > 0 && (
+              <>
+                <span className="text-slate-500">|</span>
+                <span className="font-mono text-yellow-300">{formatScreenGrams(managerPurchased)} xarid oltini</span>
+              </>
+            )}
           </div>
           <div className="text-[11px] text-slate-400 font-mono">
             {dailyRate && Number(dailyRate.rate_per_gram) > 0 ? (

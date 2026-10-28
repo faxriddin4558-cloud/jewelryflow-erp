@@ -134,10 +134,11 @@ export function DirectorSalesWorkspace({
   const [refFineProba, setRefFineProba] = useState("995");
   const [refNotes, setRefNotes] = useState("");
 
-  // Form: Gold Purchase ("Tovar olish")
+  // Form: Gold Purchase ("Tovar olish" - Multi-Currency: UZS + USD)
   const [buySupplier, setBuySupplier] = useState("");
-  const [buyCurrency, setBuyCurrency] = useState<"UZS" | "USD">("UZS");
-  const [buyCash, setBuyCash] = useState("");
+  const [buyCashUZS, setBuyCashUZS] = useState("");
+  const [buyCashUSD, setBuyCashUSD] = useState("");
+  const [buyUsdRate, setBuyUsdRate] = useState("12800");
   const [buyRate, setBuyRate] = useState<string>("");
   const [buyWeight, setBuyWeight] = useState("");
   const [buyProba, setBuyProba] = useState("585");
@@ -151,6 +152,7 @@ export function DirectorSalesWorkspace({
   const [hndNotes, setHndNotes] = useState("");
   const [hndCapitalTxId, setHndCapitalTxId] = useState<string>("");
   const [hndRefiningBatchId, setHndRefiningBatchId] = useState<string>("");
+  const [hndPurchaseId, setHndPurchaseId] = useState<string>("");
   const [capitalPureTxs, setCapitalPureTxs] = useState<{ id: string; transaction_no: string; physical_weight_grams?: number; gold_proba?: number; equiv_585_grams?: number }[]>([]);
 
   // Daily rate form
@@ -648,50 +650,65 @@ export function DirectorSalesWorkspace({
     }
   };
 
-  // 2D. Gold Purchase Action ("Tovar olish")
+  // 2D. Gold Purchase Action ("Tovar olish" - Multi-Currency: UZS + USD)
   const handleCreateGoldPurchase = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(buyCash);
-    const rate = parseFloat(buyRate);
-    const goldW = parseFloat(buyWeight);
+    const spentUZS = parseFloat(buyCashUZS) || 0;
+    const spentUSD = parseFloat(buyCashUSD) || 0;
+    const usdRate = parseFloat(buyUsdRate) || 12800;
+    const goldW = parseFloat(buyWeight) || 0;
     const pr = parseFloat(buyProba) || 585;
+    const customRate = parseFloat(buyRate) || 0;
 
-    if (isNaN(amount) || amount <= 0 || isNaN(goldW) || goldW <= 0) {
-      notifyError("Iltimos, xaridning barcha parametrlarini to'g'ri kiriting!");
+    if (spentUZS <= 0 && spentUSD <= 0) {
+      notifyError("Kamida bitta to'lov valyutasi (UZS yoki USD) kiritilishi shart!");
       return;
     }
 
-    if (buyCurrency === "USD") {
-      if (Number(managerVault?.manager_usd_amount || 0) < amount) {
-        notifyError(`Boshqaruvchi seyfida yetarli USD mavjud emas (Mavjud: $${Number(managerVault?.manager_usd_amount || 0).toLocaleString()}, Talab: $${amount.toLocaleString()})`);
-        return;
-      }
-    } else {
-      if (Number(managerVault?.manager_cash_amount || 0) < amount) {
-        notifyError(`Boshqaruvchi seyfida yetarli naqd pul (UZS) mavjud emas (Mavjud: ${Number(managerVault?.manager_cash_amount || 0).toLocaleString()} UZS, Talab: ${amount.toLocaleString()} UZS)`);
-        return;
-      }
+    if (goldW <= 0) {
+      notifyError("Iltimos, olingan oltin vaznini to'g'ri kiriting!");
+      return;
     }
+
+    if (spentUZS > 0 && Number(managerVault?.manager_cash_amount || 0) < spentUZS) {
+      notifyError(`Boshqaruvchi seyfida yetarli naqd pul (UZS) mavjud emas (Mavjud: ${Number(managerVault?.manager_cash_amount || 0).toLocaleString()} UZS, Talab: ${spentUZS.toLocaleString()} UZS)`);
+      return;
+    }
+
+    if (spentUSD > 0 && Number(managerVault?.manager_usd_amount || 0) < spentUSD) {
+      notifyError(`Boshqaruvchi seyfida yetarli USD mavjud emas (Mavjud: $${Number(managerVault?.manager_usd_amount || 0).toLocaleString()}, Talab: $${spentUSD.toLocaleString()})`);
+      return;
+    }
+
+    const totalCostUZS = spentUZS + (spentUSD * usdRate);
+    const finalRate = customRate > 0 ? customRate : (totalCostUZS / goldW);
+    const currency = spentUZS > 0 && spentUSD > 0 ? "MIXED" : (spentUSD > 0 ? "USD" : "UZS");
 
     setBusy(true);
     try {
       const idempotencyKey = generateIdempotencyKey("buy");
       const { data, error } = await supabase.rpc("rpc_record_gold_purchase", {
         p_supplier_name: buySupplier.trim() || "Bozor",
-        p_cash_spent_uzs: buyCurrency === "UZS" ? amount : 0,
-        p_rate_per_gram: rate > 0 ? rate : (amount / goldW),
+        p_cash_spent_uzs: spentUZS,
+        p_rate_per_gram: finalRate,
         p_gold_weight_grams: goldW,
         p_proba: pr,
         p_notes: buyNotes.trim() || null,
         p_idempotency_key: idempotencyKey,
-        p_currency: buyCurrency,
-        p_usd_spent: buyCurrency === "USD" ? amount : 0,
+        p_currency: currency,
+        p_usd_spent: spentUSD,
+        p_usd_rate: spentUSD > 0 ? usdRate : null,
       });
 
       if (error) throw error;
-      notifySuccess(`Oltin xarid qilindi: ${goldW}g (${data?.equiv_585_grams || ""}g 585 eq) — ${buyCurrency === "USD" ? `$${amount.toLocaleString()} USD` : `${amount.toLocaleString()} UZS`} sarflandi`);
+      const spentSummary = spentUZS > 0 && spentUSD > 0
+        ? `${spentUZS.toLocaleString()} UZS + $${spentUSD.toLocaleString()} USD`
+        : (spentUSD > 0 ? `$${spentUSD.toLocaleString()} USD` : `${spentUZS.toLocaleString()} UZS`);
+
+      notifySuccess(`Oltin xarid qilindi: ${goldW}g (${data?.equiv_585_grams || ""}g 585 eq) — ${spentSummary} sarflandi`);
       setBuySupplier("");
-      setBuyCash("");
+      setBuyCashUZS("");
+      setBuyCashUSD("");
       setBuyRate("");
       setBuyWeight("");
       setBuyNotes("");
@@ -714,10 +731,19 @@ export function DirectorSalesWorkspace({
       return;
     }
 
+    const agreedEq = Number((w * (pr / 585.0)).toFixed(4));
+
+    if (hndSourceType === "purchased_gold") {
+      const availPurch = Number(managerVault?.manager_purchased_gold_grams || 0);
+      if (availPurch < agreedEq) {
+        notifyError(`Boshqaruvchi seyfida yetarli xarid qilingan oltin yo'q (Mavjud: ${availPurch}g, Talab: ${agreedEq}g)`);
+        return;
+      }
+    }
+
     setBusy(true);
     try {
       const idempotencyKey = generateIdempotencyKey("hnd");
-      const agreedEq = Number((w * (pr / 585.0)).toFixed(4));
       const { data, error } = await supabase.rpc("rpc_record_factory_gold_handover", {
         p_source_type: hndSourceType,
         p_physical_weight_g: w,
@@ -728,6 +754,7 @@ export function DirectorSalesWorkspace({
         p_idempotency_key: idempotencyKey,
         p_capital_tx_id: hndSourceType === "capital_pure_gold" && hndCapitalTxId ? hndCapitalTxId : null,
         p_refining_batch_id: hndSourceType === "refined_gold" && hndRefiningBatchId ? hndRefiningBatchId : null,
+        p_purchase_id: hndSourceType === "purchased_gold" && hndPurchaseId ? hndPurchaseId : null,
       });
 
       if (error) throw error;
@@ -739,6 +766,8 @@ export function DirectorSalesWorkspace({
       setHndWeight("");
       setHndNotes("");
       setHndCapitalTxId("");
+      setHndRefiningBatchId("");
+      setHndPurchaseId("");
       await loadData();
     } catch (err: unknown) {
       notifyError(`Zavodga topshirishda xatolik: ${parseErrorMessage(err)}`);
@@ -1073,7 +1102,6 @@ export function DirectorSalesWorkspace({
   // Authoritative physical inventory and today's sales
   const todayStr: string = new Date().toISOString().split("T")[0] || "";
   const availableSellerPieces = pieces.filter(p => p.status === "held_by_seller");
-  const totalSellerPhysicalQty = availableSellerPieces.length;
   const totalSellerPhysicalGrams = availableSellerPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
   const todaySalesList = sales.filter(s => (s.sale_date === todayStr || Boolean(s.created_at?.startsWith(todayStr))) && s.status !== "reversed");
   const todaySalesCount = todaySalesList.length;
@@ -1148,15 +1176,15 @@ export function DirectorSalesWorkspace({
             <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
               <div className="text-slate-200 text-xs font-bold">Sotuvchilardagi Fizik Oltin</div>
               <div className="text-xl font-black font-mono text-cyan-300 mt-1">
-                {totalSellerPhysicalQty} <span className="text-xs font-bold text-slate-100">dona</span>
+                {formatScreenGrams(totalSellerPhysicalGrams)}
               </div>
-              <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">{totalSellerPhysicalGrams.toFixed(4)} g (585)</div>
+              <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">585 proba ekvivalenti</div>
             </div>
 
             <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
               <div className="text-slate-200 text-xs font-bold">Sotuvchilardagi Zavod Qarzi</div>
               <div className="text-xl font-black font-mono text-amber-300 mt-1">
-                {totalFactoryObligation.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
+                {formatScreenGrams(totalFactoryObligation)}
               </div>
               <div className="text-[11px] text-slate-300 mt-1 font-medium">Sotuvchilar qaytarishi shart bo&apos;lgan oltin</div>
             </div>
@@ -1164,7 +1192,7 @@ export function DirectorSalesWorkspace({
             <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
               <div className="text-slate-200 text-xs font-bold">Mijozlarning Jami Qarzi</div>
               <div className="text-xl font-black font-mono text-rose-400 mt-1">
-                {totalClientDebtGrams.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
+                {formatScreenGrams(totalClientDebtGrams)}
               </div>
               <div className="text-[11px] text-slate-300 mt-1 font-medium">Barcha sotuvchilar bo&apos;yicha mijozlar qarzi</div>
             </div>
@@ -1172,7 +1200,7 @@ export function DirectorSalesWorkspace({
             <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
               <div className="text-slate-200 text-xs font-bold">Sotuvchilar Kassasidagi Lom</div>
               <div className="text-xl font-black font-mono text-amber-400 mt-1">
-                {totalSellerTillScrap.toFixed(4)} <span className="text-xs font-bold text-slate-100">g lom</span>
+                {formatScreenGrams(totalSellerTillScrap)}
               </div>
               <div className="text-[11px] text-slate-300 mt-1 font-medium">Mijozdan olingan, zavodga berilmagan</div>
             </div>
@@ -1188,9 +1216,9 @@ export function DirectorSalesWorkspace({
             <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
               <div className="text-slate-200 text-xs font-bold">Bugungi Savdolar</div>
               <div className="text-xl font-black font-mono text-indigo-300 mt-1">
-                {todaySalesCount} <span className="text-xs font-bold text-slate-100">dona</span>
+                {formatScreenGrams(todaySalesGrams)}
               </div>
-              <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">{todaySalesGrams.toFixed(4)} g bazaviy</div>
+              <div className="text-[11px] text-slate-300 mt-1 font-medium font-mono">{todaySalesCount} ta savdo bitimi</div>
             </div>
           </div>
 
@@ -1597,16 +1625,17 @@ export function DirectorSalesWorkspace({
                         const val = e.target.value as "refined_gold" | "purchased_gold" | "scrap_gold" | "capital_pure_gold";
                         setHndSourceType(val);
                         if (val === "capital_pure_gold" || val === "refined_gold") {
-                          setHndProba("995");
+                          const activeRefiningBatch = refiningBatches.find((b) => b.status === "completed");
+                          setHndProba(String(activeRefiningBatch?.output_fine_proba || 997));
                         } else {
                           setHndProba("585");
                         }
                       }}
                       className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-[#0F172A]"
                     >
-                      <option value="refined_gold">Afinaj qilingan toza oltin (995/999.9)</option>
-                      <option value="capital_pure_gold">🏆 Ta&apos;sischi toza oltin kapitali (Quyma 995/999.9)</option>
-                      <option value="purchased_gold">Bozordan naqdga olingan oltin</option>
+                      <option value="refined_gold">Afinaj qilingan toza oltin (Sof quyma)</option>
+                      <option value="capital_pure_gold">🏆 Ta&apos;sischi toza oltin kapitali (Quyma)</option>
+                      <option value="purchased_gold">Bozordan naqdga olingan oltin (585 eq)</option>
                       <option value="scrap_gold">Seyfdagi 585 lom oltin</option>
                     </select>
                     <div className="text-[11px] text-[#475569] mt-1">
@@ -1617,11 +1646,39 @@ export function DirectorSalesWorkspace({
                           : hndSourceType === "refined_gold"
                           ? `${formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)} (585 eq)`
                           : hndSourceType === "purchased_gold"
-                          ? `${formatScreenGrams(managerVault?.manager_purchased_gold_grams || 0)}`
+                          ? `${formatScreenGrams(managerVault?.manager_purchased_gold_grams || 0)} (585 eq)`
                           : `${formatScreenGrams(managerVault?.manager_scrap_grams || 0)}`}
                       </span>
                     </div>
                   </div>
+
+                  {hndSourceType === "purchased_gold" && goldPurchases.filter((p) => p.status !== "reversed").length > 0 && (
+                    <div>
+                      <label className="block text-xs font-bold text-[#475569] mb-1">
+                        Bog&apos;langan Oltin Xaridi (Ixtiyoriy/Tavsiya etiladi):
+                      </label>
+                      <select
+                        value={hndPurchaseId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setHndPurchaseId(val);
+                          const sel = goldPurchases.find((p) => p.id === val);
+                          if (sel) {
+                            setHndWeight(String(sel.gold_weight_grams));
+                            if (sel.proba) setHndProba(String(sel.proba));
+                          }
+                        }}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-[#0F172A]"
+                      >
+                        <option value="">-- Xarid partiyasini tanlang (yoki to&apos;g&apos;ridan-to&apos;g&apos;ri kiriting) --</option>
+                        {goldPurchases.filter((p) => p.status !== "reversed").map((p) => (
+                          <option key={p.id} value={p.id}>
+                            №{p.purchase_no} — {p.supplier_name || "Bozor"} ({p.gold_weight_grams}g, {p.proba}°) = {p.equiv_585_grams}g 585 eq
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   {hndSourceType === "refined_gold" && refiningBatches.filter((b) => b.status === "completed").length > 0 && (
                     <div>
@@ -2111,7 +2168,7 @@ export function DirectorSalesWorkspace({
                 {activeVaultSection === "cash"
                   ? "Boshqaruvchi seyfi va kassasidagi fizik lom oltin, naqd UZS hamda toza quyma qoldiqlari."
                   : activeVaultSection === "refining"
-                  ? "Sheets \"Lom pateriya\" pariteti: Yig'ilgan 585 lomni eritish, toza quyma (995) olish va yo'qotish (pateriya) hisobi."
+                  ? "Sheets \"Lom pateriya\" pariteti: Yig'ilgan 585 lomni eritish, toza quyma olish va yo'qotish (pateriya) hisobi."
                   : activeVaultSection === "purchases"
                   ? "Sheets \"Tovar olish\" pariteti: Naqd pulga bozordan oltin sotib olish va kassa hisob-kitobi."
                   : "Sheets \"Lom pateriya\" va \"Tovar olish\" varaqalari pariteti: G'azna, afinaj va oltin xaridlari yagona markazda."}
@@ -2174,144 +2231,173 @@ export function DirectorSalesWorkspace({
           </div>
 
           {/* Metric Cards (Scoped per section) */}
-          {activeVaultSection === "refining" ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
-                <div className="text-xs font-bold text-amber-200">Seyfdagi Lom Oltin (585)</div>
-                <div className="text-2xl font-black font-mono text-amber-300 mt-1">
-                  {formatScreenGrams(managerVault?.manager_scrap_grams || 0)}
-                </div>
-                <div className="text-[11px] text-amber-200 mt-1">Eritish uchun tayyor lom zaxirasi</div>
-              </div>
+          {(() => {
+            const activeRefiningBatch = refiningBatches.find((b) => b.status === "completed");
+            const activeRefiningProba = activeRefiningBatch?.output_fine_proba || 997;
+            const activePurchases = goldPurchases.filter((p) => p.status !== "reversed");
+            const totalHistPurchased585 = activePurchases.reduce((sum, p) => sum + Number(p.equiv_585_grams || 0), 0);
+            const totalHistPurchasedPhys = activePurchases.reduce((sum, p) => sum + Number(p.gold_weight_grams || 0), 0);
+            const curPurchased585 = Number(managerVault?.manager_purchased_gold_grams || 0);
+            const curPurchasedPhys = totalHistPurchased585 > 0
+              ? Number((totalHistPurchasedPhys * (curPurchased585 / totalHistPurchased585)).toFixed(4))
+              : curPurchased585;
+            const purchProbaDisplay = activePurchases[0]?.proba || 585;
 
-              <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
-                <div className="text-xs font-bold text-cyan-300">Afinaj Qilingan Toza Oltin (Fizik 995)</div>
-                <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
-                  {formatScreenGrams(
-                    managerVault?.manager_refined_gold_fine_grams ??
-                    (managerVault?.manager_refined_gold_grams ? Number(managerVault.manager_refined_gold_grams) * 585 / 995 : 0)
-                  )} <span className="text-xs font-normal text-cyan-400">995</span>
+            return activeVaultSection === "refining" ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
+                  <div className="text-xs font-bold text-amber-200">Seyfdagi Lom Oltin (585)</div>
+                  <div className="text-2xl font-black font-mono text-amber-300 mt-1">
+                    {formatScreenGrams(managerVault?.manager_scrap_grams || 0)}
+                  </div>
+                  <div className="text-[11px] text-amber-200 mt-1">Eritish uchun tayyor lom zaxirasi</div>
                 </div>
-                <div className="text-[11px] text-cyan-300 mt-1">
-                  {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)} (585 ekvivalent) • Sof quyma
-                </div>
-              </div>
 
-              <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm">
-                <div className="text-xs font-bold text-rose-300">Jami Afinaj Yo&apos;qotishi (Pateriya)</div>
-                <div className="text-2xl font-black font-mono text-rose-300 mt-1">
-                  {formatScreenGrams(refiningBatches.filter((b) => b.status === "completed").reduce((sum, b) => sum + Number(b.total_loss_grams || 0), 0))} <span className="text-xs font-normal">585</span>
-                </div>
-                <div className="text-[11px] text-rose-200 mt-1">Boshqaruvchi hisobiga yozilgan zarar</div>
-              </div>
-            </div>
-          ) : activeVaultSection === "purchases" ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
-                <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd Pul (UZS)</div>
-                <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
-                  {formatScreenUZS(managerVault?.manager_cash_amount || 0)}
-                </div>
-                <div className="text-[11px] text-emerald-200 mt-1">Oltin xarid qilish uchun mavjud so&apos;m</div>
-              </div>
-
-              <div className="bg-blue-950 text-white p-4 rounded-3xl border border-blue-800 shadow-sm">
-                <div className="text-xs font-bold text-blue-300">Kassadagi Valyuta ($ USD)</div>
-                <div className="text-2xl font-black font-mono text-blue-400 mt-1">
-                  ${Number(managerVault?.manager_usd_amount || 0).toLocaleString()} USD
-                </div>
-                <div className="text-[11px] text-blue-200 mt-1">Oltin xarid qilish uchun mavjud dollar</div>
-              </div>
-
-              <div className="bg-indigo-950 text-white p-4 rounded-3xl border border-indigo-800 shadow-sm">
-                <div className="text-xs font-bold text-indigo-300">Bozordan Xarid Qilingan Oltin</div>
-                <div className="text-2xl font-black font-mono text-indigo-300 mt-1">
-                  {formatScreenGrams(managerVault?.manager_purchased_gold_grams || 0)}
-                </div>
-                <div className="text-[11px] text-indigo-200 mt-1">{goldPurchases.length} ta xarid amaliyoti o&apos;tkazilgan</div>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="text-[11px] font-bold text-amber-200 uppercase tracking-wide">Seyfdagi Lom (585)</div>
-                  <div className="text-xl md:text-2xl font-black font-mono text-amber-300 mt-1">
-                    {formatScreenGrams(managerVault?.manager_scrap_585_eq_g ?? managerVault?.manager_scrap_grams ?? 0)}
+                <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
+                  <div className="text-xs font-bold text-cyan-300">
+                    Afinaj Qilingan Toza Oltin ({activeRefiningBatch ? `Fizik ${activeRefiningProba}°` : "Sof Quyma"})
+                  </div>
+                  <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
+                    {formatScreenGrams(
+                      managerVault?.manager_refined_gold_fine_grams ??
+                      (managerVault?.manager_refined_gold_grams ? Number(managerVault.manager_refined_gold_grams) * 585 / activeRefiningProba : 0)
+                    )} <span className="text-xs font-normal text-cyan-400">{activeRefiningProba}°</span>
+                  </div>
+                  <div className="text-[11px] text-cyan-300 mt-1">
+                    {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)} (585 ekvivalent) • Sof quyma
                   </div>
                 </div>
-                <div className="text-[10px] text-amber-200 mt-2">
-                  {managerVault?.manager_scrap_physical_g && Number(managerVault.manager_scrap_physical_g) > 0
-                    ? `${formatScreenGrams(managerVault.manager_scrap_physical_g)} fizik lom`
-                    : "Sotuvchilardan olingan lom"}
-                </div>
-              </div>
 
-              <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="text-[11px] font-bold text-cyan-300 uppercase tracking-wide">Afinaj Toza (585 eq)</div>
-                  <div className="text-xl md:text-2xl font-black font-mono text-cyan-300 mt-1">
-                    {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)}
+                <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm">
+                  <div className="text-xs font-bold text-rose-300">Jami Afinaj Yo&apos;qotishi (Pateriya)</div>
+                  <div className="text-2xl font-black font-mono text-rose-300 mt-1">
+                    {formatScreenGrams(refiningBatches.filter((b) => b.status === "completed").reduce((sum, b) => sum + Number(b.total_loss_grams || 0), 0))} <span className="text-xs font-normal">585</span>
                   </div>
-                </div>
-                <div className="text-[10px] text-cyan-200 mt-2">
-                  {managerVault?.manager_refined_gold_fine_grams && Number(managerVault.manager_refined_gold_fine_grams) > 0
-                    ? `${formatScreenGrams(managerVault.manager_refined_gold_fine_grams)} toza 995`
-                    : "Afinajdan chiqqan toza oltin"}
+                  <div className="text-[11px] text-rose-200 mt-1">Boshqaruvchi hisobiga yozilgan zarar</div>
                 </div>
               </div>
-
-              <div className="bg-purple-950 text-white p-4 rounded-3xl border border-purple-800 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="text-[11px] font-bold text-purple-300 uppercase tracking-wide">Kapital Quyma (585 eq)</div>
-                  <div className="text-xl md:text-2xl font-black font-mono text-purple-300 mt-1">
-                    {formatScreenGrams(managerVault?.manager_capital_pure_gold_g || 0)}
-                  </div>
-                </div>
-                <div className="text-[10px] text-purple-200 mt-2">
-                  {managerVault?.manager_capital_pure_gold_fine_g && Number(managerVault.manager_capital_pure_gold_fine_g) > 0
-                    ? `${formatScreenGrams(managerVault.manager_capital_pure_gold_fine_g)} toza quyma`
-                    : "Ta'sischi kiritgan toza quyma"}
-                </div>
-              </div>
-
-              <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="text-[11px] font-bold text-emerald-300 uppercase tracking-wide">Kassadagi Naqd (UZS)</div>
-                  <div className="text-xl md:text-2xl font-black font-mono text-emerald-400 mt-1">
+            ) : activeVaultSection === "purchases" ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
+                  <div className="text-xs font-bold text-emerald-300">Kassadagi Naqd Pul (UZS)</div>
+                  <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
                     {formatScreenUZS(managerVault?.manager_cash_amount || 0)}
                   </div>
+                  <div className="text-[11px] text-emerald-200 mt-1">Oltin xarid qilish uchun mavjud so&apos;m</div>
                 </div>
-                <div className="text-[10px] text-emerald-200 mt-2">Boshqaruvchi seyfidagi UZS</div>
-              </div>
 
-              <div className="bg-blue-950 text-white p-4 rounded-3xl border border-blue-800 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="text-[11px] font-bold text-blue-300 uppercase tracking-wide">Valyuta (USD)</div>
-                  <div className="text-xl md:text-2xl font-black font-mono text-blue-400 mt-1">
+                <div className="bg-blue-950 text-white p-4 rounded-3xl border border-blue-800 shadow-sm">
+                  <div className="text-xs font-bold text-blue-300">Kassadagi Valyuta ($ USD)</div>
+                  <div className="text-2xl font-black font-mono text-blue-400 mt-1">
                     ${Number(managerVault?.manager_usd_amount || 0).toLocaleString()} USD
                   </div>
+                  <div className="text-[11px] text-blue-200 mt-1">Oltin xarid qilish uchun mavjud dollar</div>
                 </div>
-                <div className="text-[10px] text-blue-200 mt-2">Boshqaruvchi seyfidagi USD</div>
-              </div>
 
-              <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="text-[11px] font-bold text-rose-300 uppercase tracking-wide">Afinaj Pateriya (585)</div>
-                  <div className="text-xl md:text-2xl font-black font-mono text-rose-300 mt-1">
-                    {formatScreenGrams(
-                      refiningBatches
-                        .filter((b) => b.status === "completed")
-                        .reduce((sum, b) => sum + (Number(b.total_loss_grams) || 0), 0)
-                    )}
+                <div className="bg-indigo-950 text-white p-4 rounded-3xl border border-indigo-800 shadow-sm">
+                  <div className="text-xs font-bold text-indigo-300">Xarid Qilingan Oltin — Joriy Qoldiq</div>
+                  <div className="text-2xl font-black font-mono text-indigo-300 mt-1">
+                    {formatScreenGrams(curPurchased585)} <span className="text-xs font-normal text-indigo-200">(585 eq)</span>
+                  </div>
+                  <div className="text-[11px] text-indigo-200 mt-1">
+                    {formatScreenGrams(curPurchasedPhys)} fizik ({purchProbaDisplay}°) • Jami xarid: {formatScreenGrams(totalHistPurchased585)}
                   </div>
                 </div>
-                <div className="text-[10px] text-rose-200 mt-2">
-                  {refiningBatches.filter((b) => b.status === "completed").length} ta afinaj partiyasi
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                <div className="bg-amber-900 text-white p-4 rounded-3xl border border-amber-800 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold text-amber-200 uppercase tracking-wide">Seyfdagi Lom (585)</div>
+                    <div className="text-xl md:text-2xl font-black font-mono text-amber-300 mt-1">
+                      {formatScreenGrams(managerVault?.manager_scrap_585_eq_g ?? managerVault?.manager_scrap_grams ?? 0)}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-amber-200 mt-2">
+                    {managerVault?.manager_scrap_physical_g && Number(managerVault.manager_scrap_physical_g) > 0
+                      ? `${formatScreenGrams(managerVault.manager_scrap_physical_g)} fizik lom`
+                      : "Sotuvchilardan olingan lom"}
+                  </div>
+                </div>
+
+                <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold text-cyan-300 uppercase tracking-wide">Afinaj Toza (585 eq)</div>
+                    <div className="text-xl md:text-2xl font-black font-mono text-cyan-300 mt-1">
+                      {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-cyan-200 mt-2">
+                    {managerVault?.manager_refined_gold_fine_grams && Number(managerVault.manager_refined_gold_fine_grams) > 0
+                      ? `${formatScreenGrams(managerVault.manager_refined_gold_fine_grams)} toza ${activeRefiningProba}°`
+                      : "Afinajdan chiqqan toza oltin"}
+                  </div>
+                </div>
+
+                <div className="bg-indigo-950 text-white p-4 rounded-3xl border border-indigo-800 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold text-indigo-300 uppercase tracking-wide">Xarid Oltini (585 eq)</div>
+                    <div className="text-xl md:text-2xl font-black font-mono text-indigo-300 mt-1">
+                      {formatScreenGrams(curPurchased585)}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-indigo-200 mt-2">
+                    Joriy qoldiq ({formatScreenGrams(curPurchasedPhys)} fizik)
+                  </div>
+                </div>
+
+                <div className="bg-purple-950 text-white p-4 rounded-3xl border border-purple-800 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold text-purple-300 uppercase tracking-wide">Kapital Quyma (585 eq)</div>
+                    <div className="text-xl md:text-2xl font-black font-mono text-purple-300 mt-1">
+                      {formatScreenGrams(managerVault?.manager_capital_pure_gold_g || 0)}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-purple-200 mt-2">
+                    {managerVault?.manager_capital_pure_gold_fine_g && Number(managerVault.manager_capital_pure_gold_fine_g) > 0
+                      ? `${formatScreenGrams(managerVault.manager_capital_pure_gold_fine_g)} toza quyma`
+                      : "Ta'sischi kiritgan toza quyma"}
+                  </div>
+                </div>
+
+                <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold text-emerald-300 uppercase tracking-wide">Kassadagi Naqd (UZS)</div>
+                    <div className="text-xl md:text-2xl font-black font-mono text-emerald-400 mt-1">
+                      {formatScreenUZS(managerVault?.manager_cash_amount || 0)}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-emerald-200 mt-2">Boshqaruvchi seyfidagi UZS</div>
+                </div>
+
+                <div className="bg-blue-950 text-white p-4 rounded-3xl border border-blue-800 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold text-blue-300 uppercase tracking-wide">Valyuta (USD)</div>
+                    <div className="text-xl md:text-2xl font-black font-mono text-blue-400 mt-1">
+                      ${Number(managerVault?.manager_usd_amount || 0).toLocaleString()} USD
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-blue-200 mt-2">Boshqaruvchi seyfidagi USD</div>
+                </div>
+
+                <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold text-rose-300 uppercase tracking-wide">Afinaj Pateriya (585)</div>
+                    <div className="text-xl md:text-2xl font-black font-mono text-rose-300 mt-1">
+                      {formatScreenGrams(
+                        refiningBatches
+                          .filter((b) => b.status === "completed")
+                          .reduce((sum, b) => sum + (Number(b.total_loss_grams) || 0), 0)
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-rose-200 mt-2">
+                    {refiningBatches.filter((b) => b.status === "completed").length} ta afinaj partiyasi
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Dedicated Kassa & Seyf quick action links when on cash view */}
           {activeVaultSection === "cash" && (
@@ -2325,7 +2411,7 @@ export function DirectorSalesWorkspace({
                     ⚗️ Afinaj & Lom Pateriya Bo&apos;limiga O&apos;tish
                   </div>
                   <div className="text-xs text-slate-400 mt-0.5">
-                    Yig&apos;ilgan lomni eritish va toza quyma (995) olish amaliyoti
+                    Yig&apos;ilgan lomni eritish va toza quyma olish amaliyoti
                   </div>
                 </div>
                 <span className="text-cyan-400 font-bold text-lg group-hover:translate-x-1 transition">→</span>
@@ -2516,45 +2602,15 @@ export function DirectorSalesWorkspace({
                   </div>
 
                   <div className="space-y-3 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    {/* Vault Balances */}
+                    <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                       <div>
-                        <span className="text-xs font-bold text-[#475569] block">To&apos;lov Manbasi / Valyuta:</span>
-                        <span className="text-[11px] font-mono text-slate-500">
-                          Mavjud kassa:{" "}
-                          {buyCurrency === "USD" ? (
-                            <strong className="text-blue-600 font-bold">${Number(managerVault?.manager_usd_amount || 0).toLocaleString()} USD</strong>
-                          ) : (
-                            <strong className="text-emerald-600 font-bold">{formatScreenUZS(managerVault?.manager_cash_amount || 0)}</strong>
-                          )}
-                        </span>
+                        <span className="text-[11px] font-bold text-[#475569] block">Mavjud UZS Kassasi:</span>
+                        <strong className="text-emerald-600 font-mono text-xs font-black">{formatScreenUZS(managerVault?.manager_cash_amount || 0)}</strong>
                       </div>
-                      <div className="inline-flex rounded-xl p-1 bg-slate-200 border border-slate-300 text-xs font-bold">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setBuyCurrency("UZS");
-                            setBuyCash("");
-                            setBuyRate("");
-                          }}
-                          className={`px-3 py-1 rounded-lg transition ${
-                            buyCurrency === "UZS" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-700 hover:text-black"
-                          }`}
-                        >
-                          🇺🇿 UZS (Naqd So&apos;m)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setBuyCurrency("USD");
-                            setBuyCash("");
-                            setBuyRate("");
-                          }}
-                          className={`px-3 py-1 rounded-lg transition ${
-                            buyCurrency === "USD" ? "bg-blue-600 text-white shadow-sm" : "text-slate-700 hover:text-black"
-                          }`}
-                        >
-                          💵 USD (Dollar)
-                        </button>
+                      <div>
+                        <span className="text-[11px] font-bold text-[#475569] block">Mavjud USD Kassasi:</span>
+                        <strong className="text-blue-600 font-mono text-xs font-black">${Number(managerVault?.manager_usd_amount || 0).toLocaleString()} USD</strong>
                       </div>
                     </div>
 
@@ -2570,49 +2626,47 @@ export function DirectorSalesWorkspace({
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* Currency Inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
-                        <label className="block text-xs font-bold text-[#475569] mb-1">
-                          {buyCurrency === "USD" ? "Sarflangan Valyuta ($ USD):" : "Sarflangan Naqd (UZS):"}
-                        </label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Sarflangan UZS (So&apos;m):</label>
                         <input
                           type="number"
-                          step={buyCurrency === "USD" ? "1" : "1000"}
-                          min={buyCurrency === "USD" ? "1" : "1000"}
-                          value={buyCash}
-                          onChange={(e) => {
-                            setBuyCash(e.target.value);
-                            const c = parseFloat(e.target.value);
-                            const r = parseFloat(buyRate);
-                            if (c > 0 && r > 0 && !buyWeight) {
-                              setBuyWeight((c / r).toFixed(4));
-                            }
-                          }}
-                          placeholder={buyCurrency === "USD" ? "1500" : "18000000"}
-                          className={`w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold ${
-                            buyCurrency === "USD" ? "text-blue-700" : "text-emerald-700"
-                          }`}
-                          required
+                          step="1000"
+                          min="0"
+                          value={buyCashUZS}
+                          onChange={(e) => setBuyCashUZS(e.target.value)}
+                          placeholder="0 UZS"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-emerald-700"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-[#475569] mb-1">
-                          {buyCurrency === "USD" ? "1 g Kursi ($ USD/g):" : "1 g Kursi (UZS):"}
-                        </label>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Sarflangan USD ($ Dollar):</label>
                         <input
                           type="number"
-                          step={buyCurrency === "USD" ? "0.01" : "1000"}
-                          min={buyCurrency === "USD" ? "0.01" : "1000"}
-                          value={buyRate}
-                          onChange={(e) => setBuyRate(e.target.value)}
-                          placeholder={buyCurrency === "USD" ? "75.00" : "950000"}
+                          step="1"
+                          min="0"
+                          value={buyCashUSD}
+                          onChange={(e) => setBuyCashUSD(e.target.value)}
+                          placeholder="$0 USD"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-blue-700"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">Operatsiya USD Kursi:</label>
+                        <input
+                          type="number"
+                          step="10"
+                          min="1"
+                          value={buyUsdRate}
+                          onChange={(e) => setBuyUsdRate(e.target.value)}
+                          placeholder="12800"
                           className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
-                          required
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
                         <label className="block text-xs font-bold text-[#475569] mb-1">Olingan Oltin Vazni (g):</label>
                         <input
@@ -2639,27 +2693,64 @@ export function DirectorSalesWorkspace({
                           required
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs font-bold text-[#475569] mb-1">1 g Kursi (ixtiyoriy):</label>
+                        <input
+                          type="number"
+                          step="100"
+                          min="0"
+                          value={buyRate}
+                          onChange={(e) => setBuyRate(e.target.value)}
+                          placeholder="Avtomatik"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm font-bold text-[#0F172A]"
+                        />
+                      </div>
                     </div>
 
                     {/* Live Preview */}
-                    <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono text-[#0F172A]">
-                      <div className="flex justify-between text-[#475569]">
-                        <span>Sarflangan mablag&apos;:</span>
-                        <span className="font-bold text-[#0F172A]">
-                          {buyCurrency === "USD"
-                            ? `$${(parseFloat(buyCash) || 0).toLocaleString()} USD`
-                            : formatScreenUZS(parseFloat(buyCash) || 0)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-[#475569]">
-                        <span>Olingan oltin vazni:</span>
-                        <span className="font-bold text-[#0F172A]">{formatScreenGrams(parseFloat(buyWeight) || 0)} ({parseFloat(buyProba) || 585} proba)</span>
-                      </div>
-                      <div className="flex justify-between text-[#0F172A] font-black border-t border-emerald-300 pt-1 text-sm">
-                        <span>585 Ekvivalenti:</span>
-                        <span className="text-[#047857]">{formatScreenGrams(((parseFloat(buyWeight) || 0) * (parseFloat(buyProba) || 585)) / 585.0)}</span>
-                      </div>
-                    </div>
+                    {(() => {
+                      const spentUZS = parseFloat(buyCashUZS) || 0;
+                      const spentUSD = parseFloat(buyCashUSD) || 0;
+                      const usdRate = parseFloat(buyUsdRate) || 12800;
+                      const goldW = parseFloat(buyWeight) || 0;
+                      const pr = parseFloat(buyProba) || 585;
+                      const totalCostUZS = spentUZS + (spentUSD * usdRate);
+                      const equiv585 = goldW > 0 ? (goldW * pr) / 585.0 : 0;
+                      const unitCostUZS = goldW > 0 ? totalCostUZS / goldW : 0;
+
+                      return (
+                        <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 font-mono text-[#0F172A]">
+                          <div className="flex justify-between text-[#475569]">
+                            <span>Sarflangan naqd UZS:</span>
+                            <span className="font-bold text-emerald-700">{formatScreenUZS(spentUZS)}</span>
+                          </div>
+                          {spentUSD > 0 && (
+                            <div className="flex justify-between text-[#475569]">
+                              <span>Sarflangan valyuta USD:</span>
+                              <span className="font-bold text-blue-700">${spentUSD.toLocaleString()} USD (kurs: {usdRate.toLocaleString()})</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-[#475569] border-t border-emerald-200 pt-1">
+                            <span>Jami xarid qiymati (UZS):</span>
+                            <span className="font-bold text-[#0F172A]">{formatScreenUZS(totalCostUZS)}</span>
+                          </div>
+                          <div className="flex justify-between text-[#475569]">
+                            <span>Olingan oltin vazni:</span>
+                            <span className="font-bold text-[#0F172A]">{formatScreenGrams(goldW)} ({pr} proba)</span>
+                          </div>
+                          {goldW > 0 && totalCostUZS > 0 && (
+                            <div className="flex justify-between text-[#475569]">
+                              <span>1 gramm o&apos;rtacha tannarxi:</span>
+                              <span className="font-bold text-[#0F172A]">{formatScreenUZS(unitCostUZS)}/g</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-[#0F172A] font-black border-t border-emerald-300 pt-1 text-sm">
+                            <span>585 Ekvivalenti:</span>
+                            <span className="text-[#047857]">{formatScreenGrams(equiv585)}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     <div>
                       <label className="block text-xs font-bold text-[#475569] mb-1">Izoh:</label>
@@ -2782,14 +2873,28 @@ export function DirectorSalesWorkspace({
                           <td className="p-2.5 text-[#475569]">{p.purchase_date}</td>
                           <td className="p-2.5 font-sans font-medium text-[#0F172A]">{p.supplier_name}</td>
                           <td className="p-2.5 text-right font-bold text-[#047857]">
-                            {p.currency === "USD" || Number(p.usd_spent || 0) > 0
-                              ? `$${Number(p.usd_spent).toLocaleString()} USD`
-                              : formatScreenUZS(p.cash_spent_uzs)}
+                            {p.currency === "MIXED" || (Number(p.cash_spent_uzs || 0) > 0 && Number(p.usd_spent || 0) > 0) ? (
+                              <div>
+                                <span>{formatScreenUZS(p.cash_spent_uzs)}</span>
+                                <span className="block text-[11px] text-blue-600 font-mono">+${Number(p.usd_spent).toLocaleString()} USD</span>
+                              </div>
+                            ) : p.currency === "USD" || Number(p.usd_spent || 0) > 0 ? (
+                              <span className="text-blue-700 font-mono">${Number(p.usd_spent).toLocaleString()} USD</span>
+                            ) : (
+                              formatScreenUZS(p.cash_spent_uzs)
+                            )}
                           </td>
                           <td className="p-2.5 text-right text-[#475569]">
-                            {p.currency === "USD" || Number(p.usd_spent || 0) > 0
-                              ? `$${Number(p.rate_per_gram).toLocaleString()}/g`
-                              : `${Number(p.rate_per_gram).toLocaleString()} UZS`}
+                            {p.currency === "MIXED" || (Number(p.cash_spent_uzs || 0) > 0 && Number(p.usd_spent || 0) > 0) ? (
+                              <div>
+                                <span>{Number(p.rate_per_gram).toLocaleString()} UZS</span>
+                                {p.usd_rate ? <span className="block text-[10px] text-slate-500">($ {Number(p.usd_rate).toLocaleString()})</span> : null}
+                              </div>
+                            ) : p.currency === "USD" || Number(p.usd_spent || 0) > 0 ? (
+                              `$${Number(p.rate_per_gram).toLocaleString()}/g`
+                            ) : (
+                              `${Number(p.rate_per_gram).toLocaleString()} UZS`
+                            )}
                           </td>
                           <td className="p-2.5 text-right font-bold text-[#0F172A]">{formatScreenGrams(p.gold_weight_grams)}</td>
                           <td className="p-2.5 text-right text-[#475569]">{p.proba}</td>
@@ -3251,6 +3356,7 @@ export function DirectorSalesWorkspace({
                   <th className="py-2.5 px-3 font-semibold">Telefon</th>
                   <th className="py-2.5 px-3 font-semibold">Jami Yopilgan (Lom)</th>
                   <th className="py-2.5 px-3 font-semibold">Jami Yopilgan (Naqd)</th>
+                  <th className="py-2.5 px-3 font-semibold">Jami Yopilgan (USD)</th>
                   <th className="py-2.5 px-3 font-semibold">Hozirgi Qarz</th>
                   <th className="py-2.5 px-3 font-semibold">Avans (Ortiqcha)</th>
                 </tr>
@@ -3259,6 +3365,8 @@ export function DirectorSalesWorkspace({
                 {clientAccounts.map((c) => {
                   const cust = c.customer || customers.find(cu => String(cu.id) === String(c.customer_id));
                   const adv = Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0);
+                  const usdPaid = Number(c.total_usd_paid_amount || 0);
+                  const usdEquiv = Number(c.total_usd_equiv_grams || 0);
                   return (
                     <tr key={c.customer_id} className="hover:bg-slate-50/80 transition">
                       <td className="py-2.5 px-3 font-mono font-bold text-blue-700">
@@ -3269,6 +3377,20 @@ export function DirectorSalesWorkspace({
                       <td className="py-2.5 px-3 font-mono">{formatScreenGrams(c.total_scrap_paid_grams, 2)}</td>
                       <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">
                         {formatScreenUZS(c.total_cash_paid_amount)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-blue-700">
+                        {usdPaid > 0 ? (
+                          <>
+                            ${usdPaid.toLocaleString()} USD
+                            {usdEquiv > 0 && (
+                              <span className="block text-[10px] text-blue-500 font-normal">
+                                ({formatScreenGrams(usdEquiv, 2)})
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="py-2.5 px-3 font-mono font-black text-rose-600 text-sm">
                         {formatScreenGrams(c.current_debt_grams || c.current_gold_debt_grams, 2)}
@@ -3283,7 +3405,7 @@ export function DirectorSalesWorkspace({
                 })}
                 {clientAccounts.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-[#475569]">
+                    <td colSpan={8} className="py-6 text-center text-[#475569]">
                       Hozircha mijozlar hisob raqamlari mavjud emas.
                     </td>
                   </tr>
