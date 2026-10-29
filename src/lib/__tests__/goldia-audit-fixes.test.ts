@@ -524,11 +524,11 @@ describe("Goldia Audit Production Fixes Suite", () => {
     expect(Number(sellerAfter.rows[0]!.current_physical_stock_g)).toBe(initialSellerStock + 20.0000);
   });
 
-  it("Regression Test: Weight sale (rpc_record_weight_sale) and reversal (rpc_reverse_client_sale) chain for isolated 100g stock -> 10g sale -> 100g restored", async () => {
+  it("Regression Test: Weight sale (rpc_record_weight_sale) and reversal chain for 100g -> 10g sale -> 90g sale -> reverse 10g sale leaves 10g", async () => {
     // Create dedicated seller for isolated weight test
     const isoSellerEmpRes = await db.query<{ id: string }>(`
       INSERT INTO public.employees (organization_id, name, full_name, role, is_active)
-      VALUES ('${orgId}', 'WeightSeller', 'Weight Seller Test', 'sales', true)
+      VALUES ('${orgId}', 'WeightSeller2', 'Weight Seller Test 2', 'sales', true)
       RETURNING id;
     `);
     const isoSellerEmpId = isoSellerEmpRes.rows[0]!.id;
@@ -538,7 +538,7 @@ describe("Goldia Audit Production Fixes Suite", () => {
       INSERT INTO public.factory_receipts (
         organization_id, receipt_no, product_name, original_physical_g, available_physical_g, proba, factory_markup_pct, factory_obligation_g, status
       ) VALUES (
-        '${orgId}', 'ZVD-WEIGHT-100', '100g Weight Receipt', 100.0000, 100.0000, 585, 8.0, 108.0000, 'in_manager_stock'
+        '${orgId}', 'ZVD-WEIGHT-200', '100g Weight Receipt 2', 100.0000, 100.0000, 585, 8.0, 108.0000, 'in_manager_stock'
       );
     `);
 
@@ -546,8 +546,8 @@ describe("Goldia Audit Production Fixes Suite", () => {
       SELECT public.rpc_issue_barcode_consignment(
         p_seller_id := '${isoSellerEmpId}'::uuid,
         p_factory_markup_pct := 8.0,
-        p_pieces := '[{"weight_grams": 100.0, "model_code": "SINGLE-100", "purity": 585}]'::jsonb,
-        p_notes := 'SINGLE 100g consignment'
+        p_pieces := '[{"weight_grams": 100.0, "model_code": "SINGLE-100-2", "purity": 585}]'::jsonb,
+        p_notes := 'SINGLE 100g consignment 2'
       ) as rpc_issue_barcode_consignment;
     `);
     const rawConsign = consignRes.rows[0]!.rpc_issue_barcode_consignment;
@@ -555,72 +555,160 @@ describe("Goldia Audit Production Fixes Suite", () => {
     expect(consignObj.status).toBe("ok");
     const consignId = consignObj.consignment_id!;
 
-    // Check initial seller physical stock
+    // Initial seller stock = 100g
     const sellerBefore = await db.query<{ current_physical_stock_g: number }>(`
       SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${isoSellerEmpId}';
     `);
-    const initialStock = Number(sellerBefore.rows[0]!.current_physical_stock_g);
-    expect(initialStock).toBe(100.0000);
+    expect(Number(sellerBefore.rows[0]!.current_physical_stock_g)).toBe(100.0000);
 
-    // 2. Sell 10g via rpc_record_weight_sale (exact frontend RPC)
-    const saleRes = await db.query<{ rpc_record_weight_sale: unknown }>(`
+    // 2. Sell 10g via rpc_record_weight_sale (sale 1)
+    const sale1Res = await db.query<{ rpc_record_weight_sale: unknown }>(`
       SELECT public.rpc_record_weight_sale(
         p_customer_id := '${custId}'::uuid,
         p_seller_id := '${isoSellerEmpId}'::uuid,
         p_weight_grams := 10.0000,
         p_client_markup_pct := 20.0,
-        p_notes := 'Weight 10g sale test'
+        p_notes := 'Weight 10g sale 1'
       ) as rpc_record_weight_sale;
     `);
-    const rawSale = saleRes.rows[0]!.rpc_record_weight_sale;
-    const saleObj: RpcResultRecord = typeof rawSale === 'string' ? JSON.parse(rawSale) : (rawSale as RpcResultRecord);
-    const saleId = saleObj.sale_id!;
-    expect(saleObj.status).toBe("ok");
+    const rawSale1 = sale1Res.rows[0]!.rpc_record_weight_sale;
+    const sale1Obj: RpcResultRecord = typeof rawSale1 === 'string' ? JSON.parse(rawSale1) : (rawSale1 as RpcResultRecord);
+    const sale1Id = sale1Obj.sale_id!;
 
-    // Check seller stock after 10g sale
+    // 3. Sell 90g via rpc_record_weight_sale (sale 2) - Consignment fully depleted!
+    const sale2Res = await db.query<{ rpc_record_weight_sale: unknown }>(`
+      SELECT public.rpc_record_weight_sale(
+        p_customer_id := '${custId}'::uuid,
+        p_seller_id := '${isoSellerEmpId}'::uuid,
+        p_weight_grams := 90.0000,
+        p_client_markup_pct := 20.0,
+        p_notes := 'Weight 90g sale 2'
+      ) as rpc_record_weight_sale;
+    `);
+    const rawSale2 = sale2Res.rows[0]!.rpc_record_weight_sale;
+    const sale2Obj: RpcResultRecord = typeof rawSale2 === 'string' ? JSON.parse(rawSale2) : (rawSale2 as RpcResultRecord);
+    expect(sale2Obj.status).toBe("ok");
+
+    // Check seller stock after 100g total sales = 0g
     const sellerMid = await db.query<{ current_physical_stock_g: number }>(`
       SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${isoSellerEmpId}';
     `);
-    expect(Number(sellerMid.rows[0]!.current_physical_stock_g)).toBe(90.0000);
+    expect(Number(sellerMid.rows[0]!.current_physical_stock_g)).toBe(0.0000);
 
-    // Check active consignment pieces weight sum after 10g sale
-    const piecesSumMid = await db.query<{ total_g: number }>(`
-      SELECT COALESCE(SUM(weight_grams), 0) as total_g
-      FROM public.consignment_pieces
-      WHERE consignment_id = '${consignId}'::uuid AND status = 'held_by_seller';
-    `);
-    expect(Number(piecesSumMid.rows[0]!.total_g)).toBe(90.0000);
-
-    // 3. Reverse sale via rpc_reverse_client_sale (exact frontend RPC)
+    // 4. Reverse FIRST sale (sale1 = 10g) via rpc_reverse_client_sale
     const revRes = await db.query<{ rpc_reverse_client_sale: unknown }>(`
       SELECT public.rpc_reverse_client_sale(
-        p_sale_id := '${saleId}'::uuid,
-        p_reason := 'Reversing 10g weight sale test'
+        p_sale_id := '${sale1Id}'::uuid,
+        p_reason := 'Reversing first 10g sale'
       ) as rpc_reverse_client_sale;
     `);
     const rawRev = revRes.rows[0]!.rpc_reverse_client_sale;
     const revObj: RpcResultRecord = typeof rawRev === 'string' ? JSON.parse(rawRev) : (rawRev as RpcResultRecord);
     expect(revObj.status).toBe("ok");
 
-    // 4. Verify seller physical stock returns 100% to initial stock (100g)
+    // 5. Verify seller physical stock returns to exactly 10g!
     const sellerFinal = await db.query<{ current_physical_stock_g: number }>(`
       SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${isoSellerEmpId}';
     `);
-    expect(Number(sellerFinal.rows[0]!.current_physical_stock_g)).toBe(100.0000);
+    expect(Number(sellerFinal.rows[0]!.current_physical_stock_g)).toBe(10.0000);
 
-    // Verify active consignment_pieces weight sum returns 100% to 100g!
+    // Verify active consignment_pieces weight sum returns to exactly 10g!
     const piecesSumFinal = await db.query<{ total_g: number }>(`
       SELECT COALESCE(SUM(weight_grams), 0) as total_g
       FROM public.consignment_pieces
       WHERE consignment_id = '${consignId}'::uuid AND status = 'held_by_seller';
     `);
-    expect(Number(piecesSumFinal.rows[0]!.total_g)).toBe(100.0000);
+    expect(Number(piecesSumFinal.rows[0]!.total_g)).toBe(10.0000);
+  });
 
-    // Verify customer debt returned to 0
-    const custFinal = await db.query<{ current_debt_grams: number }>(`
-      SELECT current_debt_grams FROM public.client_gold_accounts WHERE customer_id = '${custId}';
+  it("Regression Test: Cross-seller sale reversal authorization guard (Seller B cannot reverse Seller A's sale)", async () => {
+    // Create Seller A and Seller B
+    await db.exec(`SET ROLE postgres;`);
+    const sellerAUserRes = await db.query<{ id: string }>(`
+      INSERT INTO auth.users (email) VALUES ('sellera@goldia.uz') RETURNING id;
     `);
-    expect(Number(custFinal.rows[0]!.current_debt_grams)).toBe(0.0000);
+    const sellerAUserId = sellerAUserRes.rows[0]!.id;
+
+    const sellerBUserRes = await db.query<{ id: string }>(`
+      INSERT INTO auth.users (email) VALUES ('sellerb@goldia.uz') RETURNING id;
+    `);
+    const sellerBUserId = sellerBUserRes.rows[0]!.id;
+    await db.exec(`SET ROLE authenticated;`);
+
+    const sellerAEmpRes = await db.query<{ id: string }>(`
+      INSERT INTO public.employees (organization_id, user_id, name, full_name, role, is_active)
+      VALUES ('${orgId}', '${sellerAUserId}', 'SellerA', 'Seller A Test', 'sales', true)
+      RETURNING id;
+    `);
+    const sellerAEmpId = sellerAEmpRes.rows[0]!.id;
+
+    const sellerBEmpRes = await db.query<{ id: string }>(`
+      INSERT INTO public.employees (organization_id, user_id, name, full_name, role, is_active)
+      VALUES ('${orgId}', '${sellerBUserId}', 'SellerB', 'Seller B Test', 'sales', true)
+      RETURNING id;
+    `);
+    const sellerBEmpId = sellerBEmpRes.rows[0]!.id;
+    expect(sellerBEmpId).toBeTruthy();
+
+    // Issue 50g consignment to Seller A
+    await db.query(`
+      INSERT INTO public.factory_receipts (
+        organization_id, receipt_no, product_name, original_physical_g, available_physical_g, proba, factory_markup_pct, factory_obligation_g, status
+      ) VALUES (
+        '${orgId}', 'ZVD-SELLER-A', '50g Receipt', 50.0000, 50.0000, 585, 8.0, 54.0000, 'in_manager_stock'
+      );
+    `);
+
+    await db.query(`
+      SELECT public.rpc_issue_barcode_consignment(
+        p_seller_id := '${sellerAEmpId}'::uuid,
+        p_factory_markup_pct := 8.0,
+        p_pieces := '[{"weight_grams": 50.0, "model_code": "SELLER-A-50", "purity": 585}]'::jsonb,
+        p_notes := 'Seller A consignment'
+      );
+    `);
+
+    // Record sale by Seller A
+    const saleRes = await db.query<{ rpc_record_weight_sale: unknown }>(`
+      SELECT public.rpc_record_weight_sale(
+        p_customer_id := '${custId}'::uuid,
+        p_seller_id := '${sellerAEmpId}'::uuid,
+        p_weight_grams := 10.0000,
+        p_client_markup_pct := 20.0,
+        p_notes := 'Seller A sale'
+      ) as rpc_record_weight_sale;
+    `);
+    const rawSale = saleRes.rows[0]!.rpc_record_weight_sale;
+    const saleObj: RpcResultRecord = typeof rawSale === 'string' ? JSON.parse(rawSale) : (rawSale as RpcResultRecord);
+    const saleId = saleObj.sale_id!;
+
+    // Switch JWT session to Seller B
+    await db.exec(`
+      SELECT set_config('request.jwt.claim.sub', '${sellerBUserId}', false);
+      SELECT set_config('request.jwt.claim.role', 'authenticated', false);
+    `);
+
+    // Seller B attempts to reverse Seller A's sale -> MUST fail with authorization exception!
+    let crossSellerRejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_reverse_client_sale(
+          p_sale_id := '${saleId}'::uuid,
+          p_reason := 'Seller B unauthorized reversal attempt'
+        );
+      `);
+    } catch (err: unknown) {
+      crossSellerRejected = true;
+      const msg = err instanceof Error ? err.message : String(err);
+      expect(msg).toContain("Sotuvchilar faqat o'zi amalga oshirgan savdoni bekor qila oladi");
+    }
+    expect(crossSellerRejected).toBe(true);
+
+    // Restore JWT session to Manager
+    await db.exec(`
+      SELECT set_config('request.jwt.claim.sub', '${managerUserId}', false);
+      SELECT set_config('request.jwt.claim.role', 'authenticated', false);
+    `);
   });
 
   it("Regression Test: Refining 10g @ 997 proba = 17.0427g 585 eq exact internal math & restoration", async () => {

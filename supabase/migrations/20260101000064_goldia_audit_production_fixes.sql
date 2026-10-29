@@ -11,9 +11,15 @@
 -- 7. Automatic FIFO consignment deduction & stock availability validation in rpc_issue_barcode_consignment.
 -- 8. Complete multi-source restoration (purchased_gold, refined_gold, scrap_gold, capital_pure_gold) with exact fine gold math and factory advance/obligation recalculation in rpc_reverse_factory_gold_handover.
 -- 9. Weight sale restoration on consignment_pieces and seller_consignments in rpc_reverse_client_sale and rpc_reverse_jewelry_sale.
+-- 10. Cross-seller sale reversal authorization guard in rpc_reverse_client_sale and rpc_reverse_jewelry_sale.
+-- 11. Drop restrictive sold_quantity check constraint on seller_consignments to support weight-based partial sales.
 
 -- Add missing column to factory_gold_handovers if needed
 ALTER TABLE public.factory_gold_handovers ADD COLUMN IF NOT EXISTS source_purchase_id uuid REFERENCES public.gold_purchases(id) ON DELETE SET NULL;
+
+-- Relax seller_consignments sold_quantity constraint for weight sales
+ALTER TABLE public.seller_consignments DROP CONSTRAINT IF EXISTS seller_consignments_sold_quantity_check;
+ALTER TABLE public.seller_consignments DROP CONSTRAINT IF EXISTS seller_consignments_check;
 
 -- -------------------------------------------------------------------------
 -- PART 1: CONSIGNMENT RETURN DOUBLE COUNTING & DOUBLE DEDUCTION FIX
@@ -1464,6 +1470,8 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_caller_org       uuid := public.current_organization_id();
+  v_caller_role      text := public.current_employee_role_text();
+  v_caller_emp_id    uuid := public.current_employee_id();
   v_clean_reason     text := NULLIF(btrim(p_reason), '');
   v_sale             public.jewelry_sales%rowtype;
   v_cust_acc         public.client_gold_accounts%rowtype;
@@ -1514,6 +1522,13 @@ BEGIN
 
   IF v_sale.status IN ('reversed', 'cancelled') THEN
     RAISE EXCEPTION 'Ushbu savdo allaqachon bekor qilingan (%s)', v_sale.sale_no;
+  END IF;
+
+  -- Cross-seller sale reversal authorization check
+  IF v_caller_role IN ('seller', 'sotuvchi', 'sales') THEN
+    IF v_sale.seller_id IS DISTINCT FROM v_caller_emp_id THEN
+      RAISE EXCEPTION 'Ruxsat etilmadi: Sotuvchilar faqat o''zi amalga oshirgan savdoni bekor qila oladi' USING errcode = '42501';
+    END IF;
   END IF;
 
   -- 2. Lock client_gold_accounts
@@ -1583,6 +1598,32 @@ BEGIN
          SET weight_grams = ROUND((weight_grams + v_sale.base_weight_grams)::numeric, 4),
              updated_at = NOW()
        WHERE id = v_piece.id;
+    ELSE
+      -- All pieces in this consignment were marked sold/unassigned. Re-create / re-open an active held piece with restored weight!
+      INSERT INTO public.consignment_pieces (
+        organization_id, consignment_id, model_code, model_name, category,
+        purity, weight_grams, status, seller_id, notes
+      ) VALUES (
+        v_caller_org, v_sale.consignment_id, COALESCE(v_sale.model_code, 'VAZN'), COALESCE(v_sale.product_name, 'Qaytarilgan VAZN'),
+        COALESCE(v_sale.category, 'Buyum'), COALESCE(v_sale.purity, 585), v_sale.base_weight_grams,
+        'held_by_seller', v_sale.seller_id, 'Restored from reversed sale ' || v_sale.sale_no
+      );
+    END IF;
+
+    SELECT * INTO v_consign
+      FROM public.seller_consignments
+     WHERE id = v_sale.consignment_id
+     FOR UPDATE;
+
+    IF FOUND THEN
+      UPDATE public.seller_consignments
+         SET sold_quantity = GREATEST(0, COALESCE(sold_quantity, 1) - 1),
+             status = CASE
+                        WHEN GREATEST(0, COALESCE(sold_quantity, 1) - 1) <= 0 THEN 'held_by_seller'
+                        ELSE 'partially_sold'
+                      END,
+             updated_at = NOW()
+       WHERE id = v_consign.id;
     END IF;
   END IF;
 
@@ -1637,6 +1678,7 @@ AS $$
 DECLARE
   v_caller_org    uuid := public.current_organization_id();
   v_caller_role   text := public.current_employee_role_text();
+  v_caller_emp_id uuid := public.current_employee_id();
   v_sale          public.jewelry_sales%rowtype;
   v_client_acc    public.client_gold_accounts%rowtype;
   v_reason        text := NULLIF(btrim(p_reversal_reason), '');
@@ -1652,7 +1694,7 @@ BEGIN
   PERFORM public.assert_erp_permission(ARRAY[
     'admin', 'director', 'owner', 'direktor', 'rahbar',
     'production_manager', 'manager', 'boshqaruvchi',
-    'accountant', 'buxgalter'
+    'accountant', 'buxgalter', 'sales', 'seller', 'sotuvchi'
   ]);
 
   IF v_reason IS NULL THEN
@@ -1670,6 +1712,13 @@ BEGIN
 
   IF v_sale.status IN ('cancelled', 'reversed') THEN
     RAISE EXCEPTION 'Ushbu savdo allaqachon bekor qilingan (Holat: %)', v_sale.status;
+  END IF;
+
+  -- Cross-seller sale reversal authorization check
+  IF v_caller_role IN ('seller', 'sotuvchi', 'sales') THEN
+    IF v_sale.seller_id IS DISTINCT FROM v_caller_emp_id THEN
+      RAISE EXCEPTION 'Ruxsat etilmadi: Sotuvchilar faqat o''zi amalga oshirgan savdoni bekor qila oladi' USING errcode = '42501';
+    END IF;
   END IF;
 
   -- 1. Check if customer made active payments specifically applied to this sale
@@ -1697,7 +1746,7 @@ BEGIN
      WHERE customer_id = v_client_acc.customer_id;
   END IF;
 
-  -- 3. If a physical piece was sold or weight deducted, restore it
+  -- 3. If a physical piece or weight stock was sold, restore it
   SELECT * INTO v_piece
     FROM public.consignment_pieces
    WHERE sale_id = v_sale.id AND organization_id = v_caller_org
@@ -1722,7 +1771,7 @@ BEGIN
         UPDATE public.seller_consignments
            SET sold_quantity = GREATEST(0, COALESCE(sold_quantity, 1) - 1),
                status = CASE
-                          WHEN COALESCE(sold_quantity, 1) - 1 <= 0 THEN 'held_by_seller'
+                          WHEN GREATEST(0, COALESCE(sold_quantity, 1) - 1) <= 0 THEN 'held_by_seller'
                           ELSE 'partially_sold'
                         END,
                updated_at = NOW()
@@ -1743,6 +1792,16 @@ BEGIN
          SET weight_grams = ROUND((weight_grams + v_sale.base_weight_grams)::numeric, 4),
              updated_at = NOW()
        WHERE id = v_piece.id;
+    ELSE
+      -- All pieces in this consignment were marked sold/unassigned. Re-create / re-open an active held piece with restored weight!
+      INSERT INTO public.consignment_pieces (
+        organization_id, consignment_id, model_code, model_name, category,
+        purity, weight_grams, status, seller_id, notes
+      ) VALUES (
+        v_caller_org, v_sale.consignment_id, COALESCE(v_sale.model_code, 'VAZN'), COALESCE(v_sale.product_name, 'Qaytarilgan VAZN'),
+        COALESCE(v_sale.category, 'Buyum'), COALESCE(v_sale.purity, 585), v_sale.base_weight_grams,
+        'held_by_seller', v_sale.seller_id, 'Restored from reversed sale ' || v_sale.sale_no
+      );
     END IF;
 
     SELECT * INTO v_consign
@@ -1754,7 +1813,7 @@ BEGIN
       UPDATE public.seller_consignments
          SET sold_quantity = GREATEST(0, COALESCE(sold_quantity, 1) - 1),
              status = CASE
-                        WHEN COALESCE(sold_quantity, 1) - 1 <= 0 THEN 'held_by_seller'
+                        WHEN GREATEST(0, COALESCE(sold_quantity, 1) - 1) <= 0 THEN 'held_by_seller'
                         ELSE 'partially_sold'
                       END,
              updated_at = NOW()
