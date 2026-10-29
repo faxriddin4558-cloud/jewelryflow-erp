@@ -9,7 +9,8 @@
 -- 5. Daily sales ledger USD payment breakdown parity.
 -- 6. Seller reconciliation Section A initial consignment count & Section C seller obligation parity.
 -- 7. Automatic FIFO consignment deduction & stock availability validation in rpc_issue_barcode_consignment.
--- 8. Complete multi-source restoration (purchased_gold, refined_gold, scrap_gold, capital_pure_gold) and factory advance/obligation recalculation in rpc_reverse_factory_gold_handover.
+-- 8. Complete multi-source restoration (purchased_gold, refined_gold, scrap_gold, capital_pure_gold) with exact fine gold math and factory advance/obligation recalculation in rpc_reverse_factory_gold_handover.
+-- 9. Weight sale restoration on consignment_pieces and seller_consignments in rpc_reverse_client_sale and rpc_reverse_jewelry_sale.
 
 -- Add missing column to factory_gold_handovers if needed
 ALTER TABLE public.factory_gold_handovers ADD COLUMN IF NOT EXISTS source_purchase_id uuid REFERENCES public.gold_purchases(id) ON DELETE SET NULL;
@@ -1308,6 +1309,7 @@ DECLARE
   v_payload         jsonb;
   v_existing        jsonb;
   v_src             text;
+  v_fine_g          numeric(14, 4);
   v_new_handed_over numeric(14, 4);
   v_net_balance     numeric(14, 4);
   v_new_obligation  numeric(14, 4);
@@ -1359,12 +1361,13 @@ BEGIN
   FOR UPDATE;
 
   v_src := COALESCE(v_hnd.source_type, 'refined_gold');
+  v_fine_g := ROUND((COALESCE(v_hnd.physical_weight_g, 0) * (COALESCE(v_hnd.proba, 999.0) / 1000.0))::numeric, 4);
 
   -- Restore handed-over gold to manager vault according to source_type
   IF v_src = 'refined_gold' THEN
     UPDATE public.manager_vault_account
        SET manager_refined_gold_grams = ROUND((manager_refined_gold_grams + v_hnd.agreed_equivalent_g)::numeric, 4),
-           manager_refined_gold_fine_grams = ROUND((COALESCE(manager_refined_gold_fine_grams, 0) + COALESCE(v_hnd.physical_weight_g, v_hnd.agreed_equivalent_g))::numeric, 4),
+           manager_refined_gold_fine_grams = ROUND((COALESCE(manager_refined_gold_fine_grams, 0) + v_fine_g)::numeric, 4),
            updated_at = NOW()
      WHERE organization_id = v_caller_org;
   ELSIF v_src = 'purchased_gold' THEN
@@ -1375,7 +1378,7 @@ BEGIN
   ELSIF v_src = 'capital_pure_gold' THEN
     UPDATE public.manager_vault_account
        SET manager_capital_pure_gold_g = ROUND((COALESCE(manager_capital_pure_gold_g, 0) + v_hnd.agreed_equivalent_g)::numeric, 4),
-           manager_capital_pure_gold_fine_g = ROUND((COALESCE(manager_capital_pure_gold_fine_g, 0) + ROUND((v_hnd.physical_weight_g * (COALESCE(v_hnd.proba, 999.0) / 1000.0))::numeric, 4))::numeric, 4),
+           manager_capital_pure_gold_fine_g = ROUND((COALESCE(manager_capital_pure_gold_fine_g, 0) + v_fine_g)::numeric, 4),
            updated_at = NOW()
      WHERE organization_id = v_caller_org;
   ELSE -- scrap_gold or scrap
@@ -1444,8 +1447,182 @@ GRANT EXECUTE ON FUNCTION public.rpc_reverse_factory_gold_handover(uuid, text, t
 
 
 -- -------------------------------------------------------------------------
--- PART 5: REOPEN SALE REVERSAL & CLIENT ACCOUNT PRIMARY KEY FIX
+-- PART 5: REOPEN SALE REVERSAL & WEIGHT RESTORATION FOR CLIENT / JEWELRY SALES
 -- -------------------------------------------------------------------------
+
+DROP FUNCTION IF EXISTS public.rpc_reverse_client_sale(uuid, text, text);
+
+CREATE OR REPLACE FUNCTION public.rpc_reverse_client_sale(
+  p_sale_id         uuid,
+  p_reason          text DEFAULT NULL,
+  p_idempotency_key text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_caller_org       uuid := public.current_organization_id();
+  v_clean_reason     text := NULLIF(btrim(p_reason), '');
+  v_sale             public.jewelry_sales%rowtype;
+  v_cust_acc         public.client_gold_accounts%rowtype;
+  v_seller_acc       public.seller_gold_accounts%rowtype;
+  v_net_sale_debt    numeric(14, 4);
+  v_new_cust_debt    numeric(14, 4);
+  v_new_cust_adv     numeric(14, 4);
+  v_new_seller_debt  numeric(14, 4);
+  v_piece            public.consignment_pieces%rowtype;
+  v_consign          public.seller_consignments%rowtype;
+  v_payload          jsonb;
+  v_existing         jsonb;
+BEGIN
+  IF v_caller_org IS NULL THEN
+    RAISE EXCEPTION 'Permission denied: User must belong to an active organization' USING errcode = '42501';
+  END IF;
+
+  PERFORM public.assert_erp_permission(ARRAY[
+    'admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'boshqaruvchi', 'sales', 'seller', 'sotuvchi'
+  ]);
+
+  IF v_clean_reason IS NULL THEN
+    RAISE EXCEPTION 'Savdoni bekor qilish sababi kiritilishi shart';
+  END IF;
+
+  v_payload := jsonb_build_object(
+    'action', 'reverse_client_sale',
+    'sale_id', p_sale_id,
+    'reason', v_clean_reason
+  );
+
+  IF p_idempotency_key IS NOT NULL THEN
+    v_existing := public.check_and_lock_idempotency(p_idempotency_key, 'rpc_reverse_client_sale', v_payload);
+    IF v_existing IS NOT NULL THEN
+      RETURN v_existing;
+    END IF;
+  END IF;
+
+  -- 1. Lock and fetch sale
+  SELECT * INTO v_sale
+    FROM public.jewelry_sales
+   WHERE id = p_sale_id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Savdo hujjati topilmadi (%)', p_sale_id;
+  END IF;
+
+  IF v_sale.status IN ('reversed', 'cancelled') THEN
+    RAISE EXCEPTION 'Ushbu savdo allaqachon bekor qilingan (%s)', v_sale.sale_no;
+  END IF;
+
+  -- 2. Lock client_gold_accounts
+  SELECT * INTO v_cust_acc
+    FROM public.client_gold_accounts
+   WHERE customer_id = v_sale.customer_id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  -- 3. Lock seller_gold_accounts
+  SELECT * INTO v_seller_acc
+    FROM public.seller_gold_accounts
+   WHERE seller_id = v_sale.seller_id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  -- Net customer debt that was added by this sale
+  v_net_sale_debt := ROUND((v_sale.client_gold_due_grams - COALESCE(v_sale.settled_gold_grams, 0))::numeric, 4);
+
+  -- Adjust customer debt and restore any applied advance
+  v_new_cust_debt := ROUND(GREATEST(0, COALESCE(v_cust_acc.current_debt_grams, 0) - v_net_sale_debt)::numeric, 4);
+  v_new_cust_adv  := ROUND((COALESCE(v_cust_acc.advance_balance_grams, 0) + COALESCE(v_sale.settled_gold_grams, 0))::numeric, 4);
+
+  UPDATE public.client_gold_accounts
+     SET total_purchased_gold_grams = ROUND(GREATEST(0, total_purchased_gold_grams - v_sale.client_gold_due_grams)::numeric, 4),
+         current_debt_grams         = v_new_cust_debt,
+         advance_balance_grams      = v_new_cust_adv,
+         total_settled_grams        = ROUND(GREATEST(0, total_settled_grams - COALESCE(v_sale.settled_gold_grams, 0))::numeric, 4),
+         updated_at                 = NOW()
+   WHERE customer_id = v_sale.customer_id;
+
+  -- Adjust seller's total client debt
+  v_new_seller_debt := ROUND(GREATEST(0, COALESCE(v_seller_acc.total_client_debt_grams, 0) - v_net_sale_debt)::numeric, 4);
+  UPDATE public.seller_gold_accounts
+     SET total_client_debt_grams = v_new_seller_debt,
+         updated_at              = NOW()
+   WHERE seller_id = v_sale.seller_id;
+
+  -- Mark sale as reversed
+  UPDATE public.jewelry_sales
+     SET status          = 'reversed',
+         notes           = COALESCE(notes, '') || ' [BEKOR QILINDI: ' || v_clean_reason || ']',
+         updated_at      = NOW()
+   WHERE id = v_sale.id;
+
+  -- 4. If a physical piece or weight stock was sold, restore it onto consignment_pieces
+  SELECT * INTO v_piece
+    FROM public.consignment_pieces
+   WHERE sale_id = v_sale.id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  IF FOUND THEN
+    UPDATE public.consignment_pieces
+       SET status = 'held_by_seller',
+           sale_id = NULL,
+           sold_at = NULL,
+           updated_at = NOW()
+     WHERE id = v_piece.id;
+  ELSIF v_sale.consignment_id IS NOT NULL THEN
+    SELECT * INTO v_piece
+      FROM public.consignment_pieces
+     WHERE consignment_id = v_sale.consignment_id AND status = 'held_by_seller'
+     ORDER BY updated_at DESC
+     LIMIT 1
+     FOR UPDATE;
+
+    IF FOUND THEN
+      UPDATE public.consignment_pieces
+         SET weight_grams = ROUND((weight_grams + v_sale.base_weight_grams)::numeric, 4),
+             updated_at = NOW()
+       WHERE id = v_piece.id;
+    END IF;
+  END IF;
+
+  -- Recalculate seller gold account physical stock
+  PERFORM public.recalc_seller_gold_account(v_sale.seller_id, v_caller_org);
+
+  -- Audit log
+  INSERT INTO public.audit_logs (
+    organization_id, table_name, record_id, action, actor_id, old_data, new_data, reason
+  ) VALUES (
+    v_caller_org, 'jewelry_sales', v_sale.id::text, 'REVERSE_CLIENT_SALE', auth.uid(),
+    jsonb_build_object(
+      'sale_no', v_sale.sale_no,
+      'base_weight_grams', v_sale.base_weight_grams,
+      'client_gold_due_grams', v_sale.client_gold_due_grams,
+      'customer_id', v_sale.customer_id,
+      'seller_id', v_sale.seller_id
+    ),
+    jsonb_build_object('status', 'reversed'),
+    v_clean_reason
+  );
+
+  v_existing := jsonb_build_object(
+    'status', 'ok',
+    'sale_id', v_sale.id,
+    'sale_no', v_sale.sale_no,
+    'restored_weight_g', v_sale.base_weight_grams,
+    'reversed_debt_g', v_net_sale_debt
+  );
+
+  IF p_idempotency_key IS NOT NULL THEN
+    PERFORM public.save_idempotency_response(p_idempotency_key, 'rpc_reverse_client_sale', v_existing, v_payload);
+  END IF;
+
+  RETURN v_existing;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.rpc_reverse_client_sale(uuid, text, text) TO authenticated;
+
 
 CREATE OR REPLACE FUNCTION public.rpc_reverse_jewelry_sale(
   p_sale_id         uuid,
@@ -1520,7 +1697,7 @@ BEGIN
      WHERE customer_id = v_client_acc.customer_id;
   END IF;
 
-  -- 3. If a physical piece was sold, restore it to seller hand
+  -- 3. If a physical piece was sold or weight deducted, restore it
   SELECT * INTO v_piece
     FROM public.consignment_pieces
    WHERE sale_id = v_sale.id AND organization_id = v_caller_org
@@ -1551,6 +1728,37 @@ BEGIN
                updated_at = NOW()
          WHERE id = v_consign.id;
       END IF;
+    END IF;
+  ELSIF v_sale.consignment_id IS NOT NULL THEN
+    -- Weight sale partial deduction: restore weight_grams back on active consignment_piece
+    SELECT * INTO v_piece
+      FROM public.consignment_pieces
+     WHERE consignment_id = v_sale.consignment_id AND status = 'held_by_seller'
+     ORDER BY updated_at DESC
+     LIMIT 1
+     FOR UPDATE;
+
+    IF FOUND THEN
+      UPDATE public.consignment_pieces
+         SET weight_grams = ROUND((weight_grams + v_sale.base_weight_grams)::numeric, 4),
+             updated_at = NOW()
+       WHERE id = v_piece.id;
+    END IF;
+
+    SELECT * INTO v_consign
+      FROM public.seller_consignments
+     WHERE id = v_sale.consignment_id
+     FOR UPDATE;
+
+    IF FOUND THEN
+      UPDATE public.seller_consignments
+         SET sold_quantity = GREATEST(0, COALESCE(sold_quantity, 1) - 1),
+             status = CASE
+                        WHEN COALESCE(sold_quantity, 1) - 1 <= 0 THEN 'held_by_seller'
+                        ELSE 'partially_sold'
+                      END,
+             updated_at = NOW()
+       WHERE id = v_consign.id;
     END IF;
   END IF;
 

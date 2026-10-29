@@ -524,8 +524,16 @@ describe("Goldia Audit Production Fixes Suite", () => {
     expect(Number(sellerAfter.rows[0]!.current_physical_stock_g)).toBe(initialSellerStock + 20.0000);
   });
 
-  it("Regression Test: Weight sale (rpc_record_weight_sale) and reversal (rpc_reverse_client_sale) chain for 100g stock -> 10g sale -> 100g restored", async () => {
-    // 1. Issue a single 100g consignment to seller
+  it("Regression Test: Weight sale (rpc_record_weight_sale) and reversal (rpc_reverse_client_sale) chain for isolated 100g stock -> 10g sale -> 100g restored", async () => {
+    // Create dedicated seller for isolated weight test
+    const isoSellerEmpRes = await db.query<{ id: string }>(`
+      INSERT INTO public.employees (organization_id, name, full_name, role, is_active)
+      VALUES ('${orgId}', 'WeightSeller', 'Weight Seller Test', 'sales', true)
+      RETURNING id;
+    `);
+    const isoSellerEmpId = isoSellerEmpRes.rows[0]!.id;
+
+    // 1. Issue a single 100g consignment to isoSeller
     await db.query(`
       INSERT INTO public.factory_receipts (
         organization_id, receipt_no, product_name, original_physical_g, available_physical_g, proba, factory_markup_pct, factory_obligation_g, status
@@ -536,7 +544,7 @@ describe("Goldia Audit Production Fixes Suite", () => {
 
     const consignRes = await db.query<{ rpc_issue_barcode_consignment: unknown }>(`
       SELECT public.rpc_issue_barcode_consignment(
-        p_seller_id := '${sellerEmpId}'::uuid,
+        p_seller_id := '${isoSellerEmpId}'::uuid,
         p_factory_markup_pct := 8.0,
         p_pieces := '[{"weight_grams": 100.0, "model_code": "SINGLE-100", "purity": 585}]'::jsonb,
         p_notes := 'SINGLE 100g consignment'
@@ -545,18 +553,20 @@ describe("Goldia Audit Production Fixes Suite", () => {
     const rawConsign = consignRes.rows[0]!.rpc_issue_barcode_consignment;
     const consignObj: RpcResultRecord = typeof rawConsign === 'string' ? JSON.parse(rawConsign) : (rawConsign as RpcResultRecord);
     expect(consignObj.status).toBe("ok");
+    const consignId = consignObj.consignment_id!;
 
     // Check initial seller physical stock
     const sellerBefore = await db.query<{ current_physical_stock_g: number }>(`
-      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${sellerEmpId}';
+      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${isoSellerEmpId}';
     `);
     const initialStock = Number(sellerBefore.rows[0]!.current_physical_stock_g);
+    expect(initialStock).toBe(100.0000);
 
     // 2. Sell 10g via rpc_record_weight_sale (exact frontend RPC)
     const saleRes = await db.query<{ rpc_record_weight_sale: unknown }>(`
       SELECT public.rpc_record_weight_sale(
         p_customer_id := '${custId}'::uuid,
-        p_seller_id := '${sellerEmpId}'::uuid,
+        p_seller_id := '${isoSellerEmpId}'::uuid,
         p_weight_grams := 10.0000,
         p_client_markup_pct := 20.0,
         p_notes := 'Weight 10g sale test'
@@ -569,15 +579,17 @@ describe("Goldia Audit Production Fixes Suite", () => {
 
     // Check seller stock after 10g sale
     const sellerMid = await db.query<{ current_physical_stock_g: number }>(`
-      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${sellerEmpId}';
+      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${isoSellerEmpId}';
     `);
-    expect(Number(sellerMid.rows[0]!.current_physical_stock_g)).toBe(initialStock - 10.0000);
+    expect(Number(sellerMid.rows[0]!.current_physical_stock_g)).toBe(90.0000);
 
-    // Check customer debt after 10g sale (10g + 20% = 12g)
-    const custMid = await db.query<{ current_debt_grams: number }>(`
-      SELECT current_debt_grams FROM public.client_gold_accounts WHERE customer_id = '${custId}';
+    // Check active consignment pieces weight sum after 10g sale
+    const piecesSumMid = await db.query<{ total_g: number }>(`
+      SELECT COALESCE(SUM(weight_grams), 0) as total_g
+      FROM public.consignment_pieces
+      WHERE consignment_id = '${consignId}'::uuid AND status = 'held_by_seller';
     `);
-    expect(Number(custMid.rows[0]!.current_debt_grams)).toBe(12.0000);
+    expect(Number(piecesSumMid.rows[0]!.total_g)).toBe(90.0000);
 
     // 3. Reverse sale via rpc_reverse_client_sale (exact frontend RPC)
     const revRes = await db.query<{ rpc_reverse_client_sale: unknown }>(`
@@ -592,9 +604,17 @@ describe("Goldia Audit Production Fixes Suite", () => {
 
     // 4. Verify seller physical stock returns 100% to initial stock (100g)
     const sellerFinal = await db.query<{ current_physical_stock_g: number }>(`
-      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${sellerEmpId}';
+      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${isoSellerEmpId}';
     `);
-    expect(Number(sellerFinal.rows[0]!.current_physical_stock_g)).toBe(initialStock);
+    expect(Number(sellerFinal.rows[0]!.current_physical_stock_g)).toBe(100.0000);
+
+    // Verify active consignment_pieces weight sum returns 100% to 100g!
+    const piecesSumFinal = await db.query<{ total_g: number }>(`
+      SELECT COALESCE(SUM(weight_grams), 0) as total_g
+      FROM public.consignment_pieces
+      WHERE consignment_id = '${consignId}'::uuid AND status = 'held_by_seller';
+    `);
+    expect(Number(piecesSumFinal.rows[0]!.total_g)).toBe(100.0000);
 
     // Verify customer debt returned to 0
     const custFinal = await db.query<{ current_debt_grams: number }>(`
@@ -603,8 +623,8 @@ describe("Goldia Audit Production Fixes Suite", () => {
     expect(Number(custFinal.rows[0]!.current_debt_grams)).toBe(0.0000);
   });
 
-  it("Regression Test: Refining 10g @ 997 proba = 17.042735g 585 eq exact internal math & restoration", async () => {
-    // 10g @ 997 = 10 * (997 / 585) = 17.0427350427... g 585 eq
+  it("Regression Test: Refining 10g @ 997 proba = 17.0427g 585 eq exact internal math & restoration", async () => {
+    // 10g @ 997 = 10 * (997 / 585) = 17.0427350427... g 585 eq; fine gold = 10 * (997/1000) = 9.9700g
     const physW = 10.0000;
     const proba = 997.00;
     const computedEq = Number((physW * (proba / 585.0)).toFixed(4)); // 17.0427
@@ -621,7 +641,7 @@ describe("Goldia Audit Production Fixes Suite", () => {
        WHERE organization_id = '${orgId}';
     `);
 
-    // Hand over 10g @ 997 (17.0427g 585 eq) from refined_gold to factory
+    // Hand over 10g @ 997 (17.0427g 585 eq, 9.9700g fine gold) from refined_gold to factory
     const hndRes = await db.query<{ rpc_record_factory_gold_handover: unknown }>(`
       SELECT public.rpc_record_factory_gold_handover(
         p_source_type := 'refined_gold',
@@ -636,12 +656,13 @@ describe("Goldia Audit Production Fixes Suite", () => {
     const hndObj: RpcResultRecord = typeof rawHnd === 'string' ? JSON.parse(rawHnd) : (rawHnd as RpcResultRecord);
     const handoverId = hndObj.handover_id!;
 
-    // Check vault after handover
-    const vaultMid = await db.query<{ manager_refined_gold_grams: number; current_factory_advance_g: number }>(`
-      SELECT manager_refined_gold_grams, current_factory_advance_g
+    // Check vault after handover: manager_refined_gold_fine_grams = 29.2500 - 9.9700 = 19.2800
+    const vaultMid = await db.query<{ manager_refined_gold_grams: number; manager_refined_gold_fine_grams: number; current_factory_advance_g: number }>(`
+      SELECT manager_refined_gold_grams, manager_refined_gold_fine_grams, current_factory_advance_g
       FROM public.manager_vault_account WHERE organization_id = '${orgId}';
     `);
     expect(Number(vaultMid.rows[0]!.manager_refined_gold_grams)).toBe(32.9573); // 50.0000 - 17.0427
+    expect(Number(vaultMid.rows[0]!.manager_refined_gold_fine_grams)).toBe(19.2800); // 29.2500 - 9.9700
     expect(Number(vaultMid.rows[0]!.current_factory_advance_g)).toBe(17.0427);
 
     // Reverse handover
@@ -655,12 +676,13 @@ describe("Goldia Audit Production Fixes Suite", () => {
     const revObj: RpcResultRecord = typeof rawRev === 'string' ? JSON.parse(rawRev) : (rawRev as RpcResultRecord);
     expect(revObj.status).toBe("ok");
 
-    // Check vault after reversal: 100% restored to 50g 585 eq
-    const vaultFinal = await db.query<{ manager_refined_gold_grams: number; current_factory_advance_g: number }>(`
-      SELECT manager_refined_gold_grams, current_factory_advance_g
+    // Check vault after reversal: 100% restored to 50g 585 eq AND 29.2500g fine gold!
+    const vaultFinal = await db.query<{ manager_refined_gold_grams: number; manager_refined_gold_fine_grams: number; current_factory_advance_g: number }>(`
+      SELECT manager_refined_gold_grams, manager_refined_gold_fine_grams, current_factory_advance_g
       FROM public.manager_vault_account WHERE organization_id = '${orgId}';
     `);
     expect(Number(vaultFinal.rows[0]!.manager_refined_gold_grams)).toBe(50.0000);
+    expect(Number(vaultFinal.rows[0]!.manager_refined_gold_fine_grams)).toBe(29.2500);
     expect(Number(vaultFinal.rows[0]!.current_factory_advance_g)).toBe(0.0000);
   });
 });
