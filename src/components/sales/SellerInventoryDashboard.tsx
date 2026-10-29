@@ -315,7 +315,7 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
     return pieces.find((p) => p.id === returningPieceId) || null;
   }, [returningPieceId, pieces]);
 
-  const returningMarkupPct = Number(returningPiece?.consignment?.seller_markup_pct ?? 12);
+  const returningMarkupPct = Number((returningPiece as { seller_markup_pct?: number } | null)?.seller_markup_pct ?? returningPiece?.consignment?.seller_markup_pct ?? 12);
   const returningPieceWeight = Number(returningPiece?.weight_grams ?? 0);
   const returningObligationG = Math.round(returningPieceWeight * (1 + returningMarkupPct / 100) * 10000) / 10000;
 

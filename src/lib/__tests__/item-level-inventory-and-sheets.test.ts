@@ -285,6 +285,7 @@ describe("JewelryFlow Sales — Item-Level Inventory, 3-Tier Debt, Sheets Parity
     const res = await db.query<{ rpc_issue_barcode_consignment: RpcConsignmentResult }>(`
       SELECT public.rpc_issue_barcode_consignment(
         p_seller_id := '${sellerJamshidId}',
+        p_seller_markup_pct := 12.0,
         p_factory_markup_pct := 8.0,
         p_pieces := '${piecesPayload}'::jsonb,
         p_notes := 'Section 18 Test Consignment'

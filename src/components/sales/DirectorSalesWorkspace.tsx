@@ -1680,7 +1680,7 @@ export function DirectorSalesWorkspace({
                         <option value="">-- Xarid partiyasini tanlang (yoki to&apos;g&apos;ridan-to&apos;g&apos;ri kiriting) --</option>
                         {goldPurchases.filter((p) => p.status !== "reversed").map((p) => (
                           <option key={p.id} value={p.id}>
-                            №{p.purchase_no} — {p.supplier_name || "Bozor"} ({p.gold_weight_grams}g, {p.proba}°) = {p.equiv_585_grams}g 585 eq
+                            №{p.purchase_no} — {p.supplier_name || "Bozor"} ({formatScreenGrams(p.gold_weight_grams)}, {p.proba}°) = {formatScreenGrams(p.equiv_585_grams)} 585 eq
                           </option>
                         ))}
                       </select>
@@ -2253,7 +2253,8 @@ export function DirectorSalesWorkspace({
           {/* Metric Cards (Scoped per section) */}
           {(() => {
             const activeRefiningBatch = refiningBatches.find((b) => b.status === "completed");
-            const activeRefiningProba = activeRefiningBatch?.output_fine_proba || 997;
+            const activeRefiningProbaVal = activeRefiningBatch?.output_fine_proba || 997;
+            const activeRefiningProbaLabel = activeRefiningBatch?.output_fine_proba ? `${activeRefiningBatch.output_fine_proba}°` : "Aralash proba";
             const activePurchases = goldPurchases.filter((p) => p.status !== "reversed");
             const totalHistPurchased585 = activePurchases.reduce((sum, p) => sum + Number(p.equiv_585_grams || 0), 0);
             const totalHistPurchasedPhys = activePurchases.reduce((sum, p) => sum + Number(p.gold_weight_grams || 0), 0);
@@ -2275,13 +2276,13 @@ export function DirectorSalesWorkspace({
 
                 <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
                   <div className="text-xs font-bold text-cyan-300">
-                    Afinaj Qilingan Toza Oltin ({activeRefiningBatch ? `Fizik ${activeRefiningProba}°` : "Sof Quyma"})
+                    Afinaj Qilingan Toza Oltin ({activeRefiningBatch ? `Fizik ${activeRefiningProbaLabel}` : "Sof Quyma"})
                   </div>
                   <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
                     {formatScreenGrams(
                       managerVault?.manager_refined_gold_fine_grams ??
-                      (managerVault?.manager_refined_gold_grams ? Number(managerVault.manager_refined_gold_grams) * 585 / activeRefiningProba : 0)
-                    )} <span className="text-xs font-normal text-cyan-400">{activeRefiningProba}°</span>
+                      (managerVault?.manager_refined_gold_grams ? Number(managerVault.manager_refined_gold_grams) * 585 / activeRefiningProbaVal : 0)
+                    )} <span className="text-xs font-normal text-cyan-400">{activeRefiningProbaLabel}</span>
                   </div>
                   <div className="text-[11px] text-cyan-300 mt-1">
                     {formatScreenGrams(managerVault?.manager_refined_gold_grams || 0)} (585 ekvivalent) • Sof quyma
@@ -2349,7 +2350,7 @@ export function DirectorSalesWorkspace({
                   </div>
                   <div className="text-[10px] text-cyan-200 mt-2">
                     {managerVault?.manager_refined_gold_fine_grams && Number(managerVault.manager_refined_gold_fine_grams) > 0
-                      ? `${formatScreenGrams(managerVault.manager_refined_gold_fine_grams)} toza ${activeRefiningProba}°`
+                      ? `${formatScreenGrams(managerVault.manager_refined_gold_fine_grams)} toza ${activeRefiningProbaLabel}`
                       : "Afinajdan chiqqan toza oltin"}
                   </div>
                 </div>

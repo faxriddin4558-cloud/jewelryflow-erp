@@ -73,6 +73,28 @@ async function setupSupabaseBase(db) {
     END;
     $$;
   `);
+
+  // 4. Storage schema & buckets / objects
+  await db.exec(`
+    CREATE SCHEMA IF NOT EXISTS storage;
+    CREATE TABLE IF NOT EXISTS storage.buckets (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      owner UUID,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      updated_at TIMESTAMPTZ DEFAULT now(),
+      public BOOLEAN DEFAULT false
+    );
+    CREATE TABLE IF NOT EXISTS storage.objects (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      bucket_id TEXT REFERENCES storage.buckets(id),
+      name TEXT,
+      owner UUID,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      updated_at TIMESTAMPTZ DEFAULT now(),
+      metadata JSONB DEFAULT '{}'::jsonb
+    );
+  `);
 }
 
 async function runMigrations(runNumber = 1) {

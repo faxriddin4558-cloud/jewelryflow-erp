@@ -87,6 +87,9 @@ export interface DailyLedgerEntry {
   cash_received_uzs?: number | null;
   rate_per_gram?: number | null;
   cash_equiv_g?: number | null;
+  usd_received?: number | null;
+  usd_rate?: number | null;
+  usd_equiv_g?: number | null;
   total_payment_g?: number | null;
   closing_debt_g: number;
   notes?: string | null;
@@ -1331,13 +1334,22 @@ export function CustomerLedgerAndSheetsSection() {
                       {Number(r.scrap_received_g) > 0 ? formatScreenGrams(r.scrap_received_g) : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-emerald-300">
-                      {Number(r.cash_received_uzs) > 0 ? formatScreenUZS(r.cash_received_uzs) : "—"}
+                      {Number(r.cash_received_uzs) > 0 && <div>{formatScreenUZS(r.cash_received_uzs)}</div>}
+                      {Number(r.usd_received) > 0 && (
+                        <div className="text-blue-300 font-bold">${Number(r.usd_received).toLocaleString()} USD</div>
+                      )}
+                      {!Number(r.cash_received_uzs) && !Number(r.usd_received) && "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-amber-200">
-                      {Number(r.rate_per_gram) > 0 ? formatScreenUZS(r.rate_per_gram) : "—"}
+                      {Number(r.rate_per_gram) > 0 && <div>{formatScreenUZS(r.rate_per_gram)}</div>}
+                      {Number(r.usd_rate) > 0 && <div className="text-blue-200 text-[10px]">{Number(r.usd_rate).toLocaleString()} UZS/$</div>}
+                      {!Number(r.rate_per_gram) && !Number(r.usd_rate) && "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-emerald-200">
                       {Number(r.total_payment_g) > 0 ? formatScreenGrams(r.total_payment_g) : "—"}
+                      {Number(r.usd_equiv_g) > 0 && (
+                        <div className="text-[10px] text-blue-300">({formatScreenGrams(r.usd_equiv_g)} USD eq)</div>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 font-mono font-bold text-rose-400">
                       {formatScreenGrams(r.closing_debt_g)}

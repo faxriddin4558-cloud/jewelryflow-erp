@@ -439,7 +439,7 @@ export function processScannedCode(
       success: true,
       action: 'piece_added',
       session: updatedSession,
-      message: `+1 dona qo'shildi: ${targetModel.name} — ${formatGrams(weight)}`,
+      message: `+1 ta qo'shildi: ${targetModel.name} — ${formatGrams(weight)}`,
       piece: newPiece,
       model: targetModel,
     };
