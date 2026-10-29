@@ -6,6 +6,16 @@ import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
 import fs from "node:fs";
 import path from "node:path";
 
+interface RpcResultRecord {
+  status?: string;
+  purchase_id?: string;
+  handover_id?: string;
+  sale_id?: string;
+  consignment_id?: string;
+  pieces?: { id?: string; piece_id?: string; weight_grams?: number }[];
+  [key: string]: unknown;
+}
+
 describe("Goldia Audit Production Fixes Suite", () => {
   let db: PGlite;
   let orgId: string;
@@ -197,15 +207,14 @@ describe("Goldia Audit Production Fixes Suite", () => {
     await db.query(`SELECT public.recalc_seller_gold_account('${sellerEmpId}', '${orgId}');`);
 
     // Return 20g piece to manager
-    const retRes = await db.query<{ rpc_return_piece_to_manager: any }>(`
+    const retRes = await db.query<{ rpc_return_piece_to_manager: unknown }>(`
       SELECT public.rpc_return_piece_to_manager(
         p_piece_id := '${pieceId}'::uuid,
         p_notes := 'Audit test return 20g'
       ) as rpc_return_piece_to_manager;
     `);
-    const retVal = typeof retRes.rows[0]!.rpc_return_piece_to_manager === 'string'
-      ? JSON.parse(retRes.rows[0]!.rpc_return_piece_to_manager)
-      : retRes.rows[0]!.rpc_return_piece_to_manager;
+    const rawVal = retRes.rows[0]!.rpc_return_piece_to_manager;
+    const retVal: RpcResultRecord = typeof rawVal === 'string' ? JSON.parse(rawVal) : (rawVal as RpcResultRecord);
     expect(retVal.status).toBe("ok");
 
     // Check manager physical stock from function
@@ -246,15 +255,14 @@ describe("Goldia Audit Production Fixes Suite", () => {
     const refBatchId = refRes.rows[0]!.id;
 
     // Call rpc_reverse_refining_batch - Should resolve without candidate function ambiguity error
-    const revRes = await db.query<{ rpc_reverse_refining_batch: any }>(`
+    const revRes = await db.query<{ rpc_reverse_refining_batch: unknown }>(`
       SELECT public.rpc_reverse_refining_batch(
         p_batch_id := '${refBatchId}'::uuid,
         p_reason := 'Audit test reversal'
       ) as rpc_reverse_refining_batch;
     `);
-    const revVal = typeof revRes.rows[0]!.rpc_reverse_refining_batch === 'string'
-      ? JSON.parse(revRes.rows[0]!.rpc_reverse_refining_batch)
-      : revRes.rows[0]!.rpc_reverse_refining_batch;
+    const rawVal = revRes.rows[0]!.rpc_reverse_refining_batch;
+    const revVal: RpcResultRecord = typeof rawVal === 'string' ? JSON.parse(rawVal) : (rawVal as RpcResultRecord);
     expect(revVal.status).toBe("ok");
 
     // Verify vault scrap restored to 10g and fine gold reduced
@@ -274,7 +282,7 @@ describe("Goldia Audit Production Fixes Suite", () => {
     `);
 
     // Record purchase via rpc_record_gold_purchase
-    const buyRes = await db.query<{ rpc_record_gold_purchase: any }>(`
+    const buyRes = await db.query<{ rpc_record_gold_purchase: unknown }>(`
       SELECT public.rpc_record_gold_purchase(
         p_supplier_name := 'Bozor Real RPC',
         p_cash_spent_uzs := 1000000,
@@ -284,13 +292,12 @@ describe("Goldia Audit Production Fixes Suite", () => {
         p_notes := null
       ) as rpc_record_gold_purchase;
     `);
-    const buyObj = typeof buyRes.rows[0]!.rpc_record_gold_purchase === 'string'
-      ? JSON.parse(buyRes.rows[0]!.rpc_record_gold_purchase)
-      : buyRes.rows[0]!.rpc_record_gold_purchase;
-    const purchaseId = buyObj.purchase_id;
+    const rawBuy = buyRes.rows[0]!.rpc_record_gold_purchase;
+    const buyObj: RpcResultRecord = typeof rawBuy === 'string' ? JSON.parse(rawBuy) : (rawBuy as RpcResultRecord);
+    const purchaseId = buyObj.purchase_id!;
 
     // Record factory handover via rpc_record_factory_gold_handover with EMPTY notes
-    const hndRes = await db.query<{ rpc_record_factory_gold_handover: any }>(`
+    const hndRes = await db.query<{ rpc_record_factory_gold_handover: unknown }>(`
       SELECT public.rpc_record_factory_gold_handover(
         p_source_type := 'purchased_gold',
         p_physical_weight_g := 1.0000,
@@ -301,10 +308,9 @@ describe("Goldia Audit Production Fixes Suite", () => {
         p_purchase_id := '${purchaseId}'::uuid
       ) as rpc_record_factory_gold_handover;
     `);
-    const hndObj = typeof hndRes.rows[0]!.rpc_record_factory_gold_handover === 'string'
-      ? JSON.parse(hndRes.rows[0]!.rpc_record_factory_gold_handover)
-      : hndRes.rows[0]!.rpc_record_factory_gold_handover;
-    const handoverId = hndObj.handover_id;
+    const rawHnd = hndRes.rows[0]!.rpc_record_factory_gold_handover;
+    const hndObj: RpcResultRecord = typeof rawHnd === 'string' ? JSON.parse(rawHnd) : (rawHnd as RpcResultRecord);
+    const handoverId = hndObj.handover_id!;
 
     // Attempting to reverse purchase MUST fail because purchase_id links the active handover!
     let rejected = false;
@@ -323,26 +329,24 @@ describe("Goldia Audit Production Fixes Suite", () => {
     expect(rejected).toBe(true);
 
     // Reversing handover first, then reversing purchase succeeds cleanly
-    const revHnd = await db.query<{ rpc_reverse_factory_gold_handover: any }>(`
+    const revHnd = await db.query<{ rpc_reverse_factory_gold_handover: unknown }>(`
       SELECT public.rpc_reverse_factory_gold_handover(
         p_handover_id := '${handoverId}'::uuid,
         p_reason := 'Reversing handover first'
       ) as rpc_reverse_factory_gold_handover;
     `);
-    const revHndObj = typeof revHnd.rows[0]!.rpc_reverse_factory_gold_handover === 'string'
-      ? JSON.parse(revHnd.rows[0]!.rpc_reverse_factory_gold_handover)
-      : revHnd.rows[0]!.rpc_reverse_factory_gold_handover;
+    const rawRevHnd = revHnd.rows[0]!.rpc_reverse_factory_gold_handover;
+    const revHndObj: RpcResultRecord = typeof rawRevHnd === 'string' ? JSON.parse(rawRevHnd) : (rawRevHnd as RpcResultRecord);
     expect(revHndObj.status).toBe("ok");
 
-    const revBuy = await db.query<{ rpc_reverse_gold_purchase: any }>(`
+    const revBuy = await db.query<{ rpc_reverse_gold_purchase: unknown }>(`
       SELECT public.rpc_reverse_gold_purchase(
         p_purchase_id := '${purchaseId}'::uuid,
         p_reason := 'Reversing purchase after handover cancellation'
       ) as rpc_reverse_gold_purchase;
     `);
-    const revBuyObj = typeof revBuy.rows[0]!.rpc_reverse_gold_purchase === 'string'
-      ? JSON.parse(revBuy.rows[0]!.rpc_reverse_gold_purchase)
-      : revBuy.rows[0]!.rpc_reverse_gold_purchase;
+    const rawRevBuy = revBuy.rows[0]!.rpc_reverse_gold_purchase;
+    const revBuyObj: RpcResultRecord = typeof rawRevBuy === 'string' ? JSON.parse(rawRevBuy) : (rawRevBuy as RpcResultRecord);
     expect(revBuyObj.status).toBe("ok");
   });
 
@@ -379,15 +383,14 @@ describe("Goldia Audit Production Fixes Suite", () => {
     await db.query(`UPDATE public.consignment_pieces SET sale_id = '${saleId}' WHERE id = '${pieceId}';`);
 
     // Reverse sale
-    const revSale = await db.query<{ rpc_reverse_jewelry_sale: any }>(`
+    const revSale = await db.query<{ rpc_reverse_jewelry_sale: unknown }>(`
       SELECT public.rpc_reverse_jewelry_sale(
         p_sale_id := '${saleId}'::uuid,
         p_reversal_reason := 'Customer return'
       ) as rpc_reverse_jewelry_sale;
     `);
-    const revSaleObj = typeof revSale.rows[0]!.rpc_reverse_jewelry_sale === 'string'
-      ? JSON.parse(revSale.rows[0]!.rpc_reverse_jewelry_sale)
-      : revSale.rows[0]!.rpc_reverse_jewelry_sale;
+    const rawRevSale = revSale.rows[0]!.rpc_reverse_jewelry_sale;
+    const revSaleObj: RpcResultRecord = typeof rawRevSale === 'string' ? JSON.parse(rawRevSale) : (rawRevSale as RpcResultRecord);
     expect(revSaleObj.status).toBe("ok");
 
     // Verify restored piece status is 'held_by_seller' and parent consignment status is not blank/null
@@ -417,7 +420,7 @@ describe("Goldia Audit Production Fixes Suite", () => {
     `);
 
     // Hand over 10g fine gold (17.0769g 585 eq) from capital_pure_gold to factory
-    const hndRes = await db.query<{ rpc_record_factory_gold_handover: any }>(`
+    const hndRes = await db.query<{ rpc_record_factory_gold_handover: unknown }>(`
       SELECT public.rpc_record_factory_gold_handover(
         p_source_type := 'capital_pure_gold',
         p_physical_weight_g := 10.0000,
@@ -427,10 +430,9 @@ describe("Goldia Audit Production Fixes Suite", () => {
         p_notes := 'Capital pure gold handover test'
       ) as rpc_record_factory_gold_handover;
     `);
-    const hndObj = typeof hndRes.rows[0]!.rpc_record_factory_gold_handover === 'string'
-      ? JSON.parse(hndRes.rows[0]!.rpc_record_factory_gold_handover)
-      : hndRes.rows[0]!.rpc_record_factory_gold_handover;
-    const handoverId = hndObj.handover_id;
+    const rawHnd = hndRes.rows[0]!.rpc_record_factory_gold_handover;
+    const hndObj: RpcResultRecord = typeof rawHnd === 'string' ? JSON.parse(rawHnd) : (rawHnd as RpcResultRecord);
+    const handoverId = hndObj.handover_id!;
 
     // Check vault after handover
     const vaultMid = await db.query<{ manager_capital_pure_gold_g: number; manager_capital_pure_gold_fine_g: number; current_factory_advance_g: number }>(`
@@ -441,15 +443,14 @@ describe("Goldia Audit Production Fixes Suite", () => {
     expect(Number(vaultMid.rows[0]!.current_factory_advance_g)).toBe(17.0769);
 
     // Reverse handover
-    const revRes = await db.query<{ rpc_reverse_factory_gold_handover: any }>(`
+    const revRes = await db.query<{ rpc_reverse_factory_gold_handover: unknown }>(`
       SELECT public.rpc_reverse_factory_gold_handover(
         p_handover_id := '${handoverId}'::uuid,
         p_reason := 'Reversing capital pure gold handover test'
       ) as rpc_reverse_factory_gold_handover;
     `);
-    const revObj = typeof revRes.rows[0]!.rpc_reverse_factory_gold_handover === 'string'
-      ? JSON.parse(revRes.rows[0]!.rpc_reverse_factory_gold_handover)
-      : revRes.rows[0]!.rpc_reverse_factory_gold_handover;
+    const rawRev = revRes.rows[0]!.rpc_reverse_factory_gold_handover;
+    const revObj: RpcResultRecord = typeof rawRev === 'string' ? JSON.parse(rawRev) : (rawRev as RpcResultRecord);
     expect(revObj.status).toBe("ok");
 
     // Check vault after reversal: 100% restored to 50g 585 eq and 0 advance!
@@ -498,7 +499,7 @@ describe("Goldia Audit Production Fixes Suite", () => {
     const initialSellerStock = Number(sellerBefore.rows[0]!.current_physical_stock_g);
 
     // Issue 20g consignment via FIFO (p_factory_receipt_id IS NULL)
-    const fifoIssue = await db.query<{ rpc_issue_barcode_consignment: any }>(`
+    const fifoIssue = await db.query<{ rpc_issue_barcode_consignment: unknown }>(`
       SELECT public.rpc_issue_barcode_consignment(
         p_seller_id := '${sellerEmpId}'::uuid,
         p_factory_markup_pct := 8.0,
@@ -506,9 +507,8 @@ describe("Goldia Audit Production Fixes Suite", () => {
         p_notes := 'FIFO 20g issue test'
       ) as rpc_issue_barcode_consignment;
     `);
-    const fifoObj = typeof fifoIssue.rows[0]!.rpc_issue_barcode_consignment === 'string'
-      ? JSON.parse(fifoIssue.rows[0]!.rpc_issue_barcode_consignment)
-      : fifoIssue.rows[0]!.rpc_issue_barcode_consignment;
+    const rawFifo = fifoIssue.rows[0]!.rpc_issue_barcode_consignment;
+    const fifoObj: RpcResultRecord = typeof rawFifo === 'string' ? JSON.parse(rawFifo) : (rawFifo as RpcResultRecord);
     expect(fifoObj.status).toBe("ok");
 
     // Manager stock should decrease from 100g to 80g
@@ -524,73 +524,143 @@ describe("Goldia Audit Production Fixes Suite", () => {
     expect(Number(sellerAfter.rows[0]!.current_physical_stock_g)).toBe(initialSellerStock + 20.0000);
   });
 
-  it("Regression Test: Partial sale (100g -> 10g sale) and sale reversal chain", async () => {
-    // 1. Record receipt 100g and issue 100g consignment (10g piece + 90g piece)
+  it("Regression Test: Weight sale (rpc_record_weight_sale) and reversal (rpc_reverse_client_sale) chain for 100g stock -> 10g sale -> 100g restored", async () => {
+    // 1. Issue a single 100g consignment to seller
     await db.query(`
       INSERT INTO public.factory_receipts (
         organization_id, receipt_no, product_name, original_physical_g, available_physical_g, proba, factory_markup_pct, factory_obligation_g, status
       ) VALUES (
-        '${orgId}', 'ZVD-SALE-100', '100g Batch', 100.0000, 100.0000, 585, 8.0, 108.0000, 'in_manager_stock'
+        '${orgId}', 'ZVD-WEIGHT-100', '100g Weight Receipt', 100.0000, 100.0000, 585, 8.0, 108.0000, 'in_manager_stock'
       );
     `);
 
-    const consignRes = await db.query<{ rpc_issue_barcode_consignment: any }>(`
+    const consignRes = await db.query<{ rpc_issue_barcode_consignment: unknown }>(`
       SELECT public.rpc_issue_barcode_consignment(
         p_seller_id := '${sellerEmpId}'::uuid,
         p_factory_markup_pct := 8.0,
-        p_pieces := '[{"weight_grams": 10.0, "model_code": "P-10", "purity": 585}, {"weight_grams": 90.0, "model_code": "P-90", "purity": 585}]'::jsonb,
-        p_notes := '100g consignment'
+        p_pieces := '[{"weight_grams": 100.0, "model_code": "SINGLE-100", "purity": 585}]'::jsonb,
+        p_notes := 'SINGLE 100g consignment'
       ) as rpc_issue_barcode_consignment;
     `);
-    const consignObj = typeof consignRes.rows[0]!.rpc_issue_barcode_consignment === 'string'
-      ? JSON.parse(consignRes.rows[0]!.rpc_issue_barcode_consignment)
-      : consignRes.rows[0]!.rpc_issue_barcode_consignment;
+    const rawConsign = consignRes.rows[0]!.rpc_issue_barcode_consignment;
+    const consignObj: RpcResultRecord = typeof rawConsign === 'string' ? JSON.parse(rawConsign) : (rawConsign as RpcResultRecord);
+    expect(consignObj.status).toBe("ok");
 
-    const consignId = consignObj.consignment_id;
-
-    // Fetch the 10g piece directly from database
-    const pieceRow = await db.query<{ id: string }>(`
-      SELECT id FROM public.consignment_pieces
-      WHERE consignment_id = '${consignId}'::uuid
-      ORDER BY weight_grams ASC
-      LIMIT 1;
+    // Check initial seller physical stock
+    const sellerBefore = await db.query<{ current_physical_stock_g: number }>(`
+      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${sellerEmpId}';
     `);
-    const piece10Id = pieceRow.rows[0]!.id;
+    const initialStock = Number(sellerBefore.rows[0]!.current_physical_stock_g);
 
-    // 2. Sell 10g piece via rpc_record_barcode_piece_sale
-    const saleRes = await db.query<{ rpc_record_barcode_piece_sale: any }>(`
-      SELECT public.rpc_record_barcode_piece_sale(
+    // 2. Sell 10g via rpc_record_weight_sale (exact frontend RPC)
+    const saleRes = await db.query<{ rpc_record_weight_sale: unknown }>(`
+      SELECT public.rpc_record_weight_sale(
         p_customer_id := '${custId}'::uuid,
         p_seller_id := '${sellerEmpId}'::uuid,
-        p_piece_id := '${piece10Id}'::uuid,
+        p_weight_grams := 10.0000,
         p_client_markup_pct := 20.0,
-        p_notes := '10g sale test'
-      ) as rpc_record_barcode_piece_sale;
+        p_notes := 'Weight 10g sale test'
+      ) as rpc_record_weight_sale;
     `);
-    const saleObj = typeof saleRes.rows[0]!.rpc_record_barcode_piece_sale === 'string'
-      ? JSON.parse(saleRes.rows[0]!.rpc_record_barcode_piece_sale)
-      : saleRes.rows[0]!.rpc_record_barcode_piece_sale;
-    const saleId = saleObj.sale_id;
+    const rawSale = saleRes.rows[0]!.rpc_record_weight_sale;
+    const saleObj: RpcResultRecord = typeof rawSale === 'string' ? JSON.parse(rawSale) : (rawSale as RpcResultRecord);
+    const saleId = saleObj.sale_id!;
+    expect(saleObj.status).toBe("ok");
 
-    // 3. Reverse sale
-    const revRes = await db.query<{ rpc_reverse_jewelry_sale: any }>(`
-      SELECT public.rpc_reverse_jewelry_sale(
-        p_sale_id := '${saleId}'::uuid,
-        p_reversal_reason := 'Reversing 10g test sale'
-      ) as rpc_reverse_jewelry_sale;
+    // Check seller stock after 10g sale
+    const sellerMid = await db.query<{ current_physical_stock_g: number }>(`
+      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${sellerEmpId}';
     `);
-    const revObj = typeof revRes.rows[0]!.rpc_reverse_jewelry_sale === 'string'
-      ? JSON.parse(revRes.rows[0]!.rpc_reverse_jewelry_sale)
-      : revRes.rows[0]!.rpc_reverse_jewelry_sale;
+    expect(Number(sellerMid.rows[0]!.current_physical_stock_g)).toBe(initialStock - 10.0000);
+
+    // Check customer debt after 10g sale (10g + 20% = 12g)
+    const custMid = await db.query<{ current_debt_grams: number }>(`
+      SELECT current_debt_grams FROM public.client_gold_accounts WHERE customer_id = '${custId}';
+    `);
+    expect(Number(custMid.rows[0]!.current_debt_grams)).toBe(12.0000);
+
+    // 3. Reverse sale via rpc_reverse_client_sale (exact frontend RPC)
+    const revRes = await db.query<{ rpc_reverse_client_sale: unknown }>(`
+      SELECT public.rpc_reverse_client_sale(
+        p_sale_id := '${saleId}'::uuid,
+        p_reason := 'Reversing 10g weight sale test'
+      ) as rpc_reverse_client_sale;
+    `);
+    const rawRev = revRes.rows[0]!.rpc_reverse_client_sale;
+    const revObj: RpcResultRecord = typeof rawRev === 'string' ? JSON.parse(rawRev) : (rawRev as RpcResultRecord);
     expect(revObj.status).toBe("ok");
 
-    // 4. Verify piece 10g is held_by_seller, total active seller pieces sum to 100g
-    const activePiecesSum = await db.query<{ total_g: number }>(`
-      SELECT COALESCE(SUM(weight_grams), 0) as total_g
-      FROM public.consignment_pieces
-      WHERE consignment_id = '${consignId}'::uuid
-        AND status = 'held_by_seller';
+    // 4. Verify seller physical stock returns 100% to initial stock (100g)
+    const sellerFinal = await db.query<{ current_physical_stock_g: number }>(`
+      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${sellerEmpId}';
     `);
-    expect(Number(activePiecesSum.rows[0]!.total_g)).toBe(100.0000);
+    expect(Number(sellerFinal.rows[0]!.current_physical_stock_g)).toBe(initialStock);
+
+    // Verify customer debt returned to 0
+    const custFinal = await db.query<{ current_debt_grams: number }>(`
+      SELECT current_debt_grams FROM public.client_gold_accounts WHERE customer_id = '${custId}';
+    `);
+    expect(Number(custFinal.rows[0]!.current_debt_grams)).toBe(0.0000);
+  });
+
+  it("Regression Test: Refining 10g @ 997 proba = 17.042735g 585 eq exact internal math & restoration", async () => {
+    // 10g @ 997 = 10 * (997 / 585) = 17.0427350427... g 585 eq
+    const physW = 10.0000;
+    const proba = 997.00;
+    const computedEq = Number((physW * (proba / 585.0)).toFixed(4)); // 17.0427
+
+    // Fund vault fine gold
+    await db.query(`
+      UPDATE public.manager_vault_account
+         SET manager_refined_gold_grams = 50.0000,
+             manager_refined_gold_fine_grams = 29.2500,
+             total_factory_handed_over_g = 0.0000,
+             total_factory_obligation_g = 0.0000,
+             current_factory_obligation_g = 0.0000,
+             current_factory_advance_g = 0.0000
+       WHERE organization_id = '${orgId}';
+    `);
+
+    // Hand over 10g @ 997 (17.0427g 585 eq) from refined_gold to factory
+    const hndRes = await db.query<{ rpc_record_factory_gold_handover: unknown }>(`
+      SELECT public.rpc_record_factory_gold_handover(
+        p_source_type := 'refined_gold',
+        p_physical_weight_g := ${physW},
+        p_proba := ${proba},
+        p_agreed_equivalent_g := ${computedEq},
+        p_factory_recipient := 'Zavod Refining Test',
+        p_notes := '10g 997 proba handover'
+      ) as rpc_record_factory_gold_handover;
+    `);
+    const rawHnd = hndRes.rows[0]!.rpc_record_factory_gold_handover;
+    const hndObj: RpcResultRecord = typeof rawHnd === 'string' ? JSON.parse(rawHnd) : (rawHnd as RpcResultRecord);
+    const handoverId = hndObj.handover_id!;
+
+    // Check vault after handover
+    const vaultMid = await db.query<{ manager_refined_gold_grams: number; current_factory_advance_g: number }>(`
+      SELECT manager_refined_gold_grams, current_factory_advance_g
+      FROM public.manager_vault_account WHERE organization_id = '${orgId}';
+    `);
+    expect(Number(vaultMid.rows[0]!.manager_refined_gold_grams)).toBe(32.9573); // 50.0000 - 17.0427
+    expect(Number(vaultMid.rows[0]!.current_factory_advance_g)).toBe(17.0427);
+
+    // Reverse handover
+    const revRes = await db.query<{ rpc_reverse_factory_gold_handover: unknown }>(`
+      SELECT public.rpc_reverse_factory_gold_handover(
+        p_handover_id := '${handoverId}'::uuid,
+        p_reason := 'Reversing 10g 997 proba handover'
+      ) as rpc_reverse_factory_gold_handover;
+    `);
+    const rawRev = revRes.rows[0]!.rpc_reverse_factory_gold_handover;
+    const revObj: RpcResultRecord = typeof rawRev === 'string' ? JSON.parse(rawRev) : (rawRev as RpcResultRecord);
+    expect(revObj.status).toBe("ok");
+
+    // Check vault after reversal: 100% restored to 50g 585 eq
+    const vaultFinal = await db.query<{ manager_refined_gold_grams: number; current_factory_advance_g: number }>(`
+      SELECT manager_refined_gold_grams, current_factory_advance_g
+      FROM public.manager_vault_account WHERE organization_id = '${orgId}';
+    `);
+    expect(Number(vaultFinal.rows[0]!.manager_refined_gold_grams)).toBe(50.0000);
+    expect(Number(vaultFinal.rows[0]!.current_factory_advance_g)).toBe(0.0000);
   });
 });
