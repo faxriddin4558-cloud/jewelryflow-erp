@@ -4,10 +4,12 @@
 -- Fixes:
 -- 1. Consignment return double-counting on manager available stock & double deduction on seller physical stock.
 -- 2. Function overload collision resolution on rpc_reverse_refining_batch & all reversal RPCs.
--- 3. Block reversing gold purchases when linked active factory handovers exist.
--- 4. Sale reversal consignment and piece status retention parity.
+-- 3. Block reversing gold purchases when linked active factory handovers exist (purchase_id, source_purchase_id & notes reference).
+-- 4. Sale reversal consignment and piece status retention parity & client account column key fix.
 -- 5. Daily sales ledger USD payment breakdown parity.
 -- 6. Seller reconciliation Section A initial consignment count & Section C seller obligation parity.
+-- 7. Automatic FIFO consignment deduction & stock availability validation in rpc_issue_barcode_consignment.
+-- 8. Complete multi-source restoration (purchased_gold, refined_gold, scrap_gold, capital_pure_gold) and factory advance/obligation recalculation in rpc_reverse_factory_gold_handover.
 
 -- Add missing column to factory_gold_handovers if needed
 ALTER TABLE public.factory_gold_handovers ADD COLUMN IF NOT EXISTS source_purchase_id uuid REFERENCES public.gold_purchases(id) ON DELETE SET NULL;
@@ -508,17 +510,17 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_record_factory_receipt(text, integer, numeric, numeric, numeric, uuid, uuid, text, text) TO authenticated;
 
--- 1e. HARDENED rpc_issue_barcode_consignment (Returns quantity, pieces_count, item_count)
+-- 1e. HARDENED rpc_issue_barcode_consignment (With FIFO Deduction & Manager Stock Validation)
 DROP FUNCTION IF EXISTS public.rpc_issue_barcode_consignment(uuid, numeric, jsonb, text, text, uuid, numeric);
 
 CREATE OR REPLACE FUNCTION public.rpc_issue_barcode_consignment(
   p_seller_id          uuid,
-  p_seller_markup_pct  numeric DEFAULT 12.00,
+  p_factory_markup_pct numeric DEFAULT 0,
   p_pieces             jsonb DEFAULT '[]'::jsonb,
   p_notes              text DEFAULT NULL,
   p_idempotency_key    text DEFAULT NULL,
   p_factory_receipt_id uuid DEFAULT NULL,
-  p_factory_markup_pct numeric DEFAULT NULL
+  p_seller_markup_pct  numeric DEFAULT 12.00
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -551,14 +553,22 @@ DECLARE
   v_existing          jsonb;
   v_receipt_id        uuid := p_factory_receipt_id;
   v_receipt_rec       record;
+  v_cur_receipt       record;
+  v_total_avail       numeric(14, 4) := 0;
+  v_rem_to_deduct     numeric(14, 4) := 0;
+  v_take_g            numeric(14, 4) := 0;
 BEGIN
   IF v_caller_org IS NULL THEN
     RAISE EXCEPTION 'Permission denied: User must belong to an active organization' USING errcode = '42501';
   END IF;
 
   PERFORM public.assert_erp_permission(ARRAY[
-    'admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'boshqaruvchi', 'inventory_manager'
+    'admin', 'director', 'owner', 'direktor', 'rahbar', 'production_manager', 'manager', 'boshqaruvchi', 'inventory_manager'
   ]);
+
+  IF JSONB_ARRAY_LENGTH(p_pieces) = 0 THEN
+    RAISE EXCEPTION 'Kamida 1 ta mahsulot dona skaner qilinishi shart';
+  END IF;
 
   SELECT * INTO v_seller
     FROM public.employees
@@ -572,7 +582,10 @@ BEGIN
   v_payload := jsonb_build_object(
     'action', 'issue_barcode_consignment',
     'seller_id', p_seller_id,
-    'pieces', p_pieces
+    'factory_markup_pct', v_factory_pct,
+    'seller_markup_pct', v_seller_pct,
+    'piece_count', JSONB_ARRAY_LENGTH(p_pieces),
+    'factory_receipt_id', p_factory_receipt_id
   );
 
   IF p_idempotency_key IS NOT NULL THEN
@@ -582,49 +595,85 @@ BEGIN
     END IF;
   END IF;
 
-  -- Validate and accumulate pieces
-  FOR v_piece_elem IN SELECT * FROM jsonb_array_elements(p_pieces)
-  LOOP
+  -- Validate pieces weight and calculate totals
+  FOR v_piece_elem IN SELECT * FROM jsonb_array_elements(p_pieces) LOOP
     v_weight := ROUND(COALESCE((v_piece_elem->>'weight_grams')::numeric, 0), 4);
-    IF v_weight <= 0 THEN
-      RAISE EXCEPTION 'Har bir mahsulot vazni 0 dan katta bo''lishi shart';
+    IF v_weight <= 0 OR v_weight > 1000.0 THEN
+      RAISE EXCEPTION 'Noto''g''ri mahsulot vazni aniqlandi: % g (ruxsat: 0.05g - 1000g)', v_weight;
     END IF;
-    v_total_base_weight := ROUND(v_total_base_weight + v_weight, 4);
+    v_total_base_weight := v_total_base_weight + v_weight;
     v_total_qty := v_total_qty + 1;
   END LOOP;
 
-  IF v_total_qty = 0 OR v_total_base_weight <= 0 THEN
-    RAISE EXCEPTION 'Sotuvchiga beriladigan mahsulotlar ro''yxati bo''sh bo''lishi mumkin emas';
-  END IF;
+  v_total_base_weight := ROUND(v_total_base_weight, 4);
+  v_factory_due := ROUND((v_total_base_weight * (1.0 + v_factory_pct / 100.0))::numeric, 4);
+  v_seller_due  := ROUND((v_total_base_weight * (1.0 + v_seller_pct / 100.0))::numeric, 4);
 
-  v_factory_due := ROUND(v_total_base_weight * (1.0 + v_factory_pct / 100.0), 4);
-  v_seller_due  := ROUND(v_total_base_weight * (1.0 + v_seller_pct / 100.0), 4);
-
-  -- Strict Stock Availability Check
+  -- Deduct manager physical stock from factory_receipt(s)
   IF v_receipt_id IS NOT NULL THEN
     SELECT * INTO v_receipt_rec
       FROM public.factory_receipts
-     WHERE id = v_receipt_id AND organization_id = v_caller_org
+     WHERE id = v_receipt_id AND organization_id = v_caller_org AND status <> 'reversed'
      FOR UPDATE;
 
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'Tanlangan zavod kvitansiyasi topilmadi (%)', v_receipt_id;
+      RAISE EXCEPTION 'Belgilangan zavod kirim hujjati (%) topilmadi yoki bekor qilingan', v_receipt_id;
     END IF;
 
-    IF ROUND(v_receipt_rec.available_physical_g::numeric, 4) < v_total_base_weight THEN
-      RAISE EXCEPTION 'ERR_INSUFFICIENT_RECEIPT_STOCK: Kvitansiyada yetarli zaxira yo''q (Mavjud: % g, Talab: % g)',
-        v_receipt_rec.available_physical_g, v_total_base_weight;
+    IF COALESCE(v_receipt_rec.available_physical_g, 0) < v_total_base_weight THEN
+      RAISE EXCEPTION 'Menejer omborida yetarli tovar yo''q: tanlangan kirimda mavjud % g, talab qilindi % g',
+        COALESCE(v_receipt_rec.available_physical_g, 0), v_total_base_weight;
     END IF;
 
     UPDATE public.factory_receipts
        SET available_physical_g = ROUND((available_physical_g - v_total_base_weight)::numeric, 4),
            transferred_physical_g = ROUND((transferred_physical_g + v_total_base_weight)::numeric, 4),
-           status = CASE WHEN ROUND((available_physical_g - v_total_base_weight)::numeric, 4) <= 0 THEN 'fully_transferred' ELSE 'partially_transferred' END,
+           status = CASE WHEN ROUND((available_physical_g - v_total_base_weight)::numeric, 4) <= 0.0001 THEN 'fully_transferred' ELSE 'partially_transferred' END,
            updated_at = NOW()
      WHERE id = v_receipt_id;
+  ELSE
+    -- Automatic FIFO deduction across active factory receipts
+    SELECT COALESCE(SUM(available_physical_g), 0) INTO v_total_avail
+      FROM public.factory_receipts
+     WHERE organization_id = v_caller_org AND status <> 'reversed';
+
+    IF v_total_avail < v_total_base_weight THEN
+      RAISE EXCEPTION 'Menejer omborida yetarli tovar yo''q: mavjud % g, talab qilindi % g',
+        v_total_avail, v_total_base_weight;
+    END IF;
+
+    v_rem_to_deduct := v_total_base_weight;
+    FOR v_cur_receipt IN
+      SELECT * FROM public.factory_receipts
+       WHERE organization_id = v_caller_org AND status <> 'reversed' AND available_physical_g > 0
+       ORDER BY receipt_date ASC, created_at ASC
+       FOR UPDATE
+    LOOP
+      v_take_g := LEAST(v_rem_to_deduct, v_cur_receipt.available_physical_g);
+
+      UPDATE public.factory_receipts
+         SET available_physical_g = ROUND((available_physical_g - v_take_g)::numeric, 4),
+             transferred_physical_g = ROUND((transferred_physical_g + v_take_g)::numeric, 4),
+             status = CASE WHEN ROUND((available_physical_g - v_take_g)::numeric, 4) <= 0.0001 THEN 'fully_transferred' ELSE 'partially_transferred' END,
+             updated_at = NOW()
+       WHERE id = v_cur_receipt.id;
+
+      IF v_receipt_id IS NULL THEN
+        v_receipt_id := v_cur_receipt.id;
+      END IF;
+
+      v_rem_to_deduct := ROUND((v_rem_to_deduct - v_take_g)::numeric, 4);
+      IF v_rem_to_deduct <= 0.0001 THEN
+        EXIT;
+      END IF;
+    END LOOP;
+
+    IF v_rem_to_deduct > 0.0001 THEN
+      RAISE EXCEPTION 'Menejer omborida FIFO bo''yicha yetarli tovar topilmadi: yetishmayotgan qoldiq % g', v_rem_to_deduct;
+    END IF;
   END IF;
 
-  v_consignment_no := 'CONS-' || to_char(NOW(), 'YYYYMMDD') || '-' || UPPER(SUBSTR(md5(random()::text || clock_timestamp()::text), 1, 6));
+  v_consignment_no := 'CONS-BC-' || UPPER(SUBSTR(md5(random()::text || clock_timestamp()::text), 1, 8));
 
   INSERT INTO public.seller_consignments (
     organization_id, consignment_no, seller_id, factory_receipt_id, product_name,
@@ -637,27 +686,29 @@ BEGIN
   ) RETURNING id INTO v_consignment_id;
 
   -- Insert piece rows
-  FOR v_piece_elem IN SELECT * FROM jsonb_array_elements(p_pieces)
-  LOOP
-    v_weight      := ROUND(COALESCE((v_piece_elem->>'weight_grams')::numeric, 0), 4);
-    v_piece_seller_obl := ROUND(v_weight * (1.0 + v_seller_pct / 100.0), 4);
-    v_model_code  := UPPER(COALESCE(v_piece_elem->>'model_code', 'VAZN'));
-    v_model_name  := COALESCE(v_piece_elem->>'model_name', 'Zargarlik Buyumi');
-    v_category    := COALESCE(v_piece_elem->>'category', 'Buyum');
-    v_purity      := ROUND(COALESCE((v_piece_elem->>'purity')::numeric, 585.0), 2);
-    v_raw_barcode := COALESCE(v_piece_elem->>'raw_barcode', 'SCAN-' || gen_random_uuid());
-
+  FOR v_piece_elem IN SELECT * FROM jsonb_array_elements(p_pieces) LOOP
     v_piece_id := gen_random_uuid();
+    v_model_id := NULLIF(v_piece_elem->>'model_id', '')::uuid;
+    v_model_code := COALESCE(NULLIF(BTRIM(v_piece_elem->>'model_code'), ''), 'VAZN');
+    v_model_name := COALESCE(NULLIF(BTRIM(v_piece_elem->>'model_name'), ''), 'Zargarlik Buyumi (Standart 585)');
+    v_category := COALESCE(NULLIF(BTRIM(v_piece_elem->>'category'), ''), 'Buyum');
+    v_purity := COALESCE((v_piece_elem->>'purity')::numeric, 585.00);
+    v_weight := ROUND((v_piece_elem->>'weight_grams')::numeric, 4);
+    v_raw_barcode := COALESCE(v_piece_elem->>'raw_barcode', v_piece_elem->>'weight_grams');
+    v_piece_seller_obl := ROUND((v_weight * (1.0 + v_seller_pct / 100.0))::numeric, 4);
 
     INSERT INTO public.consignment_pieces (
-      id, organization_id, consignment_id, seller_id, model_code, model_name,
-      category, weight_grams, proba, seller_markup_pct, status, notes
+      id, organization_id, consignment_id, model_id, model_code, model_name,
+      category, purity, weight_grams, status, seller_id, raw_barcode, notes,
+      seller_markup_pct, seller_obligation_grams
     ) VALUES (
-      v_piece_id, v_caller_org, v_consignment_id, p_seller_id, v_model_code, v_model_name,
-      v_category, v_weight, v_purity, v_seller_pct, 'held_by_seller', 'Scanner 564 Consigned'
+      v_piece_id, v_caller_org, v_consignment_id, v_model_id, v_model_code, v_model_name,
+      v_category, v_purity, v_weight, 'held_by_seller', p_seller_id, v_raw_barcode, p_notes,
+      v_seller_pct, v_piece_seller_obl
     );
 
     v_inserted_pieces := v_inserted_pieces || jsonb_build_object(
+      'id', v_piece_id,
       'piece_id', v_piece_id,
       'model_code', v_model_code,
       'weight_grams', v_weight,
@@ -866,7 +917,7 @@ BEGIN
   WHERE gs.seller_id = p_seller_id
     AND gs.organization_id = v_caller_org
     AND gs.direction IN ('seller_to_manager', 'seller_to_factory')
-    AND (gs.status IS NULL OR gs.status NOT IN ('cancelled', 'reversed'));
+    AND (gs.status IS NULL OR gs.status NOT IN ('reversed', 'cancelled'));
 
   SELECT
     COUNT(*)::integer,
@@ -1156,10 +1207,10 @@ BEGIN
     RAISE EXCEPTION 'Ushbu oltin xaridi allaqachon bekor qilingan (%s)', v_purch.purchase_no;
   END IF;
 
-  -- DEPENDENCY CHECK: Check if there are active factory handovers linked to this purchase!
+  -- DEPENDENCY CHECK: Check if there are active factory handovers linked to this purchase via purchase_id, source_purchase_id OR notes reference!
   SELECT handover_no INTO v_active_hnd_no
   FROM public.factory_gold_handovers
-  WHERE (source_purchase_id = p_purchase_id OR notes LIKE '%' || v_purch.purchase_no || '%')
+  WHERE (purchase_id = p_purchase_id OR source_purchase_id = p_purchase_id OR (v_purch.purchase_no IS NOT NULL AND notes LIKE '%' || v_purch.purchase_no || '%'))
     AND organization_id = v_caller_org
     AND status NOT IN ('reversed', 'cancelled')
   LIMIT 1;
@@ -1232,7 +1283,7 @@ GRANT EXECUTE ON FUNCTION public.rpc_reverse_gold_purchase(uuid, text, text) TO 
 
 
 -- -------------------------------------------------------------------------
--- PART 4: HARDEN ALL OTHER REVERSAL RPC SIGNATURES & STATUS RETENTION
+-- PART 4: COMPLETE MULTI-SOURCE RESTORATION IN rpc_reverse_factory_gold_handover
 -- -------------------------------------------------------------------------
 
 DROP FUNCTION IF EXISTS public.rpc_reverse_factory_gold_handover(uuid, text);
@@ -1256,6 +1307,11 @@ DECLARE
   v_vault           public.manager_vault_account%rowtype;
   v_payload         jsonb;
   v_existing        jsonb;
+  v_src             text;
+  v_new_handed_over numeric(14, 4);
+  v_net_balance     numeric(14, 4);
+  v_new_obligation  numeric(14, 4);
+  v_new_advance     numeric(14, 4);
 BEGIN
   IF v_caller_org IS NULL THEN
     RAISE EXCEPTION 'Permission denied: User must belong to an active organization' USING errcode = '42501';
@@ -1289,11 +1345,11 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Zavodga topshirilgan oltin yozuvi topilmadi: %', p_handover_id;
+    RAISE EXCEPTION 'Zavodga oltin topshirish hujjati topilmadi: %', p_handover_id;
   END IF;
 
   IF v_hnd.status IN ('reversed', 'cancelled') THEN
-    RAISE EXCEPTION 'Ushbu topshirish yozuvi allaqachon bekor qilingan (%s)', v_hnd.handover_no;
+    RAISE EXCEPTION 'Ushbu zavodga topshirish hujjati allaqachon bekor qilingan (%s)', v_hnd.handover_no;
   END IF;
 
   PERFORM public._get_or_create_manager_vault(v_caller_org);
@@ -1302,22 +1358,53 @@ BEGIN
   WHERE organization_id = v_caller_org
   FOR UPDATE;
 
-  IF v_hnd.source_type = 'purchased_gold' THEN
+  v_src := COALESCE(v_hnd.source_type, 'refined_gold');
+
+  -- Restore handed-over gold to manager vault according to source_type
+  IF v_src = 'refined_gold' THEN
     UPDATE public.manager_vault_account
-       SET manager_purchased_gold_grams = ROUND((COALESCE(manager_purchased_gold_grams, 0) + v_hnd.agreed_equivalent_g)::numeric, 4),
+       SET manager_refined_gold_grams = ROUND((manager_refined_gold_grams + v_hnd.agreed_equivalent_g)::numeric, 4),
+           manager_refined_gold_fine_grams = ROUND((COALESCE(manager_refined_gold_fine_grams, 0) + COALESCE(v_hnd.physical_weight_g, v_hnd.agreed_equivalent_g))::numeric, 4),
            updated_at = NOW()
      WHERE organization_id = v_caller_org;
-  ELSIF v_hnd.source_type = 'refined_gold' THEN
+  ELSIF v_src = 'purchased_gold' THEN
     UPDATE public.manager_vault_account
-       SET manager_refined_gold_grams = ROUND((COALESCE(manager_refined_gold_grams, 0) + v_hnd.agreed_equivalent_g)::numeric, 4),
+       SET manager_purchased_gold_grams = ROUND((manager_purchased_gold_grams + v_hnd.agreed_equivalent_g)::numeric, 4),
            updated_at = NOW()
      WHERE organization_id = v_caller_org;
-  ELSIF v_hnd.source_type = 'scrap_gold' THEN
+  ELSIF v_src = 'capital_pure_gold' THEN
     UPDATE public.manager_vault_account
-       SET manager_scrap_grams = ROUND((COALESCE(manager_scrap_grams, 0) + v_hnd.physical_weight_g)::numeric, 4),
+       SET manager_capital_pure_gold_g = ROUND((COALESCE(manager_capital_pure_gold_g, 0) + v_hnd.agreed_equivalent_g)::numeric, 4),
+           manager_capital_pure_gold_fine_g = ROUND((COALESCE(manager_capital_pure_gold_fine_g, 0) + ROUND((v_hnd.physical_weight_g * (COALESCE(v_hnd.proba, 999.0) / 1000.0))::numeric, 4))::numeric, 4),
+           updated_at = NOW()
+     WHERE organization_id = v_caller_org;
+  ELSE -- scrap_gold or scrap
+    UPDATE public.manager_vault_account
+       SET manager_scrap_grams = ROUND((manager_scrap_grams + COALESCE(v_hnd.physical_weight_g, v_hnd.agreed_equivalent_g))::numeric, 4),
+           manager_scrap_physical_g = ROUND((COALESCE(manager_scrap_physical_g, 0) + COALESCE(v_hnd.physical_weight_g, v_hnd.agreed_equivalent_g))::numeric, 4),
+           manager_scrap_585_eq_g = ROUND((COALESCE(manager_scrap_585_eq_g, 0) + v_hnd.agreed_equivalent_g)::numeric, 4),
            updated_at = NOW()
      WHERE organization_id = v_caller_org;
   END IF;
+
+  -- Atomically recalculate obligation and advance:
+  v_new_handed_over := ROUND(GREATEST(0, v_vault.total_factory_handed_over_g - v_hnd.agreed_equivalent_g), 4);
+  v_net_balance := ROUND(v_vault.total_factory_obligation_g - v_new_handed_over, 4);
+
+  IF v_net_balance >= 0 THEN
+    v_new_obligation := v_net_balance;
+    v_new_advance := 0;
+  ELSE
+    v_new_obligation := 0;
+    v_new_advance := ABS(v_net_balance);
+  END IF;
+
+  UPDATE public.manager_vault_account
+     SET total_factory_handed_over_g = v_new_handed_over,
+         current_factory_obligation_g = v_new_obligation,
+         current_factory_advance_g = v_new_advance,
+         updated_at = NOW()
+   WHERE organization_id = v_caller_org;
 
   UPDATE public.factory_gold_handovers
      SET status = 'reversed',
@@ -1355,8 +1442,159 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_reverse_factory_gold_handover(uuid, text, text) TO authenticated;
 
+
 -- -------------------------------------------------------------------------
--- PART 5: DAILY SALES LEDGER USD BREAKDOWN PARITY
+-- PART 5: REOPEN SALE REVERSAL & CLIENT ACCOUNT PRIMARY KEY FIX
+-- -------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.rpc_reverse_jewelry_sale(
+  p_sale_id         uuid,
+  p_reversal_reason text DEFAULT NULL,
+  p_idempotency_key text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_caller_org    uuid := public.current_organization_id();
+  v_caller_role   text := public.current_employee_role_text();
+  v_sale          public.jewelry_sales%rowtype;
+  v_client_acc    public.client_gold_accounts%rowtype;
+  v_reason        text := NULLIF(btrim(p_reversal_reason), '');
+  v_piece         public.consignment_pieces%rowtype;
+  v_consign       public.seller_consignments%rowtype;
+  v_applied_sett  public.gold_settlements%rowtype;
+  v_existing      jsonb;
+BEGIN
+  IF v_caller_org IS NULL THEN
+    RAISE EXCEPTION 'Permission denied: User must belong to an active organization' USING errcode = '42501';
+  END IF;
+
+  PERFORM public.assert_erp_permission(ARRAY[
+    'admin', 'director', 'owner', 'direktor', 'rahbar',
+    'production_manager', 'manager', 'boshqaruvchi',
+    'accountant', 'buxgalter'
+  ]);
+
+  IF v_reason IS NULL THEN
+    RAISE EXCEPTION 'Savdoni bekor qilish sababi (reversal reason) kiritilishi shart';
+  END IF;
+
+  SELECT * INTO v_sale
+    FROM public.jewelry_sales
+   WHERE id = p_sale_id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Bekor qilinadigan savdo yozuvi topilmadi (%)', p_sale_id;
+  END IF;
+
+  IF v_sale.status IN ('cancelled', 'reversed') THEN
+    RAISE EXCEPTION 'Ushbu savdo allaqachon bekor qilingan (Holat: %)', v_sale.status;
+  END IF;
+
+  -- 1. Check if customer made active payments specifically applied to this sale
+  FOR v_applied_sett IN
+    SELECT * FROM public.gold_settlements
+     WHERE sale_id = v_sale.id
+       AND organization_id = v_caller_org
+       AND status NOT IN ('reversed', 'cancelled')
+  LOOP
+    RAISE EXCEPTION 'Savdoni bekor qilib bo''lmaydi: Ushbu savdoga to''lov bog''langan (% — % g). Avval to''lovni bekor qiling.',
+      v_applied_sett.settlement_no, v_applied_sett.applied_to_debt_grams;
+  END LOOP;
+
+  -- 2. Deduct customer debt generated by this sale
+  SELECT * INTO v_client_acc
+    FROM public.client_gold_accounts
+   WHERE customer_id = v_sale.customer_id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  IF FOUND THEN
+    UPDATE public.client_gold_accounts
+       SET current_debt_grams = ROUND(GREATEST(0, current_debt_grams - v_sale.remaining_gold_grams)::numeric, 4),
+           total_purchased_gold_grams = ROUND(GREATEST(0, total_purchased_gold_grams - v_sale.client_gold_due_grams)::numeric, 4),
+           updated_at = NOW()
+     WHERE customer_id = v_client_acc.customer_id;
+  END IF;
+
+  -- 3. If a physical piece was sold, restore it to seller hand
+  SELECT * INTO v_piece
+    FROM public.consignment_pieces
+   WHERE sale_id = v_sale.id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  IF FOUND THEN
+    UPDATE public.consignment_pieces
+       SET status = 'held_by_seller',
+           sale_id = NULL,
+           sold_at = NULL,
+           updated_at = NOW()
+     WHERE id = v_piece.id;
+
+    -- Reopen parent consignment if it was marked fully_sold
+    IF v_piece.consignment_id IS NOT NULL THEN
+      SELECT * INTO v_consign
+        FROM public.seller_consignments
+       WHERE id = v_piece.consignment_id
+       FOR UPDATE;
+
+      IF FOUND THEN
+        UPDATE public.seller_consignments
+           SET sold_quantity = GREATEST(0, COALESCE(sold_quantity, 1) - 1),
+               status = CASE
+                          WHEN COALESCE(sold_quantity, 1) - 1 <= 0 THEN 'held_by_seller'
+                          ELSE 'partially_sold'
+                        END,
+               updated_at = NOW()
+         WHERE id = v_consign.id;
+      END IF;
+    END IF;
+  END IF;
+
+  -- 4. Mark sale as reversed
+  UPDATE public.jewelry_sales
+     SET status = 'reversed',
+         notes = COALESCE(notes, '') || ' [BEKOR QILINDI: ' || v_reason || ' (' || to_char(NOW(), 'YYYY-MM-DD HH24:MI') || ')]',
+         updated_at = NOW()
+   WHERE id = v_sale.id;
+
+  -- 5. Recalculate seller responsibility
+  PERFORM public.recalc_seller_gold_account(v_sale.seller_id, v_caller_org);
+
+  -- 6. Audit log
+  INSERT INTO public.audit_logs (
+    organization_id, table_name, record_id, action, actor_id, new_data
+  ) VALUES (
+    v_caller_org, 'jewelry_sales', v_sale.id::text, 'REVERSE_SALE', auth.uid(),
+    jsonb_build_object(
+      'sale_id', v_sale.id,
+      'sale_no', v_sale.sale_no,
+      'customer_id', v_sale.customer_id,
+      'seller_id', v_sale.seller_id,
+      'reversed_debt_g', v_sale.remaining_gold_grams,
+      'reason', v_reason
+    )
+  );
+
+  RETURN jsonb_build_object(
+    'status', 'ok',
+    'sale_id', v_sale.id,
+    'sale_no', v_sale.sale_no,
+    'reversed_debt_g', v_sale.remaining_gold_grams,
+    'restored_piece_id', v_piece.id,
+    'message', 'Savdo muvaffaqiyatli bekor qilindi'
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.rpc_reverse_jewelry_sale(uuid, text, text) TO authenticated;
+
+
+-- -------------------------------------------------------------------------
+-- PART 6: DAILY SALES LEDGER USD BREAKDOWN PARITY
 -- -------------------------------------------------------------------------
 
 DROP FUNCTION IF EXISTS public.rpc_get_daily_sales_ledger(uuid, date, date);

@@ -197,13 +197,16 @@ describe("Goldia Audit Production Fixes Suite", () => {
     await db.query(`SELECT public.recalc_seller_gold_account('${sellerEmpId}', '${orgId}');`);
 
     // Return 20g piece to manager
-    const retRes = await db.query<{ rpc_return_piece_to_manager: { status: string } }>(`
+    const retRes = await db.query<{ rpc_return_piece_to_manager: any }>(`
       SELECT public.rpc_return_piece_to_manager(
         p_piece_id := '${pieceId}'::uuid,
         p_notes := 'Audit test return 20g'
       ) as rpc_return_piece_to_manager;
     `);
-    expect(retRes.rows[0]!.rpc_return_piece_to_manager.status).toBe("ok");
+    const retVal = typeof retRes.rows[0]!.rpc_return_piece_to_manager === 'string'
+      ? JSON.parse(retRes.rows[0]!.rpc_return_piece_to_manager)
+      : retRes.rows[0]!.rpc_return_piece_to_manager;
+    expect(retVal.status).toBe("ok");
 
     // Check manager physical stock from function
     const mgrStock = await db.query<{ get_manager_available_stock_grams: number }>(`
@@ -243,13 +246,16 @@ describe("Goldia Audit Production Fixes Suite", () => {
     const refBatchId = refRes.rows[0]!.id;
 
     // Call rpc_reverse_refining_batch - Should resolve without candidate function ambiguity error
-    const revRes = await db.query<{ rpc_reverse_refining_batch: { status: string } }>(`
+    const revRes = await db.query<{ rpc_reverse_refining_batch: any }>(`
       SELECT public.rpc_reverse_refining_batch(
         p_batch_id := '${refBatchId}'::uuid,
         p_reason := 'Audit test reversal'
       ) as rpc_reverse_refining_batch;
     `);
-    expect(revRes.rows[0]!.rpc_reverse_refining_batch.status).toBe("ok");
+    const revVal = typeof revRes.rows[0]!.rpc_reverse_refining_batch === 'string'
+      ? JSON.parse(revRes.rows[0]!.rpc_reverse_refining_batch)
+      : revRes.rows[0]!.rpc_reverse_refining_batch;
+    expect(revVal.status).toBe("ok");
 
     // Verify vault scrap restored to 10g and fine gold reduced
     const vaultRes = await db.query<{ manager_scrap_grams: number; manager_refined_gold_grams: number }>(`
@@ -259,41 +265,85 @@ describe("Goldia Audit Production Fixes Suite", () => {
     expect(Number(vaultRes.rows[0]!.manager_refined_gold_grams)).toBe(0.0000);
   });
 
-  it("Issue 3: Reversing gold purchase is BLOCKED when an active factory handover is linked", async () => {
-    // Create purchase BUY-AUDIT-01 for 1.10g 585 eq
-    const purchRes = await db.query<{ id: string }>(`
-      INSERT INTO public.gold_purchases (
-        organization_id, purchase_no, supplier_name, gold_weight_grams, proba, equiv_585_grams, cash_spent_uzs, usd_spent, rate_per_gram, status
-      ) VALUES (
-        '${orgId}', 'BUY-20261028-F4F56B', 'Bozor Murod', 1.1000, 585, 1.1000, 860000, 10, 900000, 'confirmed'
-      ) RETURNING id;
-    `);
-    const purchId = purchRes.rows[0]!.id;
-
-    // Create active factory handover HND-AUDIT-01 for 0.50g linked to BUY-AUDIT-01
+  it("Issue 3: Reversing gold purchase is BLOCKED when an active factory handover is linked (Via REAL RPCs without notes)", async () => {
+    // Fund manager vault cash for purchase
     await db.query(`
-      INSERT INTO public.factory_gold_handovers (
-        organization_id, handover_no, source_type, physical_weight_g, proba, agreed_equivalent_g, source_purchase_id, notes, status
-      ) VALUES (
-        '${orgId}', 'HND-20261028-E02B8F', 'purchased_gold', 0.5000, 585, 0.5000, '${purchId}', 'Purchase ref: BUY-20261028-F4F56B', 'confirmed'
-      );
+      UPDATE public.manager_vault_account
+         SET manager_cash_amount = 10000000
+       WHERE organization_id = '${orgId}';
     `);
 
-    // Attempting to reverse purchase BUY-20261028-F4F56B MUST fail with explicit error mentioning HND-20261028-E02B8F
+    // Record purchase via rpc_record_gold_purchase
+    const buyRes = await db.query<{ rpc_record_gold_purchase: any }>(`
+      SELECT public.rpc_record_gold_purchase(
+        p_supplier_name := 'Bozor Real RPC',
+        p_cash_spent_uzs := 1000000,
+        p_gold_weight_grams := 2.0000,
+        p_proba := 585,
+        p_usd_spent := 0,
+        p_notes := null
+      ) as rpc_record_gold_purchase;
+    `);
+    const buyObj = typeof buyRes.rows[0]!.rpc_record_gold_purchase === 'string'
+      ? JSON.parse(buyRes.rows[0]!.rpc_record_gold_purchase)
+      : buyRes.rows[0]!.rpc_record_gold_purchase;
+    const purchaseId = buyObj.purchase_id;
+
+    // Record factory handover via rpc_record_factory_gold_handover with EMPTY notes
+    const hndRes = await db.query<{ rpc_record_factory_gold_handover: any }>(`
+      SELECT public.rpc_record_factory_gold_handover(
+        p_source_type := 'purchased_gold',
+        p_physical_weight_g := 1.0000,
+        p_proba := 585,
+        p_agreed_equivalent_g := 1.0000,
+        p_factory_recipient := 'Zavod RPC',
+        p_notes := null,
+        p_purchase_id := '${purchaseId}'::uuid
+      ) as rpc_record_factory_gold_handover;
+    `);
+    const hndObj = typeof hndRes.rows[0]!.rpc_record_factory_gold_handover === 'string'
+      ? JSON.parse(hndRes.rows[0]!.rpc_record_factory_gold_handover)
+      : hndRes.rows[0]!.rpc_record_factory_gold_handover;
+    const handoverId = hndObj.handover_id;
+
+    // Attempting to reverse purchase MUST fail because purchase_id links the active handover!
     let rejected = false;
     try {
       await db.query(`
         SELECT public.rpc_reverse_gold_purchase(
-          p_purchase_id := '${purchId}'::uuid,
-          p_reason := 'Attempt reverse linked purchase'
+          p_purchase_id := '${purchaseId}'::uuid,
+          p_reason := 'Attempt reverse linked purchase without notes'
         );
       `);
     } catch (err: unknown) {
       rejected = true;
       const msg = err instanceof Error ? err.message : String(err);
-      expect(msg).toContain("HND-20261028-E02B8F");
+      expect(msg).toContain("faol zavodga topshirish");
     }
     expect(rejected).toBe(true);
+
+    // Reversing handover first, then reversing purchase succeeds cleanly
+    const revHnd = await db.query<{ rpc_reverse_factory_gold_handover: any }>(`
+      SELECT public.rpc_reverse_factory_gold_handover(
+        p_handover_id := '${handoverId}'::uuid,
+        p_reason := 'Reversing handover first'
+      ) as rpc_reverse_factory_gold_handover;
+    `);
+    const revHndObj = typeof revHnd.rows[0]!.rpc_reverse_factory_gold_handover === 'string'
+      ? JSON.parse(revHnd.rows[0]!.rpc_reverse_factory_gold_handover)
+      : revHnd.rows[0]!.rpc_reverse_factory_gold_handover;
+    expect(revHndObj.status).toBe("ok");
+
+    const revBuy = await db.query<{ rpc_reverse_gold_purchase: any }>(`
+      SELECT public.rpc_reverse_gold_purchase(
+        p_purchase_id := '${purchaseId}'::uuid,
+        p_reason := 'Reversing purchase after handover cancellation'
+      ) as rpc_reverse_gold_purchase;
+    `);
+    const revBuyObj = typeof revBuy.rows[0]!.rpc_reverse_gold_purchase === 'string'
+      ? JSON.parse(revBuy.rows[0]!.rpc_reverse_gold_purchase)
+      : revBuy.rows[0]!.rpc_reverse_gold_purchase;
+    expect(revBuyObj.status).toBe("ok");
   });
 
   it("Issue 4: Restored consignment piece after sale reversal retains active status", async () => {
@@ -329,13 +379,16 @@ describe("Goldia Audit Production Fixes Suite", () => {
     await db.query(`UPDATE public.consignment_pieces SET sale_id = '${saleId}' WHERE id = '${pieceId}';`);
 
     // Reverse sale
-    const revSale = await db.query<{ rpc_reverse_jewelry_sale: { status: string } }>(`
+    const revSale = await db.query<{ rpc_reverse_jewelry_sale: any }>(`
       SELECT public.rpc_reverse_jewelry_sale(
         p_sale_id := '${saleId}'::uuid,
         p_reversal_reason := 'Customer return'
       ) as rpc_reverse_jewelry_sale;
     `);
-    expect(revSale.rows[0]!.rpc_reverse_jewelry_sale.status).toBe("ok");
+    const revSaleObj = typeof revSale.rows[0]!.rpc_reverse_jewelry_sale === 'string'
+      ? JSON.parse(revSale.rows[0]!.rpc_reverse_jewelry_sale)
+      : revSale.rows[0]!.rpc_reverse_jewelry_sale;
+    expect(revSaleObj.status).toBe("ok");
 
     // Verify restored piece status is 'held_by_seller' and parent consignment status is not blank/null
     const pieceCheck = await db.query<{ status: string }>(`
@@ -348,5 +401,196 @@ describe("Goldia Audit Production Fixes Suite", () => {
     `);
     expect(consignCheck.rows[0]!.status).toBeTruthy();
     expect(consignCheck.rows[0]!.status).not.toBe("");
+  });
+
+  it("Regression Test: capital_pure_gold handover and reversal restores exact state", async () => {
+    // Setup vault with capital_pure_gold = 50g 585 eq (49.95g fine gold 999)
+    await db.query(`
+      UPDATE public.manager_vault_account
+         SET manager_capital_pure_gold_g = 50.0000,
+             manager_capital_pure_gold_fine_g = 49.9500,
+             total_factory_handed_over_g = 0.0000,
+             total_factory_obligation_g = 0.0000,
+             current_factory_obligation_g = 0.0000,
+             current_factory_advance_g = 0.0000
+       WHERE organization_id = '${orgId}';
+    `);
+
+    // Hand over 10g fine gold (17.0769g 585 eq) from capital_pure_gold to factory
+    const hndRes = await db.query<{ rpc_record_factory_gold_handover: any }>(`
+      SELECT public.rpc_record_factory_gold_handover(
+        p_source_type := 'capital_pure_gold',
+        p_physical_weight_g := 10.0000,
+        p_proba := 999,
+        p_agreed_equivalent_g := 17.0769,
+        p_factory_recipient := 'Zavod Capital Test',
+        p_notes := 'Capital pure gold handover test'
+      ) as rpc_record_factory_gold_handover;
+    `);
+    const hndObj = typeof hndRes.rows[0]!.rpc_record_factory_gold_handover === 'string'
+      ? JSON.parse(hndRes.rows[0]!.rpc_record_factory_gold_handover)
+      : hndRes.rows[0]!.rpc_record_factory_gold_handover;
+    const handoverId = hndObj.handover_id;
+
+    // Check vault after handover
+    const vaultMid = await db.query<{ manager_capital_pure_gold_g: number; manager_capital_pure_gold_fine_g: number; current_factory_advance_g: number }>(`
+      SELECT manager_capital_pure_gold_g, manager_capital_pure_gold_fine_g, current_factory_advance_g
+      FROM public.manager_vault_account WHERE organization_id = '${orgId}';
+    `);
+    expect(Number(vaultMid.rows[0]!.manager_capital_pure_gold_g)).toBe(32.9231);
+    expect(Number(vaultMid.rows[0]!.current_factory_advance_g)).toBe(17.0769);
+
+    // Reverse handover
+    const revRes = await db.query<{ rpc_reverse_factory_gold_handover: any }>(`
+      SELECT public.rpc_reverse_factory_gold_handover(
+        p_handover_id := '${handoverId}'::uuid,
+        p_reason := 'Reversing capital pure gold handover test'
+      ) as rpc_reverse_factory_gold_handover;
+    `);
+    const revObj = typeof revRes.rows[0]!.rpc_reverse_factory_gold_handover === 'string'
+      ? JSON.parse(revRes.rows[0]!.rpc_reverse_factory_gold_handover)
+      : revRes.rows[0]!.rpc_reverse_factory_gold_handover;
+    expect(revObj.status).toBe("ok");
+
+    // Check vault after reversal: 100% restored to 50g 585 eq and 0 advance!
+    const vaultFinal = await db.query<{ manager_capital_pure_gold_g: number; current_factory_advance_g: number }>(`
+      SELECT manager_capital_pure_gold_g, current_factory_advance_g
+      FROM public.manager_vault_account WHERE organization_id = '${orgId}';
+    `);
+    expect(Number(vaultFinal.rows[0]!.manager_capital_pure_gold_g)).toBe(50.0000);
+    expect(Number(vaultFinal.rows[0]!.current_factory_advance_g)).toBe(0.0000);
+  });
+
+  it("Regression Test: Automatic FIFO consignment issuance (stock 0 rejected vs 100g -> 80g manager & 20g seller)", async () => {
+    // 1. When no active receipts exist, FIFO consignment MUST abort with exception
+    await db.query(`UPDATE public.factory_receipts SET available_physical_g = 0, status = 'fully_transferred' WHERE organization_id = '${orgId}';`);
+
+    let fifoRejected = false;
+    try {
+      await db.query(`
+        SELECT public.rpc_issue_barcode_consignment(
+          p_seller_id := '${sellerEmpId}'::uuid,
+          p_factory_markup_pct := 8.0,
+          p_pieces := '[{"weight_grams": 20.0, "model_code": "FIFO-1", "purity": 585}]'::jsonb,
+          p_notes := 'FIFO 0 stock test'
+        );
+      `);
+    } catch (err: unknown) {
+      fifoRejected = true;
+      const msg = err instanceof Error ? err.message : String(err);
+      expect(msg).toContain("Menejer omborida yetarli tovar yo'q");
+    }
+    expect(fifoRejected).toBe(true);
+
+    // 2. Create factory receipt with 100g available stock
+    await db.query(`
+      INSERT INTO public.factory_receipts (
+        organization_id, receipt_no, product_name, original_physical_g, available_physical_g, proba, factory_markup_pct, factory_obligation_g, status
+      ) VALUES (
+        '${orgId}', 'ZVD-FIFO-100', '100g Factory Receipt', 100.0000, 100.0000, 585, 8.0, 108.0000, 'in_manager_stock'
+      );
+    `);
+
+    // Get current seller physical stock
+    const sellerBefore = await db.query<{ current_physical_stock_g: number }>(`
+      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${sellerEmpId}';
+    `);
+    const initialSellerStock = Number(sellerBefore.rows[0]!.current_physical_stock_g);
+
+    // Issue 20g consignment via FIFO (p_factory_receipt_id IS NULL)
+    const fifoIssue = await db.query<{ rpc_issue_barcode_consignment: any }>(`
+      SELECT public.rpc_issue_barcode_consignment(
+        p_seller_id := '${sellerEmpId}'::uuid,
+        p_factory_markup_pct := 8.0,
+        p_pieces := '[{"weight_grams": 20.0, "model_code": "FIFO-20", "purity": 585}]'::jsonb,
+        p_notes := 'FIFO 20g issue test'
+      ) as rpc_issue_barcode_consignment;
+    `);
+    const fifoObj = typeof fifoIssue.rows[0]!.rpc_issue_barcode_consignment === 'string'
+      ? JSON.parse(fifoIssue.rows[0]!.rpc_issue_barcode_consignment)
+      : fifoIssue.rows[0]!.rpc_issue_barcode_consignment;
+    expect(fifoObj.status).toBe("ok");
+
+    // Manager stock should decrease from 100g to 80g
+    const mgrStock = await db.query<{ get_manager_available_stock_grams: number }>(`
+      SELECT public.get_manager_available_stock_grams('${orgId}') as get_manager_available_stock_grams;
+    `);
+    expect(Number(mgrStock.rows[0]!.get_manager_available_stock_grams)).toBe(80.0000);
+
+    // Seller physical stock should increase by 20g
+    const sellerAfter = await db.query<{ current_physical_stock_g: number }>(`
+      SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${sellerEmpId}';
+    `);
+    expect(Number(sellerAfter.rows[0]!.current_physical_stock_g)).toBe(initialSellerStock + 20.0000);
+  });
+
+  it("Regression Test: Partial sale (100g -> 10g sale) and sale reversal chain", async () => {
+    // 1. Record receipt 100g and issue 100g consignment (10g piece + 90g piece)
+    await db.query(`
+      INSERT INTO public.factory_receipts (
+        organization_id, receipt_no, product_name, original_physical_g, available_physical_g, proba, factory_markup_pct, factory_obligation_g, status
+      ) VALUES (
+        '${orgId}', 'ZVD-SALE-100', '100g Batch', 100.0000, 100.0000, 585, 8.0, 108.0000, 'in_manager_stock'
+      );
+    `);
+
+    const consignRes = await db.query<{ rpc_issue_barcode_consignment: any }>(`
+      SELECT public.rpc_issue_barcode_consignment(
+        p_seller_id := '${sellerEmpId}'::uuid,
+        p_factory_markup_pct := 8.0,
+        p_pieces := '[{"weight_grams": 10.0, "model_code": "P-10", "purity": 585}, {"weight_grams": 90.0, "model_code": "P-90", "purity": 585}]'::jsonb,
+        p_notes := '100g consignment'
+      ) as rpc_issue_barcode_consignment;
+    `);
+    const consignObj = typeof consignRes.rows[0]!.rpc_issue_barcode_consignment === 'string'
+      ? JSON.parse(consignRes.rows[0]!.rpc_issue_barcode_consignment)
+      : consignRes.rows[0]!.rpc_issue_barcode_consignment;
+
+    const consignId = consignObj.consignment_id;
+
+    // Fetch the 10g piece directly from database
+    const pieceRow = await db.query<{ id: string }>(`
+      SELECT id FROM public.consignment_pieces
+      WHERE consignment_id = '${consignId}'::uuid
+      ORDER BY weight_grams ASC
+      LIMIT 1;
+    `);
+    const piece10Id = pieceRow.rows[0]!.id;
+
+    // 2. Sell 10g piece via rpc_record_barcode_piece_sale
+    const saleRes = await db.query<{ rpc_record_barcode_piece_sale: any }>(`
+      SELECT public.rpc_record_barcode_piece_sale(
+        p_customer_id := '${custId}'::uuid,
+        p_seller_id := '${sellerEmpId}'::uuid,
+        p_piece_id := '${piece10Id}'::uuid,
+        p_client_markup_pct := 20.0,
+        p_notes := '10g sale test'
+      ) as rpc_record_barcode_piece_sale;
+    `);
+    const saleObj = typeof saleRes.rows[0]!.rpc_record_barcode_piece_sale === 'string'
+      ? JSON.parse(saleRes.rows[0]!.rpc_record_barcode_piece_sale)
+      : saleRes.rows[0]!.rpc_record_barcode_piece_sale;
+    const saleId = saleObj.sale_id;
+
+    // 3. Reverse sale
+    const revRes = await db.query<{ rpc_reverse_jewelry_sale: any }>(`
+      SELECT public.rpc_reverse_jewelry_sale(
+        p_sale_id := '${saleId}'::uuid,
+        p_reversal_reason := 'Reversing 10g test sale'
+      ) as rpc_reverse_jewelry_sale;
+    `);
+    const revObj = typeof revRes.rows[0]!.rpc_reverse_jewelry_sale === 'string'
+      ? JSON.parse(revRes.rows[0]!.rpc_reverse_jewelry_sale)
+      : revRes.rows[0]!.rpc_reverse_jewelry_sale;
+    expect(revObj.status).toBe("ok");
+
+    // 4. Verify piece 10g is held_by_seller, total active seller pieces sum to 100g
+    const activePiecesSum = await db.query<{ total_g: number }>(`
+      SELECT COALESCE(SUM(weight_grams), 0) as total_g
+      FROM public.consignment_pieces
+      WHERE consignment_id = '${consignId}'::uuid
+        AND status = 'held_by_seller';
+    `);
+    expect(Number(activePiecesSum.rows[0]!.total_g)).toBe(100.0000);
   });
 });

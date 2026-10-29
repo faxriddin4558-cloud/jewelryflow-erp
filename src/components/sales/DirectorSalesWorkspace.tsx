@@ -1671,18 +1671,29 @@ export function DirectorSalesWorkspace({
                           setHndPurchaseId(val);
                           const sel = goldPurchases.find((p) => p.id === val);
                           if (sel) {
-                            setHndWeight(String(sel.gold_weight_grams));
+                            const usedPhys = factoryHandovers
+                              .filter((h) => h.status !== "reversed" && ((h as { source_purchase_id?: string; purchase_id?: string }).source_purchase_id === sel.id || (h as { purchase_id?: string }).purchase_id === sel.id || (sel.purchase_no && h.notes?.includes(sel.purchase_no))))
+                              .reduce((sum, h) => sum + Number(h.physical_weight_g || 0), 0);
+                            const remPhys = Math.max(0, Number((Number(sel.gold_weight_grams || 0) - usedPhys).toFixed(4)));
+                            setHndWeight(String(remPhys));
                             if (sel.proba) setHndProba(String(sel.proba));
                           }
                         }}
                         className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-[#0F172A]"
                       >
                         <option value="">-- Xarid partiyasini tanlang (yoki to&apos;g&apos;ridan-to&apos;g&apos;ri kiriting) --</option>
-                        {goldPurchases.filter((p) => p.status !== "reversed").map((p) => (
-                          <option key={p.id} value={p.id}>
-                            №{p.purchase_no} — {p.supplier_name || "Bozor"} ({formatScreenGrams(p.gold_weight_grams)}, {p.proba}°) = {formatScreenGrams(p.equiv_585_grams)} 585 eq
-                          </option>
-                        ))}
+                        {goldPurchases.filter((p) => p.status !== "reversed").map((p) => {
+                          const usedPhys = factoryHandovers
+                            .filter((h) => h.status !== "reversed" && ((h as { source_purchase_id?: string; purchase_id?: string }).source_purchase_id === p.id || (h as { purchase_id?: string }).purchase_id === p.id || (p.purchase_no && h.notes?.includes(p.purchase_no))))
+                            .reduce((sum, h) => sum + Number(h.physical_weight_g || 0), 0);
+                          const remPhys = Math.max(0, Number((Number(p.gold_weight_grams || 0) - usedPhys).toFixed(4)));
+                          const remEquiv = Number((remPhys * (Number(p.proba || 585) / 585.0)).toFixed(4));
+                          return (
+                            <option key={p.id} value={p.id}>
+                              №{p.purchase_no} — {p.supplier_name || "Bozor"} (Qoldiq: {formatScreenGrams(remPhys)}, {p.proba}°) = {formatScreenGrams(remEquiv)} 585 eq
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   )}
@@ -2252,17 +2263,27 @@ export function DirectorSalesWorkspace({
 
           {/* Metric Cards (Scoped per section) */}
           {(() => {
-            const activeRefiningBatch = refiningBatches.find((b) => b.status === "completed");
-            const activeRefiningProbaVal = activeRefiningBatch?.output_fine_proba || 997;
-            const activeRefiningProbaLabel = activeRefiningBatch?.output_fine_proba ? `${activeRefiningBatch.output_fine_proba}°` : "Aralash proba";
+            const completedBatches = refiningBatches.filter((b) => b.status === "completed");
+            const distinctRefiningProbas = Array.from(new Set(completedBatches.map((b) => b.output_fine_proba).filter(Boolean)));
+            const activeRefiningProbaVal = completedBatches[0]?.output_fine_proba || 997;
+            const activeRefiningProbaLabel = distinctRefiningProbas.length === 1 ? `${distinctRefiningProbas[0]}°` : "Aralash proba";
+
             const activePurchases = goldPurchases.filter((p) => p.status !== "reversed");
+            const activePurchasesInStock = activePurchases.filter((p) => {
+              const usedPhys = factoryHandovers
+                .filter((h) => h.status !== "reversed" && ((h as { source_purchase_id?: string; purchase_id?: string }).source_purchase_id === p.id || (h as { purchase_id?: string }).purchase_id === p.id || (p.purchase_no && h.notes?.includes(p.purchase_no))))
+                .reduce((sum, h) => sum + Number(h.physical_weight_g || 0), 0);
+              return Math.max(0, Number((Number(p.gold_weight_grams || 0) - usedPhys).toFixed(4))) > 0;
+            });
+            const distinctPurchaseProbas = Array.from(new Set(activePurchasesInStock.map((p) => p.proba).filter(Boolean)));
+            const purchProbaDisplay = distinctPurchaseProbas.length === 1 ? `${distinctPurchaseProbas[0]}°` : (distinctPurchaseProbas.length > 1 ? "Aralash proba" : `${activePurchases[0]?.proba || 585}°`);
+
             const totalHistPurchased585 = activePurchases.reduce((sum, p) => sum + Number(p.equiv_585_grams || 0), 0);
             const totalHistPurchasedPhys = activePurchases.reduce((sum, p) => sum + Number(p.gold_weight_grams || 0), 0);
             const curPurchased585 = Number(managerVault?.manager_purchased_gold_grams || 0);
-            const curPurchasedPhys = totalHistPurchased585 > 0
+            const curPurchasedPhys: number = totalHistPurchased585 > 0
               ? Number((totalHistPurchasedPhys * (curPurchased585 / totalHistPurchased585)).toFixed(4))
               : curPurchased585;
-            const purchProbaDisplay = activePurchases[0]?.proba || 585;
 
             return activeVaultSection === "refining" ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2276,7 +2297,7 @@ export function DirectorSalesWorkspace({
 
                 <div className="bg-cyan-950 text-white p-4 rounded-3xl border border-cyan-800 shadow-sm">
                   <div className="text-xs font-bold text-cyan-300">
-                    Afinaj Qilingan Toza Oltin ({activeRefiningBatch ? `Fizik ${activeRefiningProbaLabel}` : "Sof Quyma"})
+                    Afinaj Qilingan Toza Oltin ({completedBatches.length > 0 ? `Fizik ${activeRefiningProbaLabel}` : "Sof Quyma"})
                   </div>
                   <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
                     {formatScreenGrams(
