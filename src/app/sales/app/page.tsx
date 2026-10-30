@@ -30,6 +30,7 @@ function SalesDashboardContent() {
   const [dailyRate, setDailyRate] = useState<DailyGoldRateRow | null>(null);
   const [factoryReceipts, setFactoryReceipts] = useState<FactoryReceiptRow[]>([]);
   const [factoryHandovers, setFactoryHandovers] = useState<FactoryGoldHandoverRow[]>([]);
+  const [canonicalManagerStock, setCanonicalManagerStock] = useState<number | null>(null);
 
   useEffect(() => {
     const unsub = RBAC.subscribe((u) => setCurrentUser(u));
@@ -41,16 +42,23 @@ function SalesDashboardContent() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [sellersRes, clientsRes, piecesRes, vaultRes, rateRes, rcpRes, hndRes, salesRes] = await Promise.all([
+      const [sellersRes, clientsRes, piecesRes, vaultRes, rateRes, rcpRes, hndRes, salesRes, mgrStockRes] = await Promise.all([
         supabase.from("seller_gold_accounts").select("*, employee:employees(name, full_name)"),
         supabase.from("client_gold_accounts").select("*"),
         supabase.from("consignment_pieces").select("*, consignment:seller_consignments(id, consignment_no, seller_markup_pct, factory_markup_pct)"),
         supabase.from("manager_vault_account").select("*").limit(1).maybeSingle(),
-        supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("daily_gold_rates").select("*").eq("proba", 585).order("rate_date", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("factory_receipts").select("factory_obligation_g, original_physical_g, available_physical_g, transferred_physical_g, status"),
         supabase.from("factory_gold_handovers").select("agreed_equivalent_g, status"),
         supabase.from("jewelry_sales").select("base_weight_grams, status"),
+        supabase.rpc("get_manager_available_stock_grams"),
       ]);
+
+      setCanonicalManagerStock(
+        !mgrStockRes.error && mgrStockRes.data !== null && Number.isFinite(Number(mgrStockRes.data))
+          ? Number(mgrStockRes.data)
+          : null
+      );
 
       if (sellersRes.data) setSellerAccounts(sellersRes.data as SellerGoldAccountRow[]);
       if (clientsRes.data) setClientAccounts(clientsRes.data as ClientGoldAccountRow[]);
@@ -121,11 +129,12 @@ function SalesDashboardContent() {
   // Physical Gold Reconciliation (Pure 585g Base Weight)
   const totalFactoryPhysicalGrams = activeReceipts.reduce((sum, r) => sum + Number(r.original_physical_g || 0), 0);
   const managerReceiptAvailableGrams = activeReceipts.reduce((sum, r) => sum + Number(r.available_physical_g || 0), 0);
-  const managerReturnedPieces = pieces.filter((p) => p.status === "in_manager_stock" || p.status === "returned_to_manager");
-  const managerReturnedGrams = managerReturnedPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
-  const totalManagerPhysicalGrams = managerVault?.manager_physical_stock_g !== undefined && managerVault?.manager_physical_stock_g !== null
-    ? Number(managerVault.manager_physical_stock_g)
-    : (managerReceiptAvailableGrams + managerReturnedGrams);
+  // Receipt-backed returns are already restored to available_physical_g, so returned pieces are
+  // never added on top of receipts here. The database function is the single source of truth.
+  const totalManagerPhysicalGrams = canonicalManagerStock
+    ?? (managerVault?.manager_physical_stock_g !== undefined && managerVault?.manager_physical_stock_g !== null
+      ? Number(managerVault.manager_physical_stock_g)
+      : managerReceiptAvailableGrams);
 
   const totalSellerPhysicalGrams = sellerAccounts.reduce((acc, s) => acc + Number(s.current_physical_stock_g || 0), 0);
   const soldPhysicalGrams = totalSoldGrams;
@@ -334,7 +343,7 @@ function SalesDashboardContent() {
             )}
           </div>
           <div className="text-[11px] text-slate-400">
-            Menejer omborida mavjud: {formatScreenGrams(managerReceiptAvailableGrams)} (kvitansiyalar qoldig&apos;i) + {formatScreenGrams(managerReturnedGrams)} (qaytarilgan tovarlar). Oqimdagi jami tovar vazni: {formatScreenGrams(totalFactoryPhysicalGrams)} (Sotuvchilarda: {formatScreenGrams(totalSellerPhysicalGrams)}, Sotilgan: {formatScreenGrams(soldPhysicalGrams)}).
+            Menejer omborida mavjud: {formatScreenGrams(totalManagerPhysicalGrams)} (qaytarilgan tovarlar shu qoldiq ichida). Oqimdagi jami tovar vazni: {formatScreenGrams(totalFactoryPhysicalGrams)} (Sotuvchilarda: {formatScreenGrams(totalSellerPhysicalGrams)}, Sotilgan: {formatScreenGrams(soldPhysicalGrams)}).
           </div>
         </div>
       </div>

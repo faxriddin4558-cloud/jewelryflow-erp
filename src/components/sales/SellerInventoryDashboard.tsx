@@ -85,15 +85,29 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
     return activeBatches.reduce((acc, r) => acc + Number(r.available_physical_g || 0), 0);
   }, [activeBatches]);
 
-  const managerReturnedPieces = useMemo(() => {
-    return pieces.filter((p) => p.status === "in_manager_stock" || p.status === "returned_to_manager");
-  }, [pieces]);
-
-  const managerPiecesGrams = useMemo(() => {
-    return managerReturnedPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
-  }, [managerReturnedPieces]);
-
-  const totalManagerStockGrams = batchesAvailableGrams + managerPiecesGrams;
+  // Receipt-backed returns are already restored to available_physical_g.
+  // Use the same canonical total as the database; never add returned pieces again.
+  const [totalManagerStockGrams, setTotalManagerStockGrams] = useState<number | null>(null);
+  const [managerStockError, setManagerStockError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    setTotalManagerStockGrams(null);
+    setManagerStockError(null);
+    async function loadManagerStock() {
+      try {
+        const { data, error } = await supabase.rpc("get_manager_available_stock_grams");
+        if (error) throw error;
+        if (data === null || !Number.isFinite(Number(data))) {
+          throw new Error("Ombor qoldig'i olinmadi");
+        }
+        if (active) setTotalManagerStockGrams(Number(data));
+      } catch (error) {
+        if (active) setManagerStockError(parseErrorMessage(error));
+      }
+    }
+    void loadManagerStock();
+    return () => { active = false; };
+  }, [pieces, factoryReceipts]);
 
   const sellerAvailablePieces = useMemo(() => {
     return pieces.filter((p) => p.status === "held_by_seller");
@@ -419,10 +433,12 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
               Menejer Ombori (Jami)
             </div>
             <div className="text-xl font-black text-cyan-300 font-mono">
-              {formatScreenGrams(totalManagerStockGrams, 2)}
+              {totalManagerStockGrams === null ? "—" : formatScreenGrams(totalManagerStockGrams, 2)}
             </div>
             <div className="text-[10px] text-slate-400 font-mono">
-              Partiyalar: {formatScreenGrams(batchesAvailableGrams, 2)} | Qaytarilgan: {formatScreenGrams(managerPiecesGrams, 2)}
+              {managerStockError
+                ? <span role="alert">Ombor hisobini yuklashda xato: {managerStockError}</span>
+                : "Qaytarilgan tovarlar jami qoldiqqa bir marta kiritilgan"}
             </div>
           </div>
 

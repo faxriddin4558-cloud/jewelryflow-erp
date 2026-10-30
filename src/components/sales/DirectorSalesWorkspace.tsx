@@ -480,18 +480,8 @@ export function DirectorSalesWorkspace({
         p_idempotency_key: idempotencyKey,
       });
 
-      if (error) {
-        // Fallback upsert for mock/staging environment
-        const { error: upsertErr } = await supabase.from("daily_gold_rates").upsert({
-          rate_date: newRateDate || new Date().toISOString().split("T")[0],
-          proba: 585,
-          rate_per_gram: rateNum,
-          currency: "UZS",
-          notes: newRateNotes || "Direktor tomonidan kiritilgan kunlik lom narxi",
-          is_confirmed: true,
-        }, { onConflict: "organization_id, rate_date, proba" });
-        if (upsertErr) throw upsertErr;
-      }
+      // The audited RPC is the only write path for rates; never fall back to a direct table write.
+      if (error) throw error;
       notifySuccess(`Kunlik lom kursi muvaffaqiyatli saqlandi: ${rateNum.toLocaleString()} UZS/g`);
       setShowRateModal(false);
       setNewRateNotes("");

@@ -151,7 +151,7 @@ export function SellerMobileWorkspace() {
         piecesRes,
         modelsRes,
       ] = await Promise.all([
-        supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(1),
+        supabase.from("daily_gold_rates").select("*").eq("proba", 585).order("rate_date", { ascending: false }).order("created_at", { ascending: false }).limit(1),
         supabase.rpc("rpc_get_active_sales_markups", { p_type: "client_markup" }),
         sellerId
           ? supabase.from("seller_consignments").select("*").eq("seller_id", sellerId).order("created_at", { ascending: false })
@@ -535,7 +535,8 @@ export function SellerMobileWorkspace() {
     const baseW = matchedPiece ? Number(matchedPiece.weight_grams) : (parseFloat(scanWeight) || 0);
     if (baseW <= 0) return null;
     const fPct = 8.0; // Default or parent consignment markup
-    const cPct = parseFloat(scanClientMarkup) || 12.0;
+    const cPct = parseFloat(scanClientMarkup);
+    if (!Number.isFinite(cPct) || cPct < 0) return null;
     return GoldEngine.calculateJewelryConsignmentAndSale(baseW, fPct, cPct);
   }, [matchedPiece, scanWeight, scanClientMarkup]);
 
@@ -614,10 +615,10 @@ export function SellerMobileWorkspace() {
     setActiveTab("scan_sale");
   };
 
-  // Return piece to factory
+  // Return unsold piece: SELLER -> MANAGER (the manager forwards to refining / factory)
   const handleReturnPieceToFactory = async (piece: ConsignmentPieceRow) => {
     const reason = window.prompt(
-      `"${piece.model_name || piece.model_code}" (${piece.weight_grams}g) ni zavodga qaytarish sababi:`,
+      `"${piece.model_name || piece.model_code}" (${piece.weight_grams}g) ni boshqaruvchiga qaytarish sababi:`,
       "Vitrinadan olindi / xarid qilinmadi"
     );
     if (!reason) return;
@@ -625,13 +626,13 @@ export function SellerMobileWorkspace() {
     setBusy(true);
     try {
       const idempotencyKey = generateIdempotencyKey("ret-piece");
-      const { data, error } = await supabase.rpc("rpc_return_piece_to_factory", {
+      const { data, error } = await supabase.rpc("rpc_return_piece_to_manager", {
         p_piece_id: piece.id,
         p_notes: reason.trim(),
         p_idempotency_key: idempotencyKey,
       });
       if (error) throw error;
-      notifySuccess(`Mahsulot zavodga qaytarildi va majburiyat ${formatScreenGrams(data.factory_due_deducted_grams, 2)} ga kamaytirildi!`);
+      notifySuccess(`Mahsulot boshqaruvchiga qaytarildi va majburiyat ${formatScreenGrams(data.seller_obligation_deducted_g, 2)} ga kamaytirildi!`);
       await loadSellerWorkspace();
     } catch (err: unknown) {
       notifyError(err, "Qaytarishda xatolik");

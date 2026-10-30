@@ -142,7 +142,9 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
         const { data } = await supabase
           .from("daily_gold_rates")
           .select("*")
+          .eq("proba", 585)
           .order("rate_date", { ascending: false })
+          .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
         if (data && data.rate_per_gram) {
@@ -206,26 +208,19 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
         p_idempotency_key: idempotencyKey,
       });
 
+      // The audited RPC is the only write path for rates; never fall back to a direct table write.
       if (rpcErr) {
-        // Direct upsert fallback
-        await supabase.from("daily_gold_rates").upsert(
-          {
-            rate_date: today,
-            proba: 585,
-            rate_per_gram: rateNum,
-            currency: "UZS",
-            notes: "Savdo ilovasidan yangilandi",
-            is_confirmed: true,
-          },
-          { onConflict: "organization_id, rate_date, proba" }
-        );
+        window.alert(`Kursni saqlab bo'lmadi: ${rpcErr.message}`);
+        return;
       }
 
-      // Re-fetch latest confirmed rate
+      // Re-fetch latest 585 rate
       const { data: latest } = await supabase
         .from("daily_gold_rates")
         .select("*")
+        .eq("proba", 585)
         .order("rate_date", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 

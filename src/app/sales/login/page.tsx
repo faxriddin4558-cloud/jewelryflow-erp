@@ -352,7 +352,13 @@ function SalesLoginContent() {
       setErrorMessage("Xavfsizlik talabi: Production muhitida demo tezkor login o'chirilgan.");
       return;
     }
-    const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "GoldiaPassword2026!";
+    // No password is ever compiled into the bundle; demo quick-login only works where the
+    // environment explicitly provides one (never in production).
+    const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
+    if (!demoPassword) {
+      setErrorMessage("Demo tezkor login sozlanmagan (NEXT_PUBLIC_DEMO_PASSWORD yo'q).");
+      return;
+    }
     setEmail(pilotEmail);
     setPassword(demoPassword);
     setSuccessMessage(`${roleTitle} (${empName}) sifatida tizimga kirilmoqda...`);
