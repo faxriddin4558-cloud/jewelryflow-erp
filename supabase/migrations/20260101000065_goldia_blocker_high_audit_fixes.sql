@@ -28,6 +28,8 @@
 --     recalc_seller_gold_account: no longer callable directly by clients.
 -- 11. Direct client writes removed on ledger tables (all writers are SECURITY DEFINER RPCs).
 --     anon can no longer write daily_gold_rates or call rpc_set_daily_gold_rate.
+-- 12. view_seller_piece_inventory ran with owner rights (Security Advisor: security_definer_view),
+--     bypassing consignment_pieces RLS; it now runs with the caller's rights.
 
 -- -------------------------------------------------------------------------
 -- Helpers
@@ -2168,3 +2170,8 @@ BEGIN
   );
 END;
 $$;
+
+-- -------------------------------------------------------------------------
+-- view_seller_piece_inventory: respect the caller's RLS (not used by the frontend)
+-- -------------------------------------------------------------------------
+alter view public.view_seller_piece_inventory set (security_invoker = true);

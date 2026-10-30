@@ -20,6 +20,25 @@ Compatibility (verified by reading the call sites):
 
 ## Gate 0 — verified backup (mandatory, owner)
 
+**Automated (recommended): one command does Gates 0, 1 and the 065 compatibility check.**
+From the repo root on this branch, with PostgreSQL 17 installed:
+
+```
+node scripts/goldia-prod-backup-and-preflight.js
+```
+
+The script:
+- asks for the DB password in a hidden prompt;
+- writes schema/data/roles backups and checksums to `%USERPROFILE%\GoldiaBackups\goldia-prod-<time>\`;
+- restores the backup into a disposable local PostgreSQL and compares row counts and objects;
+- runs the read-only preflight, investigation and Security Advisor checks against production;
+- applies 065 (plus rollback and re-apply) only to the restored local copy;
+- writes `SUMMARY.txt` (no secrets, no customer names).
+
+Production is only read.
+
+Manual alternative:
+
 A frontend rollback **never** restores database state. Before 065:
 
 1. Supabase Dashboard → Database → Backups. Record whether daily backups and PITR are enabled, plus the latest backup time.

@@ -2062,6 +2062,9 @@ to authenticated;
 grant execute on function public.rpc_set_daily_gold_rate(numeric, numeric, date, text, text, text, numeric) to authenticated;
 grant execute on function public.recalc_seller_gold_account(uuid, uuid) to public, authenticated, service_role;
 
+-- view_seller_piece_inventory back to owner rights (064 state)
+alter view public.view_seller_piece_inventory reset (security_invoker);
+
 -- Helpers introduced by 065 (unused after the restore above)
 drop function if exists public._goldia_assert_seller_rate(text, numeric, numeric, boolean);
 drop function if exists public._goldia_official_585_rate(uuid);
