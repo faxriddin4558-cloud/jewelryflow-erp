@@ -334,7 +334,7 @@ function SalesDashboardContent() {
             )}
           </div>
           <div className="text-[11px] text-slate-400">
-            Menejer omborida mavjud: {formatScreenGrams(totalManagerPhysicalGrams)} (qaytarilgan tovarlar shu qoldiq ichida). Oqimdagi jami tovar vazni: {formatScreenGrams(totalFactoryPhysicalGrams)} (Sotuvchilarda: {formatScreenGrams(totalSellerPhysicalGrams)}, Sotilgan: {formatScreenGrams(soldPhysicalGrams)}).
+            Menejer omborida mavjud: {formatScreenGrams(managerReceiptAvailableGrams)} (kvitansiyalar qoldig&apos;i) + {formatScreenGrams(managerReturnedGrams)} (qaytarilgan tovarlar). Oqimdagi jami tovar vazni: {formatScreenGrams(totalFactoryPhysicalGrams)} (Sotuvchilarda: {formatScreenGrams(totalSellerPhysicalGrams)}, Sotilgan: {formatScreenGrams(soldPhysicalGrams)}).
           </div>
         </div>
       </div>

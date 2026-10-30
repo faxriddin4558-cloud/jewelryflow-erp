@@ -262,7 +262,7 @@ export function DirectorSalesWorkspace({
         supabase.from("products").select("*").gt("stock", 0),
         supabase.from("customers").select("id, contact_name, customer_code, phone"),
         supabase.from("jewelry_models").select("*").order("model_code", { ascending: true }),
-        supabase.from("consignment_pieces").select("*").order("created_at", { ascending: false }),
+        supabase.from("consignment_pieces").select("*, consignment:seller_consignments(id, consignment_no, seller_markup_pct, factory_markup_pct)").order("created_at", { ascending: false }),
         supabase.from("factory_receipts").select("*").order("receipt_date", { ascending: false }),
         supabase.from("manager_vault_account").select("*").maybeSingle(),
         supabase.from("refining_batches").select("*").order("batch_date", { ascending: false }),

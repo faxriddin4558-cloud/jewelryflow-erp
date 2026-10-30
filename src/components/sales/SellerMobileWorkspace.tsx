@@ -169,7 +169,7 @@ export function SellerMobileWorkspace() {
           ? supabase.from("client_gold_accounts").select("*, customer:customers(id, contact_name, customer_code, phone)").eq("seller_id", sellerId)
           : supabase.from("client_gold_accounts").select("*, customer:customers(id, contact_name, customer_code, phone)"),
         sellerId
-          ? supabase.from("consignment_pieces").select("*").eq("seller_id", sellerId).order("created_at", { ascending: false })
+          ? supabase.from("consignment_pieces").select("*, consignment:seller_consignments(id, consignment_no, seller_markup_pct, factory_markup_pct)").eq("seller_id", sellerId).order("created_at", { ascending: false })
           : Promise.resolve({ data: [] }),
         supabase.from("jewelry_models").select("*").order("model_code", { ascending: true }),
       ]);

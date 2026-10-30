@@ -813,6 +813,7 @@ export interface ConsignmentPieceRow {
   category?: string;
   purity: number;
   weight_grams: number;
+  seller_markup_pct?: number;
   status: "in_factory" | "in_manager_stock" | "held_by_seller" | "sold" | "returned_to_manager" | "returned_to_factory" | "reconciled" | "cancelled" | "reversed";
   seller_id: string;
   sale_id?: string | null;
@@ -822,6 +823,12 @@ export interface ConsignmentPieceRow {
   notes?: string | null;
   created_at?: string;
   updated_at?: string;
+  consignment?: {
+    id?: string;
+    consignment_no?: string;
+    seller_markup_pct?: number;
+    factory_markup_pct?: number;
+  };
   model?: {
     id: string;
     name: string;
@@ -829,12 +836,6 @@ export interface ConsignmentPieceRow {
     category?: string;
     decorations?: string;
     primary_image_url?: string | null;
-  };
-  consignment?: {
-    id?: string;
-    consignment_no?: string;
-    seller_markup_pct?: number;
-    factory_markup_pct?: number;
   };
 }
 
