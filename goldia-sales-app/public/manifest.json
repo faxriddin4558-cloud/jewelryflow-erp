@@ -1,0 +1,31 @@
+{
+  "name": "GOLDIA SALES",
+  "short_name": "GoldiaSales",
+  "description": "Goldia Zargarlik Zavodi — Savdo, Lom & Kassa Boshqaruvi",
+  "start_url": "/sales/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0c1e16",
+  "theme_color": "#0c1e16",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

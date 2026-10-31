@@ -1,0 +1,8 @@
+.next/
+.next
+out/
+node_modules/
+scripts/
+test-results/
+e2e-report-html/
+playwright-report/
