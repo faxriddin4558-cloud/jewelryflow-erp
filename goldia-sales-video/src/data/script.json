@@ -1,0 +1,63 @@
+{
+  "title": "Goldia Sales — direktor uchun taqdimot",
+  "language": "uz-Latn",
+  "note": "Ovoz matni (voiceover). Har bir sahna uchun audio fayl public/voiceover/<id>.mp3 nomi bilan qo'yilsa, 'npm run audio:scan' dan keyin video avtomatik shu audioga moslashadi.",
+  "scenes": [
+    {
+      "id": "01-intro",
+      "voiceover": "Goldia Sales — Goldia zargarlik zavodining savdo, konsignatsiya va kassa hisobini yagona tizimda boshqaruvchi platforma. Ushbu taqdimotda tizimning asosiy imkoniyatlarini ko‘rib chiqamiz."
+    },
+    {
+      "id": "02-problem",
+      "voiceover": "Zargarlik savdosida har bir gramm muhim. Tovar zavoddan omborga, ombordan sotuvchilarga, sotuvchidan esa mijozga o‘tadi. To‘lov naqd so‘m, dollar yoki lom oltin bilan bo‘ladi. Daftar va Excelda bularning barchasini aniq kuzatish qiyin."
+    },
+    {
+      "id": "03-solution",
+      "voiceover": "Goldia Sales bu jarayonni beshta yo‘nalishga ajratadi: boshqaruv va balans, ombor va konsignatsiya, savdo va kassalar, afinaj va zavod balansi, hamda tahlil va tizim sozlamalari."
+    },
+    {
+      "id": "04-dashboard",
+      "voiceover": "Asosiy panelda direktor kompaniyaning sof aktivini 585 proba oltin ekvivalentida ko‘radi. Ombor va sotuvchilardagi tovar, mijozlar nasiyasi, kassalar, menejer seyfi va afinajdagi oltin bitta ko‘rsatkichga jamlanadi. Zavod va tashqi majburiyatlar esa ayirib hisoblanadi."
+    },
+    {
+      "id": "05-rates",
+      "voiceover": "Har kuni 585 proba oltin kursi kiritiladi, dollar kursi esa Markaziy bank ma’lumotlaridan olinadi. Shu tufayli naqd so‘m va dollar avtomatik ravishda gramm ekvivalentiga aylantiriladi."
+    },
+    {
+      "id": "06-factory",
+      "voiceover": "Zavoddan kelgan tovar model, proba va vazn bo‘yicha qabul qilinadi. Zavod ustamasi foizda belgilanadi, zavod oldidagi majburiyat esa kirimlar bo‘yicha alohida daftarda yuritiladi."
+    },
+    {
+      "id": "07-scanner",
+      "voiceover": "Tovarlar sotuvchilarga skaner orqali konsignatsiyaga beriladi. Har bir mahsulot shtrix-kod bilan aniqlanadi va tanlangan sotuvchi hisobiga biriktiriladi. Yorliqlar BarTender dasturi uchun QR kod bilan tayyorlanadi."
+    },
+    {
+      "id": "08-seller",
+      "voiceover": "Sotuvchi telefonidan o‘z vitrinasini ko‘radi va mahsulotni mijozga sotadi. To‘lov naqd pul, dollar yoki lom oltin ko‘rinishida qabul qilinadi. To‘lanmagan qism mijozning nasiyasiga yoziladi."
+    },
+    {
+      "id": "09-ledger",
+      "voiceover": "Har bir savdo uchun chek shakllanadi. Mijozlar va nasiya daftari kim qancha qarzdor ekanini ko‘rsatadi, mavjud Google Sheets jadvallarini esa tizimga import qilish mumkin."
+    },
+    {
+      "id": "10-markup",
+      "voiceover": "Tizim ustama farqini ham hisoblaydi: sotuvchiga belgilangan ustama va mijozdan olingan ustama orasidagi farq grammda, musbat yoki manfiy ishora bilan ko‘rsatiladi. Naqd pulga lom xarid qilishdagi kurs farqi ham alohida yuritiladi."
+    },
+    {
+      "id": "11-refining",
+      "voiceover": "Mijozlardan olingan lom oltin afinajga yuboriladi va toza oltin sifatida, 585 ekvivalentida menejer seyfiga qaytadi. Naqd pulga oltin xaridlari ham shu balansga qo‘shiladi."
+    },
+    {
+      "id": "12-reconcile",
+      "voiceover": "Sotuvchi bilan hisob-kitob olti bo‘limda solishtiriladi: qabul qilingan tovar, javondagi tovar, sotilgan tovar, mijozlar nasiyasi, sotuvchi kassasi va menejerga topshirilgan to‘lovlar. Natijada sotuvchining bozor qarzi aniq ko‘rinadi."
+    },
+    {
+      "id": "13-security",
+      "voiceover": "Kirish rollarga bo‘lingan: direktor, boshqaruvchi va sotuvchi. Sotuvchi faqat o‘ziga tegishli bo‘limlarni ko‘radi. Telegram orqali tasdiqlash, audit jurnali va takroriy yozuvdan himoya ma’lumotlar ishonchliligini ta’minlaydi."
+    },
+    {
+      "id": "14-outro",
+      "voiceover": "Goldia Sales — oltin, naqd pul va qarzlarni grammgacha aniq nazorat qilish uchun. E’tiboringiz uchun rahmat."
+    }
+  ]
+}

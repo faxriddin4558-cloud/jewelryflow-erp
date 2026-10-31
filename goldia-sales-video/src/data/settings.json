@@ -1,0 +1,8 @@
+{
+  "music": {
+    "enabled": true,
+    "file": "music/ambient-pad.mp3",
+    "volume": 0.32,
+    "volumeWithVoice": 0.12
+  }
+}
