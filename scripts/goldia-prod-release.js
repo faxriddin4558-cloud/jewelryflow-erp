@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * GOLDIA — gated production release of one Sales migration (default 066).
+ * GOLDIA — gated production release of one Sales migration (default 067).
  *
- *   node scripts/goldia-prod-release.js [--migration 066]
+ *   node scripts/goldia-prod-release.js [--migration 067]
  *
  * 1. Hidden password prompt (kept only in child-process environments, never printed or saved).
  * 2. FRESH backup + restore test + read-only preflight + migration test on the restored copy
@@ -28,7 +28,7 @@ for (let i = 2; i < process.argv.length; i++) {
   const next = process.argv[i + 1];
   args[a.slice(2)] = next === undefined || next.startsWith("--") ? true : (i++, next);
 }
-const TARGET = String(args.migration || "066").padStart(3, "0");
+const TARGET = String(args.migration || "067").padStart(3, "0");
 const PREVIOUS = String(Number(TARGET) - 1).padStart(3, "0");
 const TARGET_VERSION = `20260101000${TARGET}`;
 const PREVIOUS_VERSION = `20260101000${PREVIOUS}`;
@@ -62,6 +62,13 @@ const POSTFLIGHT_CHECKS = {
     ["ledger_not_client_writable", "select count(*) = 0 from information_schema.role_table_grants where table_schema = 'public' and table_name = 'company_rate_differences' and grantee in ('anon', 'authenticated') and privilege_type in ('INSERT', 'UPDATE', 'DELETE')"],
     // Transactions are paused during the release, so nothing can be valued yet: history stays unvalued.
     ["no_historical_valuation", "select coalesce(sum(valued_cash_uzs + valued_usd), 0) = 0 from public.manager_vault_account"],
+  ],
+  "067": [
+    ["snapshot_triggers", "select count(*) = 2 from pg_trigger where not tgisinternal and tgname in ('trg_goldia_sale_markup_snapshot', 'trg_goldia_piece_markup_snapshot')"],
+    ["report_rpc", "select to_regprocedure('public.rpc_get_seller_markup_difference_report(uuid,date,date)') is not null"],
+    ["sync_trigger_enabled", "select tgenabled = 'O' from pg_trigger where tgname = 'trg_sync_seller_gold_account_sales'"],
+    ["snapshot_arithmetic_exact", "select count(*) = 0 from public.jewelry_sales where markup_difference_g is not null and markup_difference_g <> round(coalesce(base_weight_grams, 0) * (client_markup_pct - assigned_seller_markup_pct) / 100.0, 4)"],
+    ["piece_sale_retry_fixed", "select position('v_existing, v_payload' in pg_get_functiondef('public.rpc_record_barcode_piece_sale(uuid,uuid,uuid,uuid,numeric,numeric,text,text)'::regprocedure)) > 0"],
   ],
 };
 
