@@ -12,6 +12,8 @@
  * It is never printed, written to disk or committed.
  *
  * Options: --host --port --user --db --sslmode --pg-bin <dir> --out <dir> --keep-restore
+ *          --migration <NNN>  migration to verify on the restored copy (default 065); the gates
+ *                             then require NNN-1 applied and NNN absent in production
  *          --reuse <backup folder>  reuse that backup (after SHA256 + pg_restore --list checks)
  *          --fresh                  always take a new production dump
  * By default the newest backup in the output folder is reused when it passes the integrity checks.
@@ -35,13 +37,22 @@ const PROD = {
   sslmode: args.sslmode || "require",
 };
 const SCHEMAS = ["public", "auth", "storage", "supabase_migrations"];
+const TARGET = String(args.migration || "065").padStart(3, "0");
+const PREVIOUS = String(Number(TARGET) - 1).padStart(3, "0");
+const TARGET_VERSION = `20260101000${TARGET}`;
+const PREVIOUS_VERSION = `20260101000${PREVIOUS}`;
+const migrationFile = () => {
+  const dir = path.join(REPO, "supabase/migrations");
+  const f = fs.readdirSync(dir).find((n) => n.startsWith(`${TARGET_VERSION}_`));
+  return f ? path.join(dir, f) : path.join(dir, `${TARGET_VERSION}_missing.sql`);
+};
 const FILES = {
   preflight: path.join(REPO, "supabase/release/065_preflight_readonly.sql"),
-  postflight: path.join(REPO, "supabase/release/065_postflight_readonly.sql"),
+  postflight: path.join(REPO, `supabase/release/${TARGET}_postflight_readonly.sql`),
   investigation: path.join(REPO, "supabase/release/065_investigation_readonly.sql"),
   advisor: path.join(REPO, "supabase/release/security_advisor_readonly.sql"),
-  migration065: path.join(REPO, "supabase/migrations/20260101000065_goldia_blocker_high_audit_fixes.sql"),
-  rollback065: path.join(REPO, "supabase/rollback/20260101000065_rollback.sql"),
+  migration065: migrationFile(),
+  rollback065: path.join(REPO, `supabase/rollback/${TARGET_VERSION}_rollback.sql`),
 };
 
 const summary = [];
@@ -494,11 +505,11 @@ async function main() {
     note("BACKUP", gate.backup ? "VERIFIED (restored copy matches production row counts)" : "FAILED");
 
     // 5-6. Read-only checks on production
-    log("[5/9] Migration 064/065 status + preflight (read only)");
+    log(`[5/9] Migration ${PREVIOUS}/${TARGET} status + preflight (read only)`);
     const g = psql(prodEnv, readOnly(`
       select
-        exists (select 1 from supabase_migrations.schema_migrations where version = '20260101000064'),
-        exists (select 1 from supabase_migrations.schema_migrations where version = '20260101000065'),
+        exists (select 1 from supabase_migrations.schema_migrations where version = '${PREVIOUS_VERSION}'),
+        exists (select 1 from supabase_migrations.schema_migrations where version = '${TARGET_VERSION}'),
         (select coalesce(max(c), 0) from (select count(*) c from pg_proc p join pg_namespace n on n.oid = p.pronamespace
            where n.nspname = 'public' and p.proname in ('get_seller_available_stock_grams', 'get_manager_available_stock_grams',
              'recalc_seller_gold_account', 'rpc_return_piece_to_factory', 'rpc_return_piece_to_manager', 'rpc_record_client_settlement',
@@ -514,14 +525,14 @@ async function main() {
         (select count(*) from public.daily_gold_rates where proba = 585 and rate_per_gram > 0)`));
     if (g.status !== 0) fail("preflight gate query failed (see run.log)");
     const [has064, has065, maxOverloads, has064Fix, retFactory, demoUsers, rates585] = g.stdout.trim().split("|");
-    note("migration 064 applied", has064 === "t" ? "VERIFIED" : "NO");
-    note("migration 065 already applied", has065 === "t" ? "YES (stop)" : "no");
+    note(`migration ${PREVIOUS} applied`, has064 === "t" ? "VERIFIED" : "NO");
+    note(`migration ${TARGET} already applied`, has065 === "t" ? "YES (stop)" : "no");
     note("max overloads of touched functions", maxOverloads);
     note("064 manager-stock fix present", has064Fix === "t" ? "yes" : "no");
     note("pieces in returned_to_factory", retFactory);
     note("demo accounts in production auth", demoUsers);
     note("585 rates available", rates585);
-    gate.migration064 = has064 === "t" && has064Fix === "t";
+    gate.migration064 = has064 === "t" && (TARGET !== "065" || has064Fix === "t");
     gate.preflight = gate.migration064 && has065 === "f" && Number(maxOverloads) === 1 && Number(retFactory) === 0;
     note("PREFLIGHT", gate.preflight ? "PASS" : "FAIL");
 
@@ -555,21 +566,23 @@ async function main() {
     for (const [k, v] of Object.entries(advTally).sort()) note(`advisor ${k}`, `${v}`);
 
     // 8. Migration 065 compatibility on the RESTORED LOCAL COPY
-    log("[8/9] Migration 065 on the restored LOCAL copy (production untouched)");
+    log(`[8/9] Migration ${TARGET} on the restored LOCAL copy (production untouched)`);
     const localBefore = counts(localEnv) || {};
     const m = psql(localEnv, FILES.migration065, { file: true, tuples: false, singleTx: true });
-    fs.writeFileSync(path.join(outDir, "local-065-apply.log"), String(m.stderr || ""));
+    fs.writeFileSync(path.join(outDir, `local-${TARGET}-apply.log`), String(m.stderr || ""));
     const localAfter = counts(localEnv) || {};
-    const dataChanged = diffCounts(localBefore, localAfter);
+    // A table created empty by the migration is not a data change.
+    const dataChanged = diffCounts(localBefore, localAfter)
+      .filter((d) => !(!(d.split(": ")[0] in localBefore) && d.endsWith("missing vs 0")));
     const post = psql(localEnv, FILES.postflight, { file: true, tuples: false });
     fs.writeFileSync(path.join(outDir, "local-postflight.txt"), String(post.stdout || "") + String(post.stderr || ""));
     const rb = psql(localEnv, FILES.rollback065, { file: true, tuples: false });
     const re = psql(localEnv, FILES.migration065, { file: true, tuples: false, singleTx: true });
     gate.compat = m.status === 0 && dataChanged.length === 0 && post.status === 0 && rb.status === 0 && re.status === 0;
-    note("065 applies on production schema copy", m.status === 0 ? "yes" : "NO (see local-065-apply.log)");
-    note("065 changed row counts", dataChanged.length ? dataChanged.join("; ") : "no");
+    note(`${TARGET} applies on production schema copy`, m.status === 0 ? "yes" : `NO (see local-${TARGET}-apply.log)`);
+    note(`${TARGET} changed row counts`, dataChanged.length ? dataChanged.join("; ") : "no");
     note("rollback + re-apply on copy", rb.status === 0 && re.status === 0 ? "ok" : "FAILED");
-    note("065 COMPATIBILITY", gate.compat ? "PASS" : "FAIL");
+    note(`${TARGET} COMPATIBILITY`, gate.compat ? "PASS" : "FAIL");
   } finally {
     stopLocal();
   }
@@ -580,11 +593,14 @@ async function main() {
   const verdict = ready
     ? "ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval"
     : "NO-GO — see failed gates above";
-  note("GATES", `backup=${!!gate.backup} preflight=${!!gate.preflight} migration064=${!!gate.migration064} compat065=${!!gate.compat} accounting=${!!gate.accounting}`);
+  note("GATES", `backup=${!!gate.backup} preflight=${!!gate.preflight} migration${PREVIOUS}=${!!gate.migration064} compat${TARGET}=${!!gate.compat} accounting=${!!gate.accounting}`);
   writeSummary(verdict);
   log(`\nRESULT: ${verdict}`);
   log(`Send this file back for review: ${path.join(outDir, "SUMMARY.txt")}`);
   log("Keep the backup folder private (it contains customer data and login records). Do not commit it.");
+  // Machine-readable outcome for scripts/goldia-prod-release.js
+  fs.writeFileSync(path.join(outDir, "GATES.json"), JSON.stringify({ ...gate, ready: !!ready, target: TARGET, backupDir: outDir }, null, 2));
+  if (!ready) process.exitCode = 2;
 }
 
 main().catch((e) => fail(e && e.message ? e.message : String(e)));

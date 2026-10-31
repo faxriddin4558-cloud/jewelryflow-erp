@@ -231,3 +231,96 @@ describe("Goldia 066 — company rate difference and full transaction chain", ()
     await t.expectError(`INSERT INTO public.company_rate_differences (organization_id, entry_type, purchase_id) VALUES ('${orgId}', 'purchase', gen_random_uuid())`, "permission denied");
   });
 });
+
+describe("Goldia 066 — mixed historical rates, partial purchase, USD and non-purchase outflows", () => {
+  let t: Awaited<ReturnType<typeof createGoldiaDb>>;
+  const orgId = "00000000-0000-0000-0000-0000000000c7";
+  let director: { userId: string; employeeId: string };
+  let seller: { userId: string; employeeId: string };
+  let customer: string;
+
+  const vault = async () => {
+    await t.asAdmin();
+    return (await t.db.query<Record<string, string>>(`SELECT * FROM public.manager_vault_account WHERE organization_id = '${orgId}'`)).rows[0]!;
+  };
+  const lastEntry = async () => {
+    await t.asUser(director.userId);
+    const r = await t.rpc(`public.rpc_get_company_rate_difference_report()`);
+    return { report: r, entry: (r.entries as Record<string, unknown>[])[0] };
+  };
+  const setRate = async (rate: number, dayOffset: number) => {
+    await t.asAdmin();
+    await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed)
+                     VALUES ('${orgId}', CURRENT_DATE + ${dayOffset}, 585, ${rate}, 'UZS', true)`);
+  };
+  const handover = async (sql: string) => {
+    await t.asUser(seller.userId);
+    return t.rpc(sql);
+  };
+
+  beforeAll(async () => {
+    t = await createGoldiaDb();
+    await t.db.exec(`INSERT INTO public.organizations (id, code, name, status) VALUES ('${orgId}', 'goldia-066b', 'Goldia 066b', 'ACTIVE')`);
+    director = await t.addUser(orgId, "dir066b@goldia.uz", "Alisher", "director");
+    seller = await t.addUser(orgId, "s066b@goldia.uz", "Jasur", "sales");
+    customer = (await t.db.query<{ id: string }>(`
+      INSERT INTO public.customers (organization_id, customer_code, contact_name, phone, seller_id)
+      VALUES ('${orgId}', 'C066B', 'Mijoz', '+998900000067', '${seller.employeeId}') RETURNING id`)).rows[0]!.id;
+  });
+
+  it("cash received at two historical rates is valued at its weighted average; a partial purchase leaves the rest valued", async () => {
+    await setRate(890000, 0);
+    await handover(`public.rpc_record_client_settlement(p_customer_id := '${customer}', p_cash_amount := 890000, p_rate_per_gram := 890000)`);
+    await handover(`public.rpc_record_seller_to_manager_settlement(p_seller_id := '${seller.employeeId}', p_cash_paid_amount := 890000, p_rate_per_gram := 890000)`);
+    await setRate(900000, 1);
+    await handover(`public.rpc_record_client_settlement(p_customer_id := '${customer}', p_cash_amount := 900000, p_rate_per_gram := 900000)`);
+    await handover(`public.rpc_record_seller_to_manager_settlement(p_seller_id := '${seller.employeeId}', p_cash_paid_amount := 900000, p_rate_per_gram := 900000)`);
+    let v = await vault();
+    expect(Number(v.valued_cash_uzs)).toBe(1790000);
+    expect(Number(v.valued_cash_585_g)).toBe(2);
+
+    // Spend 900,000 of 1,790,000 at 880,000 UZS/g -> 1.0227 g bought; value released 2 * 900000 / 1790000 = 1.005587 g
+    await t.asUser(director.userId);
+    await t.rpc(`public.rpc_record_gold_purchase(p_supplier_name := 'Bozor', p_cash_spent_uzs := 900000, p_rate_per_gram := 880000,
+      p_gold_weight_grams := 1.0227, p_idempotency_key := 'mix-1')`);
+    const { entry } = await lastEntry();
+    expect(Number(entry!.accounting_value_585_g)).toBe(1.005587);
+    expect(Number(entry!.difference_585_g)).toBe(0.017113);
+    expect(Math.abs(Number(entry!.avg_conversion_rate) - 895000)).toBeLessThan(1); // display rate, 6-decimal grams
+    v = await vault();
+    expect(Number(v.valued_cash_uzs)).toBe(890000);
+    expect(Number(v.valued_cash_585_g)).toBe(0.994413);
+  });
+
+  it("USD received from sellers is valued at its own rates and compared with the USD purchase", async () => {
+    // 100 USD at 12,800 UZS/USD with the 900,000 gold rate = 1.4222 g settled
+    await handover(`public.rpc_record_client_settlement(p_customer_id := '${customer}', p_usd_amount := 100, p_usd_rate := 12800, p_rate_per_gram := 900000)`);
+    await handover(`public.rpc_record_seller_to_manager_settlement(p_seller_id := '${seller.employeeId}', p_usd_paid_amount := 100, p_usd_rate := 12800, p_rate_per_gram := 900000)`);
+    expect(Number((await vault()).valued_usd_585_g)).toBe(1.4222);
+
+    // Spent at 12,900 UZS/USD, 900,000 UZS/g -> 1.4333 g bought
+    await t.asUser(director.userId);
+    await t.rpc(`public.rpc_record_gold_purchase(p_supplier_name := 'Bozor', p_cash_spent_uzs := 0, p_usd_spent := 100, p_usd_rate := 12900,
+      p_rate_per_gram := 900000, p_gold_weight_grams := 1.4333, p_idempotency_key := 'usd-1')`);
+    const { entry } = await lastEntry();
+    expect(Number(entry!.valued_usd)).toBe(100);
+    expect(Number(entry!.accounting_value_585_g)).toBe(1.4222);
+    expect(Number(entry!.difference_585_g)).toBe(0.0111);
+    expect(Number((await vault()).valued_usd)).toBe(0);
+  });
+
+  it("cash leaving by another route shrinks the valuation, so later unvalued cash is never valued", async () => {
+    // e.g. an expense or factory cash handover empties the vault, then capital (unvalued) arrives
+    await t.asAdmin();
+    await t.db.exec(`UPDATE public.manager_vault_account SET manager_cash_amount = 0 WHERE organization_id = '${orgId}'`);
+    expect(Number((await vault()).valued_cash_uzs)).toBe(0);
+    expect(Number((await vault()).valued_cash_585_g)).toBe(0);
+    await t.db.exec(`UPDATE public.manager_vault_account SET manager_cash_amount = 1000000 WHERE organization_id = '${orgId}'`);
+
+    const before = Number((await lastEntry()).report.purchases_count);
+    await t.asUser(director.userId);
+    await t.rpc(`public.rpc_record_gold_purchase(p_supplier_name := 'Bozor', p_cash_spent_uzs := 890000, p_rate_per_gram := 900000,
+      p_gold_weight_grams := 0.9889, p_idempotency_key := 'unvalued-after-outflow')`);
+    expect(Number((await lastEntry()).report.purchases_count)).toBe(before);
+  });
+});

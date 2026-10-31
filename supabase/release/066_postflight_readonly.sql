@@ -5,10 +5,10 @@ begin transaction read only;
 -- Q1. 066 recorded
 select version from supabase_migrations.schema_migrations where version = '20260101000066';
 
--- Q2. Ledger, triggers and report exist (expected: t, 2, t)
+-- Q2. Ledger, triggers and report exist (expected: t, 3, t)
 select to_regclass('public.company_rate_differences') is not null as ledger_table,
        (select count(*) from pg_trigger where tgname in ('trg_goldia_rate_difference_from_purchase',
-          'trg_goldia_valued_cash_from_settlement') and not tgisinternal) as triggers,
+          'trg_goldia_valued_cash_from_settlement', 'trg_goldia_cap_valued_pool') and not tgisinternal) as triggers,
        to_regprocedure('public.rpc_get_company_rate_difference_report(date,date)') is not null as report_rpc;
 
 -- Q3. Nothing historical changed: valued pool starts empty, ledger starts empty (expected: 0, 0, 0)

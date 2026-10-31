@@ -8,6 +8,8 @@
 --   890,000 UZS received as 1.0000 g, scrap bought at 900,000 UZS/g -> 0.9889 g -> -0.0111 g
 --   890,000 UZS received as 1.0000 g, scrap bought at 880,000 UZS/g -> 1.0114 g -> +0.0114 g
 --
+-- Also fixes: USD-only settlements were rejected by chk_gold_settlement_has_payment (section 0).
+--
 -- Design (schema only; no historical row is changed or recalculated):
 --   * manager_vault_account keeps a "valued cash pool": UZS / USD received from seller
 --     handovers together with the 585 grams they settled. Only cash received after this
@@ -22,6 +24,14 @@
 --     auditable breakdown and must not be added to that profit a second time.
 
 -- -------------------------------------------------------------------------
+-- 0. USD-only payments were rejected: the 026 constraint predates the USD columns (045/046).
+--    Every existing row already satisfies the wider rule.
+-- -------------------------------------------------------------------------
+alter table public.gold_settlements drop constraint if exists chk_gold_settlement_has_payment;
+alter table public.gold_settlements add constraint chk_gold_settlement_has_payment
+  check (scrap_weight_grams > 0 or cash_paid_amount > 0 or coalesce(usd_paid_amount, 0) > 0);
+
+-- -------------------------------------------------------------------------
 -- 1. Valued cash pool on the manager vault
 -- -------------------------------------------------------------------------
 alter table public.manager_vault_account
@@ -29,6 +39,33 @@ alter table public.manager_vault_account
   add column if not exists valued_cash_585_g numeric(18, 6) not null default 0,
   add column if not exists valued_usd        numeric(18, 2) not null default 0,
   add column if not exists valued_usd_585_g  numeric(18, 6) not null default 0;
+
+-- Valued cash can never exceed the cash physically in the vault. Any outflow that is not a
+-- purchase (expense, factory handover, reset, ...) and pushes cash below the valued pool shrinks
+-- the pool proportionally at that moment, so later unvalued inflows never revive old valuations.
+create or replace function public.trg_goldia_cap_valued_pool()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.valued_cash_uzs > greatest(coalesce(new.manager_cash_amount, 0), 0) then
+    new.valued_cash_585_g := case when new.valued_cash_uzs > 0
+      then round(new.valued_cash_585_g * greatest(coalesce(new.manager_cash_amount, 0), 0) / new.valued_cash_uzs, 6) else 0 end;
+    new.valued_cash_uzs := greatest(coalesce(new.manager_cash_amount, 0), 0);
+  end if;
+  if new.valued_usd > greatest(coalesce(new.manager_usd_amount, 0), 0) then
+    new.valued_usd_585_g := case when new.valued_usd > 0
+      then round(new.valued_usd_585_g * greatest(coalesce(new.manager_usd_amount, 0), 0) / new.valued_usd, 6) else 0 end;
+    new.valued_usd := greatest(coalesce(new.manager_usd_amount, 0), 0);
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_goldia_cap_valued_pool on public.manager_vault_account;
+create trigger trg_goldia_cap_valued_pool
+  before update on public.manager_vault_account
+  for each row execute function public.trg_goldia_cap_valued_pool();
 
 -- -------------------------------------------------------------------------
 -- 2. Company-level difference ledger (append-only)
@@ -324,7 +361,8 @@ begin
     'entries', coalesce(jsonb_agg(jsonb_build_object(
         'id', d.id, 'created_at', d.created_at, 'entry_type', d.entry_type,
         'purchase_no', p.purchase_no, 'cash_spent_uzs', d.cash_spent_uzs, 'usd_spent', d.usd_spent,
-        'valued_cash_uzs', d.valued_cash_uzs, 'unvalued_cost_uzs', d.unvalued_cost_uzs,
+        'valued_cash_uzs', d.valued_cash_uzs, 'valued_usd', d.valued_usd, 'usd_rate', d.usd_rate,
+        'unvalued_cost_uzs', d.unvalued_cost_uzs,
         'avg_conversion_rate', d.avg_conversion_rate, 'purchase_rate_per_gram', d.purchase_rate_per_gram,
         'physical_grams', d.physical_grams, 'proba', d.proba,
         'valued_purchased_585_g', d.valued_purchased_585_g, 'accounting_value_585_g', d.accounting_value_585_g,
