@@ -547,20 +547,28 @@ export function CustomerLedgerAndSheetsSection() {
     setMessage(null);
 
     try {
-      const markup = parseFloat(saleMarkupPct) || 12.0;
+      // The markup shown in the form is exactly the markup sent to the server (no hidden default).
+      const markup = parseFloat(saleMarkupPct);
+      if (!Number.isFinite(markup) || markup < 0 || markup > 100) {
+        throw new Error("Iltimos, mijoz ustama foizini 0 dan 100 gacha kiriting!");
+      }
 
       if (saleMode === "weight") {
         const weight = parseFloat(saleWeightGrams);
         if (isNaN(weight) || weight <= 0) {
           throw new Error("Iltimos, sotilayotgan mahsulot vaznini (gramm) to'g'ri kiriting!");
         }
+        if (!targetCustomer.seller_id) {
+          throw new Error("Mijozga sotuvchi biriktirilmagan. Avval mijozni sotuvchiga biriktiring.");
+        }
 
         const { data, error } = await supabase.rpc("rpc_record_weight_sale", {
           p_customer_id: targetCustomer.id,
-          p_seller_id: targetCustomer.seller_id || sellers[0]?.id,
+          p_seller_id: targetCustomer.seller_id,
           p_weight_grams: weight,
           p_client_markup_pct: markup,
           p_notes: saleNotes.trim() || "Mijozga vazn bo'yicha nasiya sotuv",
+          p_idempotency_key: `WEIGHT-SALE-${targetCustomer.id}-${Date.now()}`,
         });
 
         if (error) throw error;
@@ -574,17 +582,23 @@ export function CustomerLedgerAndSheetsSection() {
           throw new Error("Iltimos, sotilayotgan mahsulotni tanlang!");
         }
 
+        // The piece is sold by the seller who actually holds it.
+        const selectedPiece = availablePieces.find((p) => p.id === salePieceId);
+        if (!selectedPiece?.seller_id) {
+          throw new Error("Tanlangan mahsulot sotuvchiga biriktirilmagan.");
+        }
+
         const { data, error } = await supabase.rpc("rpc_record_barcode_piece_sale", {
           p_customer_id: targetCustomer.id,
-          p_seller_id: targetCustomer.seller_id || sellers[0]?.id,
+          p_seller_id: selectedPiece.seller_id,
           p_piece_id: salePieceId,
           p_client_markup_pct: markup,
           p_notes: saleNotes.trim() || "Mijozga nasiya sotuv",
+          p_idempotency_key: `PIECE-SALE-${salePieceId}-${Date.now()}`,
         });
 
         if (error) throw error;
 
-        const selectedPiece = availablePieces.find((p) => p.id === salePieceId);
         const resolvedModelName = data?.model_name || selectedPiece?.model_name || selectedPiece?.model_code || "Zargarlik buyumi";
         const resolvedWeight = Number(data?.weight_grams ?? selectedPiece?.weight_grams ?? 0);
         const resolvedMarkup = Number(data?.client_markup_pct ?? markup);
@@ -1107,7 +1121,7 @@ export function CustomerLedgerAndSheetsSection() {
                       setPayUsdAmount("");
                       setPayNotes("");
                       setPaymentModalOpen(true);
-                      supabase.from("daily_gold_rates").select("rate_per_gram").order("rate_date", { ascending: false }).limit(1)
+                      supabase.from("daily_gold_rates").select("rate_per_gram").eq("proba", 585).order("rate_date", { ascending: false }).order("created_at", { ascending: false }).limit(1)
                         .then(({ data }) => {
                           if (data && data[0]?.rate_per_gram) setPayRate(String(data[0].rate_per_gram));
                         });
@@ -1235,7 +1249,7 @@ export function CustomerLedgerAndSheetsSection() {
                             setPayUsdAmount("");
                             setPayNotes("");
                             setPaymentModalOpen(true);
-                            supabase.from("daily_gold_rates").select("rate_per_gram").order("rate_date", { ascending: false }).limit(1)
+                            supabase.from("daily_gold_rates").select("rate_per_gram").eq("proba", 585).order("rate_date", { ascending: false }).order("created_at", { ascending: false }).limit(1)
                               .then(({ data }) => {
                                 if (data && data[0]?.rate_per_gram) setPayRate(String(data[0].rate_per_gram));
                               });

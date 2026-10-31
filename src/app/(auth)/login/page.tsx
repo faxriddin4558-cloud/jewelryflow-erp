@@ -34,7 +34,7 @@ function LoginForm() {
     setError("");
 
     // Priority 6: Production Security Guard - Never allow demo credentials in production
-    if (isProduction && (userPass === "GoldiaPassword2026!" || userEmail.endsWith("@goldia.uz"))) {
+    if (isProduction && userEmail.endsWith("@goldia.uz")) {
       setError("Xavfsizlik: Ishlab chiqarish (Production) tizimida demo parollardan foydalanish qat'iyan taqiqlangan!");
       setLoading(false);
       return;
@@ -91,9 +91,15 @@ function LoginForm() {
   };
 
   const handleDemoLogin = async (demoEmail: string) => {
+    // No password is ever compiled into the bundle (never available in production).
+    const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
+    if (isProduction || !demoPassword) {
+      setError("Demo tezkor login sozlanmagan.");
+      return;
+    }
     setEmail(demoEmail);
-    setPassword("GoldiaPassword2026!");
-    await executeSignIn(demoEmail, "GoldiaPassword2026!");
+    setPassword(demoPassword);
+    await executeSignIn(demoEmail, demoPassword);
   };
 
   return (
