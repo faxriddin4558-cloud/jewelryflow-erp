@@ -27,6 +27,7 @@ import {
   type JewelryModelItem,
 } from "@/lib/barcode-scanner-engine";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
+import { MarkupDifferenceCard } from "./MarkupDifferenceCard";
 import { parseErrorMessage } from "@/lib/error-utils";
 
 interface CustomerItem {
@@ -39,7 +40,7 @@ interface CustomerItem {
 
 export function SellerMobileWorkspace() {
   const [activeTab, setActiveTab] = useState<
-    "stock" | "pieces" | "scan_sale" | "sale" | "settle" | "debts" | "customer" | "till"
+    "stock" | "pieces" | "scan_sale" | "sale" | "settle" | "debts" | "customer" | "till" | "markup"
   >("stock");
 
   // State
@@ -908,7 +909,19 @@ export function SellerMobileWorkspace() {
         >
           🏦 Kassam
         </button>
+        <button
+          id="tabMarkup"
+          onClick={() => setActiveTab("markup")}
+          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+            activeTab === "markup" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
+          📈 Ustama farqi
+        </button>
       </div>
+
+      {/* TAB: SIGNED SELLER MARKUP DIFFERENCE (own sales only, enforced by the RPC) */}
+      {activeTab === "markup" && <MarkupDifferenceCard />}
 
       {/* TAB: SCANNER 564 & CAMERA PIECE SALE */}
       {activeTab === "scan_sale" && (

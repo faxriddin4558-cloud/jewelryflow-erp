@@ -38,6 +38,7 @@ import {
 import { parseErrorMessage } from "@/lib/error-utils";
 import { ProfitAccountingBanner } from "./ProfitAccountingBanner";
 import { CompanyRateDifferenceCard } from "./CompanyRateDifferenceCard";
+import { MarkupDifferenceCard } from "./MarkupDifferenceCard";
 
 export type DirectorSalesTab =
   | "factory"
@@ -1231,6 +1232,9 @@ export function DirectorSalesWorkspace({
           </div>
           <div className="mt-3">
             <CompanyRateDifferenceCard />
+          </div>
+          <div className="mt-3">
+            <MarkupDifferenceCard showBySeller />
           </div>
         </div>
       )}
