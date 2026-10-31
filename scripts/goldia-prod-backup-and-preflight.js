@@ -573,7 +573,9 @@ async function main() {
     const localAfter = counts(localEnv) || {};
     // A table created empty by the migration is not a data change.
     const dataChanged = diffCounts(localBefore, localAfter)
-      .filter((d) => !(!(d.split(": ")[0] in localBefore) && d.endsWith("missing vs 0")));
+      .filter((d) => !(!(d.split(": ")[0] in localBefore) && d.endsWith("missing vs 0")))
+      // audit_logs and allocation ledgers are append-only records a migration may write (repairs)
+      .filter((d) => !/^public\.(audit_logs|weight_sale_allocations):/.test(d));
     const post = psql(localEnv, FILES.postflight, { file: true, tuples: false });
     fs.writeFileSync(path.join(outDir, "local-postflight.txt"), String(post.stdout || "") + String(post.stderr || ""));
     const rb = psql(localEnv, FILES.rollback065, { file: true, tuples: false });
