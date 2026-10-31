@@ -74,6 +74,7 @@ export function buildTimeline(script, audio = {}) {
       start,
       durationInFrames,
       speechStart: start + Math.round(LEAD_SEC * FPS),
+      speechFrames: Math.round(speechSec * FPS),
       audioFile: a ? a.file : null,
       cues,
     };
