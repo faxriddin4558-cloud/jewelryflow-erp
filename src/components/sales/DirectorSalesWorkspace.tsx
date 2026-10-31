@@ -37,6 +37,7 @@ import {
 } from "@/lib/barcode-scanner-engine";
 import { parseErrorMessage } from "@/lib/error-utils";
 import { ProfitAccountingBanner } from "./ProfitAccountingBanner";
+import { CompanyRateDifferenceCard } from "./CompanyRateDifferenceCard";
 
 export type DirectorSalesTab =
   | "factory"
@@ -1227,6 +1228,9 @@ export function DirectorSalesWorkspace({
           {/* Automated Management Accounting Card: Davr hisobiy foyda / zarar — 585 g */}
           <div className="mt-5">
             <ProfitAccountingBanner onDataMutated={loadData} canManageAccounting={true} />
+          </div>
+          <div className="mt-3">
+            <CompanyRateDifferenceCard />
           </div>
         </div>
       )}
