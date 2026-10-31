@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * GOLDIA — gated production release of one Sales migration (default 067).
+ * GOLDIA — gated production release of one Sales migration (default 068).
  *
- *   node scripts/goldia-prod-release.js [--migration 067]
+ *   node scripts/goldia-prod-release.js [--migration 068]
  *
  * 1. Hidden password prompt (kept only in child-process environments, never printed or saved).
  * 2. FRESH backup + restore test + read-only preflight + migration test on the restored copy
@@ -28,7 +28,7 @@ for (let i = 2; i < process.argv.length; i++) {
   const next = process.argv[i + 1];
   args[a.slice(2)] = next === undefined || next.startsWith("--") ? true : (i++, next);
 }
-const TARGET = String(args.migration || "067").padStart(3, "0");
+const TARGET = String(args.migration || "068").padStart(3, "0");
 const PREVIOUS = String(Number(TARGET) - 1).padStart(3, "0");
 const TARGET_VERSION = `20260101000${TARGET}`;
 const PREVIOUS_VERSION = `20260101000${PREVIOUS}`;
@@ -70,7 +70,19 @@ const POSTFLIGHT_CHECKS = {
     ["snapshot_arithmetic_exact", "select count(*) = 0 from public.jewelry_sales where markup_difference_g is not null and markup_difference_g <> round(coalesce(base_weight_grams, 0) * (client_markup_pct - assigned_seller_markup_pct) / 100.0, 4)"],
     ["piece_sale_retry_fixed", "select position('v_existing, v_payload' in pg_get_functiondef('public.rpc_record_barcode_piece_sale(uuid,uuid,uuid,uuid,numeric,numeric,text,text)'::regprocedure)) > 0"],
   ],
+  "068": [
+    ["allocations_table", "select to_regclass('public.weight_sale_allocations') is not null"],
+    ["weight_sale_multi_piece", "select position('_goldia_consume_weight_sale_pieces' in pg_get_functiondef('public.rpc_record_weight_sale(uuid,uuid,numeric,numeric,text,text)'::regprocedure)) > 0"],
+    ["reversals_use_allocations", "select position('_goldia_restore_weight_sale_allocations' in pg_get_functiondef('public.rpc_reverse_client_sale(uuid,text,text)'::regprocedure)) > 0 and position('_goldia_restore_weight_sale_allocations' in pg_get_functiondef('public.rpc_reverse_jewelry_sale(uuid,text,text)'::regprocedure)) > 0"],
+    ["factory_counters_match_receipts", "select count(*) = 0 from public.manager_vault_account v where abs(v.total_factory_obligation_g - (select coalesce(sum(factory_obligation_g), 0) from public.factory_receipts r where r.organization_id = v.organization_id and r.status not in ('reversed', 'cancelled'))) > 0.0001 or abs(v.total_factory_received_g - (select coalesce(sum(original_physical_g), 0) from public.factory_receipts r where r.organization_id = v.organization_id and r.status not in ('reversed', 'cancelled'))) > 0.0001"],
+    ["no_unrepaired_linked_shortfall", "select count(*) = 0 from public.jewelry_sales s where s.sale_type = 'weight' and s.status not in ('reversed', 'cancelled') and exists (select 1 from public.consignment_pieces p where p.sale_id = s.id and p.status = 'sold') and not exists (select 1 from public.weight_sale_allocations a where a.sale_id = s.id)"],
+  ],
 };
+
+// Balances a migration is allowed to change (anything else must stay identical).
+const BALANCE_ALLOWED_CHANGES = { "068": ["factory_obligation_g"] };
+// Repair records written by a migration, printed after postflight.
+const REPAIR_ACTIONS = { "068": ["REPAIR_WEIGHT_SALE_PIECES", "REPAIR_FACTORY_COUNTERS"] };
 
 const lines = [];
 let resultFile;
@@ -240,7 +252,16 @@ async function main() {
   const countsAfter = ro(COUNTS);
   const balancesAfter = ro(BALANCES);
   const countsSame = countsAfter.stdout.trim() === counts.stdout.trim();
-  const balancesSame = balancesAfter.stdout.trim() === balances.stdout.trim();
+  const allowed = BALANCE_ALLOWED_CHANGES[TARGET] || [];
+  const parseBal = (txt) => Object.fromEntries(txt.trim().split(",").map((kv) => kv.split("=")));
+  const balBefore = parseBal(balances.stdout), balAfter = parseBal(balancesAfter.stdout);
+  for (const k of allowed) if (balBefore[k] !== balAfter[k]) out(`  allowed change ${k}: ${balBefore[k]} -> ${balAfter[k]} (see repair records)`);
+  const balancesSame = Object.keys({ ...balBefore, ...balAfter }).filter((k) => !allowed.includes(k)).every((k) => balBefore[k] === balAfter[k]);
+  for (const action of REPAIR_ACTIONS[TARGET] || []) {
+    const r = ro(`select coalesce(string_agg(record_id || ' ' || old_data::text || ' => ' || new_data::text, E'\\n'), 'none') from public.audit_logs where action = '${action}'`);
+    out(`  ${action}:`);
+    for (const line of r.stdout.trim().split(/\r?\n/)) out(`    ${line}`);
+  }
   out(`  row counts unchanged: ${countsSame ? "yes" : `NO before=${counts.stdout.trim()} after=${countsAfter.stdout.trim()}`}`);
   out(`  balances unchanged: ${balancesSame ? "yes" : `NO after=${balancesAfter.stdout.trim()}`}`);
   if (!(pass && countsSame && balancesSame)) stop(`POSTFLIGHT FAILED — do not merge the release PR`, { rollbackHint: true });
