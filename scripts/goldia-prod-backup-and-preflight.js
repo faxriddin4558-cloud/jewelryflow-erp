@@ -12,6 +12,9 @@
  * It is never printed, written to disk or committed.
  *
  * Options: --host --port --user --db --sslmode --pg-bin <dir> --out <dir> --keep-restore
+ *          --reuse <backup folder>  reuse that backup (after SHA256 + pg_restore --list checks)
+ *          --fresh                  always take a new production dump
+ * By default the newest backup in the output folder is reused when it passes the integrity checks.
  */
 "use strict";
 
@@ -111,14 +114,25 @@ function findPgBin() {
 
 let PG;
 
-function run(tool, argList, { env = {}, input, quiet } = {}) {
+const MIN = 60 * 1000;
+
+function run(tool, argList, { env = {}, input, quiet, timeoutMs = 30 * MIN, noPipes = false } = {}) {
   const res = spawnSync(PG.tool(tool), argList, {
     env: { ...process.env, ...env },
     input,
     encoding: "utf8",
     maxBuffer: 1024 * 1024 * 512,
     windowsHide: true,
+    timeout: timeoutMs,
+    killSignal: "SIGKILL",
+    // A server started by pg_ctl inherits these handles; on Windows spawnSync would then wait
+    // for the pipes to close forever (the [4/9] hang). Long-lived children get no pipes.
+    stdio: noPipes ? "ignore" : "pipe",
   });
+  if (res.error && res.error.code === "ETIMEDOUT") {
+    log(`  ! ${tool} stopped after ${Math.round(timeoutMs / 1000)} s timeout`);
+    return { status: null, timedOut: true, stdout: "", stderr: `${tool} timed out` };
+  }
   if (res.error) throw res.error;
   if (!quiet && res.status !== 0 && logFile) {
     fs.appendFileSync(logFile, `[${tool} exit ${res.status}] ${String(res.stderr || "").slice(0, 4000)}${os.EOL}`);
@@ -150,14 +164,14 @@ const localEnv = () => ({
   PGPASSWORD: "",
 });
 
-function psql(envFn, sqlOrFile, { file = false, tuples = true, onErrorStop = true, singleTx = false } = {}) {
-  const a = ["-X", "-q"];
+function psql(envFn, sqlOrFile, { file = false, tuples = true, onErrorStop = true, singleTx = false, timeoutMs = 15 * MIN } = {}) {
+  const a = ["-X", "-q", "-w"];
   if (tuples) a.push("-t", "-A", "-F", "|");
   if (onErrorStop) a.push("-v", "ON_ERROR_STOP=1");
   if (singleTx) a.push("--single-transaction");
   if (file) a.push("-f", sqlOrFile);
   else a.push("-c", sqlOrFile);
-  return run("psql", a, { env: envFn() });
+  return run("psql", a, { env: envFn(), timeoutMs });
 }
 
 function readOnly(sql) {
@@ -260,6 +274,57 @@ function writeSummary(verdict) {
   fs.writeFileSync(path.join(outDir, "SUMMARY.txt"), text);
 }
 
+const ts = () => `(${new Date().toLocaleTimeString()})`;
+
+function waitForLocal(seconds) {
+  const until = Date.now() + seconds * 1000;
+  while (Date.now() < until) {
+    const r = psql(localEnv, "select 1", { timeoutMs: 15 * 1000 });
+    if (r.status === 0 && String(r.stdout).trim() === "1") return true;
+    spawnSync(process.execPath, ["-e", "setTimeout(() => {}, 1000)"]);
+  }
+  return false;
+}
+
+// Stops and removes disposable clusters left behind by an interrupted earlier run.
+function cleanupStaleRestores() {
+  for (const name of fs.readdirSync(os.tmpdir())) {
+    if (!name.startsWith("goldia-restore-")) continue;
+    const dir = path.join(os.tmpdir(), name);
+    const data = path.join(dir, "data");
+    if (fs.existsSync(path.join(data, "postmaster.pid"))) {
+      log(`  stopping leftover local PostgreSQL from an earlier run: ${dir}`);
+      run("pg_ctl", ["-D", data, "-m", "immediate", "-w", "-t", "60", "stop"], { quiet: true, noPipes: true, timeoutMs: 2 * MIN });
+    }
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { log(`  could not remove ${dir} (remove it manually later)`); }
+  }
+}
+
+// Newest backup folder whose files match SHA256SUMS.txt and whose dump has a readable TOC.
+function findReusableBackup(root) {
+  if (args.fresh) return null;
+  const dirs = args.reuse ? [path.resolve(String(args.reuse))]
+    : (fs.existsSync(root) ? fs.readdirSync(root).filter((d) => d.startsWith("goldia-prod-")).sort().reverse().map((d) => path.join(root, d)) : []);
+  for (const dir of dirs) {
+    const full = path.join(dir, "goldia-full.dump");
+    const sums = path.join(dir, "SHA256SUMS.txt");
+    if (!fs.existsSync(full) || !fs.existsSync(sums)) continue;
+    log(`  checking existing backup ${dir} ${ts()}`);
+    let intact = true;
+    for (const line of fs.readFileSync(sums, "utf8").split(/\r?\n/).filter(Boolean)) {
+      const [hash, file] = line.trim().split(/\s+/);
+      const f = path.join(dir, file);
+      if (!fs.existsSync(f) || sha256(f) !== hash) { intact = false; log(`  checksum mismatch: ${file}`); break; }
+    }
+    if (!intact) continue;
+    const list = run("pg_restore", ["--list", full], { timeoutMs: 10 * MIN });
+    if (list.status !== 0 || !/TABLE DATA public /.test(list.stdout)) { log("  pg_restore --list failed"); continue; }
+    return dir;
+  }
+  if (args.reuse) fail(`--reuse backup failed integrity checks: ${args.reuse}`);
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -310,57 +375,81 @@ async function main() {
   note("production server", `PostgreSQL ${serverVersion}`);
   if (dumpMajor < serverMajor) fail(`pg_dump ${dumpMajor} is older than server ${serverMajor}; install PostgreSQL ${serverMajor}+`);
 
-  // 3. Backups
-  log("[3/9] Backups (outside the repository)");
-  const before = counts(prodEnv);
-  if (!before) fail("could not read production row counts");
-  const schemaFlags = (schemas) => schemas.flatMap((s) => ["-n", s]);
+  // 3. Backups (reuse the newest intact backup unless --fresh)
+  log(`[3/9] Backups (outside the repository) ${ts()}`);
+  const schemaFlags = (list) => list.flatMap((x) => ["-n", x]);
   let schemas = SCHEMAS;
-  const full = path.join(outDir, "goldia-full.dump");
-  let r = run("pg_dump", ["-Fc", ...schemaFlags(schemas), "-f", full], { env: prodEnv() });
-  if (r.status !== 0) {
-    log("  full dump with auth/storage failed, retrying public + supabase_migrations only");
-    schemas = ["public", "supabase_migrations"];
-    r = run("pg_dump", ["-Fc", ...schemaFlags(schemas), "-f", full], { env: prodEnv() });
-    if (r.status !== 0) fail("pg_dump failed (see run.log)");
-    note("WARNING", "auth/storage schemas NOT in backup (logins must be recreated after a disaster)");
+  let full;
+  let before;
+  let after;
+  let liveChanges = [];
+  const reuseDir = findReusableBackup(outRoot);
+  if (reuseDir) {
+    full = path.join(reuseDir, "goldia-full.dump");
+    const listing = run("pg_restore", ["--list", full], { timeoutMs: 10 * MIN });
+    schemas = SCHEMAS.filter((x) => new RegExp(`SCHEMA - ${x} `).test(listing.stdout) || x === "public");
+    note("backup reused (SHA256 + pg_restore --list ok)", reuseDir);
+    note("schemas in backup", schemas.join(", "));
+    note("note", "restored copy is compared with CURRENT production counts (use --fresh if production changed since)");
+    before = counts(prodEnv);
+    if (!before) fail("could not read production row counts");
+    after = before;
+  } else {
+    before = counts(prodEnv);
+    if (!before) fail("could not read production row counts");
+    full = path.join(outDir, "goldia-full.dump");
+    log(`  pg_dump full backup... ${ts()}`);
+    let r = run("pg_dump", ["-w", "-Fc", ...schemaFlags(schemas), "-f", full], { env: prodEnv(), timeoutMs: 60 * MIN });
+    if (r.status !== 0) {
+      log("  full dump with auth/storage failed, retrying public + supabase_migrations only");
+      schemas = ["public", "supabase_migrations"];
+      r = run("pg_dump", ["-w", "-Fc", ...schemaFlags(schemas), "-f", full], { env: prodEnv(), timeoutMs: 60 * MIN });
+      if (r.status !== 0) fail("pg_dump failed (see run.log)");
+      note("WARNING", "auth/storage schemas NOT in backup (logins must be recreated after a disaster)");
+    }
+    note("schemas in backup", schemas.join(", "));
+    r = run("pg_dump", ["-w", "--schema-only", ...schemaFlags(schemas), "-f", path.join(outDir, "goldia-schema.sql")], { env: prodEnv(), timeoutMs: 30 * MIN });
+    note("schema backup", r.status === 0 ? "ok" : "FAILED");
+    r = run("pg_dump", ["-w", "-Fc", "--data-only", ...schemaFlags(schemas), "-f", path.join(outDir, "goldia-data.dump")], { env: prodEnv(), timeoutMs: 60 * MIN });
+    note("data backup", r.status === 0 ? "ok" : "FAILED");
+    r = run("pg_dumpall", ["-w", "--roles-only", "--no-role-passwords", "-l", PROD.db, "-f", path.join(outDir, "goldia-roles.sql")], { env: prodEnv(), timeoutMs: 10 * MIN });
+    note("roles backup", r.status === 0 ? "ok" : "not permitted on Supabase pooler (non-critical: Supabase recreates platform roles)");
+    after = counts(prodEnv);
+    liveChanges = diffCounts(before, after);
+    note("rows changed during backup", liveChanges.length ? liveChanges.join("; ") : "none");
+    const checksums = fs.readdirSync(outDir).filter((f) => /\.(dump|sql)$/.test(f))
+      .map((f) => `${sha256(path.join(outDir, f))}  ${f}  ${fs.statSync(path.join(outDir, f)).size} bytes`);
+    fs.writeFileSync(path.join(outDir, "SHA256SUMS.txt"), checksums.join(os.EOL) + os.EOL);
+    for (const c of checksums) log("  " + c);
   }
-  note("schemas in backup", schemas.join(", "));
-  const schemaSql = path.join(outDir, "goldia-schema.sql");
-  r = run("pg_dump", ["--schema-only", ...schemaFlags(schemas), "-f", schemaSql], { env: prodEnv() });
-  note("schema backup", r.status === 0 ? "ok" : "FAILED");
-  const dataDump = path.join(outDir, "goldia-data.dump");
-  r = run("pg_dump", ["-Fc", "--data-only", ...schemaFlags(schemas), "-f", dataDump], { env: prodEnv() });
-  note("data backup", r.status === 0 ? "ok" : "FAILED");
-  const rolesSql = path.join(outDir, "goldia-roles.sql");
-  r = run("pg_dumpall", ["--roles-only", "--no-role-passwords", "-l", PROD.db, "-f", rolesSql], { env: prodEnv() });
-  note("roles backup", r.status === 0 ? "ok" : "not permitted on Supabase pooler (non-critical: Supabase recreates platform roles)");
-  const after = counts(prodEnv);
-  const liveChanges = diffCounts(before, after);
-  note("rows changed during backup", liveChanges.length ? liveChanges.join("; ") : "none");
-
-  const checksums = fs.readdirSync(outDir).filter((f) => /\.(dump|sql)$/.test(f))
-    .map((f) => `${sha256(path.join(outDir, f))}  ${f}  ${fs.statSync(path.join(outDir, f)).size} bytes`);
-  fs.writeFileSync(path.join(outDir, "SHA256SUMS.txt"), checksums.join(os.EOL) + os.EOL);
-  for (const c of checksums) log("  " + c);
 
   // 4. Restore test into a disposable local cluster
-  log("[4/9] Restore test into a disposable LOCAL PostgreSQL (never production)");
+  log(`[4/9] Restore test into a disposable LOCAL PostgreSQL (never production) ${ts()}`);
+  cleanupStaleRestores();
   const restoreDir = fs.mkdtempSync(path.join(os.tmpdir(), "goldia-restore-"));
   const dataDir = path.join(restoreDir, "data");
   localPort = await freePort(55432);
-  r = run("initdb", ["-D", dataDir, "-U", "postgres", "-A", "trust", "-E", "UTF8", "--no-locale"]);
+  log(`  initdb ${ts()}`);
+  let r = run("initdb", ["-D", dataDir, "-U", "postgres", "-A", "trust", "-E", "UTF8", "--no-locale"], { timeoutMs: 10 * MIN });
   if (r.status !== 0) fail("initdb failed (see run.log)");
-  r = run("pg_ctl", ["-D", dataDir, "-o", `-p ${localPort} -c listen_addresses=localhost`, "-l", path.join(restoreDir, "pg.log"), "-w", "start"]);
-  if (r.status !== 0) fail("local PostgreSQL did not start (see run.log)");
+  log(`  starting local PostgreSQL on port ${localPort} ${ts()}`);
   let localStarted = true;
   const stopLocal = () => {
     if (!localStarted) return;
-    run("pg_ctl", ["-D", dataDir, "-m", "fast", "-w", "stop"], { quiet: true });
     localStarted = false;
-    if (!args["keep-restore"]) fs.rmSync(restoreDir, { recursive: true, force: true });
+    run("pg_ctl", ["-D", dataDir, "-m", "fast", "-w", "-t", "60", "stop"], { quiet: true, noPipes: true, timeoutMs: 2 * MIN });
+    if (!args["keep-restore"]) {
+      try { fs.rmSync(restoreDir, { recursive: true, force: true }); } catch { /* removed on next run */ }
+    }
   };
   process.on("exit", stopLocal);
+  for (const sig of ["SIGINT", "SIGTERM", "SIGBREAK"]) {
+    process.on(sig, () => { log(`\n${sig}: stopping local PostgreSQL and exiting`); stopLocal(); process.exit(130); });
+  }
+  r = run("pg_ctl", ["-D", dataDir, "-o", `-p ${localPort} -c listen_addresses=localhost`, "-l", path.join(restoreDir, "pg.log"),
+    "-w", "-t", "120", "start"], { noPipes: true, timeoutMs: 3 * MIN });
+  if (!waitForLocal(120)) fail(`local PostgreSQL did not become ready (log: ${path.join(restoreDir, "pg.log")})`);
+  log(`  local PostgreSQL ready ${ts()}`);
 
   try {
     psql(localEnv, `
@@ -379,7 +468,10 @@ async function main() {
     }
     note("extensions not available locally (Supabase platform only)", missingExt.length ? missingExt.join(", ") : "none");
     const restoreLog = path.join(outDir, "restore-test.log");
-    r = run("pg_restore", ["--no-owner", "--no-acl", "-d", "postgres", full], { env: localEnv(), quiet: true });
+    log(`  pg_restore ${Math.round(fs.statSync(full).size / 1024 / 1024)} MB (can take several minutes) ${ts()}`);
+    r = run("pg_restore", ["-w", "--no-owner", "--no-acl", "-d", "postgres", full], { env: localEnv(), quiet: true, timeoutMs: 60 * MIN });
+    if (r.timedOut) fail("pg_restore timed out after 60 minutes");
+    log(`  pg_restore finished ${ts()}`);
     fs.writeFileSync(restoreLog, String(r.stderr || ""));
     const restoreErrors = String(r.stderr || "").split(/\r?\n/)
       .filter((l) => l.includes("error:") && !l.includes('schema "public" already exists')).length;
