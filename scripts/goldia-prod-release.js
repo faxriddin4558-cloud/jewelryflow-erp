@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * GOLDIA — gated production release of one Sales migration (default 068).
+ * GOLDIA — gated production release of one Sales migration (default 069).
  *
- *   node scripts/goldia-prod-release.js [--migration 068]
+ *   node scripts/goldia-prod-release.js [--migration 069]
  *
  * 1. Hidden password prompt (kept only in child-process environments, never printed or saved).
  * 2. FRESH backup + restore test + read-only preflight + migration test on the restored copy
@@ -28,7 +28,7 @@ for (let i = 2; i < process.argv.length; i++) {
   const next = process.argv[i + 1];
   args[a.slice(2)] = next === undefined || next.startsWith("--") ? true : (i++, next);
 }
-const TARGET = String(args.migration || "068").padStart(3, "0");
+const TARGET = String(args.migration || "069").padStart(3, "0");
 const PREVIOUS = String(Number(TARGET) - 1).padStart(3, "0");
 const TARGET_VERSION = `20260101000${TARGET}`;
 const PREVIOUS_VERSION = `20260101000${PREVIOUS}`;
@@ -69,6 +69,13 @@ const POSTFLIGHT_CHECKS = {
     ["sync_trigger_enabled", "select tgenabled = 'O' from pg_trigger where tgname = 'trg_sync_seller_gold_account_sales'"],
     ["snapshot_arithmetic_exact", "select count(*) = 0 from public.jewelry_sales where markup_difference_g is not null and markup_difference_g <> round(coalesce(base_weight_grams, 0) * (client_markup_pct - assigned_seller_markup_pct) / 100.0, 4)"],
     ["piece_sale_retry_fixed", "select position('v_existing, v_payload' in pg_get_functiondef('public.rpc_record_barcode_piece_sale(uuid,uuid,uuid,uuid,numeric,numeric,text,text)'::regprocedure)) > 0"],
+  ],
+  "069": [
+    ["no_anon_executable_rpcs", "select count(*) = 0 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.proname like 'rpc\\_%' and has_function_privilege('anon', p.oid, 'EXECUTE')"],
+    ["no_public_executable_rpcs", "select count(*) = 0 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.proname like 'rpc\\_%' and a.grantee = 0"],
+    ["authenticated_keeps_execute", "select count(*) = 0 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.proname like 'rpc\\_%' and not has_function_privilege('authenticated', p.oid, 'EXECUTE')"],
+    ["ledger_no_first_org_fallback", "select position('organizations' || chr(10) || '    limit 1' in pg_get_functiondef('public.rpc_get_unified_customer_ledger(uuid,uuid)'::regprocedure)) = 0"],
+    ["ledger_no_admin_fallback", "select position(chr(39) || 'admin' || chr(39) || ')' in pg_get_functiondef('public.rpc_get_unified_customer_ledger(uuid,uuid)'::regprocedure)) = 0"],
   ],
   "068": [
     ["allocations_table", "select to_regclass('public.weight_sale_allocations') is not null"],
