@@ -1,10 +1,30 @@
 {
   "title": "Goldia Sales — haqiqiy interfeys bilan taqdimot",
   "language": "uz-Latn",
+  "voiceSource": "voice-source/elevenlabs-davronbek-full.mp3",
+  "note": "voiceover = diktor aytgan aniq matn. ranges = to'liq audio fayldan olinadigan bo'laklar (soniya, pauzalar o'rtasida). Production'da skrinshot bilan tasdiqlanmagan qismlar (CBU kursi, BarTender, sotuvchi mobil oynasi, chek, Google Sheets, ustama farqi) kesib tashlangan.",
   "scenes": [
-    {
-      "id": "r01-dashboard",
-      "voiceover": "Asosiy panelda direktor biznesni 585 proba ekvivalentida ko‘radi: zavod majburiyati, ombor va sotuvchilardagi tovar, mijozlar nasiyasi. Fizik tovar balansi esa har bir gramm joyida ekanini ko‘rsatadi."
-    }
+    { "id": "r01-intro", "ranges": [[0.0, 14.22]],
+      "voiceover": "Goldia Sales. Direktor uchun taqdimot. Goldia Sales — Goldia zargarlik zavodining savdo, konsignatsiya va kassa hisobini yagona tizimda boshqaruvchi platforma. Ushbu taqdimotda tizimning asosiy imkoniyatlarini ko‘rib chiqamiz." },
+    { "id": "r02-problem", "ranges": [[14.22, 29.4]],
+      "voiceover": "Zargarlik savdosida har bir gramm muhim. Tovar zavoddan omborga, ombordan sotuvchilarga, sotuvchidan esa mijozga o‘tadi. To‘lov naqd so‘m, dollar yoki lom oltin bilan bo‘ladi. Daftar va Excelda bularning barchasini aniq kuzatish qiyin." },
+    { "id": "r03-solution", "ranges": [[29.4, 41.9]],
+      "voiceover": "Goldia Sales bu jarayonni beshta yo‘nalishga ajratadi: boshqaruv va balans, ombor va konsignatsiya, savdo va kassalar, afinaj va zavod balansi, hamda tahlil va tizim sozlamalari." },
+    { "id": "r04-dashboard", "ranges": [[41.9, 59.25]],
+      "voiceover": "Asosiy panelda direktor kompaniyaning sof aktivini 585 proba oltin ekvivalentida ko‘radi. Ombor va sotuvchilardagi tovar, mijozlar nasiyasi, kassalar, menejer seyfi va afinajdagi oltin bitta ko‘rsatkichga jamlanadi. Zavod va tashqi majburiyatlar esa ayirib hisoblanadi." },
+    { "id": "r05-factory", "ranges": [[70.62, 81.65]],
+      "voiceover": "Zavoddan kelgan tovar model, proba va vazn bo‘yicha qabul qilinadi. Zavod ustamasi foizda belgilanadi, zavod oldidagi majburiyat esa kirimlar bo‘yicha alohida daftarda yuritiladi." },
+    { "id": "r06-consign", "ranges": [[81.65, 89.95]],
+      "voiceover": "Tovarlar sotuvchilarga skaner orqali konsignatsiyaga beriladi. Har bir mahsulot shtrix-kod bilan aniqlanadi va tanlangan sotuvchi hisobiga biriktiriladi." },
+    { "id": "r07-customers", "ranges": [[98.1, 105.07], [107.3, 111.05]],
+      "voiceover": "To‘lov naqd pul, dollar yoki lom oltin ko‘rinishida qabul qilinadi. To‘lanmagan qism mijozning nasiyasiga yoziladi. Mijozlar va nasiya daftari kim qancha qarzdor ekanini ko‘rsatadi." },
+    { "id": "r08-refining", "ranges": [[128.32, 139.57]],
+      "voiceover": "Mijozlardan olingan lom oltin afinajga yuboriladi va toza oltin sifatida, 585 ekvivalentida menejer seyfiga qaytadi. Naqd pulga oltin xaridlari ham shu balansga qo‘shiladi." },
+    { "id": "r09-reconcile", "ranges": [[139.57, 154.27]],
+      "voiceover": "Sotuvchi bilan hisob-kitob olti bo‘limda solishtiriladi: qabul qilingan tovar, javondagi tovar, sotilgan tovar, mijozlar nasiyasi, sotuvchi kassasi va menejerga topshirilgan to‘lovlar. Natijada sotuvchining bozor qarzi aniq ko‘rinadi." },
+    { "id": "r10-security", "ranges": [[154.27, 168.16]],
+      "voiceover": "Kirish rollarga bo‘lingan: direktor, boshqaruvchi va sotuvchi. Sotuvchi faqat o‘ziga tegishli bo‘limlarni ko‘radi. Telegram orqali tasdiqlash, audit jurnali va takroriy yozuvdan himoya ma’lumotlar ishonchliligini ta’minlaydi." },
+    { "id": "r11-outro", "ranges": [[168.16, 175.64]],
+      "voiceover": "Goldia Sales — oltin, naqd pul va qarzlarni grammgacha aniq nazorat qilish uchun. E’tiboringiz uchun rahmat." }
   ]
 }

@@ -56,7 +56,28 @@ REMOTION_BROWSER=/path/to/chrome-headless-shell npm run render
 
 Render vaqti: 4 yadroli cloud mashinada ~17–20 daqiqa (6 372 kadr, 1920×1080, 30 fps).
 
-## Ovoz (voiceover) qo‘shish
+## YANGI versiya: haqiqiy ekranlar + diktor ovozi (`GoldiaReal`)
+
+```bash
+npm run render:real-test   # 19 s test: Asosiy Panel, ovoz bilan
+npm run render:real        # to'liq video → out/goldia-sales-real.mp4 (~2:33)
+```
+
+* **Ekranlar** — `public/screens/*.jpg`: Goldia Sales production'dan olingan telefon
+  skrinshotlari. Status-bar kesilgan; mijoz/xodim ismlari, telefon raqamlari va
+  email'lar commit qilinishidan **oldin** xiralashtirilgan. Asl skrinshotlar repoda yo'q.
+* **Logotip** — `public/logo/goldia-icon.png` (ilova ikonkasidan kesilgan).
+* **Ovoz** — `voice-source/elevenlabs-davronbek-full.mp3` (ElevenLabs, "Davronbek").
+  `npm run voice` uni sahnalarga bo'lib `public/voiceover/r*.mp3` ga yozadi va
+  subtitrlarni Whisper so'z vaqtlari (`src/data/asr-full.json`) bo'yicha diktorga
+  moslaydi (`src/data/real-cues.json`). Highlight'lar ham shu vaqtlarga bog'langan.
+* **Kesilgan qismlar** — production skrinshoti bilan tasdiqlanmagan gaplar audiodan
+  olib tashlangan: CBU dollar kursi, BarTender yorliqlari, sotuvchi mobil oynasi,
+  savdo cheki, Google Sheets import, ustama farqi/kurs farqi. Skrinshot kelsa,
+  `src/data/real-script.json` dagi `ranges` ga qaytarib qo'shish mumkin.
+* Sahna tartibi va highlight hududlari: `src/scenes/real.tsx`, `src/RealVideo.tsx`.
+
+## Ovoz (voiceover) qo‘shish (eski maket versiya)
 
 ElevenLabs yoki boshqa TTS ulanishi bu sessiyada yo‘q edi, shuning uchun video hozircha
 **subtitr + fon musiqasi** bilan. Ovoz qo‘shish uchun:

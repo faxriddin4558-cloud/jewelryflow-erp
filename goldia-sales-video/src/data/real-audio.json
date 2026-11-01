@@ -1,0 +1,46 @@
+{
+ "r01-intro": {
+  "file": "voiceover/r01-intro.mp3",
+  "duration": 14.22
+ },
+ "r02-problem": {
+  "file": "voiceover/r02-problem.mp3",
+  "duration": 15.18
+ },
+ "r03-solution": {
+  "file": "voiceover/r03-solution.mp3",
+  "duration": 12.5
+ },
+ "r04-dashboard": {
+  "file": "voiceover/r04-dashboard.mp3",
+  "duration": 17.35
+ },
+ "r05-factory": {
+  "file": "voiceover/r05-factory.mp3",
+  "duration": 11.03
+ },
+ "r06-consign": {
+  "file": "voiceover/r06-consign.mp3",
+  "duration": 8.3
+ },
+ "r07-customers": {
+  "file": "voiceover/r07-customers.mp3",
+  "duration": 10.72
+ },
+ "r08-refining": {
+  "file": "voiceover/r08-refining.mp3",
+  "duration": 11.25
+ },
+ "r09-reconcile": {
+  "file": "voiceover/r09-reconcile.mp3",
+  "duration": 14.7
+ },
+ "r10-security": {
+  "file": "voiceover/r10-security.mp3",
+  "duration": 13.89
+ },
+ "r11-outro": {
+  "file": "voiceover/r11-outro.mp3",
+  "duration": 7.48
+ }
+}

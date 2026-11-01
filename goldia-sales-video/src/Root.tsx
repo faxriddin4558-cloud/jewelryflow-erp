@@ -1,13 +1,15 @@
 import React from "react";
 import { Composition } from "remotion";
 import { GoldiaSales, TIMELINE } from "./Video";
-import { GoldiaRealTest, REAL_TIMELINE } from "./RealVideo";
+import { GoldiaReal, GoldiaRealTest, REAL_ALL, REAL_TEST } from "./RealVideo";
 // @ts-expect-error plain JS module
 import { FPS, HEIGHT, WIDTH } from "./timeline.mjs";
 
 export const RemotionRoot: React.FC = () => (
   <>
-    {/* Full presentation (~3.5 min) */}
+    {/* NEW: real production screenshots + ElevenLabs voice */}
+    <Composition id="GoldiaReal" component={GoldiaReal} durationInFrames={REAL_ALL.total} fps={FPS} width={WIDTH} height={HEIGHT} />
+    {/* OLD: mock-up version (~3.5 min, silent) */}
     <Composition
       id="GoldiaSales"
       component={GoldiaSales}
@@ -31,7 +33,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition
       id="GoldiaRealTest"
       component={GoldiaRealTest}
-      durationInFrames={REAL_TIMELINE.totalFrames}
+      durationInFrames={REAL_TEST.total}
       fps={FPS}
       width={WIDTH}
       height={HEIGHT}

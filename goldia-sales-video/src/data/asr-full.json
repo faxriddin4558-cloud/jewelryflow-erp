@@ -1,0 +1,2352 @@
+[
+ {
+  "start": 0.0,
+  "end": 0.98,
+  "text": " Goldia Sales",
+  "words": [
+   {
+    "w": " Goldia",
+    "s": 0.0,
+    "e": 0.58
+   },
+   {
+    "w": " Sales",
+    "s": 0.58,
+    "e": 0.98
+   }
+  ]
+ },
+ {
+  "start": 0.98,
+  "end": 2.78,
+  "text": " Direktor uchun takdimat",
+  "words": [
+   {
+    "w": " Direktor",
+    "s": 0.98,
+    "e": 1.94
+   },
+   {
+    "w": " uchun",
+    "s": 1.94,
+    "e": 2.22
+   },
+   {
+    "w": " takdimat",
+    "s": 2.22,
+    "e": 2.78
+   }
+  ]
+ },
+ {
+  "start": 2.78,
+  "end": 4.26,
+  "text": " Goldia Sales",
+  "words": [
+   {
+    "w": " Goldia",
+    "s": 2.78,
+    "e": 3.86
+   },
+   {
+    "w": " Sales",
+    "s": 3.86,
+    "e": 4.26
+   }
+  ]
+ },
+ {
+  "start": 4.26,
+  "end": 7.32,
+  "text": " Goldia Zargarlik Zavodinin Savda, Kansignatsya",
+  "words": [
+   {
+    "w": " Goldia",
+    "s": 4.26,
+    "e": 4.94
+   },
+   {
+    "w": " Zargarlik",
+    "s": 4.94,
+    "e": 5.36
+   },
+   {
+    "w": " Zavodinin",
+    "s": 5.36,
+    "e": 5.86
+   },
+   {
+    "w": " Savda,",
+    "s": 5.86,
+    "e": 6.34
+   },
+   {
+    "w": " Kansignatsya",
+    "s": 6.54,
+    "e": 7.32
+   }
+  ]
+ },
+ {
+  "start": 7.32,
+  "end": 10.4,
+  "text": " Vakasakh Sabina yagana tizmda başkhara uchi platforma",
+  "words": [
+   {
+    "w": " Vakasakh",
+    "s": 7.32,
+    "e": 7.96
+   },
+   {
+    "w": " Sabina",
+    "s": 7.96,
+    "e": 8.32
+   },
+   {
+    "w": " yagana",
+    "s": 8.32,
+    "e": 8.86
+   },
+   {
+    "w": " tizmda",
+    "s": 8.86,
+    "e": 9.22
+   },
+   {
+    "w": " başkhara",
+    "s": 9.22,
+    "e": 9.56
+   },
+   {
+    "w": " uchi",
+    "s": 9.56,
+    "e": 9.74
+   },
+   {
+    "w": " platforma",
+    "s": 9.74,
+    "e": 10.4
+   }
+  ]
+ },
+ {
+  "start": 10.4,
+  "end": 14.02,
+  "text": " Ushbu takdimat da tizmnin asasiy imkonyatlarna korup chqamis",
+  "words": [
+   {
+    "w": " Ushbu",
+    "s": 10.4,
+    "e": 10.9
+   },
+   {
+    "w": " takdimat",
+    "s": 10.9,
+    "e": 11.42
+   },
+   {
+    "w": " da",
+    "s": 11.42,
+    "e": 11.58
+   },
+   {
+    "w": " tizmnin",
+    "s": 11.58,
+    "e": 12.04
+   },
+   {
+    "w": " asasiy",
+    "s": 12.04,
+    "e": 12.6
+   },
+   {
+    "w": " imkonyatlarna",
+    "s": 12.6,
+    "e": 13.28
+   },
+   {
+    "w": " korup",
+    "s": 13.28,
+    "e": 13.56
+   },
+   {
+    "w": " chqamis",
+    "s": 13.56,
+    "e": 14.02
+   }
+  ]
+ },
+ {
+  "start": 14.02,
+  "end": 16.82,
+  "text": " Zargarlik Savdaasida harber gram mukhum",
+  "words": [
+   {
+    "w": " Zargarlik",
+    "s": 14.02,
+    "e": 14.94
+   },
+   {
+    "w": " Savdaasida",
+    "s": 14.94,
+    "e": 15.52
+   },
+   {
+    "w": " harber",
+    "s": 15.52,
+    "e": 16.1
+   },
+   {
+    "w": " gram",
+    "s": 16.1,
+    "e": 16.38
+   },
+   {
+    "w": " mukhum",
+    "s": 16.38,
+    "e": 16.82
+   }
+  ]
+ },
+ {
+  "start": 16.82,
+  "end": 18.54,
+  "text": " Tavar Zavoddan Ambarge",
+  "words": [
+   {
+    "w": " Tavar",
+    "s": 16.82,
+    "e": 17.44
+   },
+   {
+    "w": " Zavoddan",
+    "s": 17.44,
+    "e": 17.98
+   },
+   {
+    "w": " Ambarge",
+    "s": 17.98,
+    "e": 18.54
+   }
+  ]
+ },
+ {
+  "start": 18.54,
+  "end": 20.02,
+  "text": " Ambardan Satouchilerge",
+  "words": [
+   {
+    "w": " Ambardan",
+    "s": 18.54,
+    "e": 19.28
+   },
+   {
+    "w": " Satouchilerge",
+    "s": 19.28,
+    "e": 20.02
+   }
+  ]
+ },
+ {
+  "start": 21.0,
+  "end": 21.9,
+  "text": " Satouchidanesa mejazgio utadi",
+  "words": [
+   {
+    "w": " Satouchidanesa",
+    "s": 20.57,
+    "e": 21.04
+   },
+   {
+    "w": " mejazgio",
+    "s": 21.04,
+    "e": 21.58
+   },
+   {
+    "w": " utadi",
+    "s": 21.58,
+    "e": 21.9
+   }
+  ]
+ },
+ {
+  "start": 21.9,
+  "end": 25.42,
+  "text": " Tolo naxt sum, dollar ya ki lam altin belamboladi",
+  "words": [
+   {
+    "w": " Tolo",
+    "s": 21.9,
+    "e": 22.4
+   },
+   {
+    "w": " naxt",
+    "s": 22.4,
+    "e": 22.86
+   },
+   {
+    "w": " sum,",
+    "s": 22.86,
+    "e": 23.14
+   },
+   {
+    "w": " dollar",
+    "s": 23.42,
+    "e": 23.7
+   },
+   {
+    "w": " ya",
+    "s": 23.7,
+    "e": 24.04
+   },
+   {
+    "w": " ki",
+    "s": 24.04,
+    "e": 24.2
+   },
+   {
+    "w": " lam",
+    "s": 24.2,
+    "e": 24.48
+   },
+   {
+    "w": " altin",
+    "s": 24.48,
+    "e": 24.9
+   },
+   {
+    "w": " belamboladi",
+    "s": 24.9,
+    "e": 25.42
+   }
+  ]
+ },
+ {
+  "start": 26.0,
+  "end": 29.18,
+  "text": " Daftar va Excel da bularnin barchasina anak kuzatesh qiyin",
+  "words": [
+   {
+    "w": " Daftar",
+    "s": 25.69,
+    "e": 26.16
+   },
+   {
+    "w": " va",
+    "s": 26.16,
+    "e": 26.28
+   },
+   {
+    "w": " Excel",
+    "s": 26.28,
+    "e": 26.58
+   },
+   {
+    "w": " da",
+    "s": 26.58,
+    "e": 26.8
+   },
+   {
+    "w": " bularnin",
+    "s": 26.8,
+    "e": 27.24
+   },
+   {
+    "w": " barchasina",
+    "s": 27.24,
+    "e": 27.94
+   },
+   {
+    "w": " anak",
+    "s": 27.94,
+    "e": 28.32
+   },
+   {
+    "w": " kuzatesh",
+    "s": 28.32,
+    "e": 28.82
+   },
+   {
+    "w": " qiyin",
+    "s": 28.82,
+    "e": 29.18
+   }
+  ]
+ },
+ {
+  "start": 30.0,
+  "end": 31.16,
+  "text": " Goldia Sales",
+  "words": [
+   {
+    "w": " Goldia",
+    "s": 30.0,
+    "e": 30.9
+   },
+   {
+    "w": " Sales",
+    "s": 30.9,
+    "e": 31.16
+   }
+  ]
+ },
+ {
+  "start": 31.16,
+  "end": 33.24,
+  "text": " Bujarayanne beisde yonalish qiyajritadi",
+  "words": [
+   {
+    "w": " Bujarayanne",
+    "s": 31.16,
+    "e": 32.0
+   },
+   {
+    "w": " beisde",
+    "s": 32.0,
+    "e": 32.4
+   },
+   {
+    "w": " yonalish",
+    "s": 32.4,
+    "e": 32.76
+   },
+   {
+    "w": " qiyajritadi",
+    "s": 32.76,
+    "e": 33.24
+   }
+  ]
+ },
+ {
+  "start": 34.0,
+  "end": 34.74,
+  "text": " Boşkaruva Balans",
+  "words": [
+   {
+    "w": " Boşkaruva",
+    "s": 33.739999999999995,
+    "e": 34.26
+   },
+   {
+    "w": " Balans",
+    "s": 34.26,
+    "e": 34.74
+   }
+  ]
+ },
+ {
+  "start": 34.74,
+  "end": 36.28,
+  "text": " Ambarva Kansignatsya",
+  "words": [
+   {
+    "w": " Ambarva",
+    "s": 34.74,
+    "e": 35.54
+   },
+   {
+    "w": " Kansignatsya",
+    "s": 35.54,
+    "e": 36.28
+   }
+  ]
+ },
+ {
+  "start": 36.28,
+  "end": 37.72,
+  "text": " Savdava Kasselar",
+  "words": [
+   {
+    "w": " Savdava",
+    "s": 36.28,
+    "e": 37.12
+   },
+   {
+    "w": " Kasselar",
+    "s": 37.12,
+    "e": 37.72
+   }
+  ]
+ },
+ {
+  "start": 37.72,
+  "end": 39.54,
+  "text": " Afinajva Zavod Balansi",
+  "words": [
+   {
+    "w": " Afinajva",
+    "s": 37.72,
+    "e": 38.62
+   },
+   {
+    "w": " Zavod",
+    "s": 38.62,
+    "e": 38.96
+   },
+   {
+    "w": " Balansi",
+    "s": 38.96,
+    "e": 39.54
+   }
+  ]
+ },
+ {
+  "start": 39.54,
+  "end": 41.7,
+  "text": " Hamda takhlil va tizmsozlamalara",
+  "words": [
+   {
+    "w": " Hamda",
+    "s": 39.54,
+    "e": 40.02
+   },
+   {
+    "w": " takhlil",
+    "s": 40.02,
+    "e": 40.58
+   },
+   {
+    "w": " va",
+    "s": 40.58,
+    "e": 40.74
+   },
+   {
+    "w": " tizmsozlamalara",
+    "s": 40.74,
+    "e": 41.7
+   }
+  ]
+ },
+ {
+  "start": 41.7,
+  "end": 45.02,
+  "text": " Asasiy panel da Direktor Kampanyanin sof aktivini",
+  "words": [
+   {
+    "w": " Asasiy",
+    "s": 41.7,
+    "e": 42.48
+   },
+   {
+    "w": " panel",
+    "s": 42.48,
+    "e": 42.7
+   },
+   {
+    "w": " da",
+    "s": 42.7,
+    "e": 43.0
+   },
+   {
+    "w": " Direktor",
+    "s": 43.0,
+    "e": 43.6
+   },
+   {
+    "w": " Kampanyanin",
+    "s": 43.6,
+    "e": 44.2
+   },
+   {
+    "w": " sof",
+    "s": 44.2,
+    "e": 44.52
+   },
+   {
+    "w": " aktivini",
+    "s": 44.52,
+    "e": 45.02
+   }
+  ]
+ },
+ {
+  "start": 45.02,
+  "end": 47.88,
+  "text": " 585 probe altin ekivalentide koradi",
+  "words": [
+   {
+    "w": " 585",
+    "s": 45.02,
+    "e": 45.82
+   },
+   {
+    "w": " probe",
+    "s": 45.82,
+    "e": 46.4
+   },
+   {
+    "w": " altin",
+    "s": 46.4,
+    "e": 46.88
+   },
+   {
+    "w": " ekivalentide",
+    "s": 46.88,
+    "e": 47.52
+   },
+   {
+    "w": " koradi",
+    "s": 47.52,
+    "e": 47.88
+   }
+  ]
+ },
+ {
+  "start": 47.88,
+  "end": 49.86,
+  "text": " Ambarva Satouchilerge Tavar",
+  "words": [
+   {
+    "w": " Ambarva",
+    "s": 47.88,
+    "e": 48.68
+   },
+   {
+    "w": " Satouchilerge",
+    "s": 48.68,
+    "e": 49.34
+   },
+   {
+    "w": " Tavar",
+    "s": 49.34,
+    "e": 49.86
+   }
+  ]
+ },
+ {
+  "start": 49.86,
+  "end": 51.0,
+  "text": " Mejazlar Nasiyas",
+  "words": [
+   {
+    "w": " Mejazlar",
+    "s": 49.86,
+    "e": 50.54
+   },
+   {
+    "w": " Nasiyas",
+    "s": 50.54,
+    "e": 51.0
+   }
+  ]
+ },
+ {
+  "start": 51.0,
+  "end": 52.06,
+  "text": " Kasselar",
+  "words": [
+   {
+    "w": " Kasselar",
+    "s": 51.0,
+    "e": 52.06
+   }
+  ]
+ },
+ {
+  "start": 52.06,
+  "end": 53.04,
+  "text": " Menejerseyfi",
+  "words": [
+   {
+    "w": " Menejerseyfi",
+    "s": 52.06,
+    "e": 53.04
+   }
+  ]
+ },
+ {
+  "start": 53.04,
+  "end": 56.0,
+  "text": " Va Afinajdage altin bitte kursat qiqi qiqe jam lanadi",
+  "words": [
+   {
+    "w": " Va",
+    "s": 53.04,
+    "e": 53.32
+   },
+   {
+    "w": " Afinajdage",
+    "s": 53.32,
+    "e": 53.98
+   },
+   {
+    "w": " altin",
+    "s": 53.98,
+    "e": 54.48
+   },
+   {
+    "w": " bitte",
+    "s": 54.48,
+    "e": 54.82
+   },
+   {
+    "w": " kursat",
+    "s": 54.82,
+    "e": 55.2
+   },
+   {
+    "w": " qiqi",
+    "s": 55.2,
+    "e": 55.38
+   },
+   {
+    "w": " qiqe",
+    "s": 55.38,
+    "e": 55.56
+   },
+   {
+    "w": " jam",
+    "s": 55.56,
+    "e": 55.66
+   },
+   {
+    "w": " lanadi",
+    "s": 55.66,
+    "e": 56.0
+   }
+  ]
+ },
+ {
+  "start": 56.0,
+  "end": 59.0,
+  "text": " Zavodva Tashqe Machburiyatlar yesa ayrib chqsoplanadi",
+  "words": [
+   {
+    "w": " Zavodva",
+    "s": 56.0,
+    "e": 56.82
+   },
+   {
+    "w": " Tashqe",
+    "s": 56.82,
+    "e": 57.14
+   },
+   {
+    "w": " Machburiyatlar",
+    "s": 57.14,
+    "e": 57.74
+   },
+   {
+    "w": " yesa",
+    "s": 57.74,
+    "e": 57.98
+   },
+   {
+    "w": " ayrib",
+    "s": 57.98,
+    "e": 58.4
+   },
+   {
+    "w": " chqsoplanadi",
+    "s": 58.4,
+    "e": 59.0
+   }
+  ]
+ },
+ {
+  "start": 59.0,
+  "end": 62.24,
+  "text": " Harkunne 585 probe altin kursiqritiladi",
+  "words": [
+   {
+    "w": " Harkunne",
+    "s": 59.0,
+    "e": 59.9
+   },
+   {
+    "w": " 585",
+    "s": 59.9,
+    "e": 60.48
+   },
+   {
+    "w": " probe",
+    "s": 60.48,
+    "e": 61.08
+   },
+   {
+    "w": " altin",
+    "s": 61.08,
+    "e": 61.56
+   },
+   {
+    "w": " kursiqritiladi",
+    "s": 61.56,
+    "e": 62.24
+   }
+  ]
+ },
+ {
+  "start": 62.24,
+  "end": 65.5,
+  "text": " Dollar kursi yesa markezi bank malumotlardan al lanadi",
+  "words": [
+   {
+    "w": " Dollar",
+    "s": 62.24,
+    "e": 62.84
+   },
+   {
+    "w": " kursi",
+    "s": 62.84,
+    "e": 63.3
+   },
+   {
+    "w": " yesa",
+    "s": 63.3,
+    "e": 63.46
+   },
+   {
+    "w": " markezi",
+    "s": 63.46,
+    "e": 64.04
+   },
+   {
+    "w": " bank",
+    "s": 64.04,
+    "e": 64.32
+   },
+   {
+    "w": " malumotlardan",
+    "s": 64.32,
+    "e": 65.06
+   },
+   {
+    "w": " al",
+    "s": 65.06,
+    "e": 65.26
+   },
+   {
+    "w": " lanadi",
+    "s": 65.26,
+    "e": 65.5
+   }
+  ]
+ },
+ {
+  "start": 65.5,
+  "end": 70.42,
+  "text": " Shutefaili, naqt, som, va dollar, automatik ravishta gramekivalentige ailantiriladi",
+  "words": [
+   {
+    "w": " Shutefaili,",
+    "s": 65.5,
+    "e": 66.4
+   },
+   {
+    "w": " naqt,",
+    "s": 66.54,
+    "e": 66.82
+   },
+   {
+    "w": " som,",
+    "s": 66.92,
+    "e": 67.04
+   },
+   {
+    "w": " va",
+    "s": 67.26,
+    "e": 67.32
+   },
+   {
+    "w": " dollar,",
+    "s": 67.32,
+    "e": 67.62
+   },
+   {
+    "w": " automatik",
+    "s": 67.82,
+    "e": 68.34
+   },
+   {
+    "w": " ravishta",
+    "s": 68.34,
+    "e": 68.72
+   },
+   {
+    "w": " gramekivalentige",
+    "s": 68.72,
+    "e": 69.72
+   },
+   {
+    "w": " ailantiriladi",
+    "s": 69.72,
+    "e": 70.42
+   }
+  ]
+ },
+ {
+  "start": 70.42,
+  "end": 74.92,
+  "text": " Zavoddan kelgian Tavar, Madel, Proba, va wazin boyuqe qabulqilnadi",
+  "words": [
+   {
+    "w": " Zavoddan",
+    "s": 70.42,
+    "e": 71.3
+   },
+   {
+    "w": " kelgian",
+    "s": 71.3,
+    "e": 71.64
+   },
+   {
+    "w": " Tavar,",
+    "s": 71.64,
+    "e": 72.06
+   },
+   {
+    "w": " Madel,",
+    "s": 72.32,
+    "e": 72.72
+   },
+   {
+    "w": " Proba,",
+    "s": 72.9,
+    "e": 73.3
+   },
+   {
+    "w": " va",
+    "s": 73.48,
+    "e": 73.54
+   },
+   {
+    "w": " wazin",
+    "s": 73.54,
+    "e": 73.94
+   },
+   {
+    "w": " boyuqe",
+    "s": 73.94,
+    "e": 74.22
+   },
+   {
+    "w": " qabulqilnadi",
+    "s": 74.22,
+    "e": 74.92
+   }
+  ]
+ },
+ {
+  "start": 74.92,
+  "end": 77.16,
+  "text": " Zavod ustamasi faizde belgilnadi",
+  "words": [
+   {
+    "w": " Zavod",
+    "s": 74.92,
+    "e": 75.58
+   },
+   {
+    "w": " ustamasi",
+    "s": 75.58,
+    "e": 76.08
+   },
+   {
+    "w": " faizde",
+    "s": 76.08,
+    "e": 76.62
+   },
+   {
+    "w": " belgilnadi",
+    "s": 76.62,
+    "e": 77.16
+   }
+  ]
+ },
+ {
+  "start": 77.16,
+  "end": 81.42,
+  "text": " Zavod alde dage Machburiyat yesa, krmlar boyuqe alakha da daftar da yurtiladi",
+  "words": [
+   {
+    "w": " Zavod",
+    "s": 77.16,
+    "e": 77.84
+   },
+   {
+    "w": " alde",
+    "s": 77.84,
+    "e": 78.12
+   },
+   {
+    "w": " dage",
+    "s": 78.12,
+    "e": 78.28
+   },
+   {
+    "w": " Machburiyat",
+    "s": 78.28,
+    "e": 78.84
+   },
+   {
+    "w": " yesa,",
+    "s": 78.84,
+    "e": 79.06
+   },
+   {
+    "w": " krmlar",
+    "s": 79.22,
+    "e": 79.56
+   },
+   {
+    "w": " boyuqe",
+    "s": 79.56,
+    "e": 79.98
+   },
+   {
+    "w": " alakha",
+    "s": 79.98,
+    "e": 80.4
+   },
+   {
+    "w": " da",
+    "s": 80.4,
+    "e": 80.5
+   },
+   {
+    "w": " daftar",
+    "s": 80.5,
+    "e": 80.86
+   },
+   {
+    "w": " da",
+    "s": 80.86,
+    "e": 80.96
+   },
+   {
+    "w": " yurtiladi",
+    "s": 80.96,
+    "e": 81.42
+   }
+  ]
+ },
+ {
+  "start": 81.42,
+  "end": 84.88,
+  "text": " Tavarlar Satouchilerge Scanner-Arkali Kansignatsya geberiladi",
+  "words": [
+   {
+    "w": " Tavarlar",
+    "s": 81.42,
+    "e": 82.2
+   },
+   {
+    "w": " Satouchilerge",
+    "s": 82.2,
+    "e": 82.88
+   },
+   {
+    "w": " Scanner",
+    "s": 82.88,
+    "e": 83.26
+   },
+   {
+    "w": "-Arkali",
+    "s": 83.26,
+    "e": 83.7
+   },
+   {
+    "w": " Kansignatsya",
+    "s": 83.7,
+    "e": 84.38
+   },
+   {
+    "w": " geberiladi",
+    "s": 84.38,
+    "e": 84.88
+   }
+  ]
+ },
+ {
+  "start": 84.88,
+  "end": 87.44,
+  "text": " Harbur maxsulat shtrih kod bilan anak lanadi",
+  "words": [
+   {
+    "w": " Harbur",
+    "s": 84.88,
+    "e": 85.58
+   },
+   {
+    "w": " maxsulat",
+    "s": 85.58,
+    "e": 86.1
+   },
+   {
+    "w": " shtrih",
+    "s": 86.1,
+    "e": 86.5
+   },
+   {
+    "w": " kod",
+    "s": 86.5,
+    "e": 86.68
+   },
+   {
+    "w": " bilan",
+    "s": 86.68,
+    "e": 86.92
+   },
+   {
+    "w": " anak",
+    "s": 86.92,
+    "e": 87.16
+   },
+   {
+    "w": " lanadi",
+    "s": 87.16,
+    "e": 87.44
+   }
+  ]
+ },
+ {
+  "start": 87.44,
+  "end": 89.7,
+  "text": " Va tanlangan Satouchiq xsabi geberiktiriladi",
+  "words": [
+   {
+    "w": " Va",
+    "s": 87.44,
+    "e": 87.76
+   },
+   {
+    "w": " tanlangan",
+    "s": 87.76,
+    "e": 88.3
+   },
+   {
+    "w": " Satouchiq",
+    "s": 88.3,
+    "e": 88.78
+   },
+   {
+    "w": " xsabi",
+    "s": 88.78,
+    "e": 89.0
+   },
+   {
+    "w": " geberiktiriladi",
+    "s": 89.0,
+    "e": 89.7
+   }
+  ]
+ },
+ {
+  "start": 89.7,
+  "end": 93.54,
+  "text": " Yarliklar bartender dasdoru uqun qr kod bilan tayarlanadi",
+  "words": [
+   {
+    "w": " Yarliklar",
+    "s": 89.7,
+    "e": 90.58
+   },
+   {
+    "w": " bartender",
+    "s": 90.58,
+    "e": 91.16
+   },
+   {
+    "w": " dasdoru",
+    "s": 91.16,
+    "e": 91.72
+   },
+   {
+    "w": " uqun",
+    "s": 91.72,
+    "e": 91.94
+   },
+   {
+    "w": " qr",
+    "s": 91.94,
+    "e": 92.46
+   },
+   {
+    "w": " kod",
+    "s": 92.46,
+    "e": 92.74
+   },
+   {
+    "w": " bilan",
+    "s": 92.74,
+    "e": 93.0
+   },
+   {
+    "w": " tayarlanadi",
+    "s": 93.0,
+    "e": 93.54
+   }
+  ]
+ },
+ {
+  "start": 93.54,
+  "end": 96.18,
+  "text": " Satouchi telefoniden oz vitri nasini koradi",
+  "words": [
+   {
+    "w": " Satouchi",
+    "s": 93.54,
+    "e": 94.38
+   },
+   {
+    "w": " telefoniden",
+    "s": 94.38,
+    "e": 94.92
+   },
+   {
+    "w": " oz",
+    "s": 94.92,
+    "e": 95.26
+   },
+   {
+    "w": " vitri",
+    "s": 95.26,
+    "e": 95.52
+   },
+   {
+    "w": " nasini",
+    "s": 95.52,
+    "e": 95.86
+   },
+   {
+    "w": " koradi",
+    "s": 95.86,
+    "e": 96.18
+   }
+  ]
+ },
+ {
+  "start": 96.18,
+  "end": 97.98,
+  "text": " Va maxsulatna mijazge satadi",
+  "words": [
+   {
+    "w": " Va",
+    "s": 96.18,
+    "e": 96.5
+   },
+   {
+    "w": " maxsulatna",
+    "s": 96.5,
+    "e": 97.08
+   },
+   {
+    "w": " mijazge",
+    "s": 97.08,
+    "e": 97.54
+   },
+   {
+    "w": " satadi",
+    "s": 97.54,
+    "e": 97.98
+   }
+  ]
+ },
+ {
+  "start": 97.98,
+  "end": 102.14,
+  "text": " Tolo, naqt, pul, dollar, yaki lam altin korunisida qabulqilnadi",
+  "words": [
+   {
+    "w": " Tolo,",
+    "s": 97.98,
+    "e": 98.46
+   },
+   {
+    "w": " naqt,",
+    "s": 98.64,
+    "e": 99.0
+   },
+   {
+    "w": " pul,",
+    "s": 99.08,
+    "e": 99.18
+   },
+   {
+    "w": " dollar,",
+    "s": 99.5,
+    "e": 99.74
+   },
+   {
+    "w": " yaki",
+    "s": 99.98,
+    "e": 100.24
+   },
+   {
+    "w": " lam",
+    "s": 100.24,
+    "e": 100.5
+   },
+   {
+    "w": " altin",
+    "s": 100.5,
+    "e": 100.94
+   },
+   {
+    "w": " korunisida",
+    "s": 100.94,
+    "e": 101.44
+   },
+   {
+    "w": " qabulqilnadi",
+    "s": 101.44,
+    "e": 102.14
+   }
+  ]
+ },
+ {
+  "start": 102.14,
+  "end": 104.88,
+  "text": " Tolanmaqan qsim mijazniq nasiasi geyaziladi",
+  "words": [
+   {
+    "w": " Tolanmaqan",
+    "s": 102.14,
+    "e": 103.0
+   },
+   {
+    "w": " qsim",
+    "s": 103.0,
+    "e": 103.3
+   },
+   {
+    "w": " mijazniq",
+    "s": 103.3,
+    "e": 103.94
+   },
+   {
+    "w": " nasiasi",
+    "s": 103.94,
+    "e": 104.36
+   },
+   {
+    "w": " geyaziladi",
+    "s": 104.36,
+    "e": 104.88
+   }
+  ]
+ },
+ {
+  "start": 104.88,
+  "end": 107.08,
+  "text": " Harbur savda uqun qeq shakilnadi",
+  "words": [
+   {
+    "w": " Harbur",
+    "s": 104.88,
+    "e": 105.56
+   },
+   {
+    "w": " savda",
+    "s": 105.56,
+    "e": 105.92
+   },
+   {
+    "w": " uqun",
+    "s": 105.92,
+    "e": 106.24
+   },
+   {
+    "w": " qeq",
+    "s": 106.24,
+    "e": 106.5
+   },
+   {
+    "w": " shakilnadi",
+    "s": 106.5,
+    "e": 107.08
+   }
+  ]
+ },
+ {
+  "start": 107.08,
+  "end": 110.86,
+  "text": " Mijazler ve nasia daftar kym kancha karzdaar ekanini kursitadi",
+  "words": [
+   {
+    "w": " Mijazler",
+    "s": 107.08,
+    "e": 107.9
+   },
+   {
+    "w": " ve",
+    "s": 107.9,
+    "e": 108.02
+   },
+   {
+    "w": " nasia",
+    "s": 108.02,
+    "e": 108.34
+   },
+   {
+    "w": " daftar",
+    "s": 108.34,
+    "e": 108.76
+   },
+   {
+    "w": " kym",
+    "s": 108.76,
+    "e": 109.14
+   },
+   {
+    "w": " kancha",
+    "s": 109.14,
+    "e": 109.48
+   },
+   {
+    "w": " karzdaar",
+    "s": 109.48,
+    "e": 110.0
+   },
+   {
+    "w": " ekanini",
+    "s": 110.0,
+    "e": 110.36
+   },
+   {
+    "w": " kursitadi",
+    "s": 110.36,
+    "e": 110.86
+   }
+  ]
+ },
+ {
+  "start": 110.86,
+  "end": 114.6,
+  "text": " Mawjut Google Sheets cadvalar ne yesa tizmge impurt kilish mumkun",
+  "words": [
+   {
+    "w": " Mawjut",
+    "s": 110.86,
+    "e": 111.58
+   },
+   {
+    "w": " Google",
+    "s": 111.58,
+    "e": 111.8
+   },
+   {
+    "w": " Sheets",
+    "s": 111.8,
+    "e": 112.18
+   },
+   {
+    "w": " cadvalar",
+    "s": 112.18,
+    "e": 112.76
+   },
+   {
+    "w": " ne",
+    "s": 112.76,
+    "e": 112.9
+   },
+   {
+    "w": " yesa",
+    "s": 112.9,
+    "e": 113.1
+   },
+   {
+    "w": " tizmge",
+    "s": 113.1,
+    "e": 113.64
+   },
+   {
+    "w": " impurt",
+    "s": 113.64,
+    "e": 114.02
+   },
+   {
+    "w": " kilish",
+    "s": 114.02,
+    "e": 114.3
+   },
+   {
+    "w": " mumkun",
+    "s": 114.3,
+    "e": 114.6
+   }
+  ]
+ },
+ {
+  "start": 114.6,
+  "end": 116.8,
+  "text": " Tizm ustana farkini kham xsablaydi",
+  "words": [
+   {
+    "w": " Tizm",
+    "s": 114.6,
+    "e": 115.28
+   },
+   {
+    "w": " ustana",
+    "s": 115.28,
+    "e": 115.68
+   },
+   {
+    "w": " farkini",
+    "s": 115.68,
+    "e": 116.08
+   },
+   {
+    "w": " kham",
+    "s": 116.08,
+    "e": 116.26
+   },
+   {
+    "w": " xsablaydi",
+    "s": 116.26,
+    "e": 116.8
+   }
+  ]
+ },
+ {
+  "start": 116.8,
+  "end": 118.64,
+  "text": " Satouchi qe bilgilengen ustama",
+  "words": [
+   {
+    "w": " Satouchi",
+    "s": 116.8,
+    "e": 117.6
+   },
+   {
+    "w": " qe",
+    "s": 117.6,
+    "e": 117.68
+   },
+   {
+    "w": " bilgilengen",
+    "s": 117.68,
+    "e": 118.24
+   },
+   {
+    "w": " ustama",
+    "s": 118.24,
+    "e": 118.64
+   }
+  ]
+ },
+ {
+  "start": 118.64,
+  "end": 121.78,
+  "text": " Va mijazdan alingen ustama arasidagi fark gramda",
+  "words": [
+   {
+    "w": " Va",
+    "s": 118.64,
+    "e": 118.98
+   },
+   {
+    "w": " mijazdan",
+    "s": 118.98,
+    "e": 119.5
+   },
+   {
+    "w": " alingen",
+    "s": 119.5,
+    "e": 119.94
+   },
+   {
+    "w": " ustama",
+    "s": 119.94,
+    "e": 120.34
+   },
+   {
+    "w": " arasidagi",
+    "s": 120.34,
+    "e": 120.88
+   },
+   {
+    "w": " fark",
+    "s": 120.88,
+    "e": 121.1
+   },
+   {
+    "w": " gramda",
+    "s": 121.1,
+    "e": 121.78
+   }
+  ]
+ },
+ {
+  "start": 121.78,
+  "end": 124.34,
+  "text": " Muzbat yaki manfi ishara bilan kursatiladi",
+  "words": [
+   {
+    "w": " Muzbat",
+    "s": 121.78,
+    "e": 122.44
+   },
+   {
+    "w": " yaki",
+    "s": 122.44,
+    "e": 122.82
+   },
+   {
+    "w": " manfi",
+    "s": 122.82,
+    "e": 123.18
+   },
+   {
+    "w": " ishara",
+    "s": 123.18,
+    "e": 123.5
+   },
+   {
+    "w": " bilan",
+    "s": 123.5,
+    "e": 123.76
+   },
+   {
+    "w": " kursatiladi",
+    "s": 123.76,
+    "e": 124.34
+   }
+  ]
+ },
+ {
+  "start": 124.34,
+  "end": 128.12,
+  "text": " Naqt pulge lam harit qilishdagi kurs fark kham alakha da yurutiladi",
+  "words": [
+   {
+    "w": " Naqt",
+    "s": 124.34,
+    "e": 125.02
+   },
+   {
+    "w": " pulge",
+    "s": 125.02,
+    "e": 125.32
+   },
+   {
+    "w": " lam",
+    "s": 125.32,
+    "e": 125.56
+   },
+   {
+    "w": " harit",
+    "s": 125.56,
+    "e": 125.88
+   },
+   {
+    "w": " qilishdagi",
+    "s": 125.88,
+    "e": 126.32
+   },
+   {
+    "w": " kurs",
+    "s": 126.32,
+    "e": 126.6
+   },
+   {
+    "w": " fark",
+    "s": 126.6,
+    "e": 126.86
+   },
+   {
+    "w": " kham",
+    "s": 126.86,
+    "e": 127.08
+   },
+   {
+    "w": " alakha",
+    "s": 127.08,
+    "e": 127.6
+   },
+   {
+    "w": " da",
+    "s": 127.6,
+    "e": 127.66
+   },
+   {
+    "w": " yurutiladi",
+    "s": 127.66,
+    "e": 128.12
+   }
+  ]
+ },
+ {
+  "start": 128.12,
+  "end": 131.36,
+  "text": " Mijazlerden alingen lam altin afinajge yubariladi",
+  "words": [
+   {
+    "w": " Mijazlerden",
+    "s": 128.12,
+    "e": 129.04
+   },
+   {
+    "w": " alingen",
+    "s": 129.04,
+    "e": 129.52
+   },
+   {
+    "w": " lam",
+    "s": 129.52,
+    "e": 129.74
+   },
+   {
+    "w": " altin",
+    "s": 129.74,
+    "e": 130.22
+   },
+   {
+    "w": " afinajge",
+    "s": 130.22,
+    "e": 130.84
+   },
+   {
+    "w": " yubariladi",
+    "s": 130.84,
+    "e": 131.36
+   }
+  ]
+ },
+ {
+  "start": 131.36,
+  "end": 132.98,
+  "text": " Va taza altin sifatidadi",
+  "words": [
+   {
+    "w": " Va",
+    "s": 131.36,
+    "e": 131.72
+   },
+   {
+    "w": " taza",
+    "s": 131.72,
+    "e": 132.02
+   },
+   {
+    "w": " altin",
+    "s": 132.02,
+    "e": 132.44
+   },
+   {
+    "w": " sifatidadi",
+    "s": 132.44,
+    "e": 132.98
+   }
+  ]
+ },
+ {
+  "start": 132.98,
+  "end": 136.14,
+  "text": " 585 equivalentidadi manager seifi geqaitadi",
+  "words": [
+   {
+    "w": " 585",
+    "s": 132.98,
+    "e": 133.86
+   },
+   {
+    "w": " equivalentidadi",
+    "s": 133.86,
+    "e": 134.84
+   },
+   {
+    "w": " manager",
+    "s": 134.84,
+    "e": 135.16
+   },
+   {
+    "w": " seifi",
+    "s": 135.16,
+    "e": 135.58
+   },
+   {
+    "w": " geqaitadi",
+    "s": 135.58,
+    "e": 136.14
+   }
+  ]
+ },
+ {
+  "start": 136.14,
+  "end": 139.34,
+  "text": " Naqt pulge altin haritlari kham shubalanske qoshiladi",
+  "words": [
+   {
+    "w": " Naqt",
+    "s": 136.14,
+    "e": 136.84
+   },
+   {
+    "w": " pulge",
+    "s": 136.84,
+    "e": 137.1
+   },
+   {
+    "w": " altin",
+    "s": 137.1,
+    "e": 137.48
+   },
+   {
+    "w": " haritlari",
+    "s": 137.48,
+    "e": 137.96
+   },
+   {
+    "w": " kham",
+    "s": 137.96,
+    "e": 138.2
+   },
+   {
+    "w": " shubalanske",
+    "s": 138.2,
+    "e": 138.86
+   },
+   {
+    "w": " qoshiladi",
+    "s": 138.86,
+    "e": 139.34
+   }
+  ]
+ },
+ {
+  "start": 139.34,
+  "end": 142.54,
+  "text": " Satouchi bilan xsab kitab alti bolimde salishtiriladi",
+  "words": [
+   {
+    "w": " Satouchi",
+    "s": 139.34,
+    "e": 140.24
+   },
+   {
+    "w": " bilan",
+    "s": 140.24,
+    "e": 140.44
+   },
+   {
+    "w": " xsab",
+    "s": 140.44,
+    "e": 140.78
+   },
+   {
+    "w": " kitab",
+    "s": 140.78,
+    "e": 141.12
+   },
+   {
+    "w": " alti",
+    "s": 141.12,
+    "e": 141.54
+   },
+   {
+    "w": " bolimde",
+    "s": 141.54,
+    "e": 141.86
+   },
+   {
+    "w": " salishtiriladi",
+    "s": 141.86,
+    "e": 142.54
+   }
+  ]
+ },
+ {
+  "start": 142.54,
+  "end": 143.92,
+  "text": " Qabulqilingen ta var",
+  "words": [
+   {
+    "w": " Qabulqilingen",
+    "s": 142.54,
+    "e": 143.54
+   },
+   {
+    "w": " ta",
+    "s": 143.54,
+    "e": 143.72
+   },
+   {
+    "w": " var",
+    "s": 143.72,
+    "e": 143.92
+   }
+  ]
+ },
+ {
+  "start": 143.92,
+  "end": 145.22,
+  "text": " Javan da ge ta var",
+  "words": [
+   {
+    "w": " Javan",
+    "s": 143.92,
+    "e": 144.52
+   },
+   {
+    "w": " da",
+    "s": 144.52,
+    "e": 144.66
+   },
+   {
+    "w": " ge",
+    "s": 144.66,
+    "e": 144.78
+   },
+   {
+    "w": " ta",
+    "s": 144.78,
+    "e": 144.96
+   },
+   {
+    "w": " var",
+    "s": 144.96,
+    "e": 145.22
+   }
+  ]
+ },
+ {
+  "start": 145.22,
+  "end": 146.28,
+  "text": " Satil gen ta var",
+  "words": [
+   {
+    "w": " Satil",
+    "s": 145.22,
+    "e": 145.7
+   },
+   {
+    "w": " gen",
+    "s": 145.7,
+    "e": 145.86
+   },
+   {
+    "w": " ta",
+    "s": 145.86,
+    "e": 146.08
+   },
+   {
+    "w": " var",
+    "s": 146.08,
+    "e": 146.28
+   }
+  ]
+ },
+ {
+  "start": 146.28,
+  "end": 147.66,
+  "text": " Mijazler nasiasi",
+  "words": [
+   {
+    "w": " Mijazler",
+    "s": 146.28,
+    "e": 147.0
+   },
+   {
+    "w": " nasiasi",
+    "s": 147.0,
+    "e": 147.66
+   }
+  ]
+ },
+ {
+  "start": 148.28,
+  "end": 148.9,
+  "text": " Satouchi kassasi",
+  "words": [
+   {
+    "w": " Satouchi",
+    "s": 147.92000000000002,
+    "e": 148.4
+   },
+   {
+    "w": " kassasi",
+    "s": 148.4,
+    "e": 148.9
+   }
+  ]
+ },
+ {
+  "start": 148.9,
+  "end": 150.96,
+  "text": " Va managerge tabshirilgen tuloular",
+  "words": [
+   {
+    "w": " Va",
+    "s": 148.9,
+    "e": 149.24
+   },
+   {
+    "w": " managerge",
+    "s": 149.24,
+    "e": 149.86
+   },
+   {
+    "w": " tabshirilgen",
+    "s": 149.86,
+    "e": 150.44
+   },
+   {
+    "w": " tuloular",
+    "s": 150.44,
+    "e": 150.96
+   }
+  ]
+ },
+ {
+  "start": 150.96,
+  "end": 153.94,
+  "text": " Netijede Satouchi nin bazar qarzi anaq korunadi",
+  "words": [
+   {
+    "w": " Netijede",
+    "s": 150.96,
+    "e": 151.66
+   },
+   {
+    "w": " Satouchi",
+    "s": 151.66,
+    "e": 152.2
+   },
+   {
+    "w": " nin",
+    "s": 152.2,
+    "e": 152.26
+   },
+   {
+    "w": " bazar",
+    "s": 152.26,
+    "e": 152.68
+   },
+   {
+    "w": " qarzi",
+    "s": 152.68,
+    "e": 153.06
+   },
+   {
+    "w": " anaq",
+    "s": 153.06,
+    "e": 153.52
+   },
+   {
+    "w": " korunadi",
+    "s": 153.52,
+    "e": 153.94
+   }
+  ]
+ },
+ {
+  "start": 153.94,
+  "end": 155.72,
+  "text": " Krish rollerge bolingen",
+  "words": [
+   {
+    "w": " Krish",
+    "s": 153.94,
+    "e": 154.74
+   },
+   {
+    "w": " rollerge",
+    "s": 154.74,
+    "e": 155.24
+   },
+   {
+    "w": " bolingen",
+    "s": 155.24,
+    "e": 155.72
+   }
+  ]
+ },
+ {
+  "start": 156.28,
+  "end": 156.5,
+  "text": " Direktor",
+  "words": [
+   {
+    "w": " Direktor",
+    "s": 156.02,
+    "e": 156.5
+   }
+  ]
+ },
+ {
+  "start": 157.28,
+  "end": 157.6,
+  "text": " Boşkarouchi",
+  "words": [
+   {
+    "w": " Boşkarouchi",
+    "s": 157.12,
+    "e": 157.6
+   }
+  ]
+ },
+ {
+  "start": 157.6,
+  "end": 158.58,
+  "text": " Va Satouchi",
+  "words": [
+   {
+    "w": " Va",
+    "s": 157.6,
+    "e": 157.82
+   },
+   {
+    "w": " Satouchi",
+    "s": 157.82,
+    "e": 158.58
+   }
+  ]
+ },
+ {
+  "start": 158.58,
+  "end": 161.28,
+  "text": " Satouchi faqat ozige tegishli bolimlerni koradi",
+  "words": [
+   {
+    "w": " Satouchi",
+    "s": 158.58,
+    "e": 159.24
+   },
+   {
+    "w": " faqat",
+    "s": 159.24,
+    "e": 159.6
+   },
+   {
+    "w": " ozige",
+    "s": 159.6,
+    "e": 159.98
+   },
+   {
+    "w": " tegishli",
+    "s": 159.98,
+    "e": 160.36
+   },
+   {
+    "w": " bolimlerni",
+    "s": 160.36,
+    "e": 160.92
+   },
+   {
+    "w": " koradi",
+    "s": 160.92,
+    "e": 161.28
+   }
+  ]
+ },
+ {
+  "start": 161.28,
+  "end": 162.92,
+  "text": " Telegram orqa li tastqilash",
+  "words": [
+   {
+    "w": " Telegram",
+    "s": 161.28,
+    "e": 161.86
+   },
+   {
+    "w": " orqa",
+    "s": 161.86,
+    "e": 162.18
+   },
+   {
+    "w": " li",
+    "s": 162.18,
+    "e": 162.28
+   },
+   {
+    "w": " tastqilash",
+    "s": 162.28,
+    "e": 162.92
+   }
+  ]
+ },
+ {
+  "start": 162.92,
+  "end": 164.06,
+  "text": " Audit jurnaladi",
+  "words": [
+   {
+    "w": " Audit",
+    "s": 162.92,
+    "e": 163.48
+   },
+   {
+    "w": " jurnaladi",
+    "s": 163.48,
+    "e": 164.06
+   }
+  ]
+ },
+ {
+  "start": 164.06,
+  "end": 165.82,
+  "text": " Va takrari yazudan xmaia",
+  "words": [
+   {
+    "w": " Va",
+    "s": 164.06,
+    "e": 164.32
+   },
+   {
+    "w": " takrari",
+    "s": 164.32,
+    "e": 164.86
+   },
+   {
+    "w": " yazudan",
+    "s": 164.86,
+    "e": 165.34
+   },
+   {
+    "w": " xmaia",
+    "s": 165.34,
+    "e": 165.82
+   }
+  ]
+ },
+ {
+  "start": 165.82,
+  "end": 168.0,
+  "text": " Malumatlar ishanshli iligini tamil laydi",
+  "words": [
+   {
+    "w": " Malumatlar",
+    "s": 165.82,
+    "e": 166.58
+   },
+   {
+    "w": " ishanshli",
+    "s": 166.58,
+    "e": 166.96
+   },
+   {
+    "w": " iligini",
+    "s": 166.96,
+    "e": 167.28
+   },
+   {
+    "w": " tamil",
+    "s": 167.28,
+    "e": 167.64
+   },
+   {
+    "w": " laydi",
+    "s": 167.64,
+    "e": 168.0
+   }
+  ]
+ },
+ {
+  "start": 168.0,
+  "end": 169.14,
+  "text": " Goldia sales",
+  "words": [
+   {
+    "w": " Goldia",
+    "s": 168.0,
+    "e": 168.76
+   },
+   {
+    "w": " sales",
+    "s": 168.76,
+    "e": 169.14
+   }
+  ]
+ },
+ {
+  "start": 169.14,
+  "end": 170.06,
+  "text": " Altin",
+  "words": [
+   {
+    "w": " Altin",
+    "s": 169.14,
+    "e": 170.06
+   }
+  ]
+ },
+ {
+  "start": 170.06,
+  "end": 170.76,
+  "text": " Naqt pul",
+  "words": [
+   {
+    "w": " Naqt",
+    "s": 170.06,
+    "e": 170.6
+   },
+   {
+    "w": " pul",
+    "s": 170.6,
+    "e": 170.76
+   }
+  ]
+ },
+ {
+  "start": 170.76,
+  "end": 173.78,
+  "text": " Va qarzilarne gramgeche anaq nazarat qilishu qun",
+  "words": [
+   {
+    "w": " Va",
+    "s": 170.76,
+    "e": 171.08
+   },
+   {
+    "w": " qarzilarne",
+    "s": 171.08,
+    "e": 171.74
+   },
+   {
+    "w": " gramgeche",
+    "s": 171.74,
+    "e": 172.36
+   },
+   {
+    "w": " anaq",
+    "s": 172.36,
+    "e": 172.8
+   },
+   {
+    "w": " nazarat",
+    "s": 172.8,
+    "e": 173.16
+   },
+   {
+    "w": " qilishu",
+    "s": 173.16,
+    "e": 173.54
+   },
+   {
+    "w": " qun",
+    "s": 173.54,
+    "e": 173.78
+   }
+  ]
+ },
+ {
+  "start": 173.78,
+  "end": 175.28,
+  "text": " Et bolingizu qun rahmat",
+  "words": [
+   {
+    "w": " Et",
+    "s": 173.78,
+    "e": 174.2
+   },
+   {
+    "w": " bolingizu",
+    "s": 174.2,
+    "e": 174.76
+   },
+   {
+    "w": " qun",
+    "s": 174.76,
+    "e": 174.88
+   },
+   {
+    "w": " rahmat",
+    "s": 174.88,
+    "e": 175.28
+   }
+  ]
+ }
+]

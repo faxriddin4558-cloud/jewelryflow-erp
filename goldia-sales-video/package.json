@@ -10,7 +10,10 @@
     "srt": "node scripts/make-srt.mjs",
     "typecheck": "tsc --noEmit",
     "audio:scan": "node scripts/scan-audio.mjs",
-    "music": "node scripts/make-music.mjs 230"
+    "music": "node scripts/make-music.mjs 230",
+    "voice": "python3 scripts/build_voice.py",
+    "render:real": "remotion render src/index.ts GoldiaReal out/goldia-sales-real.mp4",
+    "render:real-test": "remotion render src/index.ts GoldiaRealTest out/goldia-real-test-voice.mp4"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

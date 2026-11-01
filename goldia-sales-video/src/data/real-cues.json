@@ -1,0 +1,204 @@
+{
+ "r01-intro": [
+  {
+   "text": "Goldia Sales.",
+   "from": 0.0,
+   "to": 0.92
+  },
+  {
+   "text": "Direktor uchun taqdimot.",
+   "from": 0.92,
+   "to": 2.75
+  },
+  {
+   "text": "Goldia Sales — Goldia zargarlik zavodining savdo,",
+   "from": 2.75,
+   "to": 6.452
+  },
+  {
+   "text": "konsignatsiya va kassa hisobini yagona tizimda boshqaruvchi platforma.",
+   "from": 6.452,
+   "to": 10.343
+  },
+  {
+   "text": "Ushbu taqdimotda tizimning asosiy imkoniyatlarini ko‘rib chiqamiz.",
+   "from": 10.343,
+   "to": 14.62
+  }
+ ],
+ "r02-problem": [
+  {
+   "text": "Zargarlik savdosida har bir gramm muhim.",
+   "from": 0.166,
+   "to": 2.542
+  },
+  {
+   "text": "Tovar zavoddan omborga, ombordan sotuvchilarga, sotuvchidan esa mijozga o‘tadi.",
+   "from": 2.542,
+   "to": 7.622
+  },
+  {
+   "text": "To‘lov naqd so‘m, dollar yoki lom oltin bilan bo‘ladi.",
+   "from": 7.622,
+   "to": 11.389
+  },
+  {
+   "text": "Daftar va Excelda bularning barchasini aniq kuzatish qiyin.",
+   "from": 11.389,
+   "to": 15.58
+  }
+ ],
+ "r03-solution": [
+  {
+   "text": "Goldia Sales bu jarayonni beshta yo‘nalishga ajratadi:",
+   "from": 0.555,
+   "to": 4.249
+  },
+  {
+   "text": "boshqaruv va balans, ombor va konsignatsiya,",
+   "from": 4.249,
+   "to": 6.82
+  },
+  {
+   "text": "savdo va kassalar, afinaj va zavod balansi, hamda tahlil va tizim sozlamalari.",
+   "from": 6.82,
+   "to": 12.9
+  }
+ ],
+ "r04-dashboard": [
+  {
+   "text": "Asosiy panelda direktor kompaniyaning sof aktivini 585 proba oltin ekvivalentida ko‘radi.",
+   "from": 0.103,
+   "to": 5.917
+  },
+  {
+   "text": "Ombor va sotuvchilardagi tovar, mijozlar nasiyasi, kassalar,",
+   "from": 5.917,
+   "to": 10.081
+  },
+  {
+   "text": "menejer seyfi va afinajdagi oltin bitta ko‘rsatkichga jamlanadi.",
+   "from": 10.081,
+   "to": 14.039
+  },
+  {
+   "text": "Zavod va tashqi majburiyatlar esa ayirib hisoblanadi.",
+   "from": 14.039,
+   "to": 17.75
+  }
+ ],
+ "r05-factory": [
+  {
+   "text": "Zavoddan kelgan tovar model, proba va vazn bo‘yicha qabul qilinadi.",
+   "from": 0.147,
+   "to": 4.246
+  },
+  {
+   "text": "Zavod ustamasi foizda belgilanadi,",
+   "from": 4.246,
+   "to": 6.488
+  },
+  {
+   "text": "zavod oldidagi majburiyat esa kirimlar bo‘yicha alohida daftarda yuritiladi.",
+   "from": 6.488,
+   "to": 11.43
+  }
+ ],
+ "r06-consign": [
+  {
+   "text": "Tovarlar sotuvchilarga skaner orqali konsignatsiyaga beriladi.",
+   "from": 0.064,
+   "to": 3.168
+  },
+  {
+   "text": "Har bir mahsulot shtrix-kod bilan aniqlanadi va tanlangan sotuvchi hisobiga biriktiriladi.",
+   "from": 3.168,
+   "to": 8.7
+  }
+ ],
+ "r07-customers": [
+  {
+   "text": "To‘lov naqd pul, dollar yoki lom oltin ko‘rinishida qabul qilinadi.",
+   "from": 0.03,
+   "to": 3.963
+  },
+  {
+   "text": "To‘lanmagan qism mijozning nasiyasiga yoziladi.",
+   "from": 3.963,
+   "to": 7.066
+  },
+  {
+   "text": "Mijozlar va nasiya daftari kim qancha qarzdor ekanini ko‘rsatadi.",
+   "from": 7.066,
+   "to": 11.12
+  }
+ ],
+ "r08-refining": [
+  {
+   "text": "Mijozlardan olingan lom oltin afinajga yuboriladi va toza oltin sifatida,",
+   "from": 0.161,
+   "to": 4.687
+  },
+  {
+   "text": "585 ekvivalentida menejer seyfiga qaytadi.",
+   "from": 4.687,
+   "to": 7.787
+  },
+  {
+   "text": "Naqd pulga oltin xaridlari ham shu balansga qo‘shiladi.",
+   "from": 7.787,
+   "to": 11.65
+  }
+ ],
+ "r09-reconcile": [
+  {
+   "text": "Sotuvchi bilan hisob-kitob olti bo‘limda solishtiriladi: qabul qilingan tovar, javondagi tovar,",
+   "from": 0.132,
+   "to": 5.578
+  },
+  {
+   "text": "sotilgan tovar, mijozlar nasiyasi, sotuvchi kassasi va menejerga topshirilgan to‘lovlar.",
+   "from": 5.578,
+   "to": 11.314
+  },
+  {
+   "text": "Natijada sotuvchining bozor qarzi aniq ko‘rinadi.",
+   "from": 11.314,
+   "to": 15.1
+  }
+ ],
+ "r10-security": [
+  {
+   "text": "Kirish rollarga bo‘lingan: direktor, boshqaruvchi va sotuvchi.",
+   "from": 0.0,
+   "to": 4.237
+  },
+  {
+   "text": "Sotuvchi faqat o‘ziga tegishli bo‘limlarni ko‘radi.",
+   "from": 4.237,
+   "to": 6.926
+  },
+  {
+   "text": "Telegram orqali tasdiqlash,",
+   "from": 6.926,
+   "to": 8.586
+  },
+  {
+   "text": "audit jurnali va takroriy yozuvdan himoya ma’lumotlar ishonchliligini ta’minlaydi.",
+   "from": 8.586,
+   "to": 14.29
+  }
+ ],
+ "r11-outro": [
+  {
+   "text": "Goldia Sales — oltin, naqd pul va qarzlarni grammgacha aniq nazorat qilish uchun.",
+   "from": 0.132,
+   "to": 5.605
+  },
+  {
+   "text": "E’tiboringiz uchun rahmat.",
+   "from": 5.605,
+   "to": 7.88
+  }
+ ]
+}
