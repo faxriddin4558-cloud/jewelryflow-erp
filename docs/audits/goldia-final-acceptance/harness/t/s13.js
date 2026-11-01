@@ -1,0 +1,21 @@
+const { U, rpc, su, rec, pool } = require('./lib');
+(async () => {
+  const C = Object.fromEntries((await su(`select customer_code, id from customers`)).map(r => [r.customer_code, r.id]));
+  const sh = (r) => r.ok ? JSON.stringify(r.data).slice(0, 300) : 'ERR ' + r.error;
+  rec('R1', 'SA reads SB reconciliation statement', sh(await rpc(U.SA, 'rpc_get_seller_reconciliation_statement', { p_seller_id: U.SB })));
+  rec('R2', 'SA reads SB daily ledger', sh(await rpc(U.SA, 'rpc_get_daily_sales_ledger', { p_seller_id: U.SB })));
+  rec('R3', 'SA reads customer ledger of CB1 (SB customer)', sh(await rpc(U.SA, 'rpc_get_unified_customer_ledger', { p_customer_id: C['CUST-0003'] })));
+  rec('R4', 'SA monthly report for SB', sh(await rpc(U.SA, 'rpc_get_customer_monthly_report', { p_seller_id: U.SB })));
+  rec('R5', 'SA markup diff for SB', sh(await rpc(U.SA, 'rpc_get_seller_markup_difference_report', { p_seller_id: U.SB })));
+  rec('R6', 'SA rate diff report', sh(await rpc(U.SA, 'rpc_get_company_rate_difference_report', {})));
+  rec('R7', 'SA financial reconciliation summary', sh(await rpc(U.SA, 'rpc_get_financial_reconciliation_summary', {})));
+  rec('R8', 'SA director overview', sh(await rpc(U.SA, 'rpc_get_director_sales_overview', {})));
+  rec('R9', 'SA three tier ledger', sh(await rpc(U.SA, 'rpc_get_three_tier_ledger_summary', {})));
+  rec('R10', 'SA piece sales reconciliation report', sh(await rpc(U.SA, 'rpc_get_piece_sales_reconciliation_report', {})));
+  rec('R11', 'SA seller sales summary', sh(await rpc(U.SA, 'rpc_get_seller_sales_summary', {})));
+  rec('R12', 'SA available pieces of SB', sh(await rpc(U.SA, 'rpc_get_seller_available_pieces', { p_seller_id: U.SB })));
+  rec('R13', 'SA profit summary (own org, no p_org_id)', sh(await rpc(U.SA, 'rpc_get_accounting_profit_summary', {})));
+  rec('R14', 'SA full test reset preview', sh(await rpc(U.SA, 'rpc_preview_full_test_reset', {})));
+  rec('R15', 'MGR executes full test reset', sh(await rpc(U.M, 'rpc_execute_full_test_reset', { p_confirmation_code: 'x', p_reason: 'y' })));
+  await pool.end();
+})();

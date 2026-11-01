@@ -142,6 +142,17 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
   }, [txTill, cbuUsdRate, txUsdRate]);
 
   // Load accounting profit summary strictly from baseline to now
+  // Profit after and before business expenses. 070 returns the after-expense result; older backends returned
+  // the before-expense figure in period_accounting_result_585_g, so derive both explicitly either way.
+  const profitSplit = (() => {
+    if (!profitSummary || !profitSummary.is_computable || profitSummary.period_accounting_result_585_g === null) return null;
+    const period = Number(profitSummary.period_accounting_result_585_g);
+    const expenses = Number(profitSummary.business_expenses_585_g || 0);
+    return profitSummary.result_includes_business_expenses
+      ? { after: period, before: Number(profitSummary.operational_trading_result_585_g ?? period + expenses), expenses }
+      : { after: Math.round((period - expenses) * 10000) / 10000, before: period, expenses };
+  })();
+
   const loadProfitSummary = useCallback(async () => {
     setProfitLoading(true);
     setProfitError(null);
@@ -467,26 +478,29 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
             {/* 1. Main Profit Figure (FAIL-CLOSED: NEVER "?? 0") */}
             <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
               <div>
-                <div className="text-xs text-slate-400 font-bold">Sof Aktiv O&apos;zgarishi (585 g)</div>
+                <div className="text-xs text-slate-400 font-bold">Sof natija — xarajatlardan keyin (585 g)</div>
                 <div className="text-[10px] text-slate-500 font-medium">Kapital harakatlariga tuzatilgan</div>
               </div>
               <div className="my-2">
                 {profitLoading ? (
                   <div className="text-xl font-bold text-slate-400 animate-pulse">Yuklanmoqda...</div>
-                ) : profitSummary && profitSummary.is_computable && profitSummary.period_accounting_result_585_g !== null ? (
-                  <div
-                    className={`text-2xl md:text-3xl font-black font-mono ${
-                      profitSummary.period_accounting_result_585_g > 0
-                        ? "text-emerald-400"
-                        : profitSummary.period_accounting_result_585_g < 0
-                        ? "text-rose-400"
-                        : "text-slate-200"
-                    }`}
-                  >
-                    {profitSummary.period_accounting_result_585_g > 0 ? "+" : ""}
-                    {profitSummary.period_accounting_result_585_g.toFixed(2)}
-                    <span className="text-sm font-bold text-slate-300"> g (585)</span>
-                  </div>
+                ) : profitSplit ? (
+                  <>
+                    <div
+                      data-testid="profit-after-expenses"
+                      className={`text-2xl md:text-3xl font-black font-mono ${
+                        profitSplit.after > 0 ? "text-emerald-400" : profitSplit.after < 0 ? "text-rose-400" : "text-slate-200"
+                      }`}
+                    >
+                      {profitSplit.after > 0 ? "+" : ""}
+                      {profitSplit.after.toFixed(2)}
+                      <span className="text-sm font-bold text-slate-300"> g (585)</span>
+                    </div>
+                    <div data-testid="profit-before-expenses" className="text-[11px] font-mono text-slate-300 mt-1">
+                      Xarajatlardan oldin: {profitSplit.before > 0 ? "+" : ""}
+                      {profitSplit.before.toFixed(2)} g · Xarajatlar: −{profitSplit.expenses.toFixed(2)} g
+                    </div>
+                  </>
                 ) : (
                   <div className="text-lg md:text-xl font-black text-amber-400/90 flex items-center gap-2">
                     <span>—</span>
@@ -591,7 +605,7 @@ export function ProfitAccountingBanner({ onDataMutated, canManageAccounting = tr
                 </div>
               </div>
               <div className="mt-2 text-[10px] text-slate-500 border-t border-slate-800/80 pt-1">
-                Formula: Joriy Aktiv — Boshlang&apos;ich — Kiritilgan + Yechilgan
+                Formula: Joriy Aktiv — Boshlang&apos;ich — Kiritilgan + Yechilgan (xarajatlar ayirilgan)
               </div>
             </div>
           </div>

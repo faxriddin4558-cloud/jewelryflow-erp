@@ -1,0 +1,93 @@
+GOLDIA — migration 070 production release
+
+[1/4] fresh backup, restore test and migration test on the restored copy
+GOLDIA — production backup, restore test and read-only preflight
+
+[1/9] PostgreSQL tools
+  -> pg tools: /usr/lib/postgresql/16/bin (pg_dump (PostgreSQL) 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1))
+[2/9] Production connection (read-only use)
+  -> production server: PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
+[3/9] Backups (outside the repository) (9:24:21 PM)
+  pg_dump full backup... (9:24:21 PM)
+  -> schemas in backup: public, auth, storage, supabase_migrations
+  -> schema backup: ok
+  -> data backup: ok
+  -> roles backup: ok
+  -> rows changed during backup: none
+  90e647906cfb51d4e5bcade79319d5b396e61a19e8ebc70ac0a9019574579ab4  goldia-data.dump  37703 bytes
+  c85b4cc6229440c854405eeafd052a882aec368fcd3be0a9660dbd4e01b3a6f8  goldia-full.dump  1153503 bytes
+  3f165d44779aa6144ccf4e0de4033edbf8c621626a6f11995edcb31e8a70c351  goldia-roles.sql  1305 bytes
+  c24dcb0aaf16f02c9b88cfc9645d6d7d9f54c0a19591338ecbb4b135687de6e9  goldia-schema.sql  1003180 bytes
+[4/9] Restore test into a disposable LOCAL PostgreSQL (never production) (9:24:21 PM)
+  initdb (9:24:21 PM)
+  starting local PostgreSQL on port 55433 (9:24:22 PM)
+  local PostgreSQL ready (9:24:22 PM)
+  -> extensions not available locally (Supabase platform only): none
+  pg_restore 1 MB (can take several minutes) (9:24:22 PM)
+  pg_restore finished (9:24:23 PM)
+  -> restore errors (Supabase platform objects may account for some): 0
+  -> public functions/policies/views prod vs restored: 145/115/5 vs 145/115/5
+  -> tables compared: 65
+  -> row-count differences prod vs restored: none
+  -> BACKUP: VERIFIED (restored copy matches production row counts)
+[5/9] Migration 069/070 status + preflight (read only)
+  -> migration 069 applied: VERIFIED
+  -> migration 070 already applied: no
+  -> max overloads of touched functions: 1
+  -> 064 manager-stock fix present: no
+  -> pieces in returned_to_factory: 0
+  -> demo accounts in production auth: 0
+  -> 585 rates available: 1
+  -> PREFLIGHT: PASS
+  -> preflight output: preflight.txt (ERRORS — see file)
+  -> investigation output: investigation.txt
+  -> security-advisor output: security-advisor.txt
+[6/9] Accounting consistency findings
+  -> finding I2_manager_stock: 1 row(s)
+  -> finding I8_mass_balance: 1 row(s)
+  -> finding I9_status_counts: 4 row(s)
+  -> CRITICAL ACCOUNTING FINDINGS: none
+[7/9] Security Advisor equivalents
+  -> advisor A1_security_definer_view: 4
+  -> advisor A3_mutable_search_path: 270
+  -> advisor A4_definer_executable_by_anon: 12
+  -> advisor A5_permissive_write_policy: 1
+  -> advisor A6_anon_write_grant: 64
+[8/9] Migration 070 on the restored LOCAL copy (production untouched)
+  -> 070 applies on production schema copy: yes
+  -> 070 changed row counts: no
+  -> rollback + re-apply on copy: ok
+  -> 070 COMPATIBILITY: PASS
+[9/9] Decision
+  -> GATES: backup=true preflight=true migration069=true compat070=true accounting=true
+
+RESULT: ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval
+Send this file back for review: /opt/goldia-audit/rehearsal/goldia-prod-2026-11-01T21-24-21/SUMMARY.txt
+Keep the backup folder private (it contains customer data and login records). Do not commit it.
+started: 2026-11-01T21:24:24.921Z
+[1/4] backup folder /opt/goldia-audit/rehearsal/goldia-prod-2026-11-01T21-24-21: {"backup":true,"migration064":true,"preflight":true,"accounting":true,"compat":true,"ready":true,"target":"070","backupDir":"/opt/goldia-audit/rehearsal/goldia-prod-2026-11-01T21-24-21"}
+[2/4] production gates (read only)
+  069=t 070=f
+  D1_customer_cache_vs_documents|0|0|OK
+  D2_reversed_sales_after_payment|0|0|INFO
+  D3_possible_duplicate_receipts|0|0|OK
+  D4_sellers_sold_more_than_consigned|0|0|OK
+  D5_whole_consignment_sale_after_weight_sale|0|0|OK
+  D6_physical_conservation_gap|0|0.0000|OK
+  D7_factory_obligation_vs_documents|0|0.0000|OK
+  D8_stored_manager_stock_vs_canonical|0|0.0000|INFO
+  D9_business_expenses_added_back_to_profit_585g|0|0|INFO
+  D10_currency_rates_table_exists|0|0|INFO
+  D11_organizations|1|0|INFO
+  D12_employees_outside_their_org_scope|0|0|OK
+  D13_cross_seller_customer_sales|0|0|OK
+[3/4] migration 070 (single transaction)
+  balances before: customer_advance_g=0.0000,customer_debt_g=2.4000,factory_obligation_g=54.0000,seller_owes_g=9.2000,seller_stock_g=6.0000,vault_cash_uzs=2000000.00,vault_usd=0.00
+  MIGRATION: applied and recorded
+[4/4] postflight
+  all_070_checks: ok
+  row counts unchanged: yes
+  balances unchanged: yes
+  POSTFLIGHT: PASS
+
+RESULT: MIGRATION 070 APPLIED, POSTFLIGHT PASS — the release PR can be merged. Report: /opt/goldia-audit/rehearsal/goldia-prod-2026-11-01T21-24-21/RELEASE-070-RESULT.txt

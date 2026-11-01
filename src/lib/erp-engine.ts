@@ -1195,6 +1195,8 @@ export interface AccountingProfitSummary {
   period_accounting_result_585_g: number | null;
   fx_valuation_impact_585_g: number | null;
   operational_trading_result_585_g: number | null;
+  /** 070+: true when period_accounting_result_585_g is already after business expenses. */
+  result_includes_business_expenses?: boolean;
   capital_contributions_585_g?: number | null;
   capital_distributions_585_g?: number | null;
   business_expenses_585_g?: number | null;

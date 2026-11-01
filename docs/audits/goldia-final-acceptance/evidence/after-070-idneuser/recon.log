@@ -1,0 +1,50 @@
+┌─────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────┬──────────┬──────┐
+│ (index) │ check                                                                                                               │ expected │ actual   │ ok   │
+├─────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────┼──────────┼──────┤
+│ 0       │ 'PHYS: receipts = manager + seller-held pieces + sold + returned_to_factory'                                        │ 170      │ 170      │ true │
+│ 1       │ 'STOCK T-DIR: held pieces = stored stock'                                                                           │ 0        │ 0        │ true │
+│ 2       │ 'OBLIG T-DIR: (held pieces + sold) x (1+seller%) + legacy = stored obligation'                                      │ 0        │ 0        │ true │
+│ 3       │ 'OWES T-DIR: obligation - handovers = owes - manager_owes'                                                          │ 0        │ 0        │ true │
+│ 4       │ 'TILL-UZS T-DIR'                                                                                                    │ 0        │ 0        │ true │
+│ 5       │ 'TILL-USD T-DIR'                                                                                                    │ 0        │ 0        │ true │
+│ 6       │ 'TILL-SCRAP T-DIR'                                                                                                  │ 0        │ 0        │ true │
+│ 7       │ 'STOCK T-SA: held pieces = stored stock'                                                                            │ 13.9     │ 13.9     │ true │
+│ 8       │ 'OBLIG T-SA: (held pieces + sold) x (1+seller%) + legacy = stored obligation'                                       │ 28.148   │ 28.148   │ true │
+│ 9       │ 'OWES T-SA: obligation - handovers = owes - manager_owes'                                                           │ 18.1792  │ 18.1792  │ true │
+│ 10      │ 'TILL-UZS T-SA'                                                                                                     │ 0        │ 0        │ true │
+│ 11      │ 'TILL-USD T-SA'                                                                                                     │ 0        │ 0        │ true │
+│ 12      │ 'TILL-SCRAP T-SA'                                                                                                   │ 0        │ 0        │ true │
+│ 13      │ 'STOCK T-SB: held pieces = stored stock'                                                                            │ 0        │ 0        │ true │
+│ 14      │ 'OBLIG T-SB: (held pieces + sold) x (1+seller%) + legacy = stored obligation'                                       │ 22       │ 22       │ true │
+│ 15      │ 'OWES T-SB: obligation - handovers = owes - manager_owes'                                                           │ 13.99    │ 13.99    │ true │
+│ 16      │ 'TILL-UZS T-SB'                                                                                                     │ 0        │ 0        │ true │
+│ 17      │ 'TILL-USD T-SB'                                                                                                     │ 0        │ 0        │ true │
+│ 18      │ 'TILL-SCRAP T-SB'                                                                                                   │ 0        │ 0        │ true │
+│ 19      │ 'STOCK T-SC: held pieces = stored stock'                                                                            │ 4        │ 4        │ true │
+│ 20      │ 'OBLIG T-SC: (held pieces + sold) x (1+seller%) + legacy = stored obligation'                                       │ 17.1     │ 17.1     │ true │
+│ 21      │ 'OWES T-SC: obligation - handovers = owes - manager_owes'                                                           │ 17.1     │ 17.1     │ true │
+│ 22      │ 'TILL-UZS T-SC'                                                                                                     │ 0        │ 0        │ true │
+│ 23      │ 'TILL-USD T-SC'                                                                                                     │ 0        │ 0        │ true │
+│ 24      │ 'TILL-SCRAP T-SC'                                                                                                   │ 0        │ 0        │ true │
+│ 25      │ 'STOCK T-SX: held pieces = stored stock'                                                                            │ 0        │ 0        │ true │
+│ 26      │ 'OBLIG T-SX: (held pieces + sold) x (1+seller%) + legacy = stored obligation'                                       │ 0        │ 0        │ true │
+│ 27      │ 'OWES T-SX: obligation - handovers = owes - manager_owes'                                                           │ 0        │ 0        │ true │
+│ 28      │ 'TILL-UZS T-SX'                                                                                                     │ 0        │ 0        │ true │
+│ 29      │ 'TILL-USD T-SX'                                                                                                     │ 0        │ 0        │ true │
+│ 30      │ 'TILL-SCRAP T-SX'                                                                                                   │ 0        │ 0        │ true │
+│ 31      │ 'CUST CUST-0001: sales+legacy-payments = debt-advance'                                                              │ -1.0767  │ -1.0767  │ true │
+│ 32      │ 'CUST CUST-0002: sales+legacy-payments = debt-advance'                                                              │ 3.6132   │ 3.6132   │ true │
+│ 33      │ 'CUST CUST-0003: sales+legacy-payments = debt-advance'                                                              │ 17.088   │ 17.088   │ true │
+│ 34      │ 'CUST CUST-0005: sales+legacy-payments = debt-advance'                                                              │ 12.1     │ 12.1     │ true │
+│ 35      │ 'CUST CUST-0006: sales+legacy-payments = debt-advance'                                                              │ -3.01    │ -3.01    │ true │
+│ 36      │ 'VAULT-UZS: handovers - purchases + capital - expenses'                                                             │ 23710000 │ 23710000 │ true │
+│ 37      │ 'VAULT-USD: handovers - purchases'                                                                                  │ 300      │ 300      │ true │
+│ 38      │ 'VAULT-SCRAP: handover scrap - refining input'                                                                      │ 0        │ 0        │ true │
+│ 39      │ 'VAULT-REFINED(585): refining output - refined handovers'                                                           │ 0        │ 0        │ true │
+│ 40      │ 'VAULT-PURCHASED(585): purchases - purchased handovers'                                                             │ 2        │ 2        │ true │
+│ 41      │ 'FACTORY: receipts obligation - handovers = current obligation - advance'                                           │ 175.7726 │ 175.7726 │ true │
+│ 42      │ 'VAULT stored manager_physical_stock_g = canonical fn'                                                              │ 112.1    │ 112.1    │ true │
+│ 43      │ 'RPC recon summary client debt = Σ accounts'                                                                        │ 32.8012  │ 32.8012  │ true │
+│ 44      │ 'INFO sale-level remaining + legacy = account debt - advance (sale rows are not updated by account-level payments)' │ 47.038   │ 28.7145  │ true │
+└─────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴──────────┴──────────┴──────┘
+CHECKS 45 FAIL 0

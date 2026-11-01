@@ -1,0 +1,51 @@
+{
+  'UZ-01-T-SA': '7eed23cf-9d4b-4aee-915c-e86aa2746791',
+  'SR-02-T-SA': 'e0780043-3639-4f03-94c3-717167d7a1eb',
+  'ZN-03-T-SA': '382c3457-0873-4d3b-8ba5-3b7b190e860e',
+  'BL-04-T-SA': '7f094573-c1e3-4dd3-a010-eea8fd55c5e1',
+  'UZ-01-T-SB': '72966d2c-9dab-4c92-9fa7-a8401fed4637',
+  'SR-02-T-SB': '338a0754-0509-4080-9b14-fae421eefb87',
+  'ZN-03-T-SB': '3f5fc41b-46c3-442c-be25-acbb45b1db90',
+  'BL-04-T-SC': '1699ef57-de02-4836-a4a8-1a57d7c3355e'
+}
+{"id":"S5.1","title":"SA barcode sale UZ-01 3.25g @10% to CA1","result":{"ok":true,"data":{"status":"ok","sale_id":"66f501d2-2bed-4a2a-acc4-3ffd3c182b72","sale_no":"SALE-BC-16EB35E3","piece_id":"7eed23cf-9d4b-4aee-915c-e86aa2746791","model_code":"UZ-01","model_name":"Uzuk A","weight_grams":3.25,"client_markup_pct":10,"gross_gold_due_grams":3.575,"remaining_gold_grams":3.575,"advance_applied_grams":0,"client_gold_due_grams":3.575,"net_remaining_debt_grams":3.575}}}
+{"id":"S5.1b","title":"retry same sale key","result":{"ok":true,"data":{"status":"ok","sale_id":"66f501d2-2bed-4a2a-acc4-3ffd3c182b72","sale_no":"SALE-BC-16EB35E3","piece_id":"7eed23cf-9d4b-4aee-915c-e86aa2746791","model_code":"UZ-01","model_name":"Uzuk A","weight_grams":3.25,"client_markup_pct":10,"gross_gold_due_grams":3.575,"remaining_gold_grams":3.575,"advance_applied_grams":0,"client_gold_due_grams":3.575,"net_remaining_debt_grams":3.575}}}
+{"id":"S5.1c","title":"sell same piece again new key (duplicate barcode)","result":{"ok":false,"error":"Bu mahsulot donasi (UZ-01 — 3.2500 g) allaqachon sotilgan (Sotuv ID: 66f501d2-2bed-4a2a-acc4-3ffd3c182b72)","code":"P0001"}}
+{"id":"S5.2","title":"SA weight sale 9.0g @15% to CA2","result":{"ok":true,"data":{"status":"ok","sale_id":"6ff2f3ec-0ef8-4385-bcf7-4ff3b0e69d62","sale_no":"SALE-W-20261101-CECD91","seller_id":"a0000000-0000-4000-8000-00000000000a","customer_id":"d0cad799-cc3f-4bf6-af66-34f769044c26","weight_grams":9,"base_weight_grams":9,"client_markup_pct":15,"remaining_debt_grams":10.35,"advance_applied_grams":0,"client_gold_due_grams":10.35,"remaining_physical_stock_g":15.75}}}
+{"id":"S5.3","title":"SB barcode sale ZN-03 9.0g @10% to CB1","result":{"ok":true,"data":{"status":"ok","sale_id":"40b952bd-4079-4d41-ab23-ff5bac4c1bf9","sale_no":"SALE-BC-12BDFA5C","piece_id":"3f5fc41b-46c3-442c-be25-acbb45b1db90","model_code":"ZN-03","model_name":"Zargarlik Buyumi (Standart 585)","weight_grams":9,"client_markup_pct":10,"gross_gold_due_grams":9.9,"remaining_gold_grams":9.9,"advance_applied_grams":0,"client_gold_due_grams":9.9,"net_remaining_debt_grams":9.9}}}
+{"id":"S5.4","title":"SA sells SB piece (cross-seller)","result":{"ok":false,"error":"Ruxsat etilmadi: Ushbu mahsulot donasi boshqa sotuvchiga biriktirilgan","code":"42501"}}
+{"id":"S5.5","title":"SA sells own piece passing p_seller_id=SB","result":{"ok":false,"error":"Ruxsat etilmadi: Sotuvchi faqat o'z nomidan sotuv qila oladi","code":"42501"}}
+{"id":"S5.6","title":"SA sells to SB customer CB1 (customer of other seller)","result":{"ok":true,"data":{"status":"ok","sale_id":"f2832891-5a62-486c-b17f-8f27c6f02461","sale_no":"SALE-W-20261101-3FE992","seller_id":"a0000000-0000-4000-8000-00000000000a","customer_id":"05f9b105-4b35-4c66-8814-1f8de29b9b00","weight_grams":0.5,"base_weight_grams":0.5,"client_markup_pct":10,"remaining_debt_grams":0.55,"advance_applied_grams":0,"client_gold_due_grams":0.55,"remaining_physical_stock_g":15.25}}}
+{"id":"S5.7","title":"SA weight sale more than stock (100g)","result":{"ok":false,"error":"ERR_INSUFFICIENT_SELLER_STOCK: Sotuvchi omborida yetarli oltin mavjud emas (Mavjud: 15.2500 g, Talab: 100.0000 g)","code":"P0001"}}
+{"id":"S5.8","title":"SA weight sale markup 150%","result":{"ok":false,"error":"ERR_MARKUP_OUT_OF_RANGE: Mijoz ustama foizi 0 dan 100 gacha bo'lishi shart (kiritildi: 150.00)","code":"P0001"}}
+{"id":"S5.9","title":"SA weight sale markup null","result":{"ok":false,"error":"ERR_MARKUP_REQUIRED: Mijoz ustama foizi aniq ko'rsatilishi shart","code":"P0001"}}
+{"id":"S5.10","title":"SA weight sale negative weight","result":{"ok":false,"error":"Sotilayotgan mahsulot vazni 0 dan katta bo'lishi shart","code":"P0001"}}
+/opt/goldia-audit/node_modules/pg-pool/index.js:45
+    Error.captureStackTrace(err)
+          ^
+
+error: column reference "status" is ambiguous
+    at /opt/goldia-audit/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async su (/opt/goldia-audit/t/lib.js:44:47)
+    at async /opt/goldia-audit/t/s4.js:19:30 {
+  length: 112,
+  severity: 'ERROR',
+  code: '42702',
+  detail: undefined,
+  hint: undefined,
+  position: '267',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '831',
+  routine: 'scanRTEForColumn'
+}
+
+Node.js v22.23.4

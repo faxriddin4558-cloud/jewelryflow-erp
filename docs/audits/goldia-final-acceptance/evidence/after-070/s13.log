@@ -1,0 +1,15 @@
+{"id":"R1","title":"SA reads SB reconciliation statement","result":"ERR Ruxsat etilmadi: Sotuvchi faqat o'z hisobotini ko'ra oladi"}
+{"id":"R2","title":"SA reads SB daily ledger","result":"ERR Cross-seller violation: Sotuvchilar faqat o'z savdo jurnalini ko'ra oladi"}
+{"id":"R3","title":"SA reads customer ledger of CB1 (SB customer)","result":"ERR Cross-seller violation: Ushbu mijoz sizga biriktirilmagan"}
+{"id":"R4","title":"SA monthly report for SB","result":"ERR Cross-seller violation: Sotuvchilar faqat o'z hisobotini ko'ra oladi"}
+{"id":"R5","title":"SA markup diff for SB","result":"ERR Ruxsat etilmadi: Sotuvchi faqat o'z ustama farqini ko'ra oladi"}
+{"id":"R6","title":"SA rate diff report","result":"ERR Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, accountant, buxgalter, manager, production_manager, boshqaruvchi)"}
+{"id":"R7","title":"SA financial reconciliation summary","result":"ERR Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, accountant, buxgalter, manager, production_manager, boshqaruvchi)"}
+{"id":"R8","title":"SA director overview","result":"ERR Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, accountant, buxgalter)"}
+{"id":"R9","title":"SA three tier ledger","result":"ERR Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, accountant, buxgalter, manager, production_manager, boshqaruvchi)"}
+{"id":"R10","title":"SA piece sales reconciliation report","result":"{\"held_pieces\":6,\"sold_pieces\":3,\"total_pieces\":13,\"anomaly_count\":0,\"discrepancies\":[],\"organization_id\":\"00000000-0000-0000-0000-000000000001\",\"returned_pieces\":4}"}
+{"id":"R11","title":"SA seller sales summary","result":"{\"status\":\"ok\",\"seller_id\":\"a0000000-0000-4000-8000-00000000000a\",\"active_sales_count\":1,\"assigned_clients_count\":2,\"seller_till_cash_amount\":0,\"seller_till_scrap_grams\":0,\"total_client_debt_grams\":3.6132,\"active_consignments_count\":0,\"current_factory_obligation_grams\":18.1792}"}
+{"id":"R12","title":"SA available pieces of SB","result":"ERR Ruxsat etilmadi: Sotuvchi faqat o'z mahsulotlarini ko'ra oladi"}
+{"id":"R13","title":"SA profit summary (own org, no p_org_id)","result":"ERR Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, accountant, buxgalter, manager, production_manager, boshqaruvchi)"}
+{"id":"R14","title":"SA full test reset preview","result":"ERR Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar)"}
+{"id":"R15","title":"MGR executes full test reset","result":"ERR Permission denied for role \"production_manager\" (required one of: admin, director, owner, direktor, rahbar)"}
