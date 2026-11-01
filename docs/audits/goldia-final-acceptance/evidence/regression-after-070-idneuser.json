@@ -1,0 +1,138 @@
+[
+ {
+  "id": "F5",
+  "title": "factory receipt retried with same key creates ONE receipt",
+  "ok": true,
+  "detail": {
+   "receipts": 1
+  }
+ },
+ {
+  "id": "F5b",
+  "title": "stored manager_physical_stock_g equals canonical stock after receipt",
+  "ok": true,
+  "detail": {
+   "s": "100.0000"
+  }
+ },
+ {
+  "id": "F4",
+  "title": "whole-consignment sale after partial weight sale is rejected (no oversell)",
+  "ok": true,
+  "detail": {
+   "whole": "ERR_CONSIGNMENT_PARTIALLY_USED: Partiya CONS-BC-63E91003 qisman sotilgan yoki qa",
+   "soldC": 11
+  }
+ },
+ {
+  "id": "F4b",
+  "title": "whole-consignment sale with 200% markup is rejected",
+  "ok": true,
+  "detail": "ERR_MARKUP_OUT_OF_RANGE: Mijoz ustama foizi 0 dan 100 gacha aniq ko'rsatilishi s"
+ },
+ {
+  "id": "F4c",
+  "title": "untouched consignment can still be sold as a whole (no regression)",
+  "ok": true,
+  "detail": 1.12
+ },
+ {
+  "id": "F2",
+  "title": "reversing a fully paid 4.4 g sale leaves the customer a 4.4 g advance",
+  "ok": true,
+  "detail": {
+   "d": "0.0000",
+   "a": "4.4000"
+  }
+ },
+ {
+  "id": "F2b",
+  "title": "reversing a partly paid sale (6.6 due, 5.4 paid incl. advance) leaves 5.4 g advance",
+  "ok": true,
+  "detail": {
+   "d": "0.0000",
+   "a": "5.4000"
+  }
+ },
+ {
+  "id": "F3",
+  "title": "3 concurrent 1,000,000 UZS first payments => 3.0 g advance",
+  "ok": true,
+  "detail": {
+   "a": "3.0000"
+  }
+ },
+ {
+  "id": "F3b",
+  "title": "customer account records USD paid",
+  "ok": true,
+  "detail": {
+   "u": "100.00"
+  }
+ },
+ {
+  "id": "F7",
+  "title": "weight-sale retry after selling all stock returns the original sale",
+  "ok": true,
+  "detail": "SALE-W-20261101-84AC1E"
+ },
+ {
+  "id": "F6",
+  "title": "capital contribution in UZS without USD rate succeeds",
+  "ok": true,
+  "detail": "FTX-20261101-AAD18B"
+ },
+ {
+  "id": "F6b",
+  "title": "USD transaction without a USD rate is refused (no silent 12,800)",
+  "ok": true,
+  "detail": "ERR_USD_RATE_NOT_SET: USD summasi uchun USD kursi (p_usd_rate) kiritilishi shart"
+ },
+ {
+  "id": "F1b",
+  "title": "after 0.5 g expense the period result is -0.5 g (operational before expenses 0)",
+  "ok": true,
+  "detail": {
+   "result": -0.5,
+   "op": 0
+  }
+ },
+ {
+  "id": "F1",
+  "title": "profit summary: only director/manager of the own org",
+  "ok": true,
+  "detail": {
+   "NOEMP": "DENIED",
+   "NOORG": "DENIED",
+   "INACTIVE": "DENIED",
+   "SELLER": "DENIED",
+   "ORGB_DIR": "DENIED",
+   "MANAGER": "ALLOWED",
+   "DIRECTOR": "ALLOWED"
+  }
+ },
+ {
+  "id": "F8",
+  "title": "seller denied company summaries/other seller pieces; own pieces + manager summary still allowed",
+  "ok": true,
+  "detail": [
+   false,
+   false,
+   false,
+   true,
+   true
+  ]
+ },
+ {
+  "id": "F9",
+  "title": "other-org director cannot modify/read Goldia employees or audit logs; employee cannot change org",
+  "ok": true,
+  "detail": {
+   "orgB_update": 0,
+   "self_move": "DENIED",
+   "orgB_reads_emps": 0,
+   "orgB_reads_audit": 0,
+   "own_director_update": true
+  }
+ }
+]

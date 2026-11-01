@@ -1,0 +1,29 @@
+-- 070: Goldia acceptance-audit fixes (BLOCKER/HIGH findings of docs/audits/goldia-final-acceptance)
+--
+--  F1  rpc_get_accounting_profit_summary: p_org_id let ANY authenticated user (no employee row,
+--      inactive, other organization, seller) read any organization's full balance sheet; now own org +
+--      management roles only. Business expenses were added back into the headline result, overstating
+--      company profit by the full expense amount; now period_accounting_result_585_g is after expenses and
+--      operational_trading_result_585_g (before expenses) is returned separately.
+--  F2  rpc_reverse_client_sale: reversing a sale that the customer had already paid (payments are
+--      recorded at account level) deleted the customer's payment; it now becomes an advance.
+--  F3  rpc_record_client_settlement: concurrent first payments of a new customer overwrote each other's
+--      advance (lost update); the account row is now created and locked first. USD totals are recorded.
+--  F4  rpc_record_client_jewelry_sale: a consignment already partly consumed by a weight sale could be
+--      sold again as a whole (seller stock 15 g -> 16 g sold); markup was unbounded (200% accepted).
+--  F5  rpc_record_factory_receipt: idempotency key was checked but never stored -> a retried request
+--      created a second receipt and doubled the factory obligation; stored manager stock was inflated.
+--  F6  rpc_record_financial_transaction: referenced public.currency_rates, which no migration creates,
+--      so every capital/expense entry without an explicit USD rate failed on a migration-built database.
+--  F7  rpc_record_weight_sale: an idempotent retry after a successful sale returned
+--      ERR_INSUFFICIENT_SELLER_STOCK instead of the original result.
+--  F8  Sellers could read company-wide balances (reconciliation / three-tier summaries) and other
+--      sellers' pieces.
+--  F9  Cross-organization: a director of another organization could update/deactivate Goldia employees
+--      and read their employee rows, audit logs and idempotency responses; any employee could change
+--      their own organization_id.
+--  F10 rpc_set_daily_gold_rate stored auth.uid() in set_by (FK to employees.id): for any employee whose
+--      id differs from the auth user id the director could not set the daily rate.
+--
+-- Only function bodies and policies change; no data is modified.
+

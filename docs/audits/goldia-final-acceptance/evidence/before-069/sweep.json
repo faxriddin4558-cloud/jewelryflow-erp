@@ -1,0 +1,974 @@
+[
+ {
+  "fn": "_get_or_create_manager_vault",
+  "args": "p_org_id uuid",
+  "NOEMP": "ERR:null value in column \"organization_id\" of relation \"manager_",
+  "NOORG": "ERR:null value in column \"organization_id\" of relation \"manager_",
+  "INACTIVE": "ERR:null value in column \"organization_id\" of relation \"manager_",
+  "SELLER_A": "ERR:null value in column \"organization_id\" of relation \"manager_",
+  "OTHER_ORG_DIR": "ERR:null value in column \"organization_id\" of relation \"manager_"
+ },
+ {
+  "fn": "assert_erp_permission",
+  "args": "p_allowed_roles text[]",
+  "NOEMP": "ERR:Permission denied: no active employee profile for current us",
+  "NOORG": "ERR:Permission denied for role \"seller\" (required one of: <NULL>",
+  "INACTIVE": "ERR:Permission denied: no active employee profile for current us",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: <NULL>",
+  "OTHER_ORG_DIR": "ERR:Permission denied for role \"admin\" (required one of: <NULL>)"
+ },
+ {
+  "fn": "check_and_lock_idempotency",
+  "args": "p_key text, p_operation text, p_payload jsonb",
+  "NOEMP": "OK:null",
+  "NOORG": "OK:null",
+  "INACTIVE": "OK:null",
+  "SELLER_A": "OK:null",
+  "OTHER_ORG_DIR": "OK:null"
+ },
+ {
+  "fn": "current_employee_id",
+  "args": "",
+  "NOEMP": "OK:null",
+  "NOORG": "OK:a0000000-0000-4000-8000-0000000000ff",
+  "INACTIVE": "OK:null",
+  "SELLER_A": "OK:a0000000-0000-4000-8000-00000000000a",
+  "OTHER_ORG_DIR": "OK:b0000000-0000-4000-8000-000000000001"
+ },
+ {
+  "fn": "current_employee_id_text",
+  "args": "",
+  "NOEMP": "OK:null",
+  "NOORG": "OK:a0000000-0000-4000-8000-0000000000ff",
+  "INACTIVE": "OK:null",
+  "SELLER_A": "OK:a0000000-0000-4000-8000-00000000000a",
+  "OTHER_ORG_DIR": "OK:b0000000-0000-4000-8000-000000000001"
+ },
+ {
+  "fn": "current_employee_name",
+  "args": "",
+  "NOEMP": "OK:null",
+  "NOORG": "OK:T Orgsiz",
+  "INACTIVE": "OK:T Nofaol",
+  "SELLER_A": "OK:T Sotuvchi A",
+  "OTHER_ORG_DIR": "OK:T Direktor B"
+ },
+ {
+  "fn": "current_employee_role",
+  "args": "",
+  "NOEMP": "OK:viewer",
+  "NOORG": "OK:viewer",
+  "INACTIVE": "OK:viewer",
+  "SELLER_A": "OK:viewer",
+  "OTHER_ORG_DIR": "OK:admin"
+ },
+ {
+  "fn": "current_employee_role_text",
+  "args": "",
+  "NOEMP": "OK:viewer",
+  "NOORG": "OK:seller",
+  "INACTIVE": "OK:viewer",
+  "SELLER_A": "OK:seller",
+  "OTHER_ORG_DIR": "OK:admin"
+ },
+ {
+  "fn": "current_organization_id",
+  "args": "",
+  "NOEMP": "OK:null",
+  "NOORG": "OK:null",
+  "INACTIVE": "OK:null",
+  "SELLER_A": "OK:00000000-0000-0000-0000-000000000001",
+  "OTHER_ORG_DIR": "OK:00000000-0000-0000-0000-0000000000b2"
+ },
+ {
+  "fn": "get_manager_available_stock_grams",
+  "args": "p_org_id uuid",
+  "NOEMP": "OK:0",
+  "NOORG": "OK:0",
+  "INACTIVE": "OK:0",
+  "SELLER_A": "OK:110.2500",
+  "OTHER_ORG_DIR": "OK:0.0000"
+ },
+ {
+  "fn": "get_seller_available_stock_grams",
+  "args": "p_seller_id uuid",
+  "NOEMP": "OK:0",
+  "NOORG": "OK:0",
+  "INACTIVE": "OK:0",
+  "SELLER_A": "OK:0",
+  "OTHER_ORG_DIR": "OK:0"
+ },
+ {
+  "fn": "is_admin_or_manager",
+  "args": "",
+  "NOEMP": "OK:false",
+  "NOORG": "OK:false",
+  "INACTIVE": "OK:false",
+  "SELLER_A": "OK:false",
+  "OTHER_ORG_DIR": "OK:true"
+ },
+ {
+  "fn": "rpc_accept_stage_handover",
+  "args": "p_handover_id text, p_receiver_worker_id text, p_receiver_worker_name text, p_received_qty integer, p_received_weight_gram numeric, p_supervisor_override_reason text, p_idempotency_key text, p_measurement_mode text, p_is_scale_stable boolean, p_scale_model text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Handover record not found: <NULL>"
+ },
+ {
+  "fn": "rpc_adjust_piecework_salary",
+  "args": "p_original_ledger_id text, p_adjustment_amount numeric, p_reason text, p_tx_type text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied: Role \"seller\" is not authorized to adjust",
+  "OTHER_ORG_DIR": "ERR:Salary adjustment requires a documented justification reason"
+ },
+ {
+  "fn": "rpc_archive_customer",
+  "args": "p_customer_id uuid, p_archive boolean",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Mijoz topilmadi: <NULL>"
+ },
+ {
+  "fn": "rpc_assign_machine_station",
+  "args": "p_machine_id text, p_batch_no text, p_operator_name text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Machine station (<NULL>) not found"
+ },
+ {
+  "fn": "rpc_calculate_piecework_salary",
+  "args": "p_handover_id text, p_worker_id text, p_worker_name text, p_batch_no text, p_stage_name text, p_stage_order integer, p_weight_done numeric, p_qty_done integer, p_rate numeric, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Cannot calculate piecework salary with zero weight and quant"
+ },
+ {
+  "fn": "rpc_complete_qc_rework",
+  "args": "p_qc_id text, p_batch_id text, p_batch_no text, p_rework_stage_order integer, p_inspect_stage_order integer, p_completed_qty integer, p_master_name text, p_resolution_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Completed rework quantity must be greater than zero (receive"
+ },
+ {
+  "fn": "rpc_confirm_accounting_baseline",
+  "args": "p_notes text, p_idempotency_key text, p_usd_rate numeric",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:ERR_DAILY_RATE_NOT_SET: Boshlang'ich hisobni tasdiqlash uchu"
+ },
+ {
+  "fn": "rpc_create_batch_with_gold_issue",
+  "args": "p_source_item_id text, p_batch_no text, p_product_name text, p_master_name text, p_proba numeric, p_planned_qty integer, p_issued_gold_gram numeric, p_pure_gold numeric, p_priority text, p_deadline date, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Invalid batch parameters"
+ },
+ {
+  "fn": "rpc_create_customer_with_code",
+  "args": "p_contact_name text, p_phone text, p_company_name text, p_seller_id uuid, p_notes text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Mijoz ismi kiritilishi shart",
+  "OTHER_ORG_DIR": "ERR:Mijoz ismi kiritilishi shart"
+ },
+ {
+  "fn": "rpc_create_jewelry_model",
+  "args": "p_name text, p_category text, p_decorations text, p_reference_weight_grams numeric, p_purity text, p_model_code text, p_organization_id uuid, p_primary_image_url text",
+  "NOEMP": "ERR:Model nomi kiritilishi shart!",
+  "NOORG": "ERR:Model nomi kiritilishi shart!",
+  "INACTIVE": "ERR:Model nomi kiritilishi shart!",
+  "SELLER_A": "ERR:Model nomi kiritilishi shart!",
+  "OTHER_ORG_DIR": "ERR:Model nomi kiritilishi shart!"
+ },
+ {
+  "fn": "rpc_create_jewelry_sale",
+  "args": "p_customer_id uuid, p_weight_grams numeric, p_markup_pct numeric, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Sotuv vazni 0 dan katta bo'lishi shart",
+  "OTHER_ORG_DIR": "ERR:Sotuv vazni 0 dan katta bo'lishi shart"
+ },
+ {
+  "fn": "rpc_create_order_with_advance",
+  "args": "p_order_no text, p_client_name text, p_phone text, p_product_model text, p_details text, p_proba numeric, p_qty integer, p_weight_gram numeric, p_total_price numeric, p_advance numeric, p_deadline date, p_priority text, p_payment_type text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Order number, client name, and product model are required",
+  "OTHER_ORG_DIR": "ERR:Order number, client name, and product model are required"
+ },
+ {
+  "fn": "rpc_create_product_with_bom",
+  "args": "p_name text, p_category text, p_proba numeric, p_bom_version integer, p_ring_weight numeric, p_earring_weight numeric, p_chain_weight numeric, p_dorika_weight numeric, p_stone_weight numeric, p_weight numeric, p_bom_details text, p_image_url text, p_bom_items jsonb, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Invalid product model or BOM weights (total=0.0000g, stone=0"
+ },
+ {
+  "fn": "rpc_diagnose_piece_inventory_conflicts",
+  "args": "",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "OK:{\"conflicts\": [], \"conflict_count\": 0, \"audit_timestamp\": \"2026-11-01T18:15:39.3",
+  "OTHER_ORG_DIR": "OK:{\"conflicts\": [], \"conflict_count\": 0, \"audit_timestamp\": \"2026-11-01T18:15:39.3"
+ },
+ {
+  "fn": "rpc_dispatch_stage_handover",
+  "args": "p_batch_id text, p_batch_no text, p_from_stage_order integer, p_from_stage_name text, p_from_department text, p_to_stage_order integer, p_to_stage_name text, p_to_department text, p_sender_worker_id text, p_sender_worker_name text, p_dispatched_qty integer, p_dispatched_weight_gram numeric, p_receiver_worker_id text, p_receiver_worker_name text, p_tolerance_gram numeric, p_idempotency_key text, p_measurement_mode text, p_is_scale_stable boolean, p_scale_model text, p_scale_raw_reading text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Dispatched quantity must be greater than 0"
+ },
+ {
+  "fn": "rpc_execute_affinaj_transaction",
+  "args": "p_scrap_item_id text, p_target_gold_item_id text, p_scrap_weight numeric, p_estimated_proba numeric, p_output_weight numeric, p_output_proba numeric, p_expected_fine numeric, p_actual_fine numeric, p_refining_loss numeric, p_master_name text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Scrap and target gold inventory item IDs are required"
+ },
+ {
+  "fn": "rpc_execute_alloy_transaction",
+  "args": "p_source_item_id text, p_target_item_id text, p_input_weight numeric, p_source_proba numeric, p_target_proba numeric, p_ligature_weight numeric, p_fine_gold_added numeric, p_output_weight numeric, p_pure_gold numeric, p_fine_gold_item_id text, p_silver_item_id text, p_silver_weight numeric, p_copper_item_id text, p_copper_weight numeric, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Source and target inventory item IDs are required"
+ },
+ {
+  "fn": "rpc_execute_full_test_reset",
+  "args": "p_confirmation_code text, p_reason text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Tasdiqlash kodi noto'g'ri. Talab qilinadi: RESET_TEST_ACCOUN"
+ },
+ {
+  "fn": "rpc_execute_selective_test_cleanup",
+  "args": "p_receipt_ids uuid[], p_reason text, p_confirmation_code text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Xavfsizlik tasdiqlash kodi noto'g'ri. Talab qilinadi: CONFIR"
+ },
+ {
+  "fn": "rpc_execute_sheets_historical_import",
+  "args": "p_sheet_type text, p_batch_no text, p_rows jsonb, p_is_opening_balance boolean, p_notes text",
+  "NOEMP": "ERR:invalid input value for enum app_role: \"seller\"",
+  "NOORG": "ERR:invalid input value for enum app_role: \"seller\"",
+  "INACTIVE": "ERR:invalid input value for enum app_role: \"seller\"",
+  "SELLER_A": "ERR:invalid input value for enum app_role: \"seller\"",
+  "OTHER_ORG_DIR": "ERR:invalid input value for enum app_role: \"seller\""
+ },
+ {
+  "fn": "rpc_execute_staging_test_cleanup",
+  "args": "p_preview_token text, p_confirmation_code text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Yaroqli preview_token topilmadi yoki 30 daqiqalik muddati o'"
+ },
+ {
+  "fn": "rpc_generate_telegram_link_code",
+  "args": "p_employee_id uuid",
+  "NOEMP": "ERR:Xodim topilmadi: <NULL>",
+  "NOORG": "ERR:Xodim topilmadi: <NULL>",
+  "INACTIVE": "ERR:Xodim topilmadi: <NULL>",
+  "SELLER_A": "ERR:Xodim topilmadi: <NULL>",
+  "OTHER_ORG_DIR": "ERR:Xodim topilmadi: <NULL>"
+ },
+ {
+  "fn": "rpc_get_accounting_profit_summary",
+  "args": "p_start_date date, p_end_date date, p_gold_rate numeric, p_usd_rate numeric, p_org_id uuid",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Ruxsat etilmadi: Sotuvchi faqat o'z qoldig'ini ko'ra oladi",
+  "OTHER_ORG_DIR": "OK:{\"rates\": {\"usd_rate\": 12800.00, \"rate_date\": \"2026-11-01\", \"is_confirmed\": fals"
+ },
+ {
+  "fn": "rpc_get_active_sales_markups",
+  "args": "p_type text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "OK:[{\"id\": \"e40a28e6-c8e4-46e1-a23d-27a8e9299238\", \"name\": \"Zavod 6%\", \"type\": \"fac",
+  "OTHER_ORG_DIR": "OK:[]"
+ },
+ {
+  "fn": "rpc_get_company_rate_difference_report",
+  "args": "p_from date, p_to date",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "OK:{\"note\": \"Kompaniya kurs farqi rpc_get_accounting_profit_summary sof aktivlari i"
+ },
+ {
+  "fn": "rpc_get_customer_monthly_report",
+  "args": "p_seller_id uuid, p_year integer, p_month integer",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "OK:{\"year\": 2026, \"items\": [{\"phone\": \"+000000001\", \"usd_rate\": 0.00, \"customer_id\"",
+  "OTHER_ORG_DIR": "OK:{\"year\": 2026, \"items\": [], \"month\": 11, \"summary\": {\"seller_held_usd\": 0.00, \"t"
+ },
+ {
+  "fn": "rpc_get_daily_sales_ledger",
+  "args": "p_seller_id uuid, p_start_date date, p_end_date date",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "OK:(f371c61b-fdae-4831-8dae-937c5513ffdf,payment,2026-11-01,18516cd1-e0c0-4b96-88fa",
+  "OTHER_ORG_DIR": "ERR:Cannot read properties of undefined (reading 'r')"
+ },
+ {
+  "fn": "rpc_get_director_sales_overview",
+  "args": "",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:column e.first_name does not exist"
+ },
+ {
+  "fn": "rpc_get_factory_settings",
+  "args": "p_organization_id uuid",
+  "NOEMP": "OK:{\"setsPerModel\": 10, \"workersCount\": 35, \"organizationId\": \"00000000-0000-0000-0",
+  "NOORG": "OK:{\"setsPerModel\": 10, \"workersCount\": 35, \"organizationId\": \"00000000-0000-0000-0",
+  "INACTIVE": "OK:{\"setsPerModel\": 10, \"workersCount\": 35, \"organizationId\": \"00000000-0000-0000-0",
+  "SELLER_A": "OK:{\"setsPerModel\": 10, \"workersCount\": 35, \"organizationId\": \"00000000-0000-0000-0",
+  "OTHER_ORG_DIR": "OK:{\"setsPerModel\": 10, \"workersCount\": 35, \"organizationId\": \"00000000-0000-0000-0"
+ },
+ {
+  "fn": "rpc_get_financial_reconciliation_summary",
+  "args": "",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "OK:{\"clients_summary\": {\"total_client_debt_grams\": 50.2995, \"total_client_advance_g",
+  "OTHER_ORG_DIR": "OK:{\"clients_summary\": {\"total_client_debt_grams\": 0.0000, \"total_client_advance_gr"
+ },
+ {
+  "fn": "rpc_get_piece_sales_reconciliation_report",
+  "args": "",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "OK:{\"held_pieces\": 3, \"sold_pieces\": 7, \"total_pieces\": 14, \"anomaly_count\": 0, \"di",
+  "OTHER_ORG_DIR": "OK:{\"held_pieces\": 0, \"sold_pieces\": 0, \"total_pieces\": 0, \"anomaly_count\": 0, \"dis"
+ },
+ {
+  "fn": "rpc_get_seller_available_pieces",
+  "args": "p_seller_id uuid",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "OK:[]",
+  "OTHER_ORG_DIR": "OK:[]"
+ },
+ {
+  "fn": "rpc_get_seller_markup_difference_report",
+  "args": "p_seller_id uuid, p_from date, p_to date",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "OK:{\"note\": \"Ustama farqi kompaniyaga tegishli; mijoz qarzi va sotuvchi majburiyati",
+  "OTHER_ORG_DIR": "OK:{\"note\": \"Ustama farqi kompaniyaga tegishli; mijoz qarzi va sotuvchi majburiyati"
+ },
+ {
+  "fn": "rpc_get_seller_reconciliation_statement",
+  "args": "p_seller_id uuid",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Sotuvchi topilmadi (<NULL>)",
+  "OTHER_ORG_DIR": "ERR:Sotuvchi topilmadi (<NULL>)"
+ },
+ {
+  "fn": "rpc_get_seller_sales_summary",
+  "args": "p_seller_id uuid",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "OK:{\"status\": \"ok\", \"seller_id\": \"a0000000-0000-4000-8000-00000000000a\", \"active_sa",
+  "OTHER_ORG_DIR": "OK:{\"status\": \"ok\", \"seller_id\": \"b0000000-0000-4000-8000-000000000001\", \"active_sa"
+ },
+ {
+  "fn": "rpc_get_three_tier_ledger_summary",
+  "args": "",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "OK:{\"status\": \"ok\", \"manager_vault\": {\"cash_amount_uzs\": 14210000.00, \"scrap_gold_5",
+  "OTHER_ORG_DIR": "OK:{\"status\": \"ok\", \"manager_vault\": {\"cash_amount_uzs\": null, \"scrap_gold_585_g\": "
+ },
+ {
+  "fn": "rpc_get_unified_customer_ledger",
+  "args": "p_customer_id uuid, p_seller_id uuid",
+  "NOEMP": "ERR:Permission denied: no active employee profile for current us",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: no active employee profile for current us",
+  "SELLER_A": "OK:{\"items\": [{\"phone\": \"+000000001\", \"seller_id\": \"a0000000-0000-4000-8000-0000000",
+  "OTHER_ORG_DIR": "OK:{\"items\": [], \"summary\": {\"total_usd\": 0.00, \"total_paid_g\": 0.0000, \"total_cash"
+ },
+ {
+  "fn": "rpc_inventory_transaction",
+  "args": "p_item_id text, p_tx_type text, p_weight numeric, p_proba numeric, p_pure_gold numeric, p_from_location text, p_to_location text, p_description text, p_order_id text, p_order_no text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Inventory transaction weight must be greater than zero"
+ },
+ {
+  "fn": "rpc_issue_barcode_consignment",
+  "args": "p_seller_id uuid, p_factory_markup_pct numeric, p_pieces jsonb, p_notes text, p_idempotency_key text, p_factory_receipt_id uuid, p_seller_markup_pct numeric",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Sotuvchi xodimi topilmadi (<NULL>)"
+ },
+ {
+  "fn": "rpc_issue_seller_consignment",
+  "args": "p_seller_id uuid, p_product_id uuid, p_quantity integer, p_factory_markup_pct numeric, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Seller (employee <NULL>) not found in your organization"
+ },
+ {
+  "fn": "rpc_launch_order_production_chain",
+  "args": "p_order_id text, p_source_item_id text, p_batch_no text, p_product_name text, p_client_name text, p_master_name text, p_proba numeric, p_planned_qty integer, p_issued_gold_gram numeric, p_pure_gold numeric, p_priority text, p_deadline date, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: no active employee profile for current us",
+  "NOORG": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "INACTIVE": "ERR:Permission denied: no active employee profile for current us",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Order ID, source gold item ID, and batch number are required"
+ },
+ {
+  "fn": "rpc_manage_sales_markup_preset",
+  "args": "p_preset_id uuid, p_type text, p_name text, p_percentage numeric, p_is_active boolean, p_is_default boolean, p_display_order integer",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "OK:{\"name\": \"Mijoz 0.00%\", \"type\": \"client_markup\", \"status\": \"ok\", \"is_active\": tr"
+ },
+ {
+  "fn": "rpc_move_partial_wip",
+  "args": "p_batch_id text, p_from_stage_order integer, p_to_stage_order integer, p_to_stage_name text, p_to_department text, p_move_qty integer, p_move_gram numeric, p_move_weight numeric, p_rework_qty integer, p_sprue_gram numeric, p_scrap_gram numeric, p_loss_gram numeric, p_worker_name text, p_worker_id text, p_idempotency_key text, p_allow_excess_loss boolean, p_excess_loss_reason text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Batch (<NULL>) not found"
+ },
+ {
+  "fn": "rpc_override_stage_handover",
+  "args": "p_handover_id text, p_supervisor_worker_id text, p_supervisor_worker_name text, p_override_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Supervisor override requires a documented investigation reas"
+ },
+ {
+  "fn": "rpc_preview_full_test_reset",
+  "args": "",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "OK:{\"status\": \"ok\", \"preview_token\": \"RESET-TOKEN-68405C7B\", \"affected_records\": {\""
+ },
+ {
+  "fn": "rpc_preview_selective_test_cleanup",
+  "args": "p_receipt_ids uuid[]",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "OK:{\"status\": \"ok\", \"summary\": {\"blocked_count\": 0, \"cleanable_count\": 0, \"inventor"
+ },
+ {
+  "fn": "rpc_preview_staging_test_cleanup",
+  "args": "p_test_session_prefix text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "OK:{\"status\": \"preview_ready\", \"summary\": {\"sales_count\": 0, \"sales_gold_due_g\": 0."
+ },
+ {
+  "fn": "rpc_reclassify_capital_transaction",
+  "args": "p_transaction_id uuid, p_new_destination text, p_reason text, p_new_proba numeric, p_seller_id uuid, p_model_id uuid, p_product_name text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:ERR_REASON_REQUIRED: Qayta tasniflash sababini kiritish shar"
+ },
+ {
+  "fn": "rpc_record_barcode_piece_sale",
+  "args": "p_customer_id uuid, p_seller_id uuid, p_piece_id uuid, p_model_id uuid, p_weight_grams numeric, p_client_markup_pct numeric, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Mijoz topilmadi (<NULL>)",
+  "OTHER_ORG_DIR": "ERR:Mijoz topilmadi (<NULL>)"
+ },
+ {
+  "fn": "rpc_record_client_jewelry_sale",
+  "args": "p_customer_id uuid, p_consignment_id uuid, p_client_markup_pct numeric, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Consignment (<NULL>) not found",
+  "OTHER_ORG_DIR": "ERR:Consignment (<NULL>) not found"
+ },
+ {
+  "fn": "rpc_record_client_legacy_debt",
+  "args": "p_customer_id uuid, p_balance_type text, p_amount_585_g numeric, p_as_of_date date, p_notes text, p_entry_type text, p_target_final_balance numeric, p_idempotency_key text, p_seller_id uuid",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Mijoz tanlanishi shart"
+ },
+ {
+  "fn": "rpc_record_client_settlement",
+  "args": "p_customer_id uuid, p_sale_id uuid, p_scrap_weight numeric, p_scrap_proba numeric, p_cash_amount numeric, p_rate_per_gram numeric, p_settlement_date date, p_notes text, p_idempotency_key text, p_seller_id uuid, p_usd_amount numeric, p_usd_rate numeric",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:To'lov uchun lom vazni, naqd so'm yoki dollar summasi kiriti",
+  "OTHER_ORG_DIR": "ERR:To'lov uchun lom vazni, naqd so'm yoki dollar summasi kiriti"
+ },
+ {
+  "fn": "rpc_record_debt_repayment",
+  "args": "p_sale_id text, p_order_id text, p_amount numeric, p_repaid_amount numeric, p_payment_type text, p_note text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Debt repayment amount must be greater than 0",
+  "OTHER_ORG_DIR": "ERR:Debt repayment amount must be greater than 0"
+ },
+ {
+  "fn": "rpc_record_factory_gold_handover",
+  "args": "p_source_type text, p_physical_weight_g numeric, p_proba numeric, p_agreed_equivalent_g numeric, p_factory_recipient text, p_notes text, p_idempotency_key text, p_gross_weight_grams numeric, p_capital_tx_id uuid, p_refining_batch_id uuid, p_purchase_id uuid",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Invalid physical weight: must be > 0"
+ },
+ {
+  "fn": "rpc_record_factory_receipt",
+  "args": "p_product_name text, p_quantity integer, p_original_physical_g numeric, p_proba numeric, p_factory_markup_pct numeric, p_product_id uuid, p_model_id uuid, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Ruxsat etilmadi: Sotuvchi yoki begona foydalanuvchi zavod to",
+  "OTHER_ORG_DIR": "ERR:Zavod kirimi fizik vazni 0 dan katta bo'lishi shart"
+ },
+ {
+  "fn": "rpc_record_financial_transaction",
+  "args": "p_transaction_type text, p_source_till text, p_amount numeric, p_currency text, p_category text, p_notes text, p_gold_rate numeric, p_usd_rate numeric, p_idempotency_key text, p_physical_weight numeric, p_physical_weight_g numeric, p_gold_proba numeric, p_seller_id uuid, p_model_id uuid, p_product_name text, p_quantity integer",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Tranzaksiya summasi yoki miqdori 0 dan katta bo'lishi shart"
+ },
+ {
+  "fn": "rpc_record_gold_purchase",
+  "args": "p_supplier_name text, p_cash_spent_uzs numeric, p_rate_per_gram numeric, p_gold_weight_grams numeric, p_proba numeric, p_notes text, p_idempotency_key text, p_currency text, p_usd_spent numeric, p_usd_rate numeric",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Xarid uchun UZS yoki USD summasi kiritilishi shart (ikkalasi"
+ },
+ {
+  "fn": "rpc_record_login_audit",
+  "args": "p_employee_id uuid, p_email text, p_role text, p_login_method text, p_telegram_user_id text, p_status text, p_failure_reason text, p_ip text, p_ip_address text, p_user_agent text",
+  "NOEMP": "ERR:null value in column \"role\" of relation \"sales_login_audit_l",
+  "NOORG": "ERR:null value in column \"role\" of relation \"sales_login_audit_l",
+  "INACTIVE": "ERR:null value in column \"role\" of relation \"sales_login_audit_l",
+  "SELLER_A": "ERR:null value in column \"role\" of relation \"sales_login_audit_l",
+  "OTHER_ORG_DIR": "ERR:null value in column \"role\" of relation \"sales_login_audit_l"
+ },
+ {
+  "fn": "rpc_record_manager_seller_settlement",
+  "args": "p_seller_id uuid, p_physical_scrap_grams numeric, p_scrap_proba numeric, p_cash_amount numeric, p_currency text, p_rate_per_gram numeric, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Ruxsat etilmadi: Sotuvchi o'zining tushumini tasdiqlay olmay",
+  "OTHER_ORG_DIR": "ERR:Invalid settlement: must provide at least scrap gold or cash"
+ },
+ {
+  "fn": "rpc_record_qc_inspection",
+  "args": "p_batch_id text, p_batch_no text, p_operation_name text, p_current_stage_order integer, p_checked_qty integer, p_passed_qty integer, p_rework_qty integer, p_defect_code text, p_rework_stage_order integer, p_inspector_name text, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:null value in column \"operation_name\" of relation \"quality_c"
+ },
+ {
+  "fn": "rpc_record_refining_batch",
+  "args": "p_input_scrap_grams numeric, p_melted_weight_grams numeric, p_output_fine_grams numeric, p_output_fine_proba numeric, p_operator_id uuid, p_notes text, p_idempotency_key text, p_physical_scrap_grams numeric",
+  "NOEMP": "ERR:function public.rpc_record_refining_batch(unknown, unknown, ",
+  "NOORG": "ERR:function public.rpc_record_refining_batch(unknown, unknown, ",
+  "INACTIVE": "ERR:function public.rpc_record_refining_batch(unknown, unknown, ",
+  "SELLER_A": "ERR:function public.rpc_record_refining_batch(unknown, unknown, ",
+  "OTHER_ORG_DIR": "ERR:function public.rpc_record_refining_batch(unknown, unknown, "
+ },
+ {
+  "fn": "rpc_record_refining_batch",
+  "args": "p_input_scrap_grams numeric, p_melted_weight_grams numeric, p_output_fine_grams numeric, p_output_fine_proba numeric, p_operator_id uuid, p_notes text, p_idempotency_key text, p_physical_scrap_grams numeric, p_input_scrap_proba numeric",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Invalid refining inputs: input scrap, melted weight and outp"
+ },
+ {
+  "fn": "rpc_record_salary_transaction",
+  "args": "p_employee_id text, p_worker_name text, p_batch_no text, p_stage_name text, p_tx_type text, p_weight_done numeric, p_rate numeric, p_amount numeric, p_note text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: no active employee profile for current us",
+  "NOORG": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "INACTIVE": "ERR:Permission denied: no active employee profile for current us",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Invalid salary transaction parameters"
+ },
+ {
+  "fn": "rpc_record_sale_with_stock_deduction",
+  "args": "p_product_id text, p_client_name text, p_product_name text, p_quantity integer, p_weight numeric, p_proba numeric, p_payment_type text, p_paid_amount numeric, p_debt_amount numeric, p_order_id text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Invalid sale quantity or amounts",
+  "OTHER_ORG_DIR": "ERR:Invalid sale quantity or amounts"
+ },
+ {
+  "fn": "rpc_record_seller_to_factory_settlement",
+  "args": "p_seller_id uuid, p_scrap_weight numeric, p_cash_amount numeric, p_rate_per_gram numeric, p_settlement_date date, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Settlement must include either scrap gold grams or cash amou"
+ },
+ {
+  "fn": "rpc_record_seller_to_manager_settlement",
+  "args": "p_seller_id uuid, p_scrap_weight_grams numeric, p_cash_paid_amount numeric, p_rate_per_gram numeric, p_notes text, p_idempotency_key text, p_usd_paid_amount numeric, p_usd_rate numeric, p_physical_scrap_g numeric",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Ruxsat etilmadi: Sotuvchi faqat o'z kassasini topshira oladi",
+  "OTHER_ORG_DIR": "ERR:Settlement must include either scrap gold grams, UZS cash, o"
+ },
+ {
+  "fn": "rpc_record_stage_consumption",
+  "args": "p_batch_no text, p_department text, p_master_name text, p_proba numeric, p_given_weight numeric, p_returned_weight numeric, p_sprue_gram numeric, p_scrap_gram numeric, p_master_id text, p_sync_batch boolean, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: no active employee profile for current us",
+  "NOORG": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "INACTIVE": "ERR:Permission denied: no active employee profile for current us",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Invalid consumption weights"
+ },
+ {
+  "fn": "rpc_record_weight_sale",
+  "args": "p_customer_id uuid, p_seller_id uuid, p_weight_grams numeric, p_client_markup_pct numeric, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:ERR_MARKUP_REQUIRED: Mijoz ustama foizi aniq ko'rsatilishi s",
+  "OTHER_ORG_DIR": "ERR:ERR_MARKUP_REQUIRED: Mijoz ustama foizi aniq ko'rsatilishi s"
+ },
+ {
+  "fn": "rpc_register_or_get_customer",
+  "args": "p_contact_name text, p_phone text, p_company_name text, p_seller_id uuid",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Customer contact name cannot be empty",
+  "OTHER_ORG_DIR": "ERR:Customer contact name cannot be empty"
+ },
+ {
+  "fn": "rpc_reinspect_qc",
+  "args": "p_qc_id text, p_passed boolean, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:QC record <NULL> not found in current organization"
+ },
+ {
+  "fn": "rpc_release_machine_station",
+  "args": "p_machine_id text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Machine station (<NULL>) not found"
+ },
+ {
+  "fn": "rpc_return_piece_to_factory",
+  "args": "p_piece_id uuid, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Qaytariladigan mahsulot donasi topilmadi (<NULL>)",
+  "OTHER_ORG_DIR": "ERR:Qaytariladigan mahsulot donasi topilmadi (<NULL>)"
+ },
+ {
+  "fn": "rpc_return_piece_to_manager",
+  "args": "p_piece_id uuid, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Qaytariladigan mahsulot donasi topilmadi (<NULL>)",
+  "OTHER_ORG_DIR": "ERR:Qaytariladigan mahsulot donasi topilmadi (<NULL>)"
+ },
+ {
+  "fn": "rpc_return_sprue_to_scrap_inventory",
+  "args": "p_consumption_id text, p_scrap_item_id text, p_batch_no text, p_sprue_weight numeric, p_proba numeric, p_pure_gold numeric, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: no active employee profile for current us",
+  "NOORG": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "INACTIVE": "ERR:Permission denied: no active employee profile for current us",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Consumption ID and Scrap item ID are required"
+ },
+ {
+  "fn": "rpc_reverse_barcode_consignment",
+  "args": "p_consignment_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Konsignatsiyani bekor qilish sababi kiritilishi shart"
+ },
+ {
+  "fn": "rpc_reverse_barcode_piece_sale",
+  "args": "p_piece_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Mahsulot donasi topilmadi (<NULL>)",
+  "NOORG": "ERR:Mahsulot donasi topilmadi (<NULL>)",
+  "INACTIVE": "ERR:Mahsulot donasi topilmadi (<NULL>)",
+  "SELLER_A": "ERR:Mahsulot donasi topilmadi (<NULL>)",
+  "OTHER_ORG_DIR": "ERR:Mahsulot donasi topilmadi (<NULL>)"
+ },
+ {
+  "fn": "rpc_reverse_client_legacy_debt",
+  "args": "p_legacy_debt_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Eski qarzni bekor qilish sababi kiritilishi shart"
+ },
+ {
+  "fn": "rpc_reverse_client_sale",
+  "args": "p_sale_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Savdoni bekor qilish sababi kiritilishi shart",
+  "OTHER_ORG_DIR": "ERR:Savdoni bekor qilish sababi kiritilishi shart"
+ },
+ {
+  "fn": "rpc_reverse_client_settlement",
+  "args": "p_settlement_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:To'lov yozuvi (<NULL>) topilmadi"
+ },
+ {
+  "fn": "rpc_reverse_customer_settlement",
+  "args": "p_settlement_id uuid, p_reversal_reason text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Mijoz to'lovini bekor qilish sababi (audit uchun) kiritilish"
+ },
+ {
+  "fn": "rpc_reverse_factory_gold_handover",
+  "args": "p_handover_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Zavodga topshirishni bekor qilish sababi kiritilishi shart"
+ },
+ {
+  "fn": "rpc_reverse_factory_receipt",
+  "args": "p_receipt_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Fabrika qabulini bekor qilish sababi kiritilishi shart"
+ },
+ {
+  "fn": "rpc_reverse_financial_transaction",
+  "args": "p_transaction_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Moliyaviy operatsiyani bekor qilish sababi kiritilishi shart"
+ },
+ {
+  "fn": "rpc_reverse_financial_transaction",
+  "args": "p_transaction_id uuid, p_reason text",
+  "NOEMP": "ERR:function public.rpc_reverse_financial_transaction(unknown, u",
+  "NOORG": "ERR:function public.rpc_reverse_financial_transaction(unknown, u",
+  "INACTIVE": "ERR:function public.rpc_reverse_financial_transaction(unknown, u",
+  "SELLER_A": "ERR:function public.rpc_reverse_financial_transaction(unknown, u",
+  "OTHER_ORG_DIR": "ERR:function public.rpc_reverse_financial_transaction(unknown, u"
+ },
+ {
+  "fn": "rpc_reverse_gold_purchase",
+  "args": "p_purchase_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Oltin xaridini bekor qilish sababi kiritilishi shart"
+ },
+ {
+  "fn": "rpc_reverse_jewelry_sale",
+  "args": "p_sale_id uuid, p_reversal_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Savdoni bekor qilish sababi (reversal reason) kiritilishi sh",
+  "OTHER_ORG_DIR": "ERR:Savdoni bekor qilish sababi (reversal reason) kiritilishi sh"
+ },
+ {
+  "fn": "rpc_reverse_refining_batch",
+  "args": "p_batch_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Afinajni bekor qilish sababi (reason) kiritilishi shart"
+ },
+ {
+  "fn": "rpc_reverse_seller_to_manager_settlement",
+  "args": "p_settlement_id uuid, p_reason text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Tushumni bekor qilish sababi kiritilishi shart"
+ },
+ {
+  "fn": "rpc_set_daily_gold_rate",
+  "args": "p_rate_per_gram numeric, p_proba numeric, p_rate_date date, p_currency text, p_notes text, p_idempotency_key text, p_purity numeric",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Lom kursi 0 dan katta bo'lishi shart (kiritildi: <NULL>)"
+ },
+ {
+  "fn": "rpc_split_batch",
+  "args": "p_parent_batch_id text, p_split_qty integer, p_child_batch_no text, p_stage_order integer, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: no active employee profile for current us",
+  "NOORG": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "INACTIVE": "ERR:Permission denied: no active employee profile for current us",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Parent batch (<NULL>) not found"
+ },
+ {
+  "fn": "rpc_transfer_to_seller",
+  "args": "p_seller_id uuid, p_original_physical_g numeric, p_seller_markup_pct numeric, p_factory_markup_pct numeric, p_product_name text, p_quantity integer, p_factory_receipt_id uuid, p_product_id uuid, p_notes text, p_idempotency_key text",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "ERR:Seller not found or does not belong to active organization"
+ },
+ {
+  "fn": "rpc_unlink_telegram",
+  "args": "p_employee_id uuid",
+  "NOEMP": "OK:true",
+  "NOORG": "OK:true",
+  "INACTIVE": "OK:true",
+  "SELLER_A": "OK:true",
+  "OTHER_ORG_DIR": "OK:true"
+ },
+ {
+  "fn": "rpc_update_factory_settings",
+  "args": "p_disabled_stage_codes text[], p_disabled_stage_orders integer[], p_disabled_department_slugs text[], p_laser_machines_count integer, p_casting_machines_count integer, p_workers_count integer, p_max_models_per_batch integer, p_sets_per_model integer, p_handover_tolerance_gram numeric",
+  "NOEMP": "ERR:Permission denied: User must belong to an active organizatio",
+  "NOORG": "ERR:Permission denied: User must belong to an active organizatio",
+  "INACTIVE": "ERR:Permission denied: User must belong to an active organizatio",
+  "SELLER_A": "ERR:Permission denied for role \"seller\" (required one of: admin,",
+  "OTHER_ORG_DIR": "OK:{\"status\": \"ok\", \"settingsId\": \"8a771dfe-0b8d-4424-8697-1132462ead00\", \"organiza"
+ },
+ {
+  "fn": "rpc_update_jewelry_model_photo",
+  "args": "p_model_id uuid, p_primary_image_url text",
+  "NOEMP": "ERR:Model topilmadi (ID: <NULL>)",
+  "NOORG": "ERR:Model topilmadi (ID: <NULL>)",
+  "INACTIVE": "ERR:Model topilmadi (ID: <NULL>)",
+  "SELLER_A": "ERR:Model topilmadi (ID: <NULL>)",
+  "OTHER_ORG_DIR": "ERR:Model topilmadi (ID: <NULL>)"
+ },
+ {
+  "fn": "rpc_verify_and_link_telegram",
+  "args": "p_link_code text, p_telegram_user_id text, p_telegram_username text",
+  "NOEMP": "ERR:Tasdiqlash kodi kiritilishi shart!",
+  "NOORG": "ERR:Tasdiqlash kodi kiritilishi shart!",
+  "INACTIVE": "ERR:Tasdiqlash kodi kiritilishi shart!",
+  "SELLER_A": "ERR:Tasdiqlash kodi kiritilishi shart!",
+  "OTHER_ORG_DIR": "ERR:Tasdiqlash kodi kiritilishi shart!"
+ },
+ {
+  "fn": "save_idempotency_response",
+  "args": "p_key text, p_operation text, p_response jsonb, p_payload jsonb",
+  "NOEMP": "OK:",
+  "NOORG": "OK:",
+  "INACTIVE": "OK:",
+  "SELLER_A": "OK:",
+  "OTHER_ORG_DIR": "OK:"
+ }
+]

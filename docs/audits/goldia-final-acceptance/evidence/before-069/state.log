@@ -1,0 +1,22 @@
+RECEIPTS {
+  orig: '170.0000',
+  avail: '110.2500',
+  transf: '63.0060',
+  obl: '183.0000',
+  cnt: '3'
+} mgrStock(fn)= 110.25
+VAULT manager_physical_stock_g=110.25 manager_scrap_grams=0 manager_scrap_physical_g=0 manager_cash_amount=14210000 manager_usd_amount=300 manager_purchased_gold_grams=2 manager_refined_gold_grams=0 manager_refined_gold_fine_grams=0.002 total_factory_obligation_g=183 total_factory_handed_over_g=7.2274 current_factory_obligation_g=175.7726 current_factory_advance_g=0 valued_cash_uzs=5210000 valued_cash_585_g=5.322245 valued_usd=300 valued_usd_585_g=3.84
+SELLER T-DIR transferred_physical=0 current_physical_stock=0 obligation=0 settled_to_manager=0 owes_manager=0 manager_owes_g=0 till_scrap=0 till_scrap_physical=0 till_cash_amount=0 till_usd_amount=0 legacy_debt_obligation=0
+SELLER T-SA transferred_physical=24.75 current_physical_stock=15.75 obligation=30.22 settled_to_manager=9.9688 owes_manager=20.2512 manager_owes_g=0 till_scrap=0 till_scrap_physical=0 till_cash_amount=0 till_usd_amount=0 legacy_debt_obligation=2.5
+SELLER T-SB transferred_physical=20 current_physical_stock=0 obligation=22 settled_to_manager=8.01 owes_manager=13.99 manager_owes_g=0 till_scrap=0 till_scrap_physical=0 till_cash_amount=0 till_usd_amount=0 legacy_debt_obligation=0
+SELLER T-SC transferred_physical=15 current_physical_stock=0 obligation=17.1 settled_to_manager=0 owes_manager=17.1 manager_owes_g=0 till_scrap=0 till_scrap_physical=0 till_cash_amount=0 till_usd_amount=0 legacy_debt_obligation=0
+SELLER T-SX transferred_physical=0 current_physical_stock=0 obligation=0 settled_to_manager=0 owes_manager=0 manager_owes_g=0 till_scrap=0 till_scrap_physical=0 till_cash_amount=0 till_usd_amount=0 legacy_debt_obligation=0
+CLIENT CUST-0001 purchased_gold=0 settled=3.5767 current_debt=2.4983 advance_balance=0 scrap_paid=3.4188 cash_paid_amount=150000 usd_paid_amount=0 cash_equiv=0.1579
+CLIENT CUST-0002 purchased_gold=10.35 settled=6.7368 current_debt=3.6132 advance_balance=0 scrap_paid=0 cash_paid_amount=0 usd_paid_amount=0 cash_equiv=6.7368
+CLIENT CUST-0003 purchased_gold=22.088 settled=5 current_debt=17.088 advance_balance=0 scrap_paid=0 cash_paid_amount=4750000 usd_paid_amount=0 cash_equiv=5
+CLIENT CUST-0005 purchased_gold=27.1 settled=0 current_debt=27.1 advance_balance=0 scrap_paid=0 cash_paid_amount=0 usd_paid_amount=0 cash_equiv=0
+CLIENT CUST-0006 purchased_gold=0 settled=3.01 current_debt=0 advance_balance=1.01 scrap_paid=0 cash_paid_amount=3010000 usd_paid_amount=0 cash_equiv=3.01
+PIECES [{"status":"held_by_seller","cnt":3,"g":"15.7500"},{"status":"returned_to_manager","cnt":4,"g":"3.2560"},{"status":"sold","cnt":7,"g":"41.6500"}]
+SALES {"cnt":6,"base":"45.0000","due":"59.5380","rem":"59.5380"}
+RATEDIFF {"id":"4d0b879d-a7f9-484e-97fb-07557d3d8e14","organization_id":"00000000-0000-0000-0000-000000000001","entry_type":"purchase","purchase_id":"13714b1e-f8ec-41f9-bed0-dd79feb8cc31","reversal_of_id":null,"cash_spent_uzs":"2700000.00","usd_spent":"0.00","usd_rate":null,"valued_cash_uzs":"2700000.00","valued_usd":"0.00","valued_cash_585_g":"2.837755","valued_usd_585_g":"0.000000","unvalued_cost_uzs":"0.00","purchase_rate_per_gram":"900000.00","physical_grams":"3.0000","proba":"750.00","purchased_585_g":"3.846200","valued_purchased_585_g":"3.846200","accounting_value_585_g":"2.837755","avg_conversion_rate":"951456.34","difference_585_g":"1.008445","created_by":"a0000000-0000-4000-8000-000000000002","created_at":"2026-11-01T18:15:29.622Z"}
+RATEDIFF {"id":"1c96243c-3e30-45bd-a1a0-f0b718e28bcf","organization_id":"00000000-0000-0000-0000-000000000001","entry_type":"purchase","purchase_id":"948ebd00-4a50-4f71-b57c-b23aad505bab","reversal_of_id":null,"cash_spent_uzs":"0.00","usd_spent":"200.00","usd_rate":"12900.00","valued_cash_uzs":"0.00","valued_usd":"200.00","valued_cash_585_g":"0.000000","valued_usd_585_g":"2.560000","unvalued_cost_uzs":"0.00","purchase_rate_per_gram":"1290000.00","physical_grams":"2.0000","proba":"585.00","purchased_585_g":"2.000000","valued_purchased_585_g":"2.000000","accounting_value_585_g":"2.560000","avg_conversion_rate":null,"difference_585_g":"-0.560000","created_by":"a0000000-0000-4000-8000-000000000002","created_at":"2026-11-01T18:15:29.644Z"}

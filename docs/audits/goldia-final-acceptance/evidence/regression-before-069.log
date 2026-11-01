@@ -1,0 +1,17 @@
+FAIL F5 factory receipt retried with same key creates ONE receipt | {"receipts":2}
+FAIL F5b stored manager_physical_stock_g equals canonical stock after receipt | {"s":"300.0000"}
+FAIL F4 whole-consignment sale after partial weight sale is rejected (no oversell) | {"whole":"ACCEPTED","soldC":16}
+FAIL F4b whole-consignment sale with 200% markup is rejected | "ACCEPTED"
+FAIL F4c untouched consignment can still be sold as a whole (no regression) | "Consignment CONS-BC-E382D590 is already closed or fully sold"
+FAIL F2 reversing a fully paid 4.4 g sale leaves the customer a 4.4 g advance | {"d":"0.0000","a":"0.0000"}
+FAIL F2b reversing a partly paid sale (6.6 due, 5.4 paid incl. advance) leaves 5.4 g advance | {"d":"0.0000","a":"0.0000"}
+FAIL F3 3 concurrent 1,000,000 UZS first payments => 3.0 g advance | {"a":"1.0000"}
+FAIL F3b customer account records USD paid | {"u":"0.00"}
+FAIL F7 weight-sale retry after selling all stock returns the original sale | "ERR_INSUFFICIENT_SELLER_STOCK: Sotuvchi omborida yetarli oltin mavjud emas (Mavjud: 0.0000"
+FAIL F6 capital contribution in UZS without USD rate succeeds | "relation \"public.currency_rates\" does not exist"
+PASS F6b USD transaction without a USD rate is refused (no silent 12,800) | "relation \"public.currency_rates\" does not exist"
+FAIL F1b after 0.5 g expense the period result is -0.5 g (operational before expenses 0) | {"result":0,"op":0}
+FAIL F1 profit summary: only director/manager of the own org | {"NOEMP":"ALLOWED","NOORG":"ALLOWED","INACTIVE":"ALLOWED","SELLER":"DENIED","ORGB_DIR":"ALLOWED","MANAGER":"ALLOWED","DIRECTOR":"ALLOWED"}
+FAIL F8 seller denied company summaries/other seller pieces; own pieces + manager summary still allowed | [true,true,true,true,true]
+FAIL F9 other-org director cannot modify/read Goldia employees or audit logs; employee cannot change org | {"orgB_update":1,"self_move":"ALLOWED","orgB_reads_emps":5,"orgB_reads_audit":5,"own_director_update":true}
+REGRESSION 1 / 16 passed

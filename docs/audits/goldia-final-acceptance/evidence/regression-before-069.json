@@ -1,0 +1,138 @@
+[
+ {
+  "id": "F5",
+  "title": "factory receipt retried with same key creates ONE receipt",
+  "ok": false,
+  "detail": {
+   "receipts": 2
+  }
+ },
+ {
+  "id": "F5b",
+  "title": "stored manager_physical_stock_g equals canonical stock after receipt",
+  "ok": false,
+  "detail": {
+   "s": "300.0000"
+  }
+ },
+ {
+  "id": "F4",
+  "title": "whole-consignment sale after partial weight sale is rejected (no oversell)",
+  "ok": false,
+  "detail": {
+   "whole": "ACCEPTED",
+   "soldC": 16
+  }
+ },
+ {
+  "id": "F4b",
+  "title": "whole-consignment sale with 200% markup is rejected",
+  "ok": false,
+  "detail": "ACCEPTED"
+ },
+ {
+  "id": "F4c",
+  "title": "untouched consignment can still be sold as a whole (no regression)",
+  "ok": false,
+  "detail": "Consignment CONS-BC-E382D590 is already closed or fully sold"
+ },
+ {
+  "id": "F2",
+  "title": "reversing a fully paid 4.4 g sale leaves the customer a 4.4 g advance",
+  "ok": false,
+  "detail": {
+   "d": "0.0000",
+   "a": "0.0000"
+  }
+ },
+ {
+  "id": "F2b",
+  "title": "reversing a partly paid sale (6.6 due, 5.4 paid incl. advance) leaves 5.4 g advance",
+  "ok": false,
+  "detail": {
+   "d": "0.0000",
+   "a": "0.0000"
+  }
+ },
+ {
+  "id": "F3",
+  "title": "3 concurrent 1,000,000 UZS first payments => 3.0 g advance",
+  "ok": false,
+  "detail": {
+   "a": "1.0000"
+  }
+ },
+ {
+  "id": "F3b",
+  "title": "customer account records USD paid",
+  "ok": false,
+  "detail": {
+   "u": "0.00"
+  }
+ },
+ {
+  "id": "F7",
+  "title": "weight-sale retry after selling all stock returns the original sale",
+  "ok": false,
+  "detail": "ERR_INSUFFICIENT_SELLER_STOCK: Sotuvchi omborida yetarli oltin mavjud emas (Mavjud: 0.0000"
+ },
+ {
+  "id": "F6",
+  "title": "capital contribution in UZS without USD rate succeeds",
+  "ok": false,
+  "detail": "relation \"public.currency_rates\" does not exist"
+ },
+ {
+  "id": "F6b",
+  "title": "USD transaction without a USD rate is refused (no silent 12,800)",
+  "ok": true,
+  "detail": "relation \"public.currency_rates\" does not exist"
+ },
+ {
+  "id": "F1b",
+  "title": "after 0.5 g expense the period result is -0.5 g (operational before expenses 0)",
+  "ok": false,
+  "detail": {
+   "result": 0,
+   "op": 0
+  }
+ },
+ {
+  "id": "F1",
+  "title": "profit summary: only director/manager of the own org",
+  "ok": false,
+  "detail": {
+   "NOEMP": "ALLOWED",
+   "NOORG": "ALLOWED",
+   "INACTIVE": "ALLOWED",
+   "SELLER": "DENIED",
+   "ORGB_DIR": "ALLOWED",
+   "MANAGER": "ALLOWED",
+   "DIRECTOR": "ALLOWED"
+  }
+ },
+ {
+  "id": "F8",
+  "title": "seller denied company summaries/other seller pieces; own pieces + manager summary still allowed",
+  "ok": false,
+  "detail": [
+   true,
+   true,
+   true,
+   true,
+   true
+  ]
+ },
+ {
+  "id": "F9",
+  "title": "other-org director cannot modify/read Goldia employees or audit logs; employee cannot change org",
+  "ok": false,
+  "detail": {
+   "orgB_update": 1,
+   "self_move": "ALLOWED",
+   "orgB_reads_emps": 5,
+   "orgB_reads_audit": 5,
+   "own_director_update": true
+  }
+ }
+]
