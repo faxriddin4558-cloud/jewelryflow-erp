@@ -4,7 +4,7 @@ const results = []; const T = (id, title, ok, detail) => { results.push({ id, ti
 const one = async (s, p) => (await su(s, p))[0];
 (async () => {
   const OA = '00000000-0000-0000-0000-000000000001', OB = '00000000-0000-0000-0000-0000000000b2';
-  await rpc(U.D, 'rpc_set_daily_gold_rate', { p_rate_per_gram: 1000000 });
+  await rpc(U.D, 'rpc_set_daily_gold_rate', { p_rate_per_gram: 1000000, p_rate_date: new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 10) });
   // F5 receipt retry
   const r1 = await rpc(U.M, 'rpc_record_factory_receipt', { p_product_name: 'R', p_original_physical_g: 100, p_factory_markup_pct: 8, p_idempotency_key: 'reg-fr' });
   const r1b = await rpc(U.M, 'rpc_record_factory_receipt', { p_product_name: 'R', p_original_physical_g: 100, p_factory_markup_pct: 8, p_idempotency_key: 'reg-fr' });

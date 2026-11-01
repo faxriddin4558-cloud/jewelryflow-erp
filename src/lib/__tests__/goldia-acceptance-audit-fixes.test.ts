@@ -29,7 +29,7 @@ describe("Goldia 070 — acceptance audit fixes", () => {
     sellerC = await t.addUser(orgA, "sc070@goldia.uz", "SellerC", "sales");
     dirB = await t.addUser(orgB, "dirb070@goldia.uz", "DirB", "director");
     await t.asUser(dir.userId);
-    await t.rpc(`public.rpc_set_daily_gold_rate(p_rate_per_gram := 1000000)`);
+    await t.rpc(`public.rpc_set_daily_gold_rate(p_rate_per_gram := 1000000, p_rate_date := (timezone('Asia/Tashkent', now()))::date)`);
     await t.asUser(mgr.userId);
     const r = await t.rpc(`public.rpc_record_factory_receipt(p_product_name := 'R', p_original_physical_g := 100,
       p_factory_markup_pct := 8, p_idempotency_key := 'r070')`);
@@ -163,5 +163,17 @@ describe("Goldia 070 — acceptance audit fixes", () => {
     await t.asUser(dir.userId);
     const own = await t.db.query(`UPDATE public.employees SET name = 'SellerA' WHERE id = '${sellerA.employeeId}' RETURNING id`);
     expect(own.rows.length).toBe(1);
+  });
+
+  it("F11: a seller sees only the legacy debts of their own customers", async () => {
+    await t.asUser(dir.userId);
+    await t.rpc(`public.rpc_record_client_legacy_debt(p_customer_id := '${custA}', p_balance_type := 'debt',
+      p_amount_585_g := 1.5, p_as_of_date := '2026-09-30', p_seller_id := '${sellerA.employeeId}')`);
+    await t.asUser(sellerC.userId);
+    expect(await t.scalar(`(SELECT count(*) FROM public.client_legacy_debts)`)).toBe(0);
+    await t.asUser(sellerA.userId);
+    expect(await t.scalar(`(SELECT count(*) FROM public.client_legacy_debts)`)).toBe(1);
+    await t.asUser(mgr.userId);
+    expect(await t.scalar(`(SELECT count(*) FROM public.client_legacy_debts)`)).toBe(1);
   });
 });

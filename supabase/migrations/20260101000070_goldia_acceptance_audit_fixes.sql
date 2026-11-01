@@ -24,6 +24,7 @@
 --      their own organization_id.
 --  F10 rpc_set_daily_gold_rate stored auth.uid() in set_by (FK to employees.id): for any employee whose
 --      id differs from the auth user id the director could not set the daily rate.
+--  F11 client_legacy_debts: any seller could read the old debts of every other seller's customers.
 --
 -- Only function bodies and policies change; no data is modified.
 
@@ -2154,6 +2155,14 @@ create policy "Authenticated users can read own idempotency keys" on public.idem
                select 1 from public.employees e
                 where (e.user_id = idempotency_keys.actor_id or e.id = idempotency_keys.actor_id)
                   and e.organization_id = public.current_organization_id())));
+
+drop policy if exists client_legacy_debts_select_policy on public.client_legacy_debts;
+create policy client_legacy_debts_select_policy on public.client_legacy_debts for select to authenticated
+  using (organization_id = public.current_organization_id()
+         and (not public._goldia_is_seller_role(public.current_employee_role_text())
+              or seller_id = public.current_employee_id()
+              or exists (select 1 from public.customers c
+                          where c.id = client_legacy_debts.customer_id and c.seller_id = public.current_employee_id())));
 
 -- keep anonymous callers out of every function redefined above (069 contract)
 revoke execute on function public.rpc_get_accounting_profit_summary(date, date, numeric, numeric, uuid) from public, anon;

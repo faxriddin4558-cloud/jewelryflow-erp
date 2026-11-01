@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
- * GOLDIA — gated production release of one Sales migration (default 069).
+ * GOLDIA — gated production release of one Sales migration (default 070).
  *
- *   node scripts/goldia-prod-release.js [--migration 069]
+ *   node scripts/goldia-prod-release.js [--migration 070] [--acknowledge-findings]
  *
  * 1. Hidden password prompt (kept only in child-process environments, never printed or saved).
  * 2. FRESH backup + restore test + read-only preflight + migration test on the restored copy
  *    (scripts/goldia-prod-backup-and-preflight.js --fresh --migration NNN). Any failed gate stops here.
- * 3. Read-only gates on production: NNN-1 recorded, NNN absent.
+ * 3. Read-only gates on production: NNN-1 recorded, NNN absent. For 070 also the historical damage scan
+ *    (supabase/release/070_damage_scan_readonly.sql, aggregates only): any REVIEW line stops the release
+ *    unless the owner has reviewed it and re-runs with --acknowledge-findings. Nothing is repaired.
  * 4. Migration NNN and its schema_migrations row in ONE transaction (lock_timeout 10 s).
  * 5. Postflight checks; row counts must be unchanged. On failure the rollback command is printed.
  * No business transactions, no deletes, no balance changes. Result: RELEASE-NNN-RESULT.txt in the backup folder.
@@ -28,7 +30,7 @@ for (let i = 2; i < process.argv.length; i++) {
   const next = process.argv[i + 1];
   args[a.slice(2)] = next === undefined || next.startsWith("--") ? true : (i++, next);
 }
-const TARGET = String(args.migration || "069").padStart(3, "0");
+const TARGET = String(args.migration || "070").padStart(3, "0");
 const PREVIOUS = String(Number(TARGET) - 1).padStart(3, "0");
 const TARGET_VERSION = `20260101000${TARGET}`;
 const PREVIOUS_VERSION = `20260101000${PREVIOUS}`;
@@ -46,7 +48,17 @@ const F = {
   migration: migrationName ? path.join(migrationDir, migrationName) : null,
   rollback: path.join(REPO, `supabase/rollback/${TARGET_VERSION}_rollback.sql`),
   postflight: path.join(REPO, `supabase/release/${TARGET}_postflight_readonly.sql`),
+  damageScan: path.join(REPO, `supabase/release/${TARGET}_damage_scan_readonly.sql`),
 };
+
+// Turns a read-only "select <bool> as a, <bool> as b ...;" postflight file into one query that is true only
+// when every column is true.
+function allColumnsTrue(file) {
+  const body = fs.readFileSync(file, "utf8").split(/\r?\n/)
+    .filter((l) => !/^\s*--/.test(l) && !/^\s*(begin transaction read only|rollback);\s*$/i.test(l))
+    .join("\n").trim().replace(/;\s*$/, "");
+  return `select bool_and(v::boolean) from json_each_text((select row_to_json(x) from (${body}) x)) j(k, v)`;
+}
 
 // Version-specific postflight checks: each query returns 't' when the check passes.
 const POSTFLIGHT_CHECKS = {
@@ -76,6 +88,10 @@ const POSTFLIGHT_CHECKS = {
     ["authenticated_keeps_execute", "select count(*) = 0 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.proname like 'rpc\\_%' and not has_function_privilege('authenticated', p.oid, 'EXECUTE')"],
     ["ledger_no_first_org_fallback", "select position('organizations' || chr(10) || '    limit 1' in pg_get_functiondef('public.rpc_get_unified_customer_ledger(uuid,uuid)'::regprocedure)) = 0"],
     ["ledger_no_admin_fallback", "select position(chr(39) || 'admin' || chr(39) || ')' in pg_get_functiondef('public.rpc_get_unified_customer_ledger(uuid,uuid)'::regprocedure)) = 0"],
+  ],
+  "070": [
+    // every column of 070_postflight_readonly.sql must be true
+    ["all_070_checks", allColumnsTrue(path.join(REPO, "supabase/release/070_postflight_readonly.sql"))],
   ],
   "068": [
     ["allocations_table", "select to_regclass('public.weight_sale_allocations') is not null"],
@@ -229,6 +245,19 @@ async function main() {
   out(`  ${PREVIOUS}=${hasPrev} ${TARGET}=${hasTarget}`);
   if (hasPrev !== "t") stop(`migration ${PREVIOUS} is not recorded in production`);
   if (hasTarget === "t") stop(`migration ${TARGET} is already applied`);
+  if (fs.existsSync(F.damageScan)) {
+    const scan = psql(["-t", "-A", "-F", "|", "-v", "ON_ERROR_STOP=1", "-f", F.damageScan]);
+    fs.writeFileSync(path.join(latest, `damage-scan-${TARGET}.txt`), String(scan.stdout || "") + String(scan.stderr || ""));
+    if (scan.status !== 0) stop(`damage scan failed: ${firstError(scan)}`);
+    const rows = String(scan.stdout).split(/\r?\n/).filter((l) => /^D\d+_/.test(l));
+    for (const r of rows) out(`  ${r}`);
+    const review = rows.filter((r) => r.endsWith("|REVIEW"));
+    if (review.length && !args["acknowledge-findings"]) {
+      stop(`historical damage scan has ${review.length} REVIEW line(s) — owner review needed; nothing was changed or repaired. ` +
+        "After review, re-run with --acknowledge-findings (070 prevents new damage; it does not rewrite old records).");
+    }
+    if (review.length) out(`  REVIEW lines acknowledged by the owner (--acknowledge-findings): ${review.length}`);
+  }
 
   // 4. Atomic migration
   out(`[3/4] migration ${TARGET} (single transaction)`);

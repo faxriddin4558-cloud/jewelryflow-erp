@@ -24,6 +24,7 @@
 --      their own organization_id.
 --  F10 rpc_set_daily_gold_rate stored auth.uid() in set_by (FK to employees.id): for any employee whose
 --      id differs from the auth user id the director could not set the daily rate.
+--  F11 client_legacy_debts: any seller could read the old debts of every other seller's customers.
 --
 -- Only function bodies and policies change; no data is modified.
 

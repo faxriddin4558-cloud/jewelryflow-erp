@@ -122,7 +122,15 @@ Barcha "qayta tiklash" qadamlari `harness/` dagi skriptlar bilan avtomatik takro
   bo‘lgan direktor kursni o‘rnata olmaydi (FK xatosi). Production API `id = user_id` qiladi, eski/import
   qilingan xodimlar uchun latent.
 
+- **F11.** `client_legacy_debts` o‘qish siyosati faqat tashkilot bo‘yicha edi — B sotuvchi A sotuvchi mijozlarining eski
+  qarzlarini ko‘rardi (avvalgi M-12). 070 da sotuvchi faqat o‘z mijozlari/o‘ziga biriktirilgan yozuvlarni ko‘radi.
+
 ## MEDIUM — tuzatilmadi (biznes qarori yoki dizayn kerak)
+
+- **M-14. Sana chegarasi (UTC vs Toshkent).** `rpc_set_daily_gold_rate` (`p_rate_date default CURRENT_DATE`) va sotuv
+  `sale_date = current_date` server UTC sanasini oladi; foyda xulosasi va baza tasdiqlash `Asia/Tashkent` sanasini kutadi.
+  Toshkent 00:00–05:00 oralig‘ida: kurs kechagi sanaga yoziladi, baza tasdiqlanmaydi ("bugungi kurs yo‘q"), sotuvlar
+  oldingi kun/oy hisobotiga tushadi. 2026-11-01 21:23 UTC da qayta tiklandi. 070 ga kiritilmadi (alohida migratsiya).
 
 - **M-1.** Konsignatsiya direktorga yoki nofaol xodimga berilishi mumkin (sotuvchi roli/faolligi tekshirilmaydi).
 - **M-2.** Dona probasi tekshirilmaydi: "faqat 585" partiyaga 750 dona qabul qilinadi va 585 sifatida hisoblanadi.
@@ -147,8 +155,7 @@ Barcha "qayta tiklash" qadamlari `harness/` dagi skriptlar bilan avtomatik takro
   yaratishi mumkin (bekor qilishlarda status tekshiruvi himoya qiladi; to‘lovda — yo‘q).
 - **M-11.** Bir kunda kursni qayta o‘rnatish `daily_gold_rates` qatorini ustidan yozadi — kun ichidagi kurs
   tarixi yo‘qoladi (hujjatlarda qo‘llangan kurs saqlanadi).
-- **M-12.** `client_legacy_debts` SELECT siyosati faqat tashkilot bo‘yicha — B sotuvchi A sotuvchining
-  mijozlaridagi eski qarzlarni ko‘radi.
+- **M-12.** → F11 sifatida 070 da tuzatildi.
 - **M-13.** `rpc_get_unified_customer_ledger` (mijozlar sahifasi) **o‘qish paytida** `client_gold_accounts`
   ni hujjatlardan qayta hisoblab yozadi. Natija: 069 da bir xil bazada direktor foydani +3.19 g, menejer
   (sahifa ochilgandan keyin) −2.39 g ko‘rdi. 070 dan keyin kesh hujjatlarga teng, shuning uchun bu yozish
