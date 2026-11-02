@@ -104,6 +104,7 @@ describe("Goldia 070 — acceptance audit fixes", () => {
 
   it("F3b: USD payments are recorded on the customer account", async () => {
     await t.asUser(sellerA.userId);
+    await t.rpc(`public.rpc_set_my_seller_rates(p_usd_rate_uzs := 12800)`); // 072: own USD rate required
     await t.rpc(`public.rpc_record_client_settlement(p_customer_id := '${custA}', p_usd_amount := 100, p_usd_rate := 12800)`);
     await t.asAdmin();
     expect(await t.scalar(`(SELECT total_usd_paid_amount FROM public.client_gold_accounts WHERE customer_id = '${custA}')`)).toBe(100);

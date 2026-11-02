@@ -38,10 +38,17 @@ interface CustomerItem {
   company_name?: string;
 }
 
-export function SellerMobileWorkspace() {
-  const [activeTab, setActiveTab] = useState<
-    "stock" | "pieces" | "scan_sale" | "sale" | "settle" | "debts" | "customer" | "till" | "markup"
-  >("stock");
+export type SellerWorkspaceTab = "stock" | "pieces" | "scan_sale" | "sale" | "settle" | "debts" | "customer" | "till" | "markup";
+
+// The seller pages (Skaner Savdo, Mijozlar va Nasiya, Kassam) each show a subset of these panels. A panel
+// reached from another one (e.g. "new customer" from a sale) still opens in place.
+export function SellerMobileWorkspace({
+  tabs,
+  initialTab,
+  compact = false,
+}: { tabs?: SellerWorkspaceTab[]; initialTab?: SellerWorkspaceTab; compact?: boolean } = {}) {
+  const [activeTab, setActiveTab] = useState<SellerWorkspaceTab>(initialTab ?? tabs?.[0] ?? "stock");
+  const showTab = (tab: SellerWorkspaceTab) => !tabs || tabs.includes(tab);
 
   // State
   const [busy, setBusy] = useState(false);
@@ -402,8 +409,35 @@ export function SellerMobileWorkspace() {
   const rawPrevAdv = Number(customerDebtAccount?.advance_balance_grams || customerDebtAccount?.advance_gold_balance_grams || 0);
   const previousDebtForSettle = Math.max(0, rawPrevDebt - rawPrevAdv);
 
-  const hasValidDailyRate = Boolean(dailyRate && Number(dailyRate.rate_per_gram) > 0);
-  const activeRatePerGram = hasValidDailyRate ? Number(dailyRate!.rate_per_gram) : 0;
+  // 072: a seller's payments use the seller's OWN rates (stored and enforced by the server). Without an own LOM
+  // rate the official 585 rate applies; a USD payment needs an own USD rate. Management keeps the old inputs.
+  const [ownRates, setOwnRates] = useState<{ lom: number | null; usd: number | null } | null>(null);
+  useEffect(() => {
+    if (isDirectorViewing) {
+      setOwnRates(null);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      const { data, error } = await supabase.rpc("rpc_get_seller_rates");
+      if (!active || error) return;
+      const row = ((data?.sellers ?? []) as { lom_rate_uzs?: number | null; usd_rate_uzs?: number | null }[])[0];
+      setOwnRates({
+        lom: row?.lom_rate_uzs ? Number(row.lom_rate_uzs) : null,
+        usd: row?.usd_rate_uzs ? Number(row.usd_rate_uzs) : null,
+      });
+    })();
+    return () => {
+      active = false;
+    };
+  }, [isDirectorViewing, currentSeller?.id]);
+  const useOwnRates = !isDirectorViewing && ownRates !== null;
+  useEffect(() => {
+    if (useOwnRates && ownRates?.usd) setSettleUsdRate(String(ownRates.usd));
+  }, [useOwnRates, ownRates?.usd]);
+
+  const hasValidDailyRate = Boolean((useOwnRates && ownRates?.lom) || (dailyRate && Number(dailyRate.rate_per_gram) > 0));
+  const activeRatePerGram = useOwnRates && ownRates?.lom ? ownRates.lom : hasValidDailyRate ? Number(dailyRate!.rate_per_gram) : 0;
 
   const liveSettleCalc = useMemo(() => {
     const scrapW = parseFloat(settleScrapWeight) || 0;
@@ -442,6 +476,10 @@ export function SellerMobileWorkspace() {
       return;
     }
 
+    if (usd > 0 && useOwnRates && !ownRates?.usd) {
+      notifyError("Dollar qabul qilish uchun avval \"Kassam\" sahifasida o'z USD kursingizni belgilang.");
+      return;
+    }
     if (usd > 0 && (!usdRate || usdRate <= 0)) {
       notifyError("USD to'lovi uchun USD kursi (UZS/$) kiritilishi shart!");
       return;
@@ -477,15 +515,16 @@ export function SellerMobileWorkspace() {
         scrapWeightGrams: scrapW,
         scrapPurity: parseInt(settleScrapPurity, 10) || 585,
         cashAmount: cash,
-        goldRateApplied: activeRatePerGram,
-        cashEquivalentGrams: liveSettleCalc.cashEquivalentGrams,
+        // the receipt shows the server's recorded snapshot (rates and grams actually applied)
+        goldRateApplied: Number(data.rate_applied ?? activeRatePerGram),
+        cashEquivalentGrams: Number(data.cash_equivalent_grams ?? liveSettleCalc.cashEquivalentGrams),
         usdAmount: usd,
-        usdRateApplied: usd > 0 ? usdRate : undefined,
-        usdEquivalentGrams: liveSettleCalc.usdEquivalentGrams,
-        totalSettledGrams: liveSettleCalc.totalSettledGrams,
-        previousDebtGrams: liveSettleCalc.previousDebtGrams,
-        remainingDebtGrams: liveSettleCalc.remainingDebtGrams,
-        advanceGoldGrams: liveSettleCalc.excessGoldGrams,
+        usdRateApplied: usd > 0 ? Number(data.usd_rate_applied ?? usdRate) : undefined,
+        usdEquivalentGrams: Number(data.usd_equivalent_grams ?? liveSettleCalc.usdEquivalentGrams),
+        totalSettledGrams: Number(data.total_settled_grams ?? liveSettleCalc.totalSettledGrams),
+        previousDebtGrams: Number(data.previous_debt_grams ?? liveSettleCalc.previousDebtGrams),
+        remainingDebtGrams: Number(data.remaining_debt_grams ?? liveSettleCalc.remainingDebtGrams),
+        advanceGoldGrams: Number(data.excess_gold_grams ?? liveSettleCalc.excessGoldGrams),
         notes: settleNotes || "Mijozdan to'lov qabul qilindi",
       });
 
@@ -761,7 +800,8 @@ export function SellerMobileWorkspace() {
         </div>
       )}
 
-      {/* Top Header Card (Mobile-first, high contrast) */}
+      {/* Top Header Card (Mobile-first, high contrast) — the seller dashboard already shows it */}
+      {!compact && (
       <div className="bg-slate-950 text-white rounded-3xl p-5 shadow-2xl border-2 border-slate-800">
         <div className="flex justify-between items-start gap-2">
           <div>
@@ -835,90 +875,112 @@ export function SellerMobileWorkspace() {
         </div>
       </div>
 
+      )}
+
       {/* Touch-Friendly Navigation Tabs (Touch targets >= 44px) */}
+      {(!tabs || tabs.length > 1) && (
       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2 bg-slate-900 border-2 border-slate-800 p-2 rounded-2xl text-xs font-bold shadow-md">
-        <button
-          id="tabScanSale"
-          onClick={() => setActiveTab("scan_sale")}
-          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
-            activeTab === "scan_sale" ? "bg-amber-500 text-slate-950 shadow-md font-extrabold" : "text-amber-400 hover:bg-slate-800"
-          }`}
-        >
-          ⚡ Skaner Savdo
-        </button>
-        <button
-          id="tabPieces"
-          onClick={() => setActiveTab("pieces")}
-          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
-            activeTab === "pieces" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          📦 Mahsulotlar ({formatScreenGrams(availablePiecesGrams)})
-        </button>
-        <button
-          id="tabStock"
-          onClick={() => setActiveTab("stock")}
-          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
-            activeTab === "stock" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          💎 Partiyalar ({availableConsignments.length})
-        </button>
-        <button
-          id="tabSale"
-          onClick={() => setActiveTab("sale")}
-          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
-            activeTab === "sale" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          🏷️ Nasiya
-        </button>
-        <button
-          id="tabSettle"
-          onClick={() => setActiveTab("settle")}
-          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
-            activeTab === "settle" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          💰 To&apos;lov Olish
-        </button>
-        <button
-          id="tabDebts"
-          onClick={() => setActiveTab("debts")}
-          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
-            activeTab === "debts" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          📒 Qarzlar ({debtorsList.length})
-        </button>
-        <button
-          id="tabCustomer"
-          onClick={() => setActiveTab("customer")}
-          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
-            activeTab === "customer" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          ➕ Yangi Mijoz
-        </button>
-        <button
-          id="tabTill"
-          onClick={() => setActiveTab("till")}
-          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
-            activeTab === "till" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          🏦 Kassam
-        </button>
-        <button
-          id="tabMarkup"
-          onClick={() => setActiveTab("markup")}
-          className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
-            activeTab === "markup" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          📈 Ustama farqi
-        </button>
+        {showTab("scan_sale") && (
+          <button
+            id="tabScanSale"
+            onClick={() => setActiveTab("scan_sale")}
+            className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+              activeTab === "scan_sale" ? "bg-amber-500 text-slate-950 shadow-md font-extrabold" : "text-amber-400 hover:bg-slate-800"
+            }`}
+          >
+            ⚡ Skaner Savdo
+          </button>
+        )}
+        {showTab("pieces") && (
+          <button
+            id="tabPieces"
+            onClick={() => setActiveTab("pieces")}
+            className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+              activeTab === "pieces" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            📦 Mahsulotlar ({formatScreenGrams(availablePiecesGrams)})
+          </button>
+        )}
+        {showTab("stock") && (
+          <button
+            id="tabStock"
+            onClick={() => setActiveTab("stock")}
+            className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+              activeTab === "stock" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            💎 Partiyalar ({availableConsignments.length})
+          </button>
+        )}
+        {showTab("sale") && (
+          <button
+            id="tabSale"
+            onClick={() => setActiveTab("sale")}
+            className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+              activeTab === "sale" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            🏷️ Nasiya
+          </button>
+        )}
+        {showTab("settle") && (
+          <button
+            id="tabSettle"
+            onClick={() => setActiveTab("settle")}
+            className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+              activeTab === "settle" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            💰 To&apos;lov Olish
+          </button>
+        )}
+        {showTab("debts") && (
+          <button
+            id="tabDebts"
+            onClick={() => setActiveTab("debts")}
+            className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+              activeTab === "debts" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            📒 Qarzlar ({debtorsList.length})
+          </button>
+        )}
+        {showTab("customer") && (
+          <button
+            id="tabCustomer"
+            onClick={() => setActiveTab("customer")}
+            className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+              activeTab === "customer" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            ➕ Yangi Mijoz
+          </button>
+        )}
+        {showTab("till") && (
+          <button
+            id="tabTill"
+            onClick={() => setActiveTab("till")}
+            className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+              activeTab === "till" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            🏦 Kassam
+          </button>
+        )}
+        {showTab("markup") && (
+          <button
+            id="tabMarkup"
+            onClick={() => setActiveTab("markup")}
+            className={`min-h-[44px] py-2 px-2 rounded-xl transition flex items-center justify-center text-center font-bold ${
+              activeTab === "markup" ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            📈 Ustama farqi
+          </button>
+        )}
       </div>
+      )}
 
       {/* TAB: SIGNED SELLER MARKUP DIFFERENCE (own sales only, enforced by the RPC) */}
       {activeTab === "markup" && <MarkupDifferenceCard />}
@@ -1573,7 +1635,7 @@ export function SellerMobileWorkspace() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-bold text-[#475569] mb-1">
-                  585 Kursi: {hasValidDailyRate ? `${activeRatePerGram.toLocaleString()} UZS` : <span className="text-amber-600">(Kiritilmagan)</span>}
+                  {useOwnRates && ownRates?.lom ? "Mening LOM kursim" : "585 Kursi"}: {hasValidDailyRate ? `${activeRatePerGram.toLocaleString()} UZS` : <span className="text-amber-600">(Kiritilmagan)</span>}
                 </label>
                 <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono text-slate-700">
                   {hasValidDailyRate ? `${activeRatePerGram.toLocaleString()} UZS/g` : "⚠️ Kurs yo'q"}
@@ -1585,7 +1647,9 @@ export function SellerMobileWorkspace() {
                   <label htmlFor="settleUsdRateInput" className="block text-xs font-bold text-[#475569]">
                     USD Kursi {isManualUsdRate ? <span className="text-[10px] text-amber-600 font-normal">(Qo&apos;lda)</span> : <span className="text-[10px] text-cyan-600 font-normal">(MB)</span>}:
                   </label>
-                  {cbuUsdRate && (
+                  {useOwnRates ? (
+                    <span className="text-[10px] text-slate-500">{ownRates?.usd ? "Mening kursim" : "Kassam sahifasida belgilang"}</span>
+                  ) : cbuUsdRate && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1603,7 +1667,9 @@ export function SellerMobileWorkspace() {
                   type="number"
                   placeholder="Masalan: 12800"
                   value={settleUsdRate}
+                  readOnly={useOwnRates}
                   onChange={(e) => {
+                    if (useOwnRates) return;
                     setSettleUsdRate(e.target.value);
                     setIsManualUsdRate(true);
                   }}

@@ -16,7 +16,10 @@ type Statement = {
   section_e?: { cash_till_uzs?: number; cash_till_usd?: number; scrap_till_grams?: number };
   section_g?: { bozor_qarzi_signed_grams?: number; seller_owes_manager_grams?: number; manager_owes_seller_grams?: number };
 };
-type LedgerRow = { tx_type: string; status?: string; sold_weight_g?: number; total_payment_g?: number; cash_received_uzs?: number; usd_received?: number };
+type LedgerRow = {
+  tx_id?: string; tx_type: string; tx_date?: string; status?: string; customer_name?: string; model_name?: string;
+  sold_weight_g?: number; obligation_g?: number; total_payment_g?: number; cash_received_uzs?: number; usd_received?: number;
+};
 type Piece = { model_code?: string | null; model_name?: string | null; weight_grams?: number };
 
 export type SellerDashboardData = {
@@ -81,6 +84,8 @@ export function SellerDashboard({ sellerName }: { sellerName?: string }) {
   const [data, setData] = useState<SellerDashboardData | null>(null);
   const [rate, setRate] = useState<DailyGoldRateRow | null>(null);
   const [usdRate, setUsdRate] = useState<number | null>(null);
+  const [ownRates, setOwnRates] = useState<{ lom: number | null; usd: number | null }>({ lom: null, usd: null });
+  const [recent, setRecent] = useState<LedgerRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -91,12 +96,16 @@ export function SellerDashboard({ sellerName }: { sellerName?: string }) {
       const { data: empId, error: empErr } = await supabase.rpc("current_employee_id");
       if (empErr || !empId) throw empErr ?? new Error("Xodim aniqlanmadi");
       const today = localToday();
-      const [stRes, piecesRes, ledgerRes, markupRes, rateRes] = await Promise.all([
+      const from = new Date(Date.now() - 30 * 86400000);
+      const monthAgo = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}-${String(from.getDate()).padStart(2, "0")}`;
+      const [stRes, piecesRes, ledgerRes, markupRes, rateRes, ownRes, recentRes] = await Promise.all([
         supabase.rpc("rpc_get_seller_reconciliation_statement", { p_seller_id: empId }),
         supabase.from("consignment_pieces").select("model_code, model_name, weight_grams").eq("seller_id", empId).eq("status", "held_by_seller"),
         supabase.rpc("rpc_get_daily_sales_ledger", { p_seller_id: empId, p_start_date: today, p_end_date: today }),
         supabase.rpc("rpc_get_seller_markup_difference_report", { p_seller_id: empId, p_from: null, p_to: null }),
         supabase.from("daily_gold_rates").select("*").eq("proba", 585).order("rate_date", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.rpc("rpc_get_seller_rates"),
+        supabase.rpc("rpc_get_daily_sales_ledger", { p_seller_id: empId, p_start_date: monthAgo, p_end_date: today }),
       ]);
       if (stRes.error) throw stRes.error;
       const markup = markupRes.error ? null : n((markupRes.data as { total_difference_g?: number } | null)?.total_difference_g);
@@ -107,6 +116,9 @@ export function SellerDashboard({ sellerName }: { sellerName?: string }) {
         markup,
       ));
       setRate(rateRes.data ? (rateRes.data as DailyGoldRateRow) : null);
+      const own = ((ownRes.data as { sellers?: { lom_rate_uzs?: number | null; usd_rate_uzs?: number | null }[] } | null)?.sellers ?? [])[0];
+      setOwnRates({ lom: own?.lom_rate_uzs ? Number(own.lom_rate_uzs) : null, usd: own?.usd_rate_uzs ? Number(own.usd_rate_uzs) : null });
+      setRecent(((recentRes.data ?? []) as LedgerRow[]).slice().sort((a, b) => String(b.tx_date ?? "").localeCompare(String(a.tx_date ?? ""))).slice(0, 8));
       try {
         const cbu = await (await fetch("/api/sales/currency/cbu")).json();
         setUsdRate(cbu?.success && Number(cbu.data?.rate) > 0 ? Number(cbu.data.rate) : null);
@@ -188,19 +200,41 @@ export function SellerDashboard({ sellerName }: { sellerName?: string }) {
             </div>
           </Tile>
 
-          <Tile title="Bugungi kurslar" tone="amber">
-            <div className="font-mono text-sm text-white space-y-0.5">
-              <div>Lom 585: <b>{rate && Number(rate.rate_per_gram) > 0 ? `${Number(rate.rate_per_gram).toLocaleString("ru-RU")} UZS/g` : "belgilanmagan"}</b></div>
-              <div>USD/UZS: <b>{usdRate ? usdRate.toLocaleString("ru-RU") : "—"}</b></div>
+          <Tile title="Bugungi kurslarim" tone="amber">
+            <div className="font-mono text-sm text-white space-y-0.5" data-testid="dashboard-rates">
+              <div>LOM: <b>{ownRates.lom ? `${ownRates.lom.toLocaleString("ru-RU")} UZS/g` : rate && Number(rate.rate_per_gram) > 0 ? `${Number(rate.rate_per_gram).toLocaleString("ru-RU")} UZS/g (rasmiy)` : "belgilanmagan"}</b></div>
+              <div>USD: <b>{ownRates.usd ? `${ownRates.usd.toLocaleString("ru-RU")} UZS` : "belgilanmagan"}</b>{usdRate ? <span className="text-slate-500"> · MB {usdRate.toLocaleString("ru-RU")}</span> : null}</div>
             </div>
-            <div className="text-[11px] text-slate-500">Kurslarni boshqaruvchi belgilaydi</div>
+            <Link href="/sales/app/kassam" className="text-xs text-amber-400 font-bold">Kursni o&apos;zgartirish →</Link>
           </Tile>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <Link href="/sales/mobile" className="rounded-2xl bg-emerald-600 hover:bg-emerald-500 p-4 text-center text-white font-black text-sm">📱 Savdo / To&apos;lov</Link>
-        <Link href="/sales/app/customers" className="rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 p-4 text-center text-white font-black text-sm">🛍️ Mijozlar</Link>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="quick-actions">
+        <Link href="/sales/app/scan" className="rounded-2xl bg-amber-500 hover:bg-amber-400 p-4 text-center text-slate-950 font-black text-sm">⚡ Skaner savdo</Link>
+        <Link href="/sales/app/customers?tab=customer" className="rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 p-4 text-center text-white font-black text-sm">➕ Yangi mijoz</Link>
+        <Link href="/sales/app/customers?tab=settle" className="rounded-2xl bg-emerald-600 hover:bg-emerald-500 p-4 text-center text-white font-black text-sm">💰 To&apos;lov olish</Link>
+        <Link href="/sales/app/customers?tab=sale" className="rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 p-4 text-center text-white font-black text-sm">🏷️ Nasiya savdo</Link>
+      </div>
+
+      <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
+        <div className="text-[11px] uppercase font-bold tracking-wide text-slate-400 mb-2">Oxirgi amallarim (30 kun)</div>
+        {recent.length === 0 ? (
+          <div className="text-xs text-slate-500">Hozircha amal yo&apos;q</div>
+        ) : (
+          <ul className="divide-y divide-slate-800 text-xs" data-testid="recent-transactions">
+            {recent.map((r, i) => (
+              <li key={r.tx_id ?? i} className={`flex items-center justify-between gap-2 py-2 ${r.status === "reversed" ? "line-through text-slate-500" : "text-slate-200"}`}>
+                <span className="min-w-0 truncate">
+                  {r.tx_type === "sale" ? "🏷️ Savdo" : "💰 To'lov"} · {r.customer_name || "—"} <span className="text-slate-500">{r.tx_date}</span>
+                </span>
+                <span className="font-mono shrink-0">
+                  {r.tx_type === "sale" ? formatScreenGrams(n(r.obligation_g), 3) : `−${formatScreenGrams(n(r.total_payment_g), 3)}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

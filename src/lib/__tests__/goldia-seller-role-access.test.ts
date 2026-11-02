@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { createGoldiaDb } from "./helpers/goldia-pglite";
 import { buildSellerDashboard } from "@/components/sales/SellerDashboard";
-import { isRouteAllowedForSeller, isSellerUiRole } from "@/lib/sales-role-access";
+import { isRouteAllowedForSeller, isSellerUiRole, SELLER_NAVIGATION } from "@/lib/sales-role-access";
 
 // Migration 071 + seller UI cleanup: sellers see only their own data; company totals, the manager stock,
 // factory/refining/vault and other sellers' data are refused by the database itself. Director and manager
@@ -154,12 +154,17 @@ describe("Seller UI route allowlist", () => {
     for (const r of ["Director", "manager", "Production Manager", "Accountant", "", null, undefined]) expect(isSellerUiRole(r)).toBe(false);
   });
 
+  it("seller navigation is exactly the five approved destinations, all allowed", () => {
+    expect(SELLER_NAVIGATION.map((i) => i.name)).toEqual(["Asosiy Panel", "Skaner Savdo", "Mijozlar va Nasiya", "Kassam", "Ustama Farqi"]);
+    for (const i of SELLER_NAVIGATION) expect(isRouteAllowedForSeller(i.href), i.href).toBe(true);
+  });
+
   it("allows only the seller's own screens", () => {
-    for (const p of ["/sales/app", "/sales/app/", "/sales/app/customers", "/sales/mobile"]) expect(isRouteAllowedForSeller(p), p).toBe(true);
+    for (const p of ["/sales/app", "/sales/app/", "/sales/app/customers", "/sales/app/scan", "/sales/app/kassam", "/sales/app/markup", "/sales/mobile"]) expect(isRouteAllowedForSeller(p), p).toBe(true);
     for (const p of [
       "/sales/app/cash", "/sales/app/factory", "/sales/app/factory-receive", "/sales/app/handovers", "/sales/app/inventory",
       "/sales/app/consignments", "/sales/app/sellers", "/sales/app/refining", "/sales/app/purchases", "/sales/app/reports",
-      "/sales/app/models", "/sales/app/users", "/sales/app/settings", "/sales/director", "/sales/app/customersX",
+      "/sales/app/models", "/sales/app/users", "/sales/app/settings", "/sales/director", "/sales/app/customersX", "/sales/app/scanner",
     ]) expect(isRouteAllowedForSeller(p), p).toBe(false);
   });
 });

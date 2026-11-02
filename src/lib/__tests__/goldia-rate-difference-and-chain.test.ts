@@ -293,7 +293,9 @@ describe("Goldia 066 — mixed historical rates, partial purchase, USD and non-p
   });
 
   it("USD received from sellers is valued at its own rates and compared with the USD purchase", async () => {
-    // 100 USD at 12,800 UZS/USD with the 900,000 gold rate = 1.4222 g settled
+    // 100 USD at 12,800 UZS/USD with the 900,000 gold rate = 1.4222 g settled.
+    // 072: a seller's USD rate is the seller's own stored rate, never only the browser value.
+    await handover(`public.rpc_set_my_seller_rates(p_usd_rate_uzs := 12800)`);
     await handover(`public.rpc_record_client_settlement(p_customer_id := '${customer}', p_usd_amount := 100, p_usd_rate := 12800, p_rate_per_gram := 900000)`);
     await handover(`public.rpc_record_seller_to_manager_settlement(p_seller_id := '${seller.employeeId}', p_usd_paid_amount := 100, p_usd_rate := 12800, p_rate_per_gram := 900000)`);
     expect(Number((await vault()).valued_usd_585_g)).toBe(1.4222);

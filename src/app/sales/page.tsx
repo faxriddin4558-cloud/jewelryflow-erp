@@ -14,6 +14,7 @@ import {
 import { DirectorSalesWorkspace } from "@/components/sales/DirectorSalesWorkspace";
 import { SellerMobileWorkspace } from "@/components/sales/SellerMobileWorkspace";
 import { isSellerUiRole } from "@/lib/sales-role-access";
+import { useSessionUser } from "@/lib/use-session-user";
 
 export default function SalesPage() {
   const [salesView, setSalesView] = useState<"director" | "seller_mobile" | "classic_pos">(() => {
@@ -275,11 +276,10 @@ export default function SalesPage() {
   } = GoldEngine.calculateFinancialSummary(sales, orders);
 
   // Sellers only get the seller workspace here; the director and classic views are management-only.
-  const [sessionUser, setSessionUser] = useState(() => RBAC.getCurrentUser());
-  useEffect(() => RBAC.subscribe((u) => setSessionUser(u)), []);
-  const sellerOnly = isSellerUiRole(sessionUser.role);
+  const sessionUser = useSessionUser();
+  const sellerOnly = isSellerUiRole(sessionUser?.role);
   // The director workspace mounts only for a known, non-seller session.
-  const view = sellerOnly ? "seller_mobile" : salesView === "director" && !sessionUser.id ? "pending" : salesView;
+  const view = sellerOnly ? "seller_mobile" : salesView === "director" && !sessionUser?.id ? "pending" : salesView;
 
   return (
     <div className="p-3 md:p-8 text-slate-800 space-y-6 max-w-7xl mx-auto">

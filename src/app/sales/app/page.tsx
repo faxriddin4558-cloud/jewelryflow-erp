@@ -19,18 +19,18 @@ import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine
 import { ProfitAccountingBanner } from "@/components/sales/ProfitAccountingBanner";
 import { SellerDashboard } from "@/components/sales/SellerDashboard";
 import { fetchManagerAvailableStockGrams, isSellerUiRole } from "@/lib/sales-role-access";
+import { useSessionUser } from "@/lib/use-session-user";
 
 
 // Sellers get their own dashboard only; the company dashboard (and its company-wide queries) is never
 // mounted for them.
 function SalesDashboardContent() {
   const searchParams = useSearchParams();
-  const [currentUser, setCurrentUser] = useState<ErpUser>(() => RBAC.getCurrentUser());
-  useEffect(() => RBAC.subscribe((u) => setCurrentUser(u)), []);
+  const currentUser = useSessionUser();
 
   // Until the session's role is known (the unverified default has no id) nothing is mounted, so a seller
   // never sends the company dashboard's queries on the first render.
-  if (!currentUser.id) {
+  if (!currentUser || !currentUser.id) {
     return <div className="text-xs text-slate-400 p-4">Yuklanmoqda…</div>;
   }
   if (isSellerUiRole(currentUser.role)) {
@@ -476,7 +476,7 @@ function CompanyDashboardContent() {
         {isSeller ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
             <Link
-              href="/sales/mobile"
+              href="/sales/app/scan"
               className="p-5 rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/40 transition group shadow-sm"
             >
               <div className="text-2xl mb-2">📱</div>

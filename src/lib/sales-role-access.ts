@@ -11,9 +11,19 @@ export function isSellerUiRole(role?: string | null): boolean {
 
 // Sellers may open only these Sales routes. Everything else (manager vault, factory, refining, purchases,
 // inventory, consignments, sellers, reports, cash vault, models, users, settings, director panel) is
-// management-only. Exact match for the dashboard, prefix match for the others.
+// management-only. Exact match for the dashboard, prefix match for the others. /sales/mobile is the old
+// mobile workspace URL and now redirects to Skaner Savdo.
 const SELLER_EXACT_ROUTES = ["/sales/app", "/sales/mobile"];
-const SELLER_PREFIX_ROUTES = ["/sales/app/customers", "/sales/mobile/", "/sales/login"];
+const SELLER_PREFIX_ROUTES = ["/sales/app/scan", "/sales/app/customers", "/sales/app/kassam", "/sales/app/markup", "/sales/mobile/", "/sales/login"];
+
+// The seller's left navigation, in this order.
+export const SELLER_NAVIGATION = [
+  { name: "Asosiy Panel", href: "/sales/app", icon: "📊" },
+  { name: "Skaner Savdo", href: "/sales/app/scan", icon: "⚡" },
+  { name: "Mijozlar va Nasiya", href: "/sales/app/customers", icon: "🛍️" },
+  { name: "Kassam", href: "/sales/app/kassam", icon: "🏦" },
+  { name: "Ustama Farqi", href: "/sales/app/markup", icon: "📈" },
+] as const;
 
 export function isRouteAllowedForSeller(pathname: string): boolean {
   const p = (pathname || "").replace(/\/+$/, "") || "/";

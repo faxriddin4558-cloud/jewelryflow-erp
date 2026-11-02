@@ -1,6 +1,7 @@
 "use client";
 
 import { DirectorSalesWorkspace } from "@/components/sales/DirectorSalesWorkspace";
+import { SellerRatesOverview } from "@/components/sales/SellerRatesCard";
 
 export default function SellersPage() {
   return (
@@ -15,6 +16,8 @@ export default function SellersPage() {
           </p>
         </div>
       </div>
+
+      <SellerRatesOverview />
 
       <DirectorSalesWorkspace initialTab="sellers" hideTopBanner={true} hideTabBar={true} />
     </div>
