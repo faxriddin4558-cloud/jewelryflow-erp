@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { formatGrams, formatScreenGrams, type JewelryModelItem } from "@/lib/barcode-scanner-engine";
 import { supabase, type ConsignmentPieceRow, type SellerGoldAccountRow, type FactoryReceiptRow } from "@/lib/erp-engine";
+import { fetchManagerAvailableStockGrams } from "@/lib/sales-role-access";
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
 import { parseErrorMessage } from "@/lib/error-utils";
 
@@ -95,8 +96,8 @@ export function SellerInventoryDashboard({ pieces, sellers, sellerAccounts, mode
     setManagerStockError(null);
     async function loadManagerStock() {
       try {
-        const { data, error } = await supabase.rpc("get_manager_available_stock_grams");
-        if (error) throw error;
+        const { data, error } = await fetchManagerAvailableStockGrams(supabase);
+        if (error) throw new Error(error.message);
         if (data === null || !Number.isFinite(Number(data))) {
           throw new Error("Ombor qoldig'i olinmadi");
         }

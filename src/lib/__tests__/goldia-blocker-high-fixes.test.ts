@@ -160,7 +160,7 @@ describe("Goldia migration 065 — BLOCKER / HIGH regression suite", () => {
     const cons = await issue(sellerA, [{ w: 10 }, { w: 20 }]);
     expect(cons.status).toBe("ok");
     const [p10] = await heldPieces(String(cons.consignment_id));
-    const managerBefore = await scalar(`public.get_manager_available_stock_grams()`);
+    const managerBefore = await scalar(`public.rpc_get_manager_available_stock_grams()`);
 
     await asUser(sellerAUser);
     expect(await scalar(`public.get_seller_available_stock_grams('${sellerA}')`)).toBe(30);
@@ -171,7 +171,7 @@ describe("Goldia migration 065 — BLOCKER / HIGH regression suite", () => {
     await asAdmin();
     expect(await scalar(`(SELECT current_physical_stock_g FROM public.seller_gold_accounts WHERE seller_id = '${sellerA}')`)).toBe(20);
     await asUser(directorUser);
-    expect(await scalar(`public.get_manager_available_stock_grams()`)).toBe(managerBefore + 10);
+    expect(await scalar(`public.rpc_get_manager_available_stock_grams()`)).toBe(managerBefore + 10);
   });
 
   it("piece sale uses exactly the markup sent (no hidden 15% default) and rejects missing/out-of-range markup", async () => {
@@ -319,7 +319,8 @@ describe("Goldia migration 065 — BLOCKER / HIGH regression suite", () => {
     await expectError(`SELECT public.get_seller_available_stock_grams('${sellerA}')`, "o'z qoldig'ini");
     const own = await rpc(`public.rpc_get_seller_reconciliation_statement('${sellerB}')`);
     expect(own.status).toBe("ok");
-    await expectError(`SELECT public.get_manager_available_stock_grams('${otherOrgId}')`, "boshqa tashkilot");
+    // 071: sellers have no direct EXECUTE on the company stock helper at all (any organization)
+    await expectError(`SELECT public.get_manager_available_stock_grams('${otherOrgId}')`, "permission denied for function");
   });
 
   it("the mobile 'return' path (rpc_return_piece_to_factory) works and really reduces the seller obligation", async () => {

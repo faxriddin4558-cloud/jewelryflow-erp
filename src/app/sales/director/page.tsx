@@ -1,9 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { DirectorSalesWorkspace } from "@/components/sales/DirectorSalesWorkspace";
+import { RBAC } from "@/lib/erp-engine";
+import { isSellerUiRole } from "@/lib/sales-role-access";
 
 export default function SalesDirectorPage() {
+  const router = useRouter();
+  const [user, setUser] = useState(() => RBAC.getCurrentUser());
+  useEffect(() => RBAC.subscribe((u) => setUser(u)), []);
+  const isSeller = isSellerUiRole(user.role);
+  useEffect(() => {
+    if (isSeller) router.replace("/sales/app?unauthorized=1");
+  }, [isSeller, router]);
+  // Mount the management workspace only for a known, non-seller session.
+  if (isSeller || !user.id) return null;
+
   return (
     <div className="p-4 md:p-8 space-y-6 text-slate-800 max-w-7xl mx-auto">
       {/* Top quick navigation */}

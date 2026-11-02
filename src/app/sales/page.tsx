@@ -13,6 +13,7 @@ import {
 } from "@/lib/erp-engine";
 import { DirectorSalesWorkspace } from "@/components/sales/DirectorSalesWorkspace";
 import { SellerMobileWorkspace } from "@/components/sales/SellerMobileWorkspace";
+import { isSellerUiRole } from "@/lib/sales-role-access";
 
 export default function SalesPage() {
   const [salesView, setSalesView] = useState<"director" | "seller_mobile" | "classic_pos">(() => {
@@ -273,6 +274,13 @@ export default function SalesPage() {
     customerDebt: totalDebt,
   } = GoldEngine.calculateFinancialSummary(sales, orders);
 
+  // Sellers only get the seller workspace here; the director and classic views are management-only.
+  const [sessionUser, setSessionUser] = useState(() => RBAC.getCurrentUser());
+  useEffect(() => RBAC.subscribe((u) => setSessionUser(u)), []);
+  const sellerOnly = isSellerUiRole(sessionUser.role);
+  // The director workspace mounts only for a known, non-seller session.
+  const view = sellerOnly ? "seller_mobile" : salesView === "director" && !sessionUser.id ? "pending" : salesView;
+
   return (
     <div className="p-3 md:p-8 text-slate-800 space-y-6 max-w-7xl mx-auto">
       {/* Sales Navigation Bar & View Switcher */}
@@ -292,6 +300,7 @@ export default function SalesPage() {
         </div>
 
         {/* View Switcher Pills */}
+        {!sellerOnly && (<>
         <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl text-xs font-bold">
           <button
             onClick={() => setSalesView("director")}
@@ -342,16 +351,17 @@ export default function SalesPage() {
             /sales/mobile ↗
           </Link>
         </div>
+        </>)}
       </div>
 
       {/* Render Director Workspace */}
-      {salesView === "director" && <DirectorSalesWorkspace />}
+      {view === "director" && <DirectorSalesWorkspace />}
 
       {/* Render Seller Mobile Workspace */}
-      {salesView === "seller_mobile" && <SellerMobileWorkspace />}
+      {view === "seller_mobile" && <SellerMobileWorkspace />}
 
       {/* Render Classic Vitrina / POS */}
-      {salesView === "classic_pos" && (
+      {view === "classic_pos" && (
         <div className="space-y-6">
           <div className="flex flex-wrap justify-between items-center gap-4">
             <h2 className="text-xl font-bold text-slate-900">
