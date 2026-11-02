@@ -31,6 +31,17 @@ export function isRouteAllowedForSeller(pathname: string): boolean {
   return SELLER_PREFIX_ROUTES.some((prefix) => p === prefix.replace(/\/$/, "") || p.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`));
 }
 
+// A seller always stays inside Goldia Sales: any page outside /sales/app (/, /sales, ERP modules) sends the
+// seller to /sales/app. Login pages and the /sales/mobile redirect are left alone. Never true for management.
+export function shouldSendSellerToSalesApp(role: string | null | undefined, pathname: string): boolean {
+  if (!isSellerUiRole(role)) return false;
+  const p = pathname || "/";
+  if (p === "/sales/app" || p.startsWith("/sales/app/")) return false;
+  if (p.startsWith("/sales/login") || p.startsWith("/login") || p.startsWith("/reset-password")) return false;
+  if (p === "/sales/mobile" || p.startsWith("/sales/mobile/")) return false;
+  return true;
+}
+
 // Management-only company stock (migration 071). Falls back to the pre-071 helper only when the wrapper
 // does not exist yet (frontend deployed before the migration); a permission error is returned as is.
 export async function fetchManagerAvailableStockGrams(

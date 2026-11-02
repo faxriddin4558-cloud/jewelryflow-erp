@@ -12,6 +12,7 @@ import {
   type EmployeeRow,
 } from "@/lib/erp-engine";
 import { EnvironmentVersionBadge } from "@/components/common/EnvironmentVersionBadge";
+import { shouldSendSellerToSalesApp } from "@/lib/sales-role-access";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -137,6 +138,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/reset-password");
   const isDedicatedSales = pathname.startsWith("/sales/app") || pathname.startsWith("/sales/login");
   const isStandalonePage = isAuthPage || isDedicatedSales;
+  // Goldia Sales: a seller always stays inside the Sales app. Any other page (/, /sales, ERP modules) sends the
+  // seller to /sales/app without rendering the ERP shell. Management sessions are not affected.
+  const sellerOutsideSales = shouldSendSellerToSalesApp(sessionUser.role, pathname);
+  useEffect(() => {
+    if (sellerOutsideSales) router.replace("/sales/app");
+  }, [sellerOutsideSales, router]);
 
   const menuGroups = [
     { title: "", items: [{ name: "Asosiy panel", path: "/", icon: "📊" }] },
@@ -186,7 +193,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="flex h-screen bg-gray-50 overflow-hidden text-gray-900 font-sans">
         <QueryClientProvider client={queryClient}>
-          {isStandalonePage ? (
+          {sellerOutsideSales ? (
+            <div className="flex-1 flex items-center justify-center bg-[#0B1120] text-slate-400 text-sm">Goldia Sales…</div>
+          ) : isStandalonePage ? (
             <div className="flex-1 overflow-y-auto w-full bg-gray-50">{children}</div>
           ) : (
             <>
