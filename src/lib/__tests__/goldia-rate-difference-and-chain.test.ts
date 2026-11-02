@@ -80,7 +80,7 @@ describe("Goldia 066 — company rate difference and full transaction chain", ()
     expect(Number(acc.current_physical_stock_g)).toBe(25);
 
     await t.asUser(director.userId);
-    const managerAvail = await t.scalar(`public.get_manager_available_stock_grams()`);
+    const managerAvail = await t.scalar(`public.rpc_get_manager_available_stock_grams()`);
     await t.asAdmin();
     const sold = await t.scalar(`(SELECT sum(base_weight_grams) FROM public.jewelry_sales WHERE status NOT IN ('reversed','cancelled'))`);
     expect(managerAvail + Number(acc.current_physical_stock_g) + sold).toBe(100);
@@ -216,7 +216,7 @@ describe("Goldia 066 — company rate difference and full transaction chain", ()
 
     // Physical conservation after return + reversed sale
     await t.asUser(director.userId);
-    const managerAvail = await t.scalar(`public.get_manager_available_stock_grams()`);
+    const managerAvail = await t.scalar(`public.rpc_get_manager_available_stock_grams()`);
     await t.asAdmin();
     const sold = await t.scalar(`(SELECT coalesce(sum(base_weight_grams), 0) FROM public.jewelry_sales WHERE status NOT IN ('reversed','cancelled'))`);
     expect(managerAvail + Number((await sellerAccount()).current_physical_stock_g) + sold).toBe(100);

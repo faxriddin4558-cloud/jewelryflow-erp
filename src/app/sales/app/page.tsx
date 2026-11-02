@@ -17,9 +17,38 @@ import {
 } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 import { ProfitAccountingBanner } from "@/components/sales/ProfitAccountingBanner";
+import { SellerDashboard } from "@/components/sales/SellerDashboard";
+import { fetchManagerAvailableStockGrams, isSellerUiRole } from "@/lib/sales-role-access";
 
 
+// Sellers get their own dashboard only; the company dashboard (and its company-wide queries) is never
+// mounted for them.
 function SalesDashboardContent() {
+  const searchParams = useSearchParams();
+  const [currentUser, setCurrentUser] = useState<ErpUser>(() => RBAC.getCurrentUser());
+  useEffect(() => RBAC.subscribe((u) => setCurrentUser(u)), []);
+
+  // Until the session's role is known (the unverified default has no id) nothing is mounted, so a seller
+  // never sends the company dashboard's queries on the first render.
+  if (!currentUser.id) {
+    return <div className="text-xs text-slate-400 p-4">Yuklanmoqda…</div>;
+  }
+  if (isSellerUiRole(currentUser.role)) {
+    return (
+      <div className="space-y-4">
+        {searchParams.get("unauthorized") === "1" && (
+          <div role="alert" className="max-w-3xl mx-auto p-3 rounded-2xl bg-amber-500/10 border border-amber-500/40 text-amber-300 text-xs">
+            🛡️ <b>Ruxsat cheklangan:</b> bu sahifa faqat Direktor va Boshqaruvchi uchun.
+          </div>
+        )}
+        <SellerDashboard sellerName={currentUser.name} />
+      </div>
+    );
+  }
+  return <CompanyDashboardContent />;
+}
+
+function CompanyDashboardContent() {
   const searchParams = useSearchParams();
   const [currentUser, setCurrentUser] = useState<ErpUser>(() => RBAC.getCurrentUser());
   const [loading, setLoading] = useState(true);
@@ -51,7 +80,7 @@ function SalesDashboardContent() {
         supabase.from("factory_receipts").select("factory_obligation_g, original_physical_g, available_physical_g, transferred_physical_g, status"),
         supabase.from("factory_gold_handovers").select("agreed_equivalent_g, status"),
         supabase.from("jewelry_sales").select("base_weight_grams, status"),
-        supabase.rpc("get_manager_available_stock_grams"),
+        fetchManagerAvailableStockGrams(supabase),
       ]);
 
       setCanonicalManagerStock(

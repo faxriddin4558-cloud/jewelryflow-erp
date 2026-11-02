@@ -716,6 +716,9 @@ describe("ErpTransactionalEngine — Atomic Operations, Concurrency & Idempotenc
     ).toBe("Warehouse");
     expect(
       resolveEmployeeRole({ role: "sales", employment_status: "active" })
+    ).toBe("Seller"); // same as the database: normalize_erp_role_token('sales') = 'seller'
+    expect(
+      resolveEmployeeRole({ role: "accountant", employment_status: "active" })
     ).toBe("Accountant");
     expect(
       resolveEmployeeRole({ role: "department_head", employment_status: "active" })

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * GOLDIA — gated production release of one Sales migration (default 070).
+ * GOLDIA — gated production release of one Sales migration (default 071).
  *
- *   node scripts/goldia-prod-release.js [--migration 070] [--acknowledge-findings]
+ *   node scripts/goldia-prod-release.js [--migration 071] [--acknowledge-findings]
  *
  * 1. Hidden password prompt (kept only in child-process environments, never printed or saved).
  * 2. FRESH backup + restore test + read-only preflight + migration test on the restored copy
@@ -30,7 +30,7 @@ for (let i = 2; i < process.argv.length; i++) {
   const next = process.argv[i + 1];
   args[a.slice(2)] = next === undefined || next.startsWith("--") ? true : (i++, next);
 }
-const TARGET = String(args.migration || "070").padStart(3, "0");
+const TARGET = String(args.migration || "071").padStart(3, "0");
 const PREVIOUS = String(Number(TARGET) - 1).padStart(3, "0");
 const TARGET_VERSION = `20260101000${TARGET}`;
 const PREVIOUS_VERSION = `20260101000${PREVIOUS}`;
@@ -92,6 +92,10 @@ const POSTFLIGHT_CHECKS = {
   "070": [
     // every column of 070_postflight_readonly.sql must be true
     ["all_070_checks", allColumnsTrue(path.join(REPO, "supabase/release/070_postflight_readonly.sql"))],
+  ],
+  "071": [
+    // every column of 071_postflight_readonly.sql must be true
+    ["all_071_checks", allColumnsTrue(path.join(REPO, "supabase/release/071_postflight_readonly.sql"))],
   ],
   "068": [
     ["allocations_table", "select to_regclass('public.weight_sale_allocations') is not null"],

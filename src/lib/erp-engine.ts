@@ -472,10 +472,11 @@ function classifyRoleToken(token?: string | null): ErpRole | null {
   if (lower === "warehouse" || lower === "inventory_manager" || lower === "omborchi") {
     return "Warehouse";
   }
-  if (lower === "seller" || lower === "sotuvchi") {
+  // 'sales' is the stored seller role (employees/create); the database normalizes it to 'seller' too.
+  if (lower === "seller" || lower === "sotuvchi" || lower === "sales") {
     return "Seller";
   }
-  if (lower === "accountant" || lower === "sales" || lower === "buxgalter" || lower === "hisobchi") {
+  if (lower === "accountant" || lower === "buxgalter" || lower === "hisobchi") {
     return "Accountant";
   }
   if (

@@ -11,6 +11,7 @@ import {
   type ErpUser,
   type ErpRole,
 } from "@/lib/erp-engine";
+import { isRouteAllowedForSeller, isSellerUiRole } from "@/lib/sales-role-access";
 
 interface NavItem {
   name: string;
@@ -43,8 +44,9 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     title: "SAVDO & KASSALAR",
     items: [
       { name: "Sotuvchilar & Bozor Qarzi", href: "/sales/app/sellers", icon: "👥", roles: ["Director", "Production Manager", "manager"] },
+      { name: "Mobil Savdo", href: "/sales/mobile", icon: "📱" },
       { name: "Mijozlar va Nasiya", href: "/sales/app/customers", icon: "🛍️" },
-      { name: "Kassa & Valyuta", href: "/sales/app/cash", icon: "💰" },
+      { name: "Kassa & Valyuta", href: "/sales/app/cash", icon: "💰", roles: ["Director", "Production Manager", "manager"] },
     ],
   },
   {
@@ -58,7 +60,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     title: "TAHLIL & TIZIM",
     items: [
       { name: "Moliyaviy Hisobotlar", href: "/sales/app/reports", icon: "📑", roles: ["Director", "Production Manager", "manager", "Accountant"] },
-      { name: "BarTender & Modellar", href: "/sales/app/models", icon: "🏷️" },
+      { name: "BarTender & Modellar", href: "/sales/app/models", icon: "🏷️", roles: ["Director", "Production Manager", "manager"] },
       { name: "Xodimlar & Telegram", href: "/sales/app/users", icon: "👤", roles: ["Director", "Production Manager", "manager"] },
       { name: "Sozlamalar & Import", href: "/sales/app/settings", icon: "⚙️", roles: ["Director", "Production Manager", "manager"] },
     ],
@@ -171,20 +173,8 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
   // F01 Route Guard: prevent sellers from accessing privileged manager/director pages directly
   useEffect(() => {
     if (!currentUser || !pathname) return;
-    const isSeller = currentUser.role === "Seller" || currentUser.role === "seller";
-    const RESTRICTED_FOR_SELLER = [
-      "/sales/app/factory",
-      "/sales/app/factory-receive",
-      "/sales/app/refining",
-      "/sales/app/purchases",
-      "/sales/app/consignments",
-      "/sales/app/users",
-      "/sales/app/settings",
-      "/sales/app/sellers",
-      "/sales/app/inventory",
-    ];
-
-    if (isSeller && RESTRICTED_FOR_SELLER.some((prefix) => pathname.startsWith(prefix))) {
+    // Allowlist: a seller may open only the own dashboard, own customers and the mobile workspace.
+    if (isSellerUiRole(currentUser.role) && !isRouteAllowedForSeller(pathname)) {
       router.replace("/sales/app?unauthorized=1");
     }
   }, [currentUser, pathname, router]);
@@ -247,7 +237,7 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
   };
 
   const roleName = isMounted ? (currentUser.role || "Worker") : "Worker";
-  const isSeller = isMounted && (roleName.toLowerCase() === "seller" || roleName.toLowerCase() === "sotuvchi");
+  const isSeller = isMounted && isSellerUiRole(roleName);
   const displayName = isMounted ? (currentUser.name || "Foydalanuvchi") : "Foydalanuvchi";
   const displayEmail = isMounted ? (currentUser.email || "Lokal sessiya") : "Lokal sessiya";
   const avatarLetter = isMounted && currentUser.name ? currentUser.name.slice(0, 1).toUpperCase() : "U";
@@ -368,12 +358,14 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
               )}
             </div>
           </div>
-          <button
-            onClick={() => setRateModalOpen(true)}
-            className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-[11px] rounded-lg transition"
-          >
-            ⚙️ Kurs
-          </button>
+          {!isSeller && (
+            <button
+              onClick={() => setRateModalOpen(true)}
+              className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-[11px] rounded-lg transition"
+            >
+              ⚙️ Kurs
+            </button>
+          )}
         </div>
 
         {/* Navigation Items (15 Operational Destinations) */}
@@ -381,6 +373,7 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
           {NAVIGATION_GROUPS.map((group, gIdx) => {
             // Filter items by role if specified
             const visibleItems = group.items.filter((item) => {
+              if (isSeller) return isRouteAllowedForSeller(item.href);
               if (!item.roles) return true;
               return item.roles.includes(roleName);
             });
@@ -489,7 +482,9 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
 
         {/* Dynamic Page Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 space-y-6 text-[#F8FAFC]">
-          {children}
+          {/* Management routes mount only once the role is known; for a seller they never mount (the guard
+              redirects), so none of their company-wide queries are sent. */}
+          {pathname && !isRouteAllowedForSeller(pathname) && (!isMounted || !currentUser.id || isSeller) ? null : children}
         </main>
       </div>
 
