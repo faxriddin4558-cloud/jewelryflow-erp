@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { createGoldiaDb } from "./helpers/goldia-pglite";
 import { buildSellerDashboard } from "@/components/sales/SellerDashboard";
-import { isRouteAllowedForSeller, isSellerUiRole, SELLER_NAVIGATION } from "@/lib/sales-role-access";
+import { isRouteAllowedForSeller, isSellerUiRole, SELLER_NAVIGATION, shouldSendSellerToSalesApp } from "@/lib/sales-role-access";
 
 // Migration 071 + seller UI cleanup: sellers see only their own data; company totals, the manager stock,
 // factory/refining/vault and other sellers' data are refused by the database itself. Director and manager
@@ -152,6 +152,18 @@ describe("Seller UI route allowlist", () => {
   it("recognizes seller role spellings", () => {
     for (const r of ["Seller", "seller", "sales", "Sotuvchi"]) expect(isSellerUiRole(r)).toBe(true);
     for (const r of ["Director", "manager", "Production Manager", "Accountant", "", null, undefined]) expect(isSellerUiRole(r)).toBe(false);
+  });
+
+  it("a seller outside Goldia Sales is sent back to /sales/app; management never is", () => {
+    for (const p of ["/", "/sales", "/orders", "/batches", "/employees", "/sales/director", "/reports"]) {
+      expect(shouldSendSellerToSalesApp("Seller", p), p).toBe(true);
+    }
+    for (const p of ["/sales/app", "/sales/app/scan", "/sales/app/kassam", "/sales/login", "/login", "/sales/mobile"]) {
+      expect(shouldSendSellerToSalesApp("Seller", p), p).toBe(false);
+    }
+    for (const role of ["Director", "Production Manager", "manager", "Accountant", "Worker", null]) {
+      for (const p of ["/", "/sales", "/orders", "/sales/director"]) expect(shouldSendSellerToSalesApp(role, p)).toBe(false);
+    }
   });
 
   it("seller navigation is exactly the five approved destinations, all allowed", () => {
