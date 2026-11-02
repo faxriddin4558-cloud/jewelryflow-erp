@@ -89,6 +89,9 @@ const POSTFLIGHT_CHECKS = {
     ["ledger_no_first_org_fallback", "select position('organizations' || chr(10) || '    limit 1' in pg_get_functiondef('public.rpc_get_unified_customer_ledger(uuid,uuid)'::regprocedure)) = 0"],
     ["ledger_no_admin_fallback", "select position(chr(39) || 'admin' || chr(39) || ')' in pg_get_functiondef('public.rpc_get_unified_customer_ledger(uuid,uuid)'::regprocedure)) = 0"],
   ],
+  "073": [
+    ["all_073_checks", allColumnsTrue(path.join(REPO, "supabase/release/073_postflight_readonly.sql"))],
+  ],
   "070": [
     // every column of 070_postflight_readonly.sql must be true
     ["all_070_checks", allColumnsTrue(path.join(REPO, "supabase/release/070_postflight_readonly.sql"))],

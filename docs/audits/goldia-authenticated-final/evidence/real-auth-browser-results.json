@@ -1,0 +1,802 @@
+[
+ {
+  "id": "A-/sales/app",
+  "role": "ANON",
+  "title": "protected route redirects to login",
+  "ok": "PASS",
+  "detail": "/sales/login?redirectedFrom=%2Fsales%2Fapp",
+  "at": "2026-11-02T14:25:45.387Z"
+ },
+ {
+  "id": "A-/sales/app/kassam",
+  "role": "ANON",
+  "title": "protected route redirects to login",
+  "ok": "PASS",
+  "detail": "/sales/login?redirectedFrom=%2Fsales%2Fapp%2Fkassam",
+  "at": "2026-11-02T14:25:45.531Z"
+ },
+ {
+  "id": "A-/sales/app/reports",
+  "role": "ANON",
+  "title": "protected route redirects to login",
+  "ok": "PASS",
+  "detail": "/sales/login?redirectedFrom=%2Fsales%2Fapp%2Freports",
+  "at": "2026-11-02T14:25:45.646Z"
+ },
+ {
+  "id": "A-wrongpw",
+  "role": "ANON",
+  "title": "wrong password rejected by real Supabase Auth",
+  "ok": "PASS",
+  "detail": "Invalid login credentials",
+  "at": "2026-11-02T14:25:48.845Z"
+ },
+ {
+  "id": "L-DIRECTOR",
+  "role": "DIRECTOR",
+  "title": "real Supabase Auth login; session cookie for test project",
+  "ok": "PASS",
+  "detail": "landed=/sales/app cookie=sb-yvvbdoqncubtwlzskgml-auth-token",
+  "at": "2026-11-02T14:25:57.953Z"
+ },
+ {
+  "id": "N-DIRECTOR",
+  "role": "DIRECTOR",
+  "title": "management menu contains reports/factory/cash",
+  "ok": "PASS",
+  "detail": "14 links",
+  "at": "2026-11-02T14:25:58.256Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app",
+  "role": "DIRECTOR",
+  "title": "open /sales/app",
+  "ok": "FAIL",
+  "detail": "url=/sales/app api_errors=404 /rest/v1/rpc/rpc_get_manager_available_stock_grams console=2",
+  "at": "2026-11-02T14:26:02.400Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/factory",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/factory",
+  "ok": "PASS",
+  "detail": "url=/sales/app/factory api_errors= console=0",
+  "at": "2026-11-02T14:26:05.647Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/inventory",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/inventory",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/inventory api_errors=404 /rest/v1/rpc/rpc_get_manager_available_stock_grams;404 /rest/v1/rpc/rpc_get_manager_available_stock_grams console=2",
+  "at": "2026-11-02T14:26:08.754Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/consignments",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/consignments",
+  "ok": "PASS",
+  "detail": "url=/sales/app/consignments api_errors= console=0",
+  "at": "2026-11-02T14:26:11.979Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/sellers",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/sellers",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/sellers api_errors=404 /rest/v1/rpc/rpc_get_seller_rates console=1",
+  "at": "2026-11-02T14:26:15.093Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/scan",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/scan",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/scan api_errors=404 /rest/v1/rpc/rpc_get_seller_rates console=2",
+  "at": "2026-11-02T14:26:18.520Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/customers",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/customers",
+  "ok": "PASS",
+  "detail": "url=/sales/app/customers api_errors= console=0",
+  "at": "2026-11-02T14:26:21.508Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/cash",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/cash",
+  "ok": "PASS",
+  "detail": "url=/sales/app/cash api_errors= console=0",
+  "at": "2026-11-02T14:26:24.757Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/refining",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/refining",
+  "ok": "PASS",
+  "detail": "url=/sales/app/refining api_errors= console=0",
+  "at": "2026-11-02T14:26:27.812Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/purchases",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/purchases",
+  "ok": "PASS",
+  "detail": "url=/sales/app/purchases api_errors= console=0",
+  "at": "2026-11-02T14:26:30.861Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/reports",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/reports",
+  "ok": "PASS",
+  "detail": "url=/sales/app/reports api_errors= console=0",
+  "at": "2026-11-02T14:26:33.899Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/models",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/models",
+  "ok": "PASS",
+  "detail": "url=/sales/app/models api_errors= console=0",
+  "at": "2026-11-02T14:26:37.108Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/users",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/users",
+  "ok": "PASS",
+  "detail": "url=/sales/app/users api_errors= console=0",
+  "at": "2026-11-02T14:26:40.251Z"
+ },
+ {
+  "id": "P-DIRECTOR/sales/app/settings",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/settings",
+  "ok": "PASS",
+  "detail": "url=/sales/app/settings api_errors= console=0",
+  "at": "2026-11-02T14:26:43.340Z"
+ },
+ {
+  "id": "R-DIRECTOR",
+  "role": "DIRECTOR",
+  "title": "session survives refresh",
+  "ok": "PASS",
+  "detail": "/sales/app/settings",
+  "at": "2026-11-02T14:26:45.921Z"
+ },
+ {
+  "id": "O-DIRECTOR",
+  "role": "DIRECTOR",
+  "title": "logout ends the session",
+  "ok": "PASS",
+  "detail": "http://localhost:3200/sales/login?redirectedFrom=%2Fsales%2Fapp%2Freports",
+  "at": "2026-11-02T14:26:49.235Z"
+ },
+ {
+  "id": "L-MANAGER",
+  "role": "MANAGER",
+  "title": "real Supabase Auth login; session cookie for test project",
+  "ok": "PASS",
+  "detail": "landed=/sales/app cookie=sb-yvvbdoqncubtwlzskgml-auth-token",
+  "at": "2026-11-02T14:26:56.729Z"
+ },
+ {
+  "id": "N-MANAGER",
+  "role": "MANAGER",
+  "title": "management menu contains reports/factory/cash",
+  "ok": "PASS",
+  "detail": "14 links",
+  "at": "2026-11-02T14:26:56.974Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app",
+  "role": "MANAGER",
+  "title": "open /sales/app",
+  "ok": "FAIL",
+  "detail": "url=/sales/app api_errors=404 /rest/v1/rpc/rpc_get_manager_available_stock_grams console=2",
+  "at": "2026-11-02T14:27:00.305Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/factory",
+  "role": "MANAGER",
+  "title": "open /sales/app/factory",
+  "ok": "PASS",
+  "detail": "url=/sales/app/factory api_errors= console=0",
+  "at": "2026-11-02T14:27:03.675Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/inventory",
+  "role": "MANAGER",
+  "title": "open /sales/app/inventory",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/inventory api_errors=404 /rest/v1/rpc/rpc_get_manager_available_stock_grams;404 /rest/v1/rpc/rpc_get_manager_available_stock_grams console=2",
+  "at": "2026-11-02T14:27:06.904Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/consignments",
+  "role": "MANAGER",
+  "title": "open /sales/app/consignments",
+  "ok": "PASS",
+  "detail": "url=/sales/app/consignments api_errors= console=0",
+  "at": "2026-11-02T14:27:09.904Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/sellers",
+  "role": "MANAGER",
+  "title": "open /sales/app/sellers",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/sellers api_errors=404 /rest/v1/rpc/rpc_get_seller_rates console=1",
+  "at": "2026-11-02T14:27:13.132Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/scan",
+  "role": "MANAGER",
+  "title": "open /sales/app/scan",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/scan api_errors=404 /rest/v1/rpc/rpc_get_seller_rates;404 /rest/v1/rpc/rpc_get_seller_rates console=3",
+  "at": "2026-11-02T14:27:16.702Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/customers",
+  "role": "MANAGER",
+  "title": "open /sales/app/customers",
+  "ok": "PASS",
+  "detail": "url=/sales/app/customers api_errors= console=0",
+  "at": "2026-11-02T14:27:19.667Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/cash",
+  "role": "MANAGER",
+  "title": "open /sales/app/cash",
+  "ok": "PASS",
+  "detail": "url=/sales/app/cash api_errors= console=0",
+  "at": "2026-11-02T14:27:22.703Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/refining",
+  "role": "MANAGER",
+  "title": "open /sales/app/refining",
+  "ok": "PASS",
+  "detail": "url=/sales/app/refining api_errors= console=0",
+  "at": "2026-11-02T14:27:25.800Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/purchases",
+  "role": "MANAGER",
+  "title": "open /sales/app/purchases",
+  "ok": "PASS",
+  "detail": "url=/sales/app/purchases api_errors= console=0",
+  "at": "2026-11-02T14:27:28.956Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/reports",
+  "role": "MANAGER",
+  "title": "open /sales/app/reports",
+  "ok": "PASS",
+  "detail": "url=/sales/app/reports api_errors= console=0",
+  "at": "2026-11-02T14:27:32.101Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/models",
+  "role": "MANAGER",
+  "title": "open /sales/app/models",
+  "ok": "PASS",
+  "detail": "url=/sales/app/models api_errors= console=0",
+  "at": "2026-11-02T14:27:35.331Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/users",
+  "role": "MANAGER",
+  "title": "open /sales/app/users",
+  "ok": "PASS",
+  "detail": "url=/sales/app/users api_errors= console=0",
+  "at": "2026-11-02T14:27:38.485Z"
+ },
+ {
+  "id": "P-MANAGER/sales/app/settings",
+  "role": "MANAGER",
+  "title": "open /sales/app/settings",
+  "ok": "PASS",
+  "detail": "url=/sales/app/settings api_errors= console=0",
+  "at": "2026-11-02T14:27:41.605Z"
+ },
+ {
+  "id": "R-MANAGER",
+  "role": "MANAGER",
+  "title": "session survives refresh",
+  "ok": "PASS",
+  "detail": "/sales/app/settings",
+  "at": "2026-11-02T14:27:44.329Z"
+ },
+ {
+  "id": "O-MANAGER",
+  "role": "MANAGER",
+  "title": "logout ends the session",
+  "ok": "PASS",
+  "detail": "http://localhost:3200/sales/login?redirectedFrom=%2Fsales%2Fapp%2Freports",
+  "at": "2026-11-02T14:27:47.644Z"
+ },
+ {
+  "id": "L-SELLER_A",
+  "role": "SELLER_A",
+  "title": "real Supabase Auth login; session cookie for test project",
+  "ok": "PASS",
+  "detail": "landed=/sales/app cookie=sb-yvvbdoqncubtwlzskgml-auth-token",
+  "at": "2026-11-02T14:27:55.668Z"
+ },
+ {
+  "id": "N-SELLER_A",
+  "role": "SELLER_A",
+  "title": "seller menu = exactly 5 sections",
+  "ok": "PASS",
+  "detail": "/sales/app /sales/app/customers /sales/app/kassam /sales/app/markup /sales/app/scan",
+  "at": "2026-11-02T14:27:55.754Z"
+ },
+ {
+  "id": "P-SELLER_A/sales/app",
+  "role": "SELLER_A",
+  "title": "open /sales/app",
+  "ok": "FAIL",
+  "detail": "url=/sales/app api_errors=404 /rest/v1/rpc/rpc_get_seller_rates console=2",
+  "at": "2026-11-02T14:27:58.949Z"
+ },
+ {
+  "id": "P-SELLER_A/sales/app/scan",
+  "role": "SELLER_A",
+  "title": "open /sales/app/scan",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/scan api_errors=404 /rest/v1/rpc/rpc_get_seller_rates;404 /rest/v1/rpc/rpc_get_seller_rates console=3",
+  "at": "2026-11-02T14:28:02.202Z"
+ },
+ {
+  "id": "P-SELLER_A/sales/app/customers",
+  "role": "SELLER_A",
+  "title": "open /sales/app/customers",
+  "ok": "PASS",
+  "detail": "url=/sales/app/customers api_errors= console=0",
+  "at": "2026-11-02T14:28:05.266Z"
+ },
+ {
+  "id": "P-SELLER_A/sales/app/kassam",
+  "role": "SELLER_A",
+  "title": "open /sales/app/kassam",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/kassam api_errors=404 /rest/v1/rpc/rpc_get_seller_rates;404 /rest/v1/rpc/rpc_get_seller_rates;404 /rest/v1/rpc/rpc_get_seller_rates console=4",
+  "at": "2026-11-02T14:28:08.498Z"
+ },
+ {
+  "id": "P-SELLER_A/sales/app/markup",
+  "role": "SELLER_A",
+  "title": "open /sales/app/markup",
+  "ok": "PASS",
+  "detail": "url=/sales/app/markup api_errors= console=0",
+  "at": "2026-11-02T14:28:11.406Z"
+ },
+ {
+  "id": "F-SELLER_A/sales/app/factory",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:14.402Z"
+ },
+ {
+  "id": "F-SELLER_A/sales/app/inventory",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:17.442Z"
+ },
+ {
+  "id": "F-SELLER_A/sales/app/sellers",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:20.508Z"
+ },
+ {
+  "id": "F-SELLER_A/sales/app/cash",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:23.361Z"
+ },
+ {
+  "id": "F-SELLER_A/sales/app/reports",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:26.368Z"
+ },
+ {
+  "id": "F-SELLER_A/sales/app/purchases",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:29.309Z"
+ },
+ {
+  "id": "F-SELLER_A/sales/app/settings",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:32.264Z"
+ },
+ {
+  "id": "F-SELLER_A/sales/director",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:35.209Z"
+ },
+ {
+  "id": "F-SELLER_A/sales/mobile",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app/scan",
+  "at": "2026-11-02T14:28:38.210Z"
+ },
+ {
+  "id": "F-SELLER_A/",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:41.070Z"
+ },
+ {
+  "id": "F-SELLER_A/dashboard",
+  "role": "SELLER_A",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:44.076Z"
+ },
+ {
+  "id": "R-SELLER_A",
+  "role": "SELLER_A",
+  "title": "session survives refresh",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:28:46.762Z"
+ },
+ {
+  "id": "O-SELLER_A",
+  "role": "SELLER_A",
+  "title": "logout ends the session",
+  "ok": "PASS",
+  "detail": "http://localhost:3200/sales/login?redirectedFrom=%2Fsales%2Fapp%2Fkassam",
+  "at": "2026-11-02T14:28:50.094Z"
+ },
+ {
+  "id": "L-SELLER_B",
+  "role": "SELLER_B",
+  "title": "real Supabase Auth login; session cookie for test project",
+  "ok": "PASS",
+  "detail": "landed=/sales/app cookie=sb-yvvbdoqncubtwlzskgml-auth-token",
+  "at": "2026-11-02T14:28:57.908Z"
+ },
+ {
+  "id": "N-SELLER_B",
+  "role": "SELLER_B",
+  "title": "seller menu = exactly 5 sections",
+  "ok": "PASS",
+  "detail": "/sales/app /sales/app/customers /sales/app/kassam /sales/app/markup /sales/app/scan",
+  "at": "2026-11-02T14:28:57.987Z"
+ },
+ {
+  "id": "P-SELLER_B/sales/app",
+  "role": "SELLER_B",
+  "title": "open /sales/app",
+  "ok": "FAIL",
+  "detail": "url=/sales/app api_errors=404 /rest/v1/rpc/rpc_get_seller_rates console=2",
+  "at": "2026-11-02T14:29:01.596Z"
+ },
+ {
+  "id": "P-SELLER_B/sales/app/scan",
+  "role": "SELLER_B",
+  "title": "open /sales/app/scan",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/scan api_errors=404 /rest/v1/rpc/rpc_get_seller_rates;404 /rest/v1/rpc/rpc_get_seller_rates console=3",
+  "at": "2026-11-02T14:29:05.280Z"
+ },
+ {
+  "id": "P-SELLER_B/sales/app/customers",
+  "role": "SELLER_B",
+  "title": "open /sales/app/customers",
+  "ok": "PASS",
+  "detail": "url=/sales/app/customers api_errors= console=0",
+  "at": "2026-11-02T14:29:08.226Z"
+ },
+ {
+  "id": "P-SELLER_B/sales/app/kassam",
+  "role": "SELLER_B",
+  "title": "open /sales/app/kassam",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/kassam api_errors=404 /rest/v1/rpc/rpc_get_seller_rates;404 /rest/v1/rpc/rpc_get_seller_rates;404 /rest/v1/rpc/rpc_get_seller_rates console=4",
+  "at": "2026-11-02T14:29:11.657Z"
+ },
+ {
+  "id": "P-SELLER_B/sales/app/markup",
+  "role": "SELLER_B",
+  "title": "open /sales/app/markup",
+  "ok": "PASS",
+  "detail": "url=/sales/app/markup api_errors= console=0",
+  "at": "2026-11-02T14:29:14.724Z"
+ },
+ {
+  "id": "F-SELLER_B/sales/app/factory",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:18.161Z"
+ },
+ {
+  "id": "F-SELLER_B/sales/app/inventory",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:21.254Z"
+ },
+ {
+  "id": "F-SELLER_B/sales/app/sellers",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:24.373Z"
+ },
+ {
+  "id": "F-SELLER_B/sales/app/cash",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:27.415Z"
+ },
+ {
+  "id": "F-SELLER_B/sales/app/reports",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:31.087Z"
+ },
+ {
+  "id": "F-SELLER_B/sales/app/purchases",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:34.084Z"
+ },
+ {
+  "id": "F-SELLER_B/sales/app/settings",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:37.762Z"
+ },
+ {
+  "id": "F-SELLER_B/sales/director",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:40.963Z"
+ },
+ {
+  "id": "F-SELLER_B/sales/mobile",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app/scan",
+  "at": "2026-11-02T14:29:44.043Z"
+ },
+ {
+  "id": "F-SELLER_B/",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:47.059Z"
+ },
+ {
+  "id": "F-SELLER_B/dashboard",
+  "role": "SELLER_B",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:50.133Z"
+ },
+ {
+  "id": "R-SELLER_B",
+  "role": "SELLER_B",
+  "title": "session survives refresh",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:29:52.787Z"
+ },
+ {
+  "id": "O-SELLER_B",
+  "role": "SELLER_B",
+  "title": "logout ends the session",
+  "ok": "PASS",
+  "detail": "http://localhost:3200/sales/login?redirectedFrom=%2Fsales%2Fapp%2Fkassam",
+  "at": "2026-11-02T14:29:56.098Z"
+ },
+ {
+  "id": "L-SELLER_C",
+  "role": "SELLER_C",
+  "title": "real Supabase Auth login; session cookie for test project",
+  "ok": "PASS",
+  "detail": "landed=/sales/app cookie=sb-yvvbdoqncubtwlzskgml-auth-token",
+  "at": "2026-11-02T14:30:03.449Z"
+ },
+ {
+  "id": "N-SELLER_C",
+  "role": "SELLER_C",
+  "title": "seller menu = exactly 5 sections",
+  "ok": "PASS",
+  "detail": "/sales/app /sales/app/customers /sales/app/kassam /sales/app/markup /sales/app/scan",
+  "at": "2026-11-02T14:30:03.560Z"
+ },
+ {
+  "id": "P-SELLER_C/sales/app",
+  "role": "SELLER_C",
+  "title": "open /sales/app",
+  "ok": "FAIL",
+  "detail": "url=/sales/app api_errors=404 /rest/v1/rpc/rpc_get_seller_rates console=2",
+  "at": "2026-11-02T14:30:07.249Z"
+ },
+ {
+  "id": "P-SELLER_C/sales/app/scan",
+  "role": "SELLER_C",
+  "title": "open /sales/app/scan",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/scan api_errors=404 /rest/v1/rpc/rpc_get_seller_rates;404 /rest/v1/rpc/rpc_get_seller_rates console=3",
+  "at": "2026-11-02T14:30:10.771Z"
+ },
+ {
+  "id": "P-SELLER_C/sales/app/customers",
+  "role": "SELLER_C",
+  "title": "open /sales/app/customers",
+  "ok": "PASS",
+  "detail": "url=/sales/app/customers api_errors= console=0",
+  "at": "2026-11-02T14:30:13.881Z"
+ },
+ {
+  "id": "P-SELLER_C/sales/app/kassam",
+  "role": "SELLER_C",
+  "title": "open /sales/app/kassam",
+  "ok": "FAIL",
+  "detail": "url=/sales/app/kassam api_errors=404 /rest/v1/rpc/rpc_get_seller_rates;404 /rest/v1/rpc/rpc_get_seller_rates;404 /rest/v1/rpc/rpc_get_seller_rates console=4",
+  "at": "2026-11-02T14:30:17.312Z"
+ },
+ {
+  "id": "P-SELLER_C/sales/app/markup",
+  "role": "SELLER_C",
+  "title": "open /sales/app/markup",
+  "ok": "PASS",
+  "detail": "url=/sales/app/markup api_errors= console=0",
+  "at": "2026-11-02T14:30:20.515Z"
+ },
+ {
+  "id": "F-SELLER_C/sales/app/factory",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:23.946Z"
+ },
+ {
+  "id": "F-SELLER_C/sales/app/inventory",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:27.625Z"
+ },
+ {
+  "id": "F-SELLER_C/sales/app/sellers",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:30.929Z"
+ },
+ {
+  "id": "F-SELLER_C/sales/app/cash",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:34.231Z"
+ },
+ {
+  "id": "F-SELLER_C/sales/app/reports",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:37.192Z"
+ },
+ {
+  "id": "F-SELLER_C/sales/app/purchases",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:40.310Z"
+ },
+ {
+  "id": "F-SELLER_C/sales/app/settings",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:43.360Z"
+ },
+ {
+  "id": "F-SELLER_C/sales/director",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:46.513Z"
+ },
+ {
+  "id": "F-SELLER_C/sales/mobile",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app/scan",
+  "at": "2026-11-02T14:30:49.919Z"
+ },
+ {
+  "id": "F-SELLER_C/",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:53.147Z"
+ },
+ {
+  "id": "F-SELLER_C/dashboard",
+  "role": "SELLER_C",
+  "title": "forbidden/old URL keeps seller in seller area",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:56.262Z"
+ },
+ {
+  "id": "R-SELLER_C",
+  "role": "SELLER_C",
+  "title": "session survives refresh",
+  "ok": "PASS",
+  "detail": "/sales/app",
+  "at": "2026-11-02T14:30:59.147Z"
+ },
+ {
+  "id": "O-SELLER_C",
+  "role": "SELLER_C",
+  "title": "logout ends the session",
+  "ok": "PASS",
+  "detail": "http://localhost:3200/sales/login?redirectedFrom=%2Fsales%2Fapp%2Fkassam",
+  "at": "2026-11-02T14:31:02.507Z"
+ }
+]

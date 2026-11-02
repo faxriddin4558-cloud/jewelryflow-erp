@@ -1,0 +1,110 @@
+[
+ {
+  "id": "K1",
+  "title": "Kassam shows seller B own LOM rate 900,000",
+  "ok": "PASS",
+  "detail": "900 000"
+ },
+ {
+  "id": "K2",
+  "title": "UI rate edit 905,000 saved; USD kept 12,700; history rows +1 or +2 (double click)",
+  "ok": "PASS",
+  "detail": {
+   "lom": "905000.00",
+   "usd": "12700.00",
+   "history_added": 1
+  }
+ },
+ {
+  "id": "K3",
+  "title": "out-of-range rate 5,000,000 rejected server-side and shown to user",
+  "ok": "PASS",
+  "detail": {
+   "stored": "905000.00",
+   "message": "ERR_RATE_OUT_OF_RANGE: LOM kursi (UZS/g) 5000000 ruxsat etilgan oraliqdan tashqarida (1000"
+  }
+ },
+ {
+  "id": "K4",
+  "title": "no failed API calls except the rejected rate (400/403)",
+  "ok": "PASS",
+  "detail": [
+   "400 rpc/rpc_set_my_seller_rates"
+  ]
+ },
+ {
+  "id": "K5",
+  "title": "seller A Kassam shows only own rate (920,000), never seller B 905,000",
+  "ok": "PASS",
+  "detail": "LOM ("
+ },
+ {
+  "id": "K6/sales/app/markup",
+  "title": "seller A page /sales/app/markup loads without API errors",
+  "ok": "PASS",
+  "detail": []
+ },
+ {
+  "id": "K6/sales/app/scan",
+  "title": "seller A page /sales/app/scan loads without API errors",
+  "ok": "PASS",
+  "detail": []
+ },
+ {
+  "id": "K6/sales/app/customers",
+  "title": "seller A page /sales/app/customers loads without API errors",
+  "ok": "PASS",
+  "detail": []
+ },
+ {
+  "id": "K6/sales/app",
+  "title": "seller A page /sales/app loads without API errors",
+  "ok": "PASS",
+  "detail": []
+ },
+ {
+  "id": "K7",
+  "title": "manager sees both seller rates (920,000 and 905,000)",
+  "ok": "PASS",
+  "detail": ""
+ },
+ {
+  "id": "K8/sales/app",
+  "title": "manager page /sales/app without API errors",
+  "ok": "PASS",
+  "detail": []
+ },
+ {
+  "id": "K8/sales/app/reports",
+  "title": "manager page /sales/app/reports without API errors",
+  "ok": "PASS",
+  "detail": []
+ },
+ {
+  "id": "K8/sales/app/cash",
+  "title": "manager page /sales/app/cash without API errors",
+  "ok": "PASS",
+  "detail": []
+ },
+ {
+  "id": "K8/sales/app/factory",
+  "title": "manager page /sales/app/factory without API errors",
+  "ok": "PASS",
+  "detail": []
+ },
+ {
+  "id": "K9",
+  "title": "manager dashboard: physical balance and profit before/after expenses visible",
+  "ok": "FAIL",
+  "detail": "BALANS TO'LIQ MOS"
+ },
+ {
+  "id": "K10",
+  "title": "historical snapshot: earlier B payment keeps 900,000 / 12,700 after rate change",
+  "ok": "PASS",
+  "detail": {
+   "r": "900000.00",
+   "u": "12700.00"
+  }
+ }
+]
