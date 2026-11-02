@@ -11,7 +11,7 @@ import {
   type ErpUser,
   type ErpRole,
 } from "@/lib/erp-engine";
-import { isRouteAllowedForSeller, isSellerUiRole } from "@/lib/sales-role-access";
+import { isRouteAllowedForSeller, isSellerUiRole, SELLER_NAVIGATION } from "@/lib/sales-role-access";
 
 interface NavItem {
   name: string;
@@ -44,7 +44,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     title: "SAVDO & KASSALAR",
     items: [
       { name: "Sotuvchilar & Bozor Qarzi", href: "/sales/app/sellers", icon: "👥", roles: ["Director", "Production Manager", "manager"] },
-      { name: "Mobil Savdo", href: "/sales/mobile", icon: "📱" },
+      { name: "Skaner Savdo", href: "/sales/app/scan", icon: "⚡" },
       { name: "Mijozlar va Nasiya", href: "/sales/app/customers", icon: "🛍️" },
       { name: "Kassa & Valyuta", href: "/sales/app/cash", icon: "💰", roles: ["Director", "Production Manager", "manager"] },
     ],
@@ -370,7 +370,7 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
 
         {/* Navigation Items (15 Operational Destinations) */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-4 text-xs font-semibold scrollbar-thin scrollbar-thumb-slate-800">
-          {NAVIGATION_GROUPS.map((group, gIdx) => {
+          {(isSeller ? [{ title: "SOTUVCHI", items: [...SELLER_NAVIGATION] as NavItem[] }] : NAVIGATION_GROUPS).map((group, gIdx) => {
             // Filter items by role if specified
             const visibleItems = group.items.filter((item) => {
               if (isSeller) return isRouteAllowedForSeller(item.href);
