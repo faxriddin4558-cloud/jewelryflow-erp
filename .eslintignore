@@ -6,3 +6,4 @@ scripts/
 test-results/
 e2e-report-html/
 playwright-report/
+docs/audits/

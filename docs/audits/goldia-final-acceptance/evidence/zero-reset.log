@@ -1,0 +1,86 @@
+{
+ "before": {
+  "sales": 8,
+  "settl": 10,
+  "receipts": 4,
+  "pieces": 13,
+  "customers": 6,
+  "employees": 8,
+  "audit": 28,
+  "cash": "23710000.00",
+  "fobl": "175.7726"
+ },
+ "preview": [
+  "status",
+  "preview_token",
+  "affected_records",
+  "active_baseline_no",
+  "has_active_baseline",
+  "preserved_master_data",
+  "confirmation_code_required",
+  "active_baseline_net_assets_g"
+ ],
+ "manager": "Permission denied for role \"production_manager\" (required one of: admin, directo",
+ "seller": "Permission denied for role \"seller\" (required one of: admin, director, owner, di",
+ "wrong_code": "Tasdiqlash kodi noto'g'ri. Talab qilinadi: RESET_TEST_ACCOUNT_2026",
+ "director": "OK",
+ "after": {
+  "sales": 8,
+  "settl": 10,
+  "receipts": 4,
+  "pieces": 13,
+  "customers": 6,
+  "employees": 8,
+  "audit": 29,
+  "cash": "0.00",
+  "fobl": "0.0000"
+ },
+ "recon": {
+  "clients_summary": {
+   "total_client_debt_grams": 0,
+   "total_client_advance_grams": 0
+  },
+  "organization_id": "00000000-0000-0000-0000-000000000001",
+  "sellers_summary": {
+   "total_seller_obligation_g": 0,
+   "total_settled_to_manager_g": 0,
+   "total_manager_owes_seller_g": 0,
+   "total_seller_owes_manager_g": 0,
+   "total_transferred_physical_g": 0,
+   "total_seller_till_cash_amount": 0,
+   "total_seller_till_scrap_grams": 0
+  },
+  "manager_vault_holdings": {
+   "manager_cash_amount": 0,
+   "manager_scrap_grams": 0,
+   "manager_refined_gold_grams": 0,
+   "manager_purchased_gold_grams": 0
+  },
+  "manager_factory_account": {
+   "total_factory_received_g": 0,
+   "total_factory_obligation_g": 0,
+   "total_factory_handed_over_g": 0,
+   "current_factory_obligation_g": 0
+  }
+ }
+}
+{
+ "receipt": true,
+ "consign": "ok",
+ "sellers": [
+  {
+   "employee_code": "T-SA",
+   "current_physical_stock_g": "5.0000",
+   "total_seller_obligation_g": "5.6000",
+   "seller_owes_manager_g": "5.6000"
+  }
+ ],
+ "vault": [
+  {
+   "total_factory_obligation_g": "10.8000",
+   "current_factory_obligation_g": "10.8000",
+   "manager_physical_stock_g": "5.0000"
+  }
+ ],
+ "mgr_stock_fn": "5.0000"
+}

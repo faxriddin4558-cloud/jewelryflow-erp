@@ -1,0 +1,21 @@
+const { U, rpc, su, rec, pool } = require('./lib');
+(async () => {
+  const p0 = await rpc(U.D, 'rpc_get_accounting_profit_summary', {});
+  rec('S14.0', 'profit summary before baseline', { ok: p0.ok, status: p0.data?.status, net: p0.data?.current_net_assets_585_g, assets: p0.data?.assets, liab: p0.data?.liabilities });
+  rec('S14.1', 'manager tries to confirm baseline', await rpc(U.M, 'rpc_confirm_accounting_baseline', { p_notes: 'x' }));
+  rec('S14.2', 'director confirms baseline', await rpc(U.D, 'rpc_confirm_accounting_baseline', { p_notes: 'pilot start', p_usd_rate: 12800 }));
+  rec('S14.3', 'capital in 10,000,000 UZS to manager vault', await rpc(U.D, 'rpc_record_financial_transaction', { p_transaction_type: 'capital_contribution', p_source_till: 'manager_uzs', p_amount: 10000000, p_currency: 'UZS', p_gold_rate: 1000000, p_idempotency_key: 'cap-1' }));
+  rec('S14.4', 'expense 500,000 UZS (rent)', await rpc(U.M, 'rpc_record_financial_transaction', { p_transaction_type: 'business_expense', p_source_till: 'manager_uzs', p_amount: 500000, p_currency: 'UZS', p_category: 'ijara', p_gold_rate: 1000000 }));
+  rec('S14.5', 'seller tries expense', await rpc(U.SA, 'rpc_record_financial_transaction', { p_transaction_type: 'business_expense', p_source_till: 'manager_uzs', p_amount: 1, p_currency: 'UZS' }));
+  rec('S14.6', 'expense larger than vault cash', await rpc(U.M, 'rpc_record_financial_transaction', { p_transaction_type: 'business_expense', p_source_till: 'manager_uzs', p_amount: 999000000, p_currency: 'UZS', p_gold_rate: 1000000 }));
+  const p1 = await rpc(U.D, 'rpc_get_accounting_profit_summary', {});
+  rec('S14.7', 'profit summary after capital+expense (expected result = -0.5 g expense... plus 0 operational)', { ok: p1.ok, status: p1.data?.status, result: p1.data?.period_accounting_result_585_g, cap_in: p1.data?.capital_contributions_585_g, exp: p1.data?.business_expenses_585_g, net: p1.data?.current_net_assets_585_g, base: p1.data?.baseline?.net_assets_585_g });
+  const C = Object.fromEntries((await su(`select customer_code, id from customers`)).map(r => [r.customer_code, r.id]));
+  rec('S15.1', 'SA records legacy (old) debt 2.5g for CA1 as of 2026-09-30', await rpc(U.SA, 'rpc_record_client_legacy_debt', { p_customer_id: C['CUST-0001'], p_balance_type: 'debt', p_amount_585_g: 2.5, p_as_of_date: '2026-09-30', p_notes: 'eski daftar', p_idempotency_key: 'leg-1' }));
+  rec('S15.2', 'manager records legacy debt 2.5g for CA1', await rpc(U.M, 'rpc_record_client_legacy_debt', { p_customer_id: C['CUST-0001'], p_balance_type: 'debt', p_amount_585_g: 2.5, p_as_of_date: '2026-09-30', p_notes: 'eski daftar', p_idempotency_key: 'leg-2' }));
+  rec('S15.3', 'retry legacy debt same key', await rpc(U.M, 'rpc_record_client_legacy_debt', { p_customer_id: C['CUST-0001'], p_balance_type: 'debt', p_amount_585_g: 2.5, p_as_of_date: '2026-09-30', p_notes: 'eski daftar', p_idempotency_key: 'leg-2' }));
+  const p2 = await rpc(U.D, 'rpc_get_accounting_profit_summary', {});
+  rec('S15.4', 'profit after legacy debt (should be unchanged: legacy adj excluded)', { result: p2.data?.period_accounting_result_585_g, legacy: p2.data?.post_baseline_legacy_debt_adj_585_g });
+  console.log(JSON.stringify(await su(`select transaction_type, amount_num, currency, equiv_585_grams, status from financial_transactions`)));
+  await pool.end();
+})();

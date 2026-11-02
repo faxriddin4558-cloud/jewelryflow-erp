@@ -1,0 +1,16 @@
+BEGIN
+SET
+D1_customer_cache_vs_documents|2|5.5750|REVIEW
+D2_reversed_sales_after_payment|3|11.3850|INFO
+D3_possible_duplicate_receipts|0|0|OK
+D4_sellers_sold_more_than_consigned|1|1.0000|REVIEW
+D5_whole_consignment_sale_after_weight_sale|1|5.0000|REVIEW
+D6_physical_conservation_gap|1|-1.0000|REVIEW
+D7_factory_obligation_vs_documents|0|0.0000|OK
+D8_stored_manager_stock_vs_canonical|0|0.0000|INFO
+D9_business_expenses_added_back_to_profit_585g|2|1.0000|INFO
+D10_currency_rates_table_exists|0|0|INFO
+D11_organizations|2|0|REVIEW
+D12_employees_outside_their_org_scope|1|0|REVIEW
+D13_cross_seller_customer_sales|0|0|OK
+ROLLBACK

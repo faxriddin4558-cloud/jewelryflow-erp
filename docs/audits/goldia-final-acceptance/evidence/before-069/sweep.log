@@ -1,0 +1,29 @@
+current_employee_id | returns data for: NOORG,SELLER_A,OTHER_ORG_DIR | OK:null
+current_employee_id_text | returns data for: NOORG,SELLER_A,OTHER_ORG_DIR | OK:null
+current_employee_name | returns data for: NOORG,INACTIVE,SELLER_A,OTHER_ORG_DIR | OK:null
+current_employee_role | returns data for: NOEMP,NOORG,INACTIVE,SELLER_A,OTHER_ORG_DIR | OK:viewer
+current_employee_role_text | returns data for: NOEMP,NOORG,INACTIVE,SELLER_A,OTHER_ORG_DIR | OK:viewer
+current_organization_id | returns data for: SELLER_A,OTHER_ORG_DIR | OK:null
+get_manager_available_stock_grams | returns data for: SELLER_A | OK:0
+is_admin_or_manager | returns data for: OTHER_ORG_DIR | OK:false
+rpc_diagnose_piece_inventory_conflicts | returns data for: SELLER_A,OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_accounting_profit_summary | returns data for: OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_active_sales_markups | returns data for: SELLER_A | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_company_rate_difference_report | returns data for: OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_customer_monthly_report | returns data for: SELLER_A,OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_daily_sales_ledger | returns data for: SELLER_A | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_factory_settings | returns data for: NOEMP,NOORG,INACTIVE,SELLER_A,OTHER_ORG_DIR | OK:{"setsPerModel": 10, "workersCount": 35, "organizationId": "00000000-0000-0000-0
+rpc_get_financial_reconciliation_summary | returns data for: SELLER_A,OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_piece_sales_reconciliation_report | returns data for: SELLER_A,OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_seller_markup_difference_report | returns data for: SELLER_A,OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_seller_sales_summary | returns data for: SELLER_A,OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_three_tier_ledger_summary | returns data for: SELLER_A,OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_get_unified_customer_ledger | returns data for: SELLER_A,OTHER_ORG_DIR | ERR:Permission denied: no active employee profile for current us
+rpc_manage_sales_markup_preset | returns data for: OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_preview_full_test_reset | returns data for: OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_preview_selective_test_cleanup | returns data for: OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_preview_staging_test_cleanup | returns data for: OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+rpc_unlink_telegram | returns data for: NOEMP,NOORG,INACTIVE,SELLER_A,OTHER_ORG_DIR | OK:true
+rpc_update_factory_settings | returns data for: OTHER_ORG_DIR | ERR:Permission denied: User must belong to an active organizatio
+save_idempotency_response | returns data for: NOEMP,NOORG,INACTIVE,SELLER_A,OTHER_ORG_DIR | OK:
+total functions swept: 108

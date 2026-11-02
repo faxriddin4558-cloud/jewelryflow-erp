@@ -1,0 +1,40 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/jewelryflow-erp
+
+ ✓ src/lib/__tests__/erp-engine.test.ts (32 tests) 93ms
+ ✓ src/lib/__tests__/multi-tenant-security.test.ts (19 tests) 14ms
+ ✓ src/lib/__tests__/goldia-audit-fixes.test.ts (9 tests) 7098ms
+ ✓ src/lib/__tests__/item-level-inventory-and-sheets.test.ts (10 tests) 7333ms
+ ✓ src/lib/__tests__/jewelry-sales-calculations.test.ts (21 tests) 13ms
+ ✓ src/lib/__tests__/manufacturing-operations.test.ts (13 tests) 10ms
+ ✓ src/lib/__tests__/goldia-blocker-high-fixes.test.ts (10 tests) 7597ms
+ ✓ src/lib/__tests__/goldia-markup-difference.test.ts (9 tests) 6311ms
+ ✓ src/lib/__tests__/barcode-scanner-engine.test.ts (26 tests) 14ms
+ ✓ src/lib/__tests__/factory-config.test.ts (14 tests) 13ms
+ ✓ src/lib/__tests__/goldia-acceptance-audit-fixes.test.ts (10 tests) 6795ms
+ ✓ src/lib/__tests__/sprint1-backend-e2e.test.ts (15 tests) 8ms
+ ✓ src/lib/__tests__/gold-reconciliation-and-quality.test.ts (13 tests) 11ms
+ ✓ src/lib/__tests__/goldia-rate-difference-and-chain.test.ts (12 tests) 11228ms
+ ✓ src/lib/__tests__/sheets-import-engine.test.ts (11 tests) 9ms
+ ✓ src/lib/__tests__/telegram-auth.test.ts (5 tests) 6ms
+ ✓ src/lib/__tests__/dynamic-sales-markups.test.ts (4 tests) 15ms
+ ✓ src/lib/__tests__/local-auth-and-roles.test.ts (3 tests) 3ms
+ ✓ src/lib/__tests__/model-photo-api.test.ts (4 tests) 29ms
+ ✓ src/lib/__tests__/image-compression.test.ts (4 tests) 3ms
+ ✓ src/lib/__tests__/goldia-weight-sale-pieces.test.ts (6 tests) 5437ms
+ ✓ src/lib/__tests__/goldia-security-hotfix.test.ts (7 tests) 4917ms
+ ✓ src/lib/hardware/__tests__/scale-serial.test.ts (15 tests) 10ms
+ ✓ src/hooks/manufacturing/__tests__/use-qc-inspection.test.ts (5 tests) 25ms
+ ✓ src/hooks/manufacturing/__tests__/use-owner-dashboard.test.ts (2 tests) 16ms
+ ✓ src/components/manufacturing/__tests__/ShopfloorOperatorWorkspace.test.tsx (2 tests) 98ms
+ ✓ src/lib/__tests__/qr-generator.test.ts (5 tests) 5ms
+ ✓ src/hooks/manufacturing/__tests__/use-piecework.test.ts (1 test) 15ms
+ ✓ src/hooks/manufacturing/__tests__/use-handover-weight.test.ts (4 tests) 17ms
+ ✓ src/hooks/manufacturing/__tests__/use-scale-reader.test.ts (2 tests) 14ms
+
+ Test Files  30 passed (30)
+      Tests  293 passed (293)
+   Start at  21:23:36
+   Duration  24.55s (transform 1.61s, setup 0ms, collect 4.88s, tests 57.16s, environment 2.55s, prepare 2.15s)
+

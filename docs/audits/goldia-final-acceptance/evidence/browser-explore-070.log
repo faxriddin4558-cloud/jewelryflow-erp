@@ -1,0 +1,63 @@
+PASS UI-A1 ANON unauthenticated /sales/app redirects to login | http://localhost:3100/sales/login?redirectedFrom=%2Fsales%2Fapp
+PASS UI-A2 ANON unauthenticated /sales/mobile redirects to login | http://localhost:3100/sales/login?redirectedFrom=%2Fsales%2Fmobile
+PASS UI-A3 ANON wrong password shows error and stays on login | http://localhost:3100/sales/login?redirectedFrom=%2Fsales%2Fmobile
+PASS UI-DIRECTOR-LOGIN DIRECTOR login lands outside login page | http://127.0.0.1:3100/sales/app
+FAIL UI-DIRECTOR/sales/app DIRECTOR open /sales/app | url=/sales/app consoleErrors=1 api4xx5xx=0  Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED
+PASS UI-DIRECTOR/sales/app/factory-receive DIRECTOR open /sales/app/factory-receive | url=/sales/app/factory-receive consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/inventory DIRECTOR open /sales/app/inventory | url=/sales/app/inventory consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/consignments DIRECTOR open /sales/app/consignments | url=/sales/app/consignments consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/sellers DIRECTOR open /sales/app/sellers | url=/sales/app/sellers consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/customers DIRECTOR open /sales/app/customers | url=/sales/app/customers consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/cash DIRECTOR open /sales/app/cash | url=/sales/app/cash consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/handovers DIRECTOR open /sales/app/handovers | url=/sales/app/handovers consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/purchases DIRECTOR open /sales/app/purchases | url=/sales/app/purchases consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/refining DIRECTOR open /sales/app/refining | url=/sales/app/refining consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/factory DIRECTOR open /sales/app/factory | url=/sales/app/factory consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/reports DIRECTOR open /sales/app/reports | url=/sales/app/reports consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/models DIRECTOR open /sales/app/models | url=/sales/app/models consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/settings DIRECTOR open /sales/app/settings | url=/sales/app/settings consoleErrors=0 api4xx5xx=0  
+PASS UI-DIRECTOR/sales/app/users DIRECTOR open /sales/app/users | url=/sales/app/users consoleErrors=0 api4xx5xx=0  
+FAIL UI-DIRECTOR/sales/director DIRECTOR open /sales/director | url=/sales/director consoleErrors=2 api4xx5xx=0  PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environmen
+FAIL UI-DIRECTOR/sales/mobile DIRECTOR open /sales/mobile | url=/sales/mobile consoleErrors=2 api4xx5xx=0  PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment 
+PASS UI-DIRECTOR-REFRESH DIRECTOR session persists after reload | http://127.0.0.1:3100/sales/mobile
+FAIL UI-DIRECTOR-HOSTS DIRECTOR browser contacted only local hosts | 127.0.0.1:3100,localhost:3100,127.0.0.1:54321,cbu.uz
+PASS UI-MANAGER-LOGIN MANAGER login lands outside login page | http://127.0.0.1:3100/sales/app
+FAIL UI-MANAGER/sales/app MANAGER open /sales/app | url=/sales/app consoleErrors=1 api4xx5xx=0  Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED
+PASS UI-MANAGER/sales/app/factory-receive MANAGER open /sales/app/factory-receive | url=/sales/app/factory-receive consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/inventory MANAGER open /sales/app/inventory | url=/sales/app/inventory consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/consignments MANAGER open /sales/app/consignments | url=/sales/app/consignments consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/sellers MANAGER open /sales/app/sellers | url=/sales/app/sellers consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/customers MANAGER open /sales/app/customers | url=/sales/app/customers consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/cash MANAGER open /sales/app/cash | url=/sales/app/cash consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/handovers MANAGER open /sales/app/handovers | url=/sales/app/handovers consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/purchases MANAGER open /sales/app/purchases | url=/sales/app/purchases consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/refining MANAGER open /sales/app/refining | url=/sales/app/refining consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/factory MANAGER open /sales/app/factory | url=/sales/app/factory consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/reports MANAGER open /sales/app/reports | url=/sales/app/reports consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/models MANAGER open /sales/app/models | url=/sales/app/models consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/settings MANAGER open /sales/app/settings | url=/sales/app/settings consoleErrors=0 api4xx5xx=0  
+PASS UI-MANAGER/sales/app/users MANAGER open /sales/app/users | url=/sales/app/users consoleErrors=0 api4xx5xx=0  
+FAIL UI-MANAGER/sales/director MANAGER open /sales/director | url=/sales/director consoleErrors=2 api4xx5xx=0  PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environmen
+FAIL UI-MANAGER/sales/mobile MANAGER open /sales/mobile | url=/sales/mobile consoleErrors=2 api4xx5xx=0  PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment 
+PASS UI-MANAGER-REFRESH MANAGER session persists after reload | http://127.0.0.1:3100/sales/mobile
+FAIL UI-MANAGER-HOSTS MANAGER browser contacted only local hosts | 127.0.0.1:3100,localhost:3100,127.0.0.1:54321,cbu.uz
+PASS UI-SELLER_A-LOGIN SELLER_A login lands outside login page | http://127.0.0.1:3100/sales/app
+PASS UI-SELLER_A/sales/app SELLER_A open /sales/app | url=/sales/app consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/factory-receive SELLER_A open /sales/app/factory-receive | url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/inventory SELLER_A open /sales/app/inventory | url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/consignments SELLER_A open /sales/app/consignments | url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/sellers SELLER_A open /sales/app/sellers | url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/customers SELLER_A open /sales/app/customers | url=/sales/app/customers consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/cash SELLER_A open /sales/app/cash | url=/sales/app/cash consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/handovers SELLER_A open /sales/app/handovers | url=/sales/app/handovers consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/purchases SELLER_A open /sales/app/purchases | url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/refining SELLER_A open /sales/app/refining | url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/factory SELLER_A open /sales/app/factory | url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/reports SELLER_A open /sales/app/reports | url=/sales/app/reports consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/models SELLER_A open /sales/app/models | url=/sales/app/models consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/settings SELLER_A open /sales/app/settings | url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  
+PASS UI-SELLER_A/sales/app/users SELLER_A open /sales/app/users | url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  
+FAIL UI-SELLER_A/sales/director SELLER_A open /sales/director | url=/sales/director consoleErrors=5 api4xx5xx=3 403 POST /rest/v1/rpc/rpc_get_accounting_profit_summary ; 403 POST /rest/v1/rpc/rpc_get_company_rate_difference_report ; 403 POST /rest/v1/rpc/rpc_get_a
+FAIL UI-SELLER_A/sales/mobile SELLER_A open /sales/mobile | url=/sales/mobile consoleErrors=2 api4xx5xx=0  PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment 
+PASS UI-SELLER_A-REFRESH SELLER_A session persists after reload | http://127.0.0.1:3100/sales/mobile
+FAIL UI-SELLER_A-HOSTS SELLER_A browser contacted only local hosts | 127.0.0.1:3100,localhost:3100,127.0.0.1:54321,cbu.uz

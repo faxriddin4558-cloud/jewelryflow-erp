@@ -1,0 +1,272 @@
+[
+ {
+  "check": "PHYS: receipts = manager + seller-held pieces + sold + returned_to_factory",
+  "expected": 170,
+  "actual": 171,
+  "ok": false
+ },
+ {
+  "check": "STOCK T-DIR: held pieces = stored stock",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "OBLIG T-DIR: (held pieces + sold) x (1+seller%) + legacy = stored obligation",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "OWES T-DIR: obligation - handovers = owes - manager_owes",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-UZS T-DIR",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-USD T-DIR",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-SCRAP T-DIR",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "STOCK T-SA: held pieces = stored stock",
+  "expected": 15.75,
+  "actual": 15.75,
+  "ok": true
+ },
+ {
+  "check": "OBLIG T-SA: (held pieces + sold) x (1+seller%) + legacy = stored obligation",
+  "expected": 30.22,
+  "actual": 30.22,
+  "ok": true
+ },
+ {
+  "check": "OWES T-SA: obligation - handovers = owes - manager_owes",
+  "expected": 20.2512,
+  "actual": 20.2512,
+  "ok": true
+ },
+ {
+  "check": "TILL-UZS T-SA",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-USD T-SA",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-SCRAP T-SA",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "STOCK T-SB: held pieces = stored stock",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "OBLIG T-SB: (held pieces + sold) x (1+seller%) + legacy = stored obligation",
+  "expected": 22,
+  "actual": 22,
+  "ok": true
+ },
+ {
+  "check": "OWES T-SB: obligation - handovers = owes - manager_owes",
+  "expected": 13.99,
+  "actual": 13.99,
+  "ok": true
+ },
+ {
+  "check": "TILL-UZS T-SB",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-USD T-SB",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-SCRAP T-SB",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "STOCK T-SC: held pieces = stored stock",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "OBLIG T-SC: (held pieces + sold) x (1+seller%) + legacy = stored obligation",
+  "expected": 18.22,
+  "actual": 17.1,
+  "ok": false
+ },
+ {
+  "check": "OWES T-SC: obligation - handovers = owes - manager_owes",
+  "expected": 17.1,
+  "actual": 17.1,
+  "ok": true
+ },
+ {
+  "check": "TILL-UZS T-SC",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-USD T-SC",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-SCRAP T-SC",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "STOCK T-SX: held pieces = stored stock",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "OBLIG T-SX: (held pieces + sold) x (1+seller%) + legacy = stored obligation",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "OWES T-SX: obligation - handovers = owes - manager_owes",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-UZS T-SX",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-USD T-SX",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "TILL-SCRAP T-SX",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "CUST CUST-0001: sales+legacy-payments = debt-advance",
+  "expected": -1.0767,
+  "actual": 2.4983,
+  "ok": false
+ },
+ {
+  "check": "CUST CUST-0002: sales+legacy-payments = debt-advance",
+  "expected": 3.6132,
+  "actual": 3.6132,
+  "ok": true
+ },
+ {
+  "check": "CUST CUST-0003: sales+legacy-payments = debt-advance",
+  "expected": 17.088,
+  "actual": 17.088,
+  "ok": true
+ },
+ {
+  "check": "CUST CUST-0005: sales+legacy-payments = debt-advance",
+  "expected": 27.1,
+  "actual": 27.1,
+  "ok": true
+ },
+ {
+  "check": "CUST CUST-0006: sales+legacy-payments = debt-advance",
+  "expected": -3.01,
+  "actual": -1.01,
+  "ok": false
+ },
+ {
+  "check": "VAULT-UZS: handovers - purchases + capital - expenses",
+  "expected": 14210000,
+  "actual": 14210000,
+  "ok": true
+ },
+ {
+  "check": "VAULT-USD: handovers - purchases",
+  "expected": 300,
+  "actual": 300,
+  "ok": true
+ },
+ {
+  "check": "VAULT-SCRAP: handover scrap - refining input",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "VAULT-REFINED(585): refining output - refined handovers",
+  "expected": 0,
+  "actual": 0,
+  "ok": true
+ },
+ {
+  "check": "VAULT-PURCHASED(585): purchases - purchased handovers",
+  "expected": 2,
+  "actual": 2,
+  "ok": true
+ },
+ {
+  "check": "FACTORY: receipts obligation - handovers = current obligation - advance",
+  "expected": 175.7726,
+  "actual": 175.7726,
+  "ok": true
+ },
+ {
+  "check": "VAULT stored manager_physical_stock_g = canonical fn",
+  "expected": 110.25,
+  "actual": 110.25,
+  "ok": true
+ },
+ {
+  "check": "RPC recon summary client debt = Σ accounts",
+  "expected": 50.2995,
+  "actual": 50.2995,
+  "ok": true
+ },
+ {
+  "check": "INFO sale-level remaining + legacy = account debt - advance (sale rows are not updated by account-level payments)",
+  "expected": 62.038,
+  "actual": 49.2895,
+  "ok": true
+ }
+]

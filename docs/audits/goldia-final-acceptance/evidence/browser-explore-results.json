@@ -1,0 +1,443 @@
+[
+ {
+  "id": "UI-A1",
+  "role": "ANON",
+  "title": "unauthenticated /sales/app redirects to login",
+  "ok": true,
+  "detail": "http://localhost:3100/sales/login?redirectedFrom=%2Fsales%2Fapp"
+ },
+ {
+  "id": "UI-A2",
+  "role": "ANON",
+  "title": "unauthenticated /sales/mobile redirects to login",
+  "ok": true,
+  "detail": "http://localhost:3100/sales/login?redirectedFrom=%2Fsales%2Fmobile"
+ },
+ {
+  "id": "UI-A3",
+  "role": "ANON",
+  "title": "wrong password shows error and stays on login",
+  "ok": true,
+  "detail": "http://localhost:3100/sales/login?redirectedFrom=%2Fsales%2Fmobile"
+ },
+ {
+  "id": "UI-DIRECTOR-LOGIN",
+  "role": "DIRECTOR",
+  "title": "login lands outside login page",
+  "ok": true,
+  "detail": "http://127.0.0.1:3100/sales/app"
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app",
+  "role": "DIRECTOR",
+  "title": "open /sales/app",
+  "ok": false,
+  "detail": "url=/sales/app consoleErrors=1 api4xx5xx=0  Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/factory-receive",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/factory-receive",
+  "ok": true,
+  "detail": "url=/sales/app/factory-receive consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/inventory",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/inventory",
+  "ok": true,
+  "detail": "url=/sales/app/inventory consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/consignments",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/consignments",
+  "ok": true,
+  "detail": "url=/sales/app/consignments consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/sellers",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/sellers",
+  "ok": true,
+  "detail": "url=/sales/app/sellers consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/customers",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/customers",
+  "ok": true,
+  "detail": "url=/sales/app/customers consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/cash",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/cash",
+  "ok": true,
+  "detail": "url=/sales/app/cash consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/handovers",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/handovers",
+  "ok": true,
+  "detail": "url=/sales/app/handovers consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/purchases",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/purchases",
+  "ok": true,
+  "detail": "url=/sales/app/purchases consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/refining",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/refining",
+  "ok": true,
+  "detail": "url=/sales/app/refining consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/factory",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/factory",
+  "ok": true,
+  "detail": "url=/sales/app/factory consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/reports",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/reports",
+  "ok": true,
+  "detail": "url=/sales/app/reports consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/models",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/models",
+  "ok": true,
+  "detail": "url=/sales/app/models consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/settings",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/settings",
+  "ok": true,
+  "detail": "url=/sales/app/settings consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/app/users",
+  "role": "DIRECTOR",
+  "title": "open /sales/app/users",
+  "ok": true,
+  "detail": "url=/sales/app/users consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-DIRECTOR/sales/director",
+  "role": "DIRECTOR",
+  "title": "open /sales/director",
+  "ok": false,
+  "detail": "url=/sales/director consoleErrors=2 api4xx5xx=0  PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings. ; Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+ },
+ {
+  "id": "UI-DIRECTOR/sales/mobile",
+  "role": "DIRECTOR",
+  "title": "open /sales/mobile",
+  "ok": false,
+  "detail": "url=/sales/mobile consoleErrors=2 api4xx5xx=0  PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings. ; Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+ },
+ {
+  "id": "UI-DIRECTOR-REFRESH",
+  "role": "DIRECTOR",
+  "title": "session persists after reload",
+  "ok": true,
+  "detail": "http://127.0.0.1:3100/sales/mobile"
+ },
+ {
+  "id": "UI-DIRECTOR-HOSTS",
+  "role": "DIRECTOR",
+  "title": "browser contacted only local hosts",
+  "ok": false,
+  "detail": "127.0.0.1:3100,localhost:3100,127.0.0.1:54321,cbu.uz"
+ },
+ {
+  "id": "UI-MANAGER-LOGIN",
+  "role": "MANAGER",
+  "title": "login lands outside login page",
+  "ok": true,
+  "detail": "http://127.0.0.1:3100/sales/app"
+ },
+ {
+  "id": "UI-MANAGER/sales/app",
+  "role": "MANAGER",
+  "title": "open /sales/app",
+  "ok": false,
+  "detail": "url=/sales/app consoleErrors=1 api4xx5xx=0  Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+ },
+ {
+  "id": "UI-MANAGER/sales/app/factory-receive",
+  "role": "MANAGER",
+  "title": "open /sales/app/factory-receive",
+  "ok": true,
+  "detail": "url=/sales/app/factory-receive consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/inventory",
+  "role": "MANAGER",
+  "title": "open /sales/app/inventory",
+  "ok": true,
+  "detail": "url=/sales/app/inventory consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/consignments",
+  "role": "MANAGER",
+  "title": "open /sales/app/consignments",
+  "ok": true,
+  "detail": "url=/sales/app/consignments consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/sellers",
+  "role": "MANAGER",
+  "title": "open /sales/app/sellers",
+  "ok": true,
+  "detail": "url=/sales/app/sellers consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/customers",
+  "role": "MANAGER",
+  "title": "open /sales/app/customers",
+  "ok": true,
+  "detail": "url=/sales/app/customers consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/cash",
+  "role": "MANAGER",
+  "title": "open /sales/app/cash",
+  "ok": true,
+  "detail": "url=/sales/app/cash consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/handovers",
+  "role": "MANAGER",
+  "title": "open /sales/app/handovers",
+  "ok": true,
+  "detail": "url=/sales/app/handovers consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/purchases",
+  "role": "MANAGER",
+  "title": "open /sales/app/purchases",
+  "ok": true,
+  "detail": "url=/sales/app/purchases consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/refining",
+  "role": "MANAGER",
+  "title": "open /sales/app/refining",
+  "ok": true,
+  "detail": "url=/sales/app/refining consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/factory",
+  "role": "MANAGER",
+  "title": "open /sales/app/factory",
+  "ok": true,
+  "detail": "url=/sales/app/factory consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/reports",
+  "role": "MANAGER",
+  "title": "open /sales/app/reports",
+  "ok": true,
+  "detail": "url=/sales/app/reports consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/models",
+  "role": "MANAGER",
+  "title": "open /sales/app/models",
+  "ok": true,
+  "detail": "url=/sales/app/models consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/settings",
+  "role": "MANAGER",
+  "title": "open /sales/app/settings",
+  "ok": true,
+  "detail": "url=/sales/app/settings consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/app/users",
+  "role": "MANAGER",
+  "title": "open /sales/app/users",
+  "ok": true,
+  "detail": "url=/sales/app/users consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-MANAGER/sales/director",
+  "role": "MANAGER",
+  "title": "open /sales/director",
+  "ok": false,
+  "detail": "url=/sales/director consoleErrors=2 api4xx5xx=0  PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings. ; Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+ },
+ {
+  "id": "UI-MANAGER/sales/mobile",
+  "role": "MANAGER",
+  "title": "open /sales/mobile",
+  "ok": false,
+  "detail": "url=/sales/mobile consoleErrors=2 api4xx5xx=0  PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings. ; Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+ },
+ {
+  "id": "UI-MANAGER-REFRESH",
+  "role": "MANAGER",
+  "title": "session persists after reload",
+  "ok": true,
+  "detail": "http://127.0.0.1:3100/sales/mobile"
+ },
+ {
+  "id": "UI-MANAGER-HOSTS",
+  "role": "MANAGER",
+  "title": "browser contacted only local hosts",
+  "ok": false,
+  "detail": "127.0.0.1:3100,localhost:3100,127.0.0.1:54321,cbu.uz"
+ },
+ {
+  "id": "UI-SELLER_A-LOGIN",
+  "role": "SELLER_A",
+  "title": "login lands outside login page",
+  "ok": true,
+  "detail": "http://127.0.0.1:3100/sales/app"
+ },
+ {
+  "id": "UI-SELLER_A/sales/app",
+  "role": "SELLER_A",
+  "title": "open /sales/app",
+  "ok": true,
+  "detail": "url=/sales/app consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/factory-receive",
+  "role": "SELLER_A",
+  "title": "open /sales/app/factory-receive",
+  "ok": true,
+  "detail": "url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/inventory",
+  "role": "SELLER_A",
+  "title": "open /sales/app/inventory",
+  "ok": true,
+  "detail": "url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/consignments",
+  "role": "SELLER_A",
+  "title": "open /sales/app/consignments",
+  "ok": true,
+  "detail": "url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/sellers",
+  "role": "SELLER_A",
+  "title": "open /sales/app/sellers",
+  "ok": true,
+  "detail": "url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/customers",
+  "role": "SELLER_A",
+  "title": "open /sales/app/customers",
+  "ok": true,
+  "detail": "url=/sales/app/customers consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/cash",
+  "role": "SELLER_A",
+  "title": "open /sales/app/cash",
+  "ok": true,
+  "detail": "url=/sales/app/cash consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/handovers",
+  "role": "SELLER_A",
+  "title": "open /sales/app/handovers",
+  "ok": true,
+  "detail": "url=/sales/app/handovers consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/purchases",
+  "role": "SELLER_A",
+  "title": "open /sales/app/purchases",
+  "ok": true,
+  "detail": "url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/refining",
+  "role": "SELLER_A",
+  "title": "open /sales/app/refining",
+  "ok": true,
+  "detail": "url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/factory",
+  "role": "SELLER_A",
+  "title": "open /sales/app/factory",
+  "ok": true,
+  "detail": "url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/reports",
+  "role": "SELLER_A",
+  "title": "open /sales/app/reports",
+  "ok": true,
+  "detail": "url=/sales/app/reports consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/models",
+  "role": "SELLER_A",
+  "title": "open /sales/app/models",
+  "ok": true,
+  "detail": "url=/sales/app/models consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/settings",
+  "role": "SELLER_A",
+  "title": "open /sales/app/settings",
+  "ok": true,
+  "detail": "url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/app/users",
+  "role": "SELLER_A",
+  "title": "open /sales/app/users",
+  "ok": true,
+  "detail": "url=/sales/app?unauthorized=1 consoleErrors=0 api4xx5xx=0  "
+ },
+ {
+  "id": "UI-SELLER_A/sales/director",
+  "role": "SELLER_A",
+  "title": "open /sales/director",
+  "ok": false,
+  "detail": "url=/sales/director consoleErrors=5 api4xx5xx=3 403 POST /rest/v1/rpc/rpc_get_accounting_profit_summary ; 403 POST /rest/v1/rpc/rpc_get_company_rate_difference_report ; 403 POST /rest/v1/rpc/rpc_get_accounting_profit_summary PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings. ; Failed to load resource: the server responded with a status of 403 (Forbidden) ; Failed to load resource: the server responded with a status of 403 (Forbidden) ; Failed to load resource: the server responded with a status of 403 (Forbidden) ; Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+ },
+ {
+  "id": "UI-SELLER_A/sales/mobile",
+  "role": "SELLER_A",
+  "title": "open /sales/mobile",
+  "ok": false,
+  "detail": "url=/sales/mobile consoleErrors=2 api4xx5xx=0  PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings. ; Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+ },
+ {
+  "id": "UI-SELLER_A-REFRESH",
+  "role": "SELLER_A",
+  "title": "session persists after reload",
+  "ok": true,
+  "detail": "http://127.0.0.1:3100/sales/mobile"
+ },
+ {
+  "id": "UI-SELLER_A-HOSTS",
+  "role": "SELLER_A",
+  "title": "browser contacted only local hosts",
+  "ok": false,
+  "detail": "127.0.0.1:3100,localhost:3100,127.0.0.1:54321,cbu.uz"
+ }
+]

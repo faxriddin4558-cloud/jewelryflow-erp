@@ -1,0 +1,2 @@
+#!/bin/bash
+/usr/lib/postgresql/16/bin/psql -h /opt/goldia-audit/pg -p 55432 -U postgres -d postgres -X "$@"

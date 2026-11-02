@@ -1,0 +1,17 @@
+PASS UI-S1 SELLER_A UI payment 2.0g@750 + 100,000 UZS reduces CA2 debt by 2.6641 g, exactly one settlement despite double-click | debt 3.6132 -> 0.9491 (expected 0.9491); new settlements=1
+PASS UI-S2 SELLER_A after reload, till shows 100 000 UZS and scrap 2.56 g | Kassamdagi Lom2.56 g2.00 g fizikKassamdagi N
+PASS UI-S3 SELLER_A scanner sale of 7.65 g piece creates exactly one sale | {"sale_no":"SALE-BC-F2022953","base_weight_grams":"7.6500","client_markup_pct":"12.00","client_gold_due_grams":"8.5680","status":"partially_paid"}
+PASS UI-S4 SELLER_A seller dropdowns list no customers of other sellers 
+FAIL UI-S5 SELLER_A after logout protected page redirects to login | http://127.0.0.1:3100/sales/mobile
+console errors: [
+  'Failed to load resource: the server responded with a status of 404 (Not Found)',
+  "Access to fetch at 'http://localhost:3100/sales/login?redirectedFrom=%2Fsales%2Fmobile' (redirected from 'http://127.0.0.1:3100/sales/mobile?_rsc=haeaztK3yC4tVrGJ') from origin 'http://127.0.0.1:3100' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: N",
+  'Failed to load resource: net::ERR_FAILED',
+  'Failed to fetch RSC payload for http://127.0.0.1:3100/sales/mobile. Falling back to browser navigation. TypeError: Failed to fetch\n' +
+    '    at y (http://127.0.0.1:3100/_next/static/chunks/1255-7316b50163a428e6.js:1:40385)\n' +
+    '    at async _ (http://127.0.0.1:3100/_next/static/chunks/1255-7316b50163a428e6.js:',
+  'PAGEERROR Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
+]
+api errors: []
+PASS UI-SELLER_A-LOGOUT SELLER_A logout clears session; protected page redirects to login | buttons=["Chiqish (Tizimdan chiqish)"] sbCookies 1->0 url=http://localhost:3100/sales/login?redirectedFrom=%2Fsales%2Fmobile
+PASS UI-DIRECTOR-LOGOUT DIRECTOR logout clears session; protected page redirects to login | buttons=["🚪 Chiqish"] sbCookies 1->0 url=http://localhost:3100/sales/login?redirectedFrom=%2Fsales%2Fapp

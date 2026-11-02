@@ -1,0 +1,17 @@
+PASS F5 factory receipt retried with same key creates ONE receipt | {"receipts":1}
+PASS F5b stored manager_physical_stock_g equals canonical stock after receipt | {"s":"100.0000"}
+PASS F4 whole-consignment sale after partial weight sale is rejected (no oversell) | {"whole":"ERR_CONSIGNMENT_PARTIALLY_USED: Partiya CONS-BC-F4EB4D4B qisman sotilgan yoki qa","soldC":11}
+PASS F4b whole-consignment sale with 200% markup is rejected | "ERR_MARKUP_OUT_OF_RANGE: Mijoz ustama foizi 0 dan 100 gacha aniq ko'rsatilishi s"
+PASS F4c untouched consignment can still be sold as a whole (no regression) | 1.12
+PASS F2 reversing a fully paid 4.4 g sale leaves the customer a 4.4 g advance | {"d":"0.0000","a":"4.4000"}
+PASS F2b reversing a partly paid sale (6.6 due, 5.4 paid incl. advance) leaves 5.4 g advance | {"d":"0.0000","a":"5.4000"}
+PASS F3 3 concurrent 1,000,000 UZS first payments => 3.0 g advance | {"a":"3.0000"}
+PASS F3b customer account records USD paid | {"u":"100.00"}
+PASS F7 weight-sale retry after selling all stock returns the original sale | "SALE-W-20261101-75306D"
+PASS F6 capital contribution in UZS without USD rate succeeds | "FTX-20261101-606326"
+PASS F6b USD transaction without a USD rate is refused (no silent 12,800) | "ERR_USD_RATE_NOT_SET: USD summasi uchun USD kursi (p_usd_rate) kiritilishi shart"
+PASS F1b after 0.5 g expense the period result is -0.5 g (operational before expenses 0) | {"result":-0.5,"op":0}
+PASS F1 profit summary: only director/manager of the own org | {"NOEMP":"DENIED","NOORG":"DENIED","INACTIVE":"DENIED","SELLER":"DENIED","ORGB_DIR":"DENIED","MANAGER":"ALLOWED","DIRECTOR":"ALLOWED"}
+PASS F8 seller denied company summaries/other seller pieces; own pieces + manager summary still allowed | [false,false,false,true,true]
+PASS F9 other-org director cannot modify/read Goldia employees or audit logs; employee cannot change org | {"orgB_update":0,"self_move":"DENIED","orgB_reads_emps":0,"orgB_reads_audit":0,"own_director_update":true}
+REGRESSION 16 / 16 passed

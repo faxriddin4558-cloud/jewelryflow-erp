@@ -1,0 +1,6 @@
+{"id":"C1","title":"two concurrent sales of the same barcode piece","result":["OK SALE-BC-67DAF89D","ERR Bu mahsulot donasi (SR-02 — 6.6000 g) allaqachon sotilgan (Sotuv ID: db2ffae0-c2"]}
+{"id":"C3","title":"3 concurrent 1,000,000 UZS advance payments (rate 1,000,000) for a new customer; expected advance 3.0 g","result":{"calls":["OK","OK","OK"],"account":{"advance_balance_grams":"3.0000","total_settled_grams":"3.0000","total_cash_paid_amount":"3000000.00"},"sb_till":{"seller_till_cash_amount":"3000000.00"}}}
+{"id":"C5","title":"same idempotency key sent twice concurrently","result":{"calls":["OK SETTL-88574FCB","OK SETTL-88574FCB"],"rows":1}}
+{"id":"C4","title":"two concurrent handovers of full till 3010000","result":["ERR ERR_INSUFFICIENT_CASH_BALANCE: Sotuvchi kassasida yetarli naqd pul (UZ","OK"]}
+{"id":"C7","title":"concurrent double reversal of the same sale","result":["ERR Ushbu savdo allaqachon bekor qilingan (SALE-BC-67DAF89Ds)","OK"]}
+{"id":"C8","title":"weight sale of all remaining stock (6.6 g) then identical retry with same key","result":["OK SALE-W-20261101-36C28E","OK SALE-W-20261101-36C28E"]}
