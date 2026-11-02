@@ -1,5 +1,10 @@
 # Goldia Sales — autentifikatsiyalangan yakuniy brauzer va moliyaviy qabul auditi
 
+> **Yangilanish (keyinroq):** bu yerdagi 073 tuzatishi yagona release-candidate migratsiyasiga birlashtirildi —
+> `supabase/migrations/20260101000073_goldia_release_candidate_stabilization.sql`, test `src/lib/__tests__/goldia-073-release-candidate.test.ts`.
+> Batafsil: `docs/audits/goldia-release-candidate-073/README.md`.
+
+
 **Sana:** 2026-11-02 · **Kod:** `2a70155` (production `/api/version` tasdiqladi) · **Production sxema:** 001–072 (egasi ma’lumoti)
 **Qaror:** **REAL GOLD: LIMITED GO** — shartlar 10-bo‘limda.
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { pieceIdsArg } from "./helpers/goldia-pglite";
 import { PGlite } from "@electric-sql/pglite";
 import { uuid_ossp } from "@electric-sql/pglite/contrib/uuid_ossp";
 import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
@@ -261,7 +262,8 @@ describe("Goldia migration 065 — BLOCKER / HIGH regression suite", () => {
     const consId = String(cons.consignment_id);
 
     await asUser(u);
-    const sale = await rpc(`public.rpc_record_weight_sale(p_customer_id := '${cust}', p_weight_grams := 3, p_client_markup_pct := 10)`);
+    const ids = await pieceIdsArg(db, sellerC, 3);
+    const sale = await rpc(`public.rpc_record_weight_sale(p_customer_id := '${cust}', p_weight_grams := 3, p_client_markup_pct := 10, ${ids})`);
     expect(sale.status).toBe("ok");
 
     await asAdmin();

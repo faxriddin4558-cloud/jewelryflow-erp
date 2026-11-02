@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { pieceIdsArg } from "./helpers/goldia-pglite";
 import { PGlite } from "@electric-sql/pglite";
 import { uuid_ossp } from "@electric-sql/pglite/contrib/uuid_ossp";
 import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
@@ -568,7 +569,8 @@ describe("Goldia Audit Production Fixes Suite", () => {
         p_seller_id := '${isoSellerEmpId}'::uuid,
         p_weight_grams := 10.0000,
         p_client_markup_pct := 20.0,
-        p_notes := 'Weight 10g sale 1'
+        p_notes := 'Weight 10g sale 1',
+        ${await pieceIdsArg(db, isoSellerEmpId, 10.0)}
       ) as rpc_record_weight_sale;
     `);
     const rawSale1 = sale1Res.rows[0]!.rpc_record_weight_sale;
@@ -582,7 +584,8 @@ describe("Goldia Audit Production Fixes Suite", () => {
         p_seller_id := '${isoSellerEmpId}'::uuid,
         p_weight_grams := 90.0000,
         p_client_markup_pct := 20.0,
-        p_notes := 'Weight 90g sale 2'
+        p_notes := 'Weight 90g sale 2',
+        ${await pieceIdsArg(db, isoSellerEmpId, 90.0)}
       ) as rpc_record_weight_sale;
     `);
     const rawSale2 = sale2Res.rows[0]!.rpc_record_weight_sale;
@@ -675,7 +678,8 @@ describe("Goldia Audit Production Fixes Suite", () => {
         p_seller_id := '${sellerAEmpId}'::uuid,
         p_weight_grams := 10.0000,
         p_client_markup_pct := 20.0,
-        p_notes := 'Seller A sale'
+        p_notes := 'Seller A sale',
+        ${await pieceIdsArg(db, sellerAEmpId, 10.0)}
       ) as rpc_record_weight_sale;
     `);
     const rawSale = saleRes.rows[0]!.rpc_record_weight_sale;

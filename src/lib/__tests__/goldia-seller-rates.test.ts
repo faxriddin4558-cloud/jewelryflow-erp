@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { createGoldiaDb } from "./helpers/goldia-pglite";
+import { createGoldiaDb, pieceIdsArg } from "./helpers/goldia-pglite";
 
 // Migration 072: independent seller LOM / USD rates. Calls run as the `authenticated` role with RLS on.
 // Every expected gram value is computed independently in the test (round to 4 decimals like the ledger).
@@ -26,8 +26,10 @@ describe("Goldia 072 — independent seller rates", () => {
     await t.asUser(director.userId);
     await t.rpc(`public.rpc_issue_barcode_consignment(p_seller_id := '${s.employeeId}', p_factory_markup_pct := 8,
       p_pieces := '[{"weight_grams":100,"model_code":"M"}]'::jsonb, p_notes := 'r', p_seller_markup_pct := 12)`);
+    await t.asAdmin();
+    const ids = await pieceIdsArg(t.db, s.employeeId, grams);
     await t.asUser(s.userId);
-    await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${s.customer}', p_weight_grams := ${grams}, p_client_markup_pct := 15)`);
+    await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${s.customer}', p_weight_grams := ${grams}, p_client_markup_pct := 15, ${ids})`);
   };
   const setRates = async (s: { userId: string }, lom: number | null, usd: number | null) => {
     await t.asUser(s.userId);

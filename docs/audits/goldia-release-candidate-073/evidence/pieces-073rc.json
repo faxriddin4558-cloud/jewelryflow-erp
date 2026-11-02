@@ -1,0 +1,138 @@
+[
+ {
+  "id": "C1",
+  "title": "weight sale without a selected piece is refused when the seller holds barcode pieces",
+  "ok": true,
+  "detail": "ERR_PIECE_REQUIRED: Vazn bo'yicha sotuvda qaysi donadan sotilayotganini tanlang"
+ },
+ {
+  "id": "C2",
+  "title": "duplicate piece refused",
+  "ok": true,
+  "detail": "ERR_PIECE_DUPLICATE: Bir dona ikki marta tanlangan"
+ },
+ {
+  "id": "C3",
+  "title": "another seller's piece refused",
+  "ok": true,
+  "detail": "ERR_PIECE_NOT_AVAILABLE: Tanlangan donalardan biri sotuvchida mavjud emas yoki allaqachon sotilgan"
+ },
+ {
+  "id": "C4",
+  "title": "too light selection refused",
+  "ok": true,
+  "detail": "ERR_PIECES_TOO_LIGHT: Tanlangan donalar jami vazni sotilayotgan vazndan kam"
+ },
+ {
+  "id": "C5",
+  "title": "unnecessary extra piece refused (only the last piece may be cut)",
+  "ok": true,
+  "detail": "ERR_PIECE_EXTRA: Oxirgi tanlangan dona kerak emas — faqat oxirgi dona qisman kesilishi mumkin"
+ },
+ {
+  "id": "C6",
+  "title": "4 g cut from the selected 8 g piece: allocation names the piece, piece keeps 4 g; retry returns same sale",
+  "ok": true,
+  "detail": {
+   "alloc": [
+    {
+     "piece_id": "3188611e-1e5c-4617-92fc-12c70ca0a616",
+     "grams": "4.0000",
+     "piece_weight_before": "8.0000",
+     "fully_consumed": false
+    }
+   ],
+   "piece_now": 4
+  }
+ },
+ {
+  "id": "C7",
+  "title": "7 g from [3 g, 5 g]: 3 g piece sold whole, 4 g cut from the 5 g piece (1 g left)",
+  "ok": true,
+  "detail": {
+   "alloc": [
+    [
+     "3.0000",
+     true
+    ],
+    [
+     "4.0000",
+     false
+    ]
+   ],
+   "p5_now": 1
+  }
+ },
+ {
+  "id": "C8",
+  "title": "piece sold by weight cannot be sold again by barcode",
+  "ok": true,
+  "detail": "Bu mahsulot donasi (P3 — 3.0000 g) allaqachon sotilgan (Sotuv ID: 47af7be7-f289-"
+ },
+ {
+  "id": "C9",
+  "title": "sold piece cannot be selected again",
+  "ok": true,
+  "detail": "ERR_PIECE_NOT_AVAILABLE: Tanlangan donalardan biri sotuvchida mavjud emas yoki allaqachon sotilgan"
+ },
+ {
+  "id": "C10",
+  "title": "held + sold = consigned (16 g)",
+  "ok": true,
+  "detail": {
+   "held": 5,
+   "sold": 11,
+   "consigned": 16
+  }
+ },
+ {
+  "id": "C11",
+  "title": "reversal restores exactly the same pieces (3 g held again, 5 g piece back to 5 g)",
+  "ok": true,
+  "detail": {
+   "p3": {
+    "status": "held_by_seller",
+    "weight_grams": "3.0000"
+   },
+   "p5": 5,
+   "held": 12,
+   "sold": 4,
+   "consigned": 16
+  }
+ },
+ {
+  "id": "C12",
+  "title": "parallel sales of the same remaining 4 g piece: one succeeds, piece never negative",
+  "ok": true,
+  "detail": {
+   "results": [
+    "OK",
+    "ERR_PIECE_NOT_AVAILABLE: Tanlangan donal"
+   ],
+   "piece": {
+    "status": "sold",
+    "weight_grams": "4.0000"
+   }
+  }
+ },
+ {
+  "id": "C13",
+  "title": "equation still holds after concurrency",
+  "ok": true,
+  "detail": {
+   "held": 8,
+   "sold": 8,
+   "consigned": 16
+  }
+ },
+ {
+  "id": "C14",
+  "title": "seller without barcode pieces: weight sale still allowed",
+  "ok": true,
+  "detail": {
+   "legacy_consignment": true,
+   "pieces": 0,
+   "sale": true
+  }
+ }
+]

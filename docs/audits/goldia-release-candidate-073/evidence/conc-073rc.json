@@ -1,0 +1,61 @@
+[
+ {
+  "id": "K1",
+  "title": "same barcode piece sold twice in parallel",
+  "ok": true,
+  "detail": [
+   "OK",
+   "Bu mahsulot donasi (B1 — 25.0000 g) allaqachon sot"
+  ]
+ },
+ {
+  "id": "K2",
+  "title": "3 parallel first payments of 900,000 at seller B rate 900,000 -> advance 3.0 g",
+  "ok": true,
+  "detail": {
+   "advance": "3.0000"
+  }
+ },
+ {
+  "id": "K3",
+  "title": "same idempotency key twice in parallel -> one settlement",
+  "ok": true,
+  "detail": {
+   "rows": 1
+  }
+ },
+ {
+  "id": "K4",
+  "title": "full till handed over twice in parallel -> one succeeds, till and valued pool exactly 0",
+  "ok": true,
+  "detail": {
+   "results": [
+    "ERR_INSUFFICIENT_CASH_BALANCE: Sotuvchi ",
+    "OK 3.01"
+   ],
+   "pool": {
+    "c": "0.00",
+    "vu": "0.00",
+    "vg": "0.000000"
+   }
+  }
+ },
+ {
+  "id": "K5",
+  "title": "parallel double reversal -> one succeeds",
+  "ok": true,
+  "detail": [
+   "OK",
+   "Ushbu savdo allaqachon bekor qilingan (S"
+  ]
+ },
+ {
+  "id": "K6",
+  "title": "two parallel rate changes are serialized (both in history, final rate is one of them)",
+  "ok": true,
+  "detail": {
+   "history": 3,
+   "current": "905000.00"
+  }
+ }
+]

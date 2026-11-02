@@ -1,0 +1,277 @@
+[
+ {
+  "id": "P1",
+  "title": "factory receipt 500 g @8% (+ retry with same key)",
+  "ok": true,
+  "expected": {
+   "obligation": 540,
+   "stock": 500
+  },
+  "actual": {
+   "obligation": 540,
+   "stock": 500
+  }
+ },
+ {
+  "id": "P2",
+  "title": "manager -> seller A 200 g @15%",
+  "ok": true,
+  "expected": {
+   "obligation": 230,
+   "stock": 200
+  },
+  "actual": {
+   "obligation": 230,
+   "stock": 200
+  }
+ },
+ {
+  "id": "P3",
+  "title": "manager -> seller B 100 g @12%",
+  "ok": true,
+  "expected": {
+   "obligation": 112,
+   "stock": 100
+  },
+  "actual": {
+   "obligation": 112,
+   "stock": 100
+  }
+ },
+ {
+  "id": "P3b",
+  "title": "manager stock after distribution",
+  "ok": true,
+  "expected": 200,
+  "actual": null
+ },
+ {
+  "id": "P4a",
+  "title": "barcode sale 12.5 g @12%",
+  "ok": true,
+  "expected": 14,
+  "actual": 14
+ },
+ {
+  "id": "P4b",
+  "title": "weight sale 40 g @15% from the selected pieces (30 g whole + 10 g of the 50 g piece)",
+  "ok": true,
+  "expected": {
+   "due": 46,
+   "pieces": 2,
+   "grams": 40
+  },
+  "actual": {
+   "due": 46,
+   "pieces": 2,
+   "grams": 40
+  }
+ },
+ {
+  "id": "P5",
+  "title": "seller B sale 25 g @20%",
+  "ok": true,
+  "expected": 30,
+  "actual": 30
+ },
+ {
+  "id": "P7",
+  "title": "seller-specific LOM/USD rates saved (A 890,000/12,500; B 900,000/12,700)",
+  "ok": true,
+  "expected": "ok",
+  "actual": [
+   true,
+   true
+  ]
+ },
+ {
+  "id": "P7b",
+  "title": "rate outside 25% band rejected; manager cannot use seller rate RPC",
+  "ok": true,
+  "expected": "both rejected",
+  "actual": [
+   "ERR_RATE_OUT_OF_RANGE: LOM kursi rasmiy 585 kursidan (900000",
+   "Permission denied for role \"production_manager\" (required on"
+  ]
+ },
+ {
+  "id": "P9a",
+  "title": "seller A cannot pay at another rate (browser-sent 900,000)",
+  "ok": true,
+  "expected": "ERR_RATE_MISMATCH",
+  "actual": "ERR_RATE_MISMATCH: Sizning joriy LOM kursingiz 890"
+ },
+ {
+  "id": "P9b",
+  "title": "CA1 cash+USD+scrap at seller A rates (+retry)",
+  "ok": true,
+  "expected": {
+   "total": 11.6552,
+   "cash": 5,
+   "usd": 2.809,
+   "scrap": 3.8462
+  },
+  "actual": {
+   "total": 11.6552,
+   "cash": 5,
+   "usd": 2.809,
+   "rate": 890000,
+   "usd_rate": 12500
+  }
+ },
+ {
+  "id": "P6",
+  "title": "CA1 old debt 3 g + sale 14 g, partial payment",
+  "ok": true,
+  "expected": 5.3448,
+  "actual": 5.3448
+ },
+ {
+  "id": "P8",
+  "title": "CB1 cash+USD at seller B rates 900,000 / 12,700",
+  "ok": true,
+  "expected": 11.4111,
+  "actual": 11.4111
+ },
+ {
+  "id": "P10",
+  "title": "A hands over at captured grams despite rate change 890,000 -> 920,000 (no grams created/destroyed)",
+  "ok": true,
+  "expected": {
+   "settled": 21.6552
+  },
+  "actual": {
+   "settled": 21.6552,
+   "owes_delta": 21.6552
+  }
+ },
+ {
+  "id": "P10b",
+  "title": "B handover closes exactly the captured grams",
+  "ok": true,
+  "expected": 11.4111,
+  "actual": 11.4111
+ },
+ {
+  "id": "P10c",
+  "title": "seller A cannot hand over seller B till",
+  "ok": true,
+  "expected": "denied",
+  "actual": "Ruxsat etilmadi: Sotuvchi faqat o'z kassasini tops"
+ },
+ {
+  "id": "P11",
+  "title": "cash->gold purchase: company rate difference = purchased - valued",
+  "ok": true,
+  "expected": {
+   "pool_avg_rate": 894000,
+   "diff": 0.262864
+  },
+  "actual": {
+   "diff": 0.262864,
+   "pool": 893999.98
+  }
+ },
+ {
+  "id": "P13a",
+  "title": "signed markup difference -0.375 + 0 + 2.0 = +1.625",
+  "ok": true,
+  "expected": {
+   "total": 1.625,
+   "neg": -0.375,
+   "pos": 2
+  },
+  "actual": {
+   "total": 1.625,
+   "neg": -0.375,
+   "pos": 2
+  }
+ },
+ {
+  "id": "P13b",
+  "title": "seller A cannot read seller B markup difference",
+  "ok": true,
+  "expected": "denied",
+  "actual": "Ruxsat etilmadi: Sotuvchi faqat o'z ustama farqini"
+ },
+ {
+  "id": "P15a",
+  "title": "reverse paid B sale: payment becomes advance; double reversal rejected",
+  "ok": true,
+  "expected": {
+   "debt": 0,
+   "advance": 11.4111
+  },
+  "actual": {
+   "debt": 0,
+   "advance": 11.4111,
+   "again": "rejected"
+  }
+ },
+ {
+  "id": "P13c",
+  "title": "markup difference after reversal = -0.375",
+  "ok": true,
+  "expected": -0.375,
+  "actual": -0.375
+ },
+ {
+  "id": "P15b",
+  "title": "A returns the \"100 g\" piece (now 100 g): obligation falls by 100 x 1.15",
+  "ok": true,
+  "expected": 115,
+  "actual": 115
+ },
+ {
+  "id": "P14a",
+  "title": "refining 3.0 g @750 -> 2.24 g @999, loss",
+  "ok": true,
+  "expected": {
+   "out": 3.8252,
+   "loss": 0.021
+  },
+  "actual": {
+   "out": 3.8252,
+   "loss": 0.021
+  }
+ },
+ {
+  "id": "P14b",
+  "title": "factory liability 540 - refined - purchased",
+  "ok": true,
+  "expected": 533.6748,
+  "actual": 533.6748
+ },
+ {
+  "id": "S1",
+  "title": "seller A cannot read/change seller B rates, history, limits or company stock",
+  "ok": true,
+  "expected": "all denied",
+  "actual": {
+   "rpcRatesB": false,
+   "rowsRates": 0,
+   "rowsHist": 0,
+   "write": false,
+   "limits": false,
+   "rpcStock": "denied",
+   "fnStock": "denied"
+  }
+ },
+ {
+  "id": "S2",
+  "title": "manager sees every seller rate",
+  "ok": true,
+  "expected": ">=2 sellers",
+  "actual": 3
+ },
+ {
+  "id": "S3",
+  "title": "employee-less and anonymous denied",
+  "ok": true,
+  "expected": "denied",
+  "actual": [
+   "Permission denied: User must belong to a",
+   "permission denied for function rpc_get_s"
+  ]
+ }
+]

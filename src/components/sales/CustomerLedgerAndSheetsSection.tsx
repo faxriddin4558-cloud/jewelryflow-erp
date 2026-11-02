@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
+import { tashkentBusinessDate } from "@/lib/business-date";
 
 function parseErrorMessage(err: unknown, fallback: string = "Xatolik yuz berdi"): string {
   if (!err) return fallback;
@@ -184,14 +185,14 @@ export function CustomerLedgerAndSheetsSection() {
       const saved = sessionStorage.getItem("jf_sales_ledger_start_date");
       if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) return saved;
     }
-    return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+    return tashkentBusinessDate(new Date(), -30);
   });
   const [endDate, setEndDate] = useState<string>(() => {
     if (typeof window !== "undefined") {
       const saved = sessionStorage.getItem("jf_sales_ledger_end_date");
       if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) return saved;
     }
-    return new Date().toISOString().substring(0, 10);
+    return tashkentBusinessDate();
   });
 
   // Monthly Report Data
@@ -223,6 +224,8 @@ export function CustomerLedgerAndSheetsSection() {
   const [saleWeightGrams, setSaleWeightGrams] = useState("");
   const [sellerAvailableStock, setSellerAvailableStock] = useState<number | null>(null);
   const [salePieceId, setSalePieceId] = useState("");
+  // 073: the physical piece a weight sale is cut from (model code + weight cannot identify an individual item)
+  const [saleSourcePieceId, setSaleSourcePieceId] = useState("");
   const [saleMarkupPct, setSaleMarkupPct] = useState("12.0");
   const [saleNotes, setSaleNotes] = useState("");
 
@@ -561,6 +564,14 @@ export function CustomerLedgerAndSheetsSection() {
         if (!targetCustomer.seller_id) {
           throw new Error("Mijozga sotuvchi biriktirilmagan. Avval mijozni sotuvchiga biriktiring.");
         }
+        const sellerPieces = availablePieces.filter((p) => String(p.seller_id) === String(targetCustomer.seller_id));
+        if (sellerPieces.length > 0 && !saleSourcePieceId) {
+          throw new Error("Qaysi donadan sotilayotganini tanlang (vazn shu donadan ayriladi).");
+        }
+        const sourcePiece = sellerPieces.find((p) => p.id === saleSourcePieceId);
+        if (sourcePiece && weight > Number(sourcePiece.weight_grams) + 0.00005) {
+          throw new Error(`Tanlangan dona ${formatScreenGrams(sourcePiece.weight_grams)} — sotilayotgan vazndan yengil.`);
+        }
 
         const { data, error } = await supabase.rpc("rpc_record_weight_sale", {
           p_customer_id: targetCustomer.id,
@@ -569,6 +580,7 @@ export function CustomerLedgerAndSheetsSection() {
           p_client_markup_pct: markup,
           p_notes: saleNotes.trim() || "Mijozga vazn bo'yicha nasiya sotuv",
           p_idempotency_key: `WEIGHT-SALE-${targetCustomer.id}-${Date.now()}`,
+          p_piece_ids: saleSourcePieceId ? [saleSourcePieceId] : null,
         });
 
         if (error) throw error;
@@ -613,6 +625,7 @@ export function CustomerLedgerAndSheetsSection() {
       setSaleModalOpen(false);
       setTargetCustomer(null);
       setSalePieceId("");
+      setSaleSourcePieceId("");
       setSaleWeightGrams("");
       setSaleNotes("");
       await loadCustomers();
@@ -697,7 +710,7 @@ export function CustomerLedgerAndSheetsSection() {
         : ""
     );
     setLegacyAmount("");
-    setLegacyAsOfDate(new Date().toISOString().substring(0, 10));
+    setLegacyAsOfDate(tashkentBusinessDate());
     setLegacyNotes("");
     setLegacyDebtModalOpen(true);
 
@@ -743,7 +756,7 @@ export function CustomerLedgerAndSheetsSection() {
         p_customer_id: targetCustomer.id,
         p_balance_type: legacyBalanceType,
         p_amount_585_g: isReconciliation ? 0 : directAmt,
-        p_as_of_date: legacyAsOfDate || new Date().toISOString().substring(0, 10),
+        p_as_of_date: legacyAsOfDate || tashkentBusinessDate(),
         p_notes: legacyNotes.trim() || (isReconciliation ? "Daftar bo'yicha qayta solishtirish" : "Eski qarz kiritildi"),
         p_entry_type: isReconciliation ? "reconciliation_adjustment" : "manual_addition",
         p_target_final_balance: isReconciliation ? targetVal : null,
@@ -930,7 +943,7 @@ export function CustomerLedgerAndSheetsSection() {
                 <button
                   type="button"
                   onClick={() => {
-                    const today = new Date().toISOString().substring(0, 10);
+                    const today = tashkentBusinessDate();
                     setStartDate(today);
                     setEndDate(today);
                     if (typeof window !== "undefined") {
@@ -946,7 +959,7 @@ export function CustomerLedgerAndSheetsSection() {
                 <button
                   type="button"
                   onClick={() => {
-                    const yesterday = new Date(Date.now() - 86400000).toISOString().substring(0, 10);
+                    const yesterday = tashkentBusinessDate(new Date(), -1);
                     setStartDate(yesterday);
                     setEndDate(yesterday);
                     if (typeof window !== "undefined") {
@@ -1091,6 +1104,7 @@ export function CustomerLedgerAndSheetsSection() {
                       setSaleMode("weight");
                       setSaleWeightGrams("");
                       setSalePieceId("");
+                      setSaleSourcePieceId("");
                       setSaleMarkupPct("12.0");
                       setSaleNotes("");
                       setSellerAvailableStock(null);
@@ -1219,6 +1233,7 @@ export function CustomerLedgerAndSheetsSection() {
                             setSaleMode("weight");
                             setSaleWeightGrams("");
                             setSalePieceId("");
+                            setSaleSourcePieceId("");
                             setSaleMarkupPct("12.0");
                             setSaleNotes("");
                             setSellerAvailableStock(null);
@@ -1968,6 +1983,30 @@ export function CustomerLedgerAndSheetsSection() {
                         }`}
                       />
                     </div>
+
+                    {availablePieces.some((p) => String(p.seller_id) === String(targetCustomer.seller_id)) && (
+                      <div>
+                        <label className="font-bold text-amber-300 block mb-1">
+                          Qaysi donadan? (vazn shu donadan ayriladi) *
+                        </label>
+                        <select
+                          required
+                          data-testid="weight-sale-source-piece"
+                          value={saleSourcePieceId}
+                          onChange={(e) => setSaleSourcePieceId(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
+                        >
+                          <option value="">Donani tanlang...</option>
+                          {availablePieces
+                            .filter((p) => String(p.seller_id) === String(targetCustomer.seller_id))
+                            .map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.model_name} ({p.model_code}) — {formatScreenGrams(p.weight_grams)}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div>

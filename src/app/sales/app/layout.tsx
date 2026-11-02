@@ -12,6 +12,7 @@ import {
   type ErpRole,
 } from "@/lib/erp-engine";
 import { isRouteAllowedForSeller, isSellerUiRole, SELLER_NAVIGATION } from "@/lib/sales-role-access";
+import { tashkentBusinessDate } from "@/lib/business-date";
 
 interface NavItem {
   name: string;
@@ -185,7 +186,7 @@ export default function SalesAppLayout({ children }: { children: React.ReactNode
     if (!rateNum || rateNum <= 0) return;
 
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = tashkentBusinessDate();
       const idempotencyKey = `daily_rate_${today}_${Date.now()}`;
 
       // Try canonical RPC first

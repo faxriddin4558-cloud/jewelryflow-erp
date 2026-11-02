@@ -1,0 +1,35 @@
+PASS U1-mobile seller A menu = 5 sections (mobile) | ["/sales/app","/sales/app/customers","/sales/app/kassam","/sales/app/markup","/sales/app/scan"]
+PASS U2-mobile/sales/director old/forbidden URL /sales/director stays in seller area | "/sales/app"
+PASS U2-mobile/sales/mobile old/forbidden URL /sales/mobile stays in seller area | "/sales/app/scan"
+PASS U2-mobile/sales/app/factory old/forbidden URL /sales/app/factory stays in seller area | "/sales/app?unauthorized=1"
+PASS U2-mobile/sales/app/inventory old/forbidden URL /sales/app/inventory stays in seller area | "/sales/app?unauthorized=1"
+PASS U2-mobile/ old/forbidden URL / stays in seller area | "/sales/app"
+PASS U3-mobile/sales/app seller A /sales/app loads without API errors (mobile) | {"api":[],"react_hydration_418":2}
+PASS U3-mobile/sales/app/scan seller A /sales/app/scan loads without API errors (mobile) | {"api":[],"react_hydration_418":2}
+PASS U3-mobile/sales/app/customers seller A /sales/app/customers loads without API errors (mobile) | {"api":[],"react_hydration_418":2}
+PASS U3-mobile/sales/app/kassam seller A /sales/app/kassam loads without API errors (mobile) | {"api":[],"react_hydration_418":2}
+PASS U3-mobile/sales/app/markup seller A /sales/app/markup loads without API errors (mobile) | {"api":[],"react_hydration_418":2}
+PASS U1-desktop seller A menu = 5 sections (desktop) | ["/sales/app","/sales/app/customers","/sales/app/kassam","/sales/app/markup","/sales/app/scan"]
+PASS U2-desktop/sales/director old/forbidden URL /sales/director stays in seller area | "/sales/app"
+PASS U2-desktop/sales/mobile old/forbidden URL /sales/mobile stays in seller area | "/sales/app/scan"
+PASS U2-desktop/sales/app/factory old/forbidden URL /sales/app/factory stays in seller area | "/sales/app?unauthorized=1"
+PASS U2-desktop/sales/app/inventory old/forbidden URL /sales/app/inventory stays in seller area | "/sales/app?unauthorized=1"
+PASS U2-desktop/ old/forbidden URL / stays in seller area | "/sales/app"
+PASS U3-desktop/sales/app seller A /sales/app loads without API errors (desktop) | {"api":[],"react_hydration_418":2}
+PASS U3-desktop/sales/app/scan seller A /sales/app/scan loads without API errors (desktop) | {"api":[],"react_hydration_418":2}
+PASS U3-desktop/sales/app/customers seller A /sales/app/customers loads without API errors (desktop) | {"api":[],"react_hydration_418":2}
+PASS U3-desktop/sales/app/kassam seller A /sales/app/kassam loads without API errors (desktop) | {"api":[],"react_hydration_418":2}
+PASS U3-desktop/sales/app/markup seller A /sales/app/markup loads without API errors (desktop) | {"api":[],"react_hydration_418":2}
+PASS U4 weight-sale form shows "Qaysi donadan?" with the seller's own pieces only | {"options":["Donani tanlang...","Zargarlik Buyumi (Standart 585) (A1) — 7.50 g","Zargarlik Buyumi (Standart 585) (A3) — 40.00 g"]}
+PASS U5 submit without choosing a piece is blocked (browser validation or message), no sale created | "checked below"
+PASS U6 UI weight sale of 2 g cuts exactly the chosen piece (40.0000 g -> 38 g), one sale despite double click | {"new_sales":1,"alloc":{"piece_id":"4b5e06ad-1bb4-4560-a3ac-ee6b9bec43d0","grams":"2.0000","piece_weight_before":"40.0000"},"piece_now":38}
+PASS U7 sale is dated with the Tashkent business date | {"sale_date":"2026-11-02","tashkent_today":"2026-11-02"}
+PASS U8 session survives refresh | "/sales/app/customers"
+PASS U9/sales/app manager /sales/app loads without API errors | []
+PASS U9/sales/app/consignments manager /sales/app/consignments loads without API errors | []
+PASS U9/sales/app/sellers manager /sales/app/sellers loads without API errors | []
+PASS U9/sales/app/reports manager /sales/app/reports loads without API errors | []
+PASS U9/sales/app/cash manager /sales/app/cash loads without API errors | []
+PASS U9/sales/app/factory manager /sales/app/factory loads without API errors | []
+PASS U10 manager dashboard physical balance banner | "BALANS TO'LIQ MOS"
+TOTAL 34 PASS 34

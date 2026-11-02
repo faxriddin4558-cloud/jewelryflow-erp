@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { createGoldiaDb } from "./helpers/goldia-pglite";
+import { createGoldiaDb, pieceIdsArg } from "./helpers/goldia-pglite";
 
 // Migration 068: a weight sale consumes every piece it sells; reversals restore exactly; the A-G
 // statement follows the authoritative stock; evidence-based repair of old records; factory counters.
@@ -23,9 +23,13 @@ describe("Goldia 068 — weight sales across multiple pieces", () => {
       p_notes := '3x100', p_seller_markup_pct := 15)`);
     return String(r.consignment_id);
   };
-  const weightSale = async (s: { userId: string; customer: string }, grams: number, key?: string) => {
+  const pieceArgs = new Map<string, string>(); // a retry (same key) resends exactly the same request
+  const weightSale = async (s: { userId: string; employeeId: string; customer: string }, grams: number, key?: string) => {
+    await t.asAdmin();
+    const ids = (key && pieceArgs.get(key)) || (await pieceIdsArg(t.db, s.employeeId, grams));
+    if (key) pieceArgs.set(key, ids);
     await t.asUser(s.userId);
-    return t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${s.customer}', p_weight_grams := ${grams}, p_client_markup_pct := 15${key ? `, p_idempotency_key := '${key}'` : ""})`);
+    return t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${s.customer}', p_weight_grams := ${grams}, p_client_markup_pct := 15, ${ids}${key ? `, p_idempotency_key := '${key}'` : ""})`);
   };
   const shelf = async (sellerId: string) => {
     await t.asAdmin();

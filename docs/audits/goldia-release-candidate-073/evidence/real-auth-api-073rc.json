@@ -1,0 +1,357 @@
+[
+ {
+  "id": "AUTH",
+  "title": "real password grant for 5 identities",
+  "ok": "PASS",
+  "detail": {
+   "director": true,
+   "manager": true,
+   "sellera": true,
+   "sellerb": true,
+   "sellerc": true
+  }
+ },
+ {
+  "id": "SCHEMA",
+  "title": "test project schema level (070 seller-summary guard / 072 rates)",
+  "ok": "PASS",
+  "detail": {
+   "has070": false,
+   "has072": false
+  }
+ },
+ {
+  "id": "RLS-customers",
+  "title": "seller A sees no other seller's customers",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0,
+   "foreign": 0
+  }
+ },
+ {
+  "id": "RLS-jewelry_sales",
+  "title": "seller A sees no other seller's jewelry_sales",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0,
+   "foreign": 0
+  }
+ },
+ {
+  "id": "RLS-gold_settlements",
+  "title": "seller A sees no other seller's gold_settlements",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0,
+   "foreign": 0
+  }
+ },
+ {
+  "id": "RLS-client_gold_accounts",
+  "title": "seller A sees no other seller's client_gold_accounts",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0,
+   "foreign": 0
+  }
+ },
+ {
+  "id": "RLS-seller_gold_accounts",
+  "title": "seller A sees no other seller's seller_gold_accounts",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0,
+   "foreign": 0
+  }
+ },
+ {
+  "id": "RLS-consignment_pieces",
+  "title": "seller A sees no other seller's consignment_pieces",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0,
+   "foreign": 0
+  }
+ },
+ {
+  "id": "RLS-seller_consignments",
+  "title": "seller A sees no other seller's seller_consignments",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0,
+   "foreign": 0
+  }
+ },
+ {
+  "id": "RLS-client_legacy_debts",
+  "title": "seller A sees no other seller's client_legacy_debts",
+  "ok": "FAIL",
+  "detail": {
+   "status": 200,
+   "rows": 1,
+   "foreign": 1
+  }
+ },
+ {
+  "id": "RLS-employees",
+  "title": "seller A sees no other seller's employees",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 1,
+   "foreign": 0
+  }
+ },
+ {
+  "id": "CO-manager_vault_account",
+  "title": "seller sees no company manager_vault_account",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0
+  }
+ },
+ {
+  "id": "CO-factory_receipts",
+  "title": "seller sees no company factory_receipts",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0
+  }
+ },
+ {
+  "id": "CO-financial_transactions",
+  "title": "seller sees no company financial_transactions",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0
+  }
+ },
+ {
+  "id": "CO-gold_purchases",
+  "title": "seller sees no company gold_purchases",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0
+  }
+ },
+ {
+  "id": "CO-refining_batches",
+  "title": "seller sees no company refining_batches",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0
+  }
+ },
+ {
+  "id": "CO-factory_gold_handovers",
+  "title": "seller sees no company factory_gold_handovers",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0
+  }
+ },
+ {
+  "id": "CO-accounting_baselines",
+  "title": "seller sees no company accounting_baselines",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0
+  }
+ },
+ {
+  "id": "CO-audit_logs",
+  "title": "seller sees no company audit_logs",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0
+  }
+ },
+ {
+  "id": "CO-company_rate_differences",
+  "title": "seller sees no company company_rate_differences",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 0
+  }
+ },
+ {
+  "id": "CORPC-rpc_get_accounting_profit_summary",
+  "title": "seller denied rpc_get_accounting_profit_summary",
+  "ok": "PASS",
+  "detail": {
+   "status": 403,
+   "code": "42501"
+  }
+ },
+ {
+  "id": "CORPC-rpc_get_financial_reconciliation_summary",
+  "title": "seller denied rpc_get_financial_reconciliation_summary",
+  "ok": "FAIL",
+  "detail": {
+   "status": 200
+  }
+ },
+ {
+  "id": "CORPC-rpc_get_three_tier_ledger_summary",
+  "title": "seller denied rpc_get_three_tier_ledger_summary",
+  "ok": "FAIL",
+  "detail": {
+   "status": 200
+  }
+ },
+ {
+  "id": "CORPC-rpc_get_company_rate_difference_report",
+  "title": "seller denied rpc_get_company_rate_difference_report",
+  "ok": "PASS",
+  "detail": {
+   "status": 403,
+   "code": "42501"
+  }
+ },
+ {
+  "id": "CORPC-rpc_get_director_sales_overview",
+  "title": "seller denied rpc_get_director_sales_overview",
+  "ok": "PASS",
+  "detail": {
+   "status": 403,
+   "code": "42501"
+  }
+ },
+ {
+  "id": "X1",
+  "title": "seller A cannot list seller B pieces",
+  "ok": "FAIL",
+  "detail": {
+   "status": 200
+  }
+ },
+ {
+  "id": "X2",
+  "title": "seller A cannot read seller B ledger",
+  "ok": "PASS",
+  "detail": {
+   "status": 403,
+   "code": "42501"
+  }
+ },
+ {
+  "id": "X3",
+  "title": "seller A cannot hand over seller B till",
+  "ok": "PASS",
+  "detail": {
+   "status": 403,
+   "msg": "Ruxsat etilmadi: Sotuvchi faqat o'z kassasini topshira oladi"
+  }
+ },
+ {
+  "id": "X4",
+  "title": "seller cannot record factory receipt",
+  "ok": "PASS",
+  "detail": {
+   "status": 403,
+   "code": "42501"
+  }
+ },
+ {
+  "id": "X5",
+  "title": "seller cannot reset",
+  "ok": "PASS",
+  "detail": {
+   "status": 403,
+   "code": "42501"
+  }
+ },
+ {
+  "id": "X6",
+  "title": "seller cannot escalate own role",
+  "ok": "PASS",
+  "detail": {
+   "status": 403
+  }
+ },
+ {
+  "id": "X7",
+  "title": "seller cannot move to another organization (070 F9)",
+  "ok": "PASS",
+  "detail": {
+   "status": 403
+  }
+ },
+ {
+  "id": "X8",
+  "title": "seller cannot write jewelry_sales directly",
+  "ok": "PASS",
+  "detail": {
+   "status": 400
+  }
+ },
+ {
+  "id": "AN1",
+  "title": "anon denied profit summary",
+  "ok": "PASS",
+  "detail": {
+   "status": 401
+  }
+ },
+ {
+  "id": "AN2",
+  "title": "anon sees no customers",
+  "ok": "PASS",
+  "detail": {
+   "status": 401,
+   "rows": null
+  }
+ },
+ {
+  "id": "M1",
+  "title": "director can read profit summary",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "st": "baseline_not_set"
+  }
+ },
+ {
+  "id": "M2",
+  "title": "manager can read reconciliation",
+  "ok": "PASS",
+  "detail": {
+   "status": 200
+  }
+ },
+ {
+  "id": "M3",
+  "title": "manager reads vault",
+  "ok": "PASS",
+  "detail": {
+   "status": 200,
+   "rows": 1
+  }
+ },
+ {
+  "id": "M4",
+  "title": "director cannot request another org (070 F1)",
+  "ok": "FAIL",
+  "detail": {
+   "status": 200,
+   "msg": ""
+  }
+ }
+]

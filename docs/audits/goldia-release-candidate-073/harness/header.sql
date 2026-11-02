@@ -1,0 +1,18 @@
+-- JewelryFlow ERP Migration 20260101000073 — GOLDIA SALES release-candidate stabilization (single migration)
+--
+-- A. One business-date rule: public._goldia_business_date() = calendar date in Asia/Tashkent at the time of the
+--    operation. Every Goldia Sales RPC that stamped CURRENT_DATE (the server's UTC date) — sale date, payment /
+--    settlement date, LOM/USD daily rate date, handover, refining, document numbers, report defaults — and the
+--    document column defaults now use it. Between 00:00 and 05:00 Tashkent the old code put rates and sales on the
+--    previous day (and the previous month on the 1st). Existing rows are not re-dated.
+-- B. rpc_execute_full_test_reset also empties the 072 seller valued till pool (PR #13): after a reset a new
+--    2.0000 g collection was closed as 2.0593 g because pre-reset grams were still in the pool.
+-- C. Weight sales name the physical piece(s): rpc_record_weight_sale gets p_piece_ids uuid[]. When the seller holds
+--    barcode pieces a weight sale without explicit pieces is refused (model code + weight cannot identify an
+--    individual item); only the last selected piece may be cut partially; duplicates, foreign or sold pieces and
+--    unnecessary extra pieces are refused. Allocations record piece, grams and weight before; a reversal restores
+--    exactly those pieces (068 restore). Sellers without barcode pieces keep the previous behaviour.
+--
+-- Functions, defaults and grants only; no business row is changed. Rollback: supabase/rollback/20260101000073_rollback.sql
+-- Postflight: supabase/release/073_postflight_readonly.sql
+

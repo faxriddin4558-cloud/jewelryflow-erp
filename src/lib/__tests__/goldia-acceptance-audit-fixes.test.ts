@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { createGoldiaDb } from "./helpers/goldia-pglite";
+import { createGoldiaDb, pieceIdsArg } from "./helpers/goldia-pglite";
 
 // Migration 070: regressions found by the independent acceptance audit
 // (docs/audits/goldia-final-acceptance). The concurrent-payment race (F3) needs two real sessions and
@@ -62,8 +62,10 @@ describe("Goldia 070 — acceptance audit fixes", () => {
   it("F4: a consignment partly consumed by a weight sale cannot be sold again as a whole", async () => {
     await issue(sellerC.employeeId, [10]);
     const second = await issue(sellerC.employeeId, [2, 3]);
+    await t.asAdmin();
+    const ids11 = await pieceIdsArg(t.db, sellerC.employeeId, 11);
     await t.asUser(sellerC.userId);
-    await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${custC}', p_weight_grams := 11, p_client_markup_pct := 10)`);
+    await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${custC}', p_weight_grams := 11, p_client_markup_pct := 10, ${ids11})`);
     await t.expectError(`SELECT public.rpc_record_client_jewelry_sale(p_customer_id := '${custC}',
       p_consignment_id := '${second.consignment_id}', p_client_markup_pct := 10)`, "ERR_CONSIGNMENT_PARTIALLY_USED");
     await t.asAdmin();
@@ -112,9 +114,11 @@ describe("Goldia 070 — acceptance audit fixes", () => {
 
   it("F7: a retried weight sale returns the original sale even when the stock is now used up", async () => {
     await issue(sellerA.employeeId, [2]);
+    await t.asAdmin();
+    const ids2 = await pieceIdsArg(t.db, sellerA.employeeId, 2);
     await t.asUser(sellerA.userId);
-    const a = await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${custA}', p_weight_grams := 2, p_client_markup_pct := 10, p_idempotency_key := 'w070')`);
-    const b = await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${custA}', p_weight_grams := 2, p_client_markup_pct := 10, p_idempotency_key := 'w070')`);
+    const a = await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${custA}', p_weight_grams := 2, p_client_markup_pct := 10, p_idempotency_key := 'w070', ${ids2})`);
+    const b = await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${custA}', p_weight_grams := 2, p_client_markup_pct := 10, p_idempotency_key := 'w070', ${ids2})`);
     expect(b.sale_id).toBe(a.sale_id);
   });
 
