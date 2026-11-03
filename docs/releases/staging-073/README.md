@@ -1,4 +1,4 @@
-# Goldia Sales staging → 073: release tartibi (2026-11-03)
+# Goldia Sales staging → 074 (073 release candidate + 074 tenant isolation): release tartibi (2026-11-03)
 
 | Loyiha | Ref | Bu ishda |
 |---|---|---|
@@ -29,16 +29,27 @@ Skript shu ikkalasini avval nomma-nom ko‘rsatadi (`parity-062.txt`). Ruxsat be
 - Yaratmasa → STOP, staging’ga hech narsa yozilmaydi.
 
 ## 2. Tanlangan yo‘l — eng qisqa va xavfsiz
+063–074 (12 migratsiya) repo’dagi fayllarning o‘zi, **bitta tranzaksiyada**, har biridan keyin o‘sha versiyaning
+postflight tekshiruvi. 073 — release candidate (`162a377`) dagi fayl, o‘zgarmagan. 074 — faqat tashkilotlar izolyatsiyasi
+(`jewelry_models`, `stage_loss_configs`, ikki model RPC’si); moliyaviy jadval va formulalarga tegmaydi. Biror joyda xato
+bo‘lsa yoki 10 s ichida qulf olinmasa, PostgreSQL hammasini qaytaradi va staging 062 da qoladi.
+Skript: `scripts/goldia-staging-release.js` (dry run — staging faqat o‘qiladi; `--apply` — hamma gate o‘tgach, project
+ref’ni qo‘lda yozganingizdan keyin).
 
-063–073 (11 migratsiya) repo’dagi fayllarning o‘zi, **bitta tranzaksiyada**, har biridan keyin o‘sha versiyaning postflight tekshiruvi.
+### 074 — `jewelry_models` va `stage_loss_configs` izolyatsiyasi
+| | 073 | 074 |
+|---|---|---|
+| SELECT | hamma tashkilotlar (`using (true)`) | o‘z tashkiloti + `organization_id IS NULL` umumiy eski qatorlar (faqat o‘qish) |
+| INSERT/UPDATE/DELETE modellar | rolga qarab, tashkilot sharti yo‘q | o‘z tashkiloti **va** katalog huquqi (admin/director/manager rollari, seller, accountant — avvalgi rollar to‘plami) |
+| INSERT/UPDATE/DELETE loss configs | har qanday admin/manager, istalgan tashkilot | o‘z tashkiloti **va** `is_admin_or_manager()` |
+| `rpc_create_jewelry_model` (SECURITY DEFINER) | chaqiruvchi tanlagan tashkilot, "birinchi tashkilot" zaxirasi, rol tekshiruvi yo‘q | faqat o‘z tashkiloti, rol tekshiruvi; service_role tashkilotni aniq berishi shart |
+| `rpc_update_jewelry_model_photo` (SECURITY DEFINER) | istalgan model ID bo‘yicha | faqat o‘z tashkiloti modeli, rol tekshiruvi |
+| Grantlar | anon: hammasi; authenticated: TRUNCATE/MAINTAIN ham | anon: hech narsa; authenticated: faqat SELECT/INSERT/UPDATE/DELETE |
+| `organization_id` default | yo‘q | `current_organization_id()` (to‘g‘ridan-to‘g‘ri insert ishlashda davom etadi) |
 
-Yangi kod yoki migratsiya yozilmagan. 073 — release candidate `162a377` dagi fayl.
-
-Bitta tranzaksiya: biror joyda xato bo‘lsa yoki 10 s ichida qulf olinmasa, PostgreSQL hammasini qaytaradi, staging 062 da qoladi.
-
-Skript: `scripts/goldia-staging-release.js`
-- **Dry run:** staging faqat o‘qiladi.
-- **`--apply`:** barcha gate’lar o‘tgandan keyin project ref’ni qo‘lda yozish so‘raladi.
+Fayllar: `supabase/migrations/20260101000074_goldia_tenant_isolation_models_and_loss_configs.sql`,
+`supabase/rollback/20260101000074_rollback.sql` (073 holatiga aynan qaytaradi), `supabase/release/074_postflight_readonly.sql` (13 ustun).
+Tekshirildi: ikki marta qo‘llash — imzo bir xil (idempotent); rollback — imzo 073 bilan aynan bir xil; qayta qo‘llash — 074.
 
 ## 3. Bitta buyruq (Windows PowerShell, repo ildizida, PostgreSQL 17 tools)
 
@@ -49,7 +60,7 @@ git fetch origin ccr-fb8951ce-65agfo; git checkout ccr-fb8951ce-65agfo; git pull
 - **Parol:** staging DB paroli yashirin so‘raladi (`postgres.vouehtlmsunebracahon`); hech qayerga yozilmaydi.
 - **Pooler:** staging pooler’i parol yuborilmasdan topiladi. Topilmasa: `--host <Dashboard → Connect → Session pooler host>`.
 - **Tasdiq:** hamma natija ekranga chiqadi, so‘ng `Type the staging project ref…` so‘raladi. Faqat `vouehtlmsunebracahon` yozilsa qo‘llanadi; boshqa javob yoki Ctrl+C — hech narsa yozilmaydi.
-- **Natija fayli:** `%USERPROFILE%\GoldiaBackups\goldia-staging-<vaqt>\STAGING-073-RESULT.txt`. Unda maxfiy ma’lumot yo‘q.
+- **Natija fayli:** `%USERPROFILE%\GoldiaBackups\goldia-staging-<vaqt>\STAGING-074-RESULT.txt`. Unda maxfiy ma’lumot yo‘q.
 
 ## 4. PASS / STOP shartlari
 
@@ -64,22 +75,34 @@ Birinchi muvaffaqiyatsiz shartda STOP. 9-qadamgacha staging’ga yozilmaydi.
 | 4 | Backup | `pg_dump -Fc` (public, auth, storage, supabase_migrations) + sxema + rollar, SHA256SUMS, `pg_restore --list` | dump xatosi; backup paytida staging qatorlari o‘zgardi |
 | 5 | Restore testi | lokal klasterdagi barcha jadval qator sonlari = staging | farq bor |
 | 6 | 062 pariteti | hisobot (`parity-062.txt`) | — (qaror 7-qadamda) |
-| 7a | Zanjir lokal nusxada | 11 migratsiya + 33 postflight tekshiruvi bitta tranzaksiyada | biror migratsiya yoki tekshiruv xatosi |
+| 7a | Zanjir lokal nusxada | 12 migratsiya + har birining postflight tekshiruvi bitta tranzaksiyada | biror migratsiya yoki tekshiruv xatosi |
 | 7b | Ma’lumot saqlanishi | biznes jadvallari qator soni o‘zgarmagan; har bir tashkilot balansi (mijoz qarzi/avansi, sotuvchi qarzi/zaxirasi, seyf so‘m/USD) bir xil | biror son yoki balans o‘zgardi |
-| 7c | 073 pariteti | repo 001–073 dagi har bir funksiya, ustun, policy, trigger, RLS bor | biror obyekt yetishmaydi (funksiya tanasi farqi — REVIEW ro‘yxati) |
-| 7d | 073 postflight | 12/12 | biror ustun `false` |
-| 7e | RLS — **har bir login × har bir tashkilot** | `authenticated` (har bir xodim JWT bilan) va `anon`: boshqa tashkilot qatorlarini o‘qish, o‘zgartirish va o‘chirish; sotuvchi boshqa sotuvchi qatorlarini o‘qishi. Zanjir oqishni faqat yopadi | zanjir **yangi** oqish ochdi; yoki `jewelry_models`/`stage_loss_configs` dan tashqari oqish qoldi |
-| 7f | Rollback | 073 rollback → qayta qo‘llash → postflight 12/12 | xato |
+| 7c | 074 pariteti | repo 001–074 dagi har bir funksiya, ustun, policy, trigger, RLS bor | biror obyekt yetishmaydi (funksiya tanasi farqi — REVIEW ro‘yxati) |
+| 7d | 073 va 074 postflight | barcha ustunlar `true` | biror ustun `false` |
+| 7e | RLS — **har bir login × har bir tashkilot** | `authenticated` (har bir xodim JWT bilan) va `anon`: boshqa tashkilot qatorlarini o‘qish, o‘zgartirish va o‘chirish; sotuvchi boshqa sotuvchi qatorlarini o‘qishi. Zanjir oqishni faqat yopadi | 074 dan keyin **biror** jadvalda tashkilotlararo kirish qolsa |
+| 7f | Rollback | 074 rollback → qayta qo‘llash → postflight | xato |
 | 8 | Dry run | `DRY RUN PASS` (`--apply` siz shu yerda tugaydi) | — |
 | 9 | Qo‘llash | backup’dan beri staging o‘zgarmagan; ref qo‘lda yozildi; bitta tranzaksiya, `lock_timeout 10s` | o‘zgargan; tasdiq mos emas; xato → avtomatik ROLLBACK, staging 062 da |
-| 10 | Postflight (staging, read only) | tarix 11/11; 073 postflight 12/12; 073 pariteti; RLS’da kutilmagan oqish yo‘q; biznes qatorlari va tashkilot balanslari o‘zgarmagan | biror shart → STOP + rollback ko‘rsatmasi |
+| 10 | Postflight (staging, read only) | tarix 12/12; 073 + 074 postflight; 074 pariteti; RLS’da kutilmagan oqish yo‘q; biznes qatorlari va tashkilot balanslari o‘zgarmagan | biror shart → STOP + rollback ko‘rsatmasi |
 
 **Muvaffaqiyatli yakun:**
-`RESULT: STAGING 062 -> 073 APPLIED, POSTFLIGHT PASS`
+`RESULT: STAGING 062 -> 074 APPLIED, POSTFLIGHT PASS`
 
 **Orqaga qaytarish (faqat 10-qadam STOP bo‘lsa):**
-- 073 ni o‘zi: `supabase/rollback/20260101000073_rollback.sql` (ma’lumotni saqlaydi).
+- 074 ni o‘zi: `supabase/rollback/20260101000074_rollback.sql` (ma’lumotni saqlaydi; izolyatsiyani qayta ochadi).
 - To‘liq 062 holatiga: shu papkadagi `staging-full.dump` dan tiklash.
+
+## 5a. 074 bilan yakuniy repetitsiya (062 → 074, PG17.11, 60 tashkilot, 200 login)
+| Sinov | Natija |
+|---|---|
+| Dry run / `--apply` + postflight / qayta ishga tushirish | **DRY RUN PASS** / **APPLIED, POSTFLIGHT PASS** / STOP (063+ bor) — `evidence/rehearsal-074-*.txt` |
+| Biznes qatorlari / tashkilot balanslari / zavod majburiyati | o‘zgarmadi |
+| 074 pariteti | missing 0, tana farqi 0, ortiqcha 0 |
+| RLS o‘qish (har bir login × har bir tashkilot + anon) | 062: 11 oqish → **074: PASS (0)**, 9 233 tekshiruv |
+| RLS yozish (boshqa tashkilot qatorini UPDATE/DELETE, qaytariladi) | 062: 11 oqish → **074: PASS (0)**, 16 800 tekshiruv |
+| Staging postflight RLS | PASS |
+| Moliyaviy smoke 24 tashkilot (`evidence/smoke-074-on-062-data.json`) | 073 dagi kabi hammasi o‘tdi |
+| `src/lib/__tests__/goldia-074-tenant-isolation.test.ts` (PGlite, haqiqiy `authenticated` roli) | 5/5: SELECT; begona INSERT/UPDATE/DELETE rad; o‘z tashkilotidagi direktor/menejer/sotuvchi huquqlari saqlangan; RPC’lar pin qilingan; grantlar |
 
 ## 5. Lokal sinov natijalari (PG17.11, staging shaklidagi baza)
 
@@ -126,7 +149,7 @@ Sabablari:
 - `jewelry_models` — `authenticated read … using (true)` va rol bo‘yicha yozish policy’si, tashkilot sharti yo‘q;
 - `stage_loss_configs` — `is_admin_or_manager()` bilan `ALL`.
 
-Bu **HIGH** topilma. U staging release’ni to‘xtatmaydi (073 uni o‘zgartirmaydi). Lekin haqiqiy oltin uchun FULL GO’dan oldin alohida ruxsat bilan tuzatilishi kerak (074: policy’larni `organization_id = current_organization_id()` ga bog‘lash).
+Bu ikkisi **074 da yopildi** (5a-bo‘lim).
 
 Tekshiruv fayllari:
 - `supabase/release/staging_rls_isolation_readonly.sql` — read only, staging’da ham ishlaydi;
@@ -146,7 +169,7 @@ Hozir staging frontend’i 058–070 oralig‘idagi kod. `/api/version` dagi `da
    - `NEXT_PUBLIC_APP_ENV=staging`, `NEXT_PUBLIC_STAGING_MODE=true`;
    - `SUPABASE_SERVICE_ROLE_KEY` — **staging** kaliti (production yoki JFS kaliti emas).
    - `NEXT_PUBLIC_GIT_COMMIT_SHA=da6e930` ni **o‘chiring**: shunda versiya Vercel’ning haqiqiy SHA’sini ko‘rsatadi.
-2. **Deploy.** Deployments → Create Deployment → Git ref `162a377ac18bf7d1e34d80ad0b744dc9264dbcbf` (yoki branch `ccr-fb8951ce-65agfo`) → Production’ga.
+2. **Deploy.** Deployments → Create Deployment → branch `ccr-fb8951ce-65agfo` HEAD (yakuniy release candidate; `src/` 162a377 bilan bir xil — 074 frontend’ni o‘zgartirmaydi) → Production’ga.
    - `NEXT_PUBLIC_*` qiymatlari build paytida kiritiladi. Preview build’ni "Promote" qilsangiz, Preview env ham staging qiymatlarida bo‘lishi shart.
 3. **Tekshiruv.** `https://jewelryflow-sales-staging.vercel.app/api/version` → `full_commit=162a377ac18b…`, `supabase_ref=vouehtlmsunebracahon`, `env=staging`. Buni men ham HTTPS orqali faqat o‘qib tasdiqlay olaman.
 4. **Oraliq.** DB va frontend deploy oralig‘ida staging’da vazn sotuvi qilmang: eski frontend dona tanlamaydi, 073 uni xavfsiz rad etadi.

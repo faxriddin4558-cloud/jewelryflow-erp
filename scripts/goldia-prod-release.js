@@ -93,6 +93,9 @@ const POSTFLIGHT_CHECKS = {
   "073": [
     ["all_073_checks", allColumnsTrue(path.join(REPO, "supabase/release/073_postflight_readonly.sql"))],
   ],
+  "074": [
+    ["all_074_checks", allColumnsTrue(path.join(REPO, "supabase/release/074_postflight_readonly.sql"))],
+  ],
   "070": [
     // every column of 070_postflight_readonly.sql must be true
     ["all_070_checks", allColumnsTrue(path.join(REPO, "supabase/release/070_postflight_readonly.sql"))],

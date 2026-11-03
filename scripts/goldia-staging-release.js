@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * GOLDIA SALES — gated STAGING release: migrations 063..073 in ONE transaction.
+ * GOLDIA SALES — gated STAGING release: migrations 063..074 in ONE transaction.
  *
  *   node scripts/goldia-staging-release.js            dry run: backup + restore test + all checks on a LOCAL copy;
  *                                                     staging is only READ
  *   node scripts/goldia-staging-release.js --apply    the same, then (after you type the project ref) applies
- *                                                     063..073 to staging and runs the postflight
+ *                                                     063..074 to staging and runs the postflight
  *
  * Only the Goldia Sales STAGING project can be targeted (vouehtlmsunebracahon). Production (vrozlllcaxinavzxueif)
  * and JewelryFlow SaaS demo (yvvbdoqncubtwlzskgml) are refused before any connection is opened.
@@ -17,17 +17,17 @@
  *  3. Identity + state gates (read only): PostgreSQL 17, not a JFS demo database, 062 recorded, nothing > 062.
  *  4. Fresh backup (pg_dump -Fc public/auth/storage/supabase_migrations + schema + roles), SHA256SUMS.
  *  5. Restore test into a disposable LOCAL cluster; row counts must match staging.
- *  6. Schema parity of the restored copy with repository 001..062 (reported; the 073 parity in step 7 decides).
- *  7. On the LOCAL copy: 063..073 in one transaction with per-migration postflight checks; every business row
- *     count and per-organization balance unchanged; schema parity with repository 001..073; RLS read AND write
+ *  6. Schema parity of the restored copy with repository 001..062 (reported; the 074 parity in step 7 decides).
+ *  7. On the LOCAL copy: 063..074 in one transaction with per-migration postflight checks; every business row
+ *     count and per-organization balance unchanged; schema parity with repository 001..074; RLS read AND write
  *     isolation across every organization (each login as `authenticated`, plus `anon`), compared before/after:
- *     the chain may close leaks, never open one; 073 rollback + re-apply.
+ *     after 074 no cross-organization access may remain anywhere; 074 rollback + re-apply.
  *     Missing objects stop the release; function bodies that differ from the repository are listed for review.
  *  8. Dry run ends here (DRY RUN PASS).
- *  9. --apply: staging must be unchanged since the backup; type the project ref; 063..073 in ONE transaction
+ *  9. --apply: staging must be unchanged since the backup; type the project ref; 063..074 in ONE transaction
  *     (lock_timeout 10 s) — on any error PostgreSQL rolls everything back and staging stays at 062.
- * 10. Postflight on staging (read only): 073 postflight, schema parity, RLS isolation, counts and balances.
- * Report: STAGING-073-RESULT.txt in the backup folder (no secrets, no customer data).
+ * 10. Postflight on staging (read only): 073 + 074 postflights, schema parity, RLS isolation, counts and balances.
+ * Report: STAGING-074-RESULT.txt in the backup folder (no secrets, no customer data).
  *
  * Options: --host --port --sslmode --pg-bin <dir> --out <dir> --keep-restore
  */
@@ -53,7 +53,7 @@ for (let i = 2; i < process.argv.length; i++) {
 const STAGING_REF = "vouehtlmsunebracahon";
 const FORBIDDEN_REFS = { vrozlllcaxinavzxueif: "PRODUCTION", yvvbdoqncubtwlzskgml: "JewelryFlow SaaS demo (jfs-demo)" };
 const FROM = "062";
-const TO = "073";
+const TO = "074";
 const V = (n) => `20260101000${n}`;
 const MIN = 60 * 1000;
 
@@ -84,7 +84,7 @@ let backupPath = null;
 function stop(message) {
   out(`\nSTOP: ${message}`);
   if (stagingWritten) {
-    out("Staging WAS changed by the migration transaction. Data-preserving rollback of 073 only:");
+    out("Staging WAS changed by the migration transaction. Data-preserving rollback of the last migration (074) only:");
     out(`  psql "<same connection>" -v ON_ERROR_STOP=1 -f supabase/rollback/${V(TO)}_rollback.sql`);
     out(`Full return to the pre-release state: restore ${backupPath || "the backup in this folder"} (see docs/releases/staging-073/README.md).`);
   } else {
@@ -129,7 +129,7 @@ function run(tool, argList, { env = {}, timeoutMs = 30 * MIN, noPipes = false, i
 let password;
 const remoteEnv = (withPassword = true) => ({
   PGHOST: TARGET.host, PGPORT: TARGET.port, PGUSER: TARGET.user, PGDATABASE: TARGET.db, PGSSLMODE: TARGET.sslmode,
-  PGCONNECT_TIMEOUT: "20", PGAPPNAME: "goldia-staging-release-073",
+  PGCONNECT_TIMEOUT: "20", PGAPPNAME: "goldia-staging-release-074",
   // undefined removes the variable for the child (Node ignores undefined env values): nothing is sent while probing.
   PGPASSWORD: withPassword && password ? password : undefined,
 });
@@ -234,7 +234,8 @@ const F = {
   postflight: path.join(REPO, `supabase/release/${TO}_postflight_readonly.sql`),
   rollback: path.join(REPO, `supabase/rollback/${V(TO)}_rollback.sql`),
   expected062: path.join(REPO, "supabase/release/staging-073/expected-062-signature.txt"),
-  expected073: path.join(REPO, "supabase/release/staging-073/expected-073-signature.txt"),
+  expectedTo: path.join(REPO, "supabase/release/staging-073/expected-074-signature.txt"),
+  postflight073: path.join(REPO, "supabase/release/073_postflight_readonly.sql"),
 };
 const migDir = path.join(REPO, "supabase/migrations");
 const CHAIN = [];
@@ -248,7 +249,7 @@ const MIGRATIONS_UP_TO_FROM = fs.readdirSync(migDir).filter((x) => /^\d{14}_.*\.
 // One file, one transaction: guard, then each migration + its history row + its postflight checks.
 function buildChainSql() {
   const parts = [
-    "-- GOLDIA staging release chain 063..073 — generated by scripts/goldia-staging-release.js. Run with --single-transaction.",
+    "-- GOLDIA staging release chain 063..074 — generated by scripts/goldia-staging-release.js. Run with --single-transaction.",
     "set lock_timeout = '10s';",
     "set statement_timeout = '15min';",
     `do $guard$ begin
@@ -307,9 +308,9 @@ function writeParity(name, d) {
     ...d.bodies, "", `EXTRA, KEPT AS IS (${d.extra.length})`, ...d.extra, ""].join(os.EOL));
 }
 
-// Pre-existing cross-organization exposure (present at 062 and NOT changed by 063..073) in shared catalog tables.
-// Reported as a HIGH finding; the release stops on any other leak and on any leak the chain introduces.
-const KNOWN_PREEXISTING_LEAK_TABLES = ["jewelry_models", "stage_loss_configs"];
+// 074 closes the last known cross-organization exposure (jewelry_models, stage_loss_configs): after the chain
+// NO leak is tolerated anywhere. (Kept as a list so a future known exception is explicit.)
+const KNOWN_PREEXISTING_LEAK_TABLES = [];
 function isolationProbe(envFn, file, label) {
   const r = psql(envFn, file, { file: true, tuples: true, timeoutMs: 30 * MIN });
   const text = clean(String(r.stdout || "") + String(r.stderr || ""));
@@ -376,10 +377,10 @@ async function main() {
   if (outRoot.toLowerCase().startsWith(REPO.toLowerCase())) stop("backup folder must be outside the repository");
   outDir = path.join(outRoot, `goldia-staging-${stamp}`);
   fs.mkdirSync(outDir, { recursive: true });
-  resultFile = path.join(outDir, "STAGING-073-RESULT.txt");
+  resultFile = path.join(outDir, "STAGING-074-RESULT.txt");
   out(`started: ${new Date().toISOString()}  mode: ${args.apply ? "APPLY" : "DRY RUN"}${REHEARSAL ? " (LOCAL REHEARSAL)" : ""}`);
   out(`[1/10] tools: ${PG.dir} (${toolVer})`);
-  const chainFile = path.join(outDir, "chain-063-073.sql");
+  const chainFile = path.join(outDir, "chain-063-074.sql");
   fs.writeFileSync(chainFile, buildChainSql());
   out(`  chain file: ${path.basename(chainFile)} sha256=${sha256(chainFile).slice(0, 16)} (${CHAIN.length} migrations)`);
 
@@ -505,7 +506,7 @@ async function main() {
   writeParity("parity-062.txt", sig062);
   out(`  missing objects: ${sig062.missing.length}; different function bodies: ${sig062.bodies.length}; extra objects (kept): ${sig062.extra.length} — parity-062.txt`);
   for (const l of sig062.missing.slice(0, 10)) out(`    missing at ${FROM}: ${l}`);
-  out("  (information only: the decisive gate is parity with 073 after the chain on the local copy)");
+  out("  (information only: the decisive gate is parity with 074 after the chain on the local copy)");
 
   // 7. Chain on the local copy
   out(`[7/10] ${CHAIN[0].num}..${TO} on the restored LOCAL copy (one transaction)`);
@@ -528,32 +529,34 @@ async function main() {
   out(`  per-organization balances (customer/seller/vault): ${balBefore === balAfter ? "unchanged" : "CHANGED"}`);
   out(`  factory obligation total: ${factoryBefore} -> ${factoryAfter}${factoryBefore === factoryAfter ? "" : " (068 repair, see audit_logs REPAIR_FACTORY_COUNTERS)"}`);
   if (localCountChanges.length || balBefore !== balAfter) stop("the chain changed business rows or balances on the local copy");
-  const sig073 = signatureDiff(q(localEnv, SIGNATURE_SQL), F.expected073);
-  writeParity("parity-073-local.txt", sig073);
+  const sig073 = signatureDiff(q(localEnv, SIGNATURE_SQL), F.expectedTo);
+  writeParity(`parity-${TO}-local.txt`, sig073);
   out(`  schema parity with repository 001..${TO}: missing ${sig073.missing.length}, different function bodies ${sig073.bodies.length}, extra ${sig073.extra.length}`);
   for (const l of sig073.bodies.slice(0, 10)) out(`    REVIEW body differs from repository: ${l}`);
-  if (sig073.missing.length) stop(`after the chain the copy lacks ${sig073.missing.length} object(s) of 073 (parity-073-local.txt)`);
+  if (sig073.missing.length) stop(`after the chain the copy lacks ${sig073.missing.length} object(s) of ${TO} (parity-${TO}-local.txt)`);
   const pfLocal = psql(localEnv, checks.allColumnsTrue(F.postflight));
-  if (pfLocal.status !== 0 || pfLocal.stdout.trim() !== "t") stop("073 postflight failed on the local copy");
-  out("  073 postflight: 12/12");
-  const readAfter = isolationProbe(localEnv, F.rls, "local-073");
-  const writeAfter = isolationProbe(localEnv, F.rlsWrite, "local-073");
+  const pf073Local = psql(localEnv, checks.allColumnsTrue(F.postflight073));
+  if (pfLocal.status !== 0 || pfLocal.stdout.trim() !== "t") stop(`${TO} postflight failed on the local copy`);
+  if (pf073Local.status !== 0 || pf073Local.stdout.trim() !== "t") stop("073 postflight failed on the local copy");
+  out(`  073 postflight: all true; ${TO} postflight: all true`);
+  const readAfter = isolationProbe(localEnv, F.rls, `local-${TO}`);
+  const writeAfter = isolationProbe(localEnv, F.rlsWrite, `local-${TO}`);
   if (!readAfter.ok || !writeAfter.ok) stop(`isolation probe failed to run: ${readAfter.ok ? writeAfter.summary : readAfter.summary}`);
-  out(`  RLS read  (every login x every organization + anon): 062 ${readBefore.summary} -> 073 ${readAfter.summary}`);
-  out(`  RLS write (update/delete other organizations' rows, rolled back): 062 ${writeBefore.summary} -> 073 ${writeAfter.summary}`);
+  out(`  RLS read  (every login x every organization + anon): 062 ${readBefore.summary} -> ${TO} ${readAfter.summary}`);
+  out(`  RLS write (update/delete other organizations' rows, rolled back): 062 ${writeBefore.summary} -> ${TO} ${writeAfter.summary}`);
   const jr = judgeLeaks(readBefore.leaks, readAfter.leaks);
   const jw = judgeLeaks(writeBefore.leaks, writeAfter.leaks);
   for (const k of readBefore.leaks.filter((x) => !readAfter.leaks.includes(x))) out(`    closed by the chain: read ${k}`);
   for (const k of writeBefore.leaks.filter((x) => !writeAfter.leaks.includes(x))) out(`    closed by the chain: write ${k}`);
-  for (const k of [...jr.known.map((x) => `read ${x}`), ...jw.known.map((x) => `write ${x}`)]) out(`    KNOWN PRE-EXISTING (HIGH, not changed by 063..073): ${k}`);
+  for (const k of [...jr.known.map((x) => `read ${x}`), ...jw.known.map((x) => `write ${x}`)]) out(`    KNOWN PRE-EXISTING: ${k}`);
   if (jr.introduced.length || jw.introduced.length) stop(`the chain INTRODUCES cross-organization access: ${[...jr.introduced, ...jw.introduced].join(", ")}`);
-  if (jr.other.length || jw.other.length) stop(`cross-organization access remains after 073: ${[...jr.other, ...jw.other].join(", ")}`);
+  if (jr.other.length || jw.other.length) stop(`cross-organization access remains after ${TO}: ${[...jr.other, ...jw.other].join(", ")}`);
   knownLeaksAfter = readAfter.leaks;
   const rb = psql(localEnv, F.rollback, { file: true, tuples: false, singleTx: true });
   const re = psql(localEnv, path.join(migDir, path.basename(CHAIN[CHAIN.length - 1].file)), { file: true, tuples: false, singleTx: true });
   const pfAgain = psql(localEnv, checks.allColumnsTrue(F.postflight));
-  out(`  073 rollback + re-apply on the copy: ${rb.status === 0 && re.status === 0 && pfAgain.stdout.trim() === "t" ? "ok" : "FAILED"}`);
-  if (!(rb.status === 0 && re.status === 0 && pfAgain.stdout.trim() === "t")) stop("073 rollback / re-apply failed on the local copy");
+  out(`  ${TO} rollback + re-apply on the copy: ${rb.status === 0 && re.status === 0 && pfAgain.stdout.trim() === "t" ? "ok" : "FAILED"}`);
+  if (!(rb.status === 0 && re.status === 0 && pfAgain.stdout.trim() === "t")) stop(`${TO} rollback / re-apply failed on the local copy`);
   stopLocal();
   out("  LOCAL COPY: PASS");
 
@@ -576,7 +579,7 @@ async function main() {
   fs.writeFileSync(path.join(outDir, "staging-chain.log"), clean(String(mig.stdout || "") + String(mig.stderr || "")));
   if (mig.status !== 0) stop(`migration transaction failed and was rolled back by PostgreSQL: ${firstError(mig)}`);
   stagingWritten = true;
-  out(`  063..073 applied and recorded in one transaction`);
+  out(`  ${CHAIN[0].num}..${TO} applied and recorded in one transaction`);
 
   // 10. Postflight on staging (read only)
   out("[10/10] postflight on staging (read only)");
@@ -584,12 +587,14 @@ async function main() {
   out(`  history rows ${CHAIN[0].num}..${TO}: ${recorded}/${CHAIN.length}`);
   const pf = psql(remoteEnv, checks.allColumnsTrue(F.postflight));
   const pfFile = psql(remoteEnv, F.postflight, { file: true, tuples: false });
-  fs.writeFileSync(path.join(outDir, "postflight-073-staging.txt"), clean(String(pfFile.stdout || "") + String(pfFile.stderr || "")));
-  out(`  073 postflight: ${pf.stdout.trim() === "t" ? "12/12" : "FAIL"}`);
-  const sigStg = signatureDiff(q(remoteEnv, SIGNATURE_SQL), F.expected073);
-  writeParity("parity-073-staging.txt", sigStg);
+  fs.writeFileSync(path.join(outDir, `postflight-${TO}-staging.txt`), clean(String(pfFile.stdout || "") + String(pfFile.stderr || "")));
+  const pf073 = psql(remoteEnv, checks.allColumnsTrue(F.postflight073));
+  pf.stdout = pf.stdout.trim() === "t" && pf073.stdout.trim() === "t" ? "t" : "f";
+  out(`  073 + ${TO} postflight: ${pf.stdout === "t" ? "all true" : "FAIL"}`);
+  const sigStg = signatureDiff(q(remoteEnv, SIGNATURE_SQL), F.expectedTo);
+  writeParity(`parity-${TO}-staging.txt`, sigStg);
   out(`  schema parity with repository 001..${TO}: missing ${sigStg.missing.length}, different function bodies ${sigStg.bodies.length}, extra ${sigStg.extra.length}`);
-  const rlsStg = isolationProbe(remoteEnv, F.rls, "staging-073");
+  const rlsStg = isolationProbe(remoteEnv, F.rls, `staging-${TO}`);
   const stgUnexpected = rlsStg.leaks.filter((k) => !knownLeaksAfter.includes(k) || !KNOWN_PREEXISTING_LEAK_TABLES.includes(k.split("|")[1]));
   out(`  RLS read isolation: ${rlsStg.summary}${stgUnexpected.length ? " — UNEXPECTED: " + stgUnexpected.join(", ") : ""}`);
   rlsStg.ok = rlsStg.ok && stgUnexpected.length === 0;
@@ -601,7 +606,7 @@ async function main() {
   const pass = recorded === String(CHAIN.length) && pf.stdout.trim() === "t" && !sigStg.missing.length && rlsStg.ok && !stgChanges.length && balStgBefore === balStgAfter;
   if (!pass) stop("POSTFLIGHT FAILED on staging");
   out("  POSTFLIGHT: PASS");
-  out(`\nRESULT: STAGING ${FROM} -> ${TO} APPLIED, POSTFLIGHT PASS. Next: deploy frontend 162a377 to staging (docs/releases/staging-073/README.md). Report: ${resultFile}`);
+  out(`\nRESULT: STAGING ${FROM} -> ${TO} APPLIED, POSTFLIGHT PASS. Next: deploy the release-candidate frontend to staging (docs/releases/staging-073/README.md). Report: ${resultFile}`);
 }
 
 main().catch((e) => stop(e && e.message ? clean(e.message) : String(e)));

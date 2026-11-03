@@ -45,3 +45,8 @@ Gate’lar (birinchi xatoda to‘xtaydi, production o‘zgarmaydi):
 ## Lokal repetitsiya (izolyatsiyalangan PG16, 072 + to‘liq ssenariy ma’lumotlari)
 Backup, restore-test, compat (+rollback/re-apply), zarar skaneri (REVIEW yo‘q), migratsiya, postflight — PASS;
 qator sonlari va balanslar o‘zgarmadi. Log: `docs/audits/goldia-release-candidate-073/evidence/release-rehearsal-073.log`.
+
+## 074 (073 dan keyin, alohida ruxsat bilan)
+Tashkilotlar izolyatsiyasi (`jewelry_models`, `stage_loss_configs`): `node scripts/goldia-prod-release.js --migration 074`
+(postflight: `supabase/release/074_postflight_readonly.sql`, rollback: `supabase/rollback/20260101000074_rollback.sql`).
+Frontend o‘zgarmaydi. Staging’da 063–074 birga sinaladi: `docs/releases/staging-073/README.md`.

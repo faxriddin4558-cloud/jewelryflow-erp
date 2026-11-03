@@ -1,0 +1,10 @@
+{
+ "weight_sale_without_piece_refused:ok": 24,
+ "weight_sale_with_piece:ok": 24,
+ "exact_piece_cut:ok": 24,
+ "settlement:ok": 24,
+ "handover:ok": 24,
+ "cross_org_sale_refused:ok": 24,
+ "reverse_sale:ok": 9,
+ "negative_pieces": 0
+}
