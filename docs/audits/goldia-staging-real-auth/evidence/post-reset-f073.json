@@ -1,0 +1,20 @@
+[
+ {
+  "id": "F073",
+  "title": "after reset: 1840000 UZS at 920000 = 2.0 g paid; handover is exactly 2.0 g (old pool not mixed in)",
+  "ok": true,
+  "expected": {
+   "paid": 2,
+   "till_cash": 1840000,
+   "till_valued": 2,
+   "handover": 2
+  },
+  "actual": {
+   "paid": 2,
+   "till_cash": 1840000,
+   "till_valued": 2,
+   "handover": 2
+  },
+  "at": "2026-11-03T06:41:30.265Z"
+ }
+]

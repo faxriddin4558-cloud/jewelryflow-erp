@@ -1,0 +1,108 @@
+[
+ {
+  "id": "I1",
+  "title": "no foreign-org rows readable (43 org tables/views x 4 logins)",
+  "ok": true,
+  "expected": 0,
+  "actual": {
+   "checks": 172,
+   "leaks": []
+  },
+  "at": "2026-11-03T06:40:41.543Z"
+ },
+ {
+  "id": "I2",
+  "title": "seller cannot INSERT a customer into another organization",
+  "ok": true,
+  "expected": "denied",
+  "actual": "new row violates row-level security policy for table \"customers\"",
+  "at": "2026-11-03T06:40:41.794Z"
+ },
+ {
+  "id": "I3",
+  "title": "manager cannot INSERT a jewelry model into another organization (074)",
+  "ok": true,
+  "expected": "denied",
+  "actual": "new row violates row-level security policy for table \"jewelry_models\"",
+  "at": "2026-11-03T06:40:42.036Z"
+ },
+ {
+  "id": "I4",
+  "title": "read RPCs with an org argument do not return another org's data",
+  "ok": false,
+  "expected": "none",
+  "actual": {
+   "tested": 6,
+   "bad": [
+    [
+     "sellera:rpc_get_factory_settings",
+     "DATA:{\"setsPerModel\":10,\"workersCount\":35,\"organizationId\":\"00000000-0000-0000-0000-0"
+    ],
+    [
+     "director:rpc_get_factory_settings",
+     "DATA:{\"setsPerModel\":10,\"workersCount\":35,\"organizationId\":\"00000000-0000-0000-0000-0"
+    ]
+   ],
+   "all": {
+    "sellera:rpc_get_factory_settings": "DATA:{\"setsPerModel\":10,\"workersCount\":35,\"organizationId\":\"00000000-0000-0000-0000-0",
+    "director:rpc_get_factory_settings": "DATA:{\"setsPerModel\":10,\"workersCount\":35,\"organizationId\":\"00000000-0000-0000-0000-0",
+    "sellera:get_manager_available_stock_grams": "denied",
+    "director:get_manager_available_stock_grams": "denied",
+    "sellera:rpc_get_accounting_profit_summary": "denied",
+    "director:rpc_get_accounting_profit_summary": "denied"
+   }
+  },
+  "at": "2026-11-03T06:40:43.484Z"
+ },
+ {
+  "id": "D2",
+  "title": "deployed business date = Asia/Tashkent calendar date at day/month/year boundaries",
+  "ok": true,
+  "expected": "all match",
+  "actual": [
+   {
+    "l": "23:59 TKT",
+    "at": "2026-11-25T18:59:00Z",
+    "exp": "2026-11-25",
+    "got": "2026-11-25"
+   },
+   {
+    "l": "00:00 TKT",
+    "at": "2026-11-25T19:00:00Z",
+    "exp": "2026-11-26",
+    "got": "2026-11-26"
+   },
+   {
+    "l": "04:59 TKT",
+    "at": "2026-11-25T23:59:00Z",
+    "exp": "2026-11-26",
+    "got": "2026-11-26"
+   },
+   {
+    "l": "month end 23:59",
+    "at": "2026-11-30T18:59:00Z",
+    "exp": "2026-11-30",
+    "got": "2026-11-30"
+   },
+   {
+    "l": "new month 00:00",
+    "at": "2026-11-30T19:00:00Z",
+    "exp": "2026-12-01",
+    "got": "2026-12-01"
+   },
+   {
+    "l": "new year 00:00",
+    "at": "2026-12-31T19:00:00Z",
+    "exp": "2027-01-01",
+    "got": "2027-01-01"
+   },
+   {
+    "l": "new year 05:00",
+    "at": "2027-01-01T00:00:00Z",
+    "exp": "2027-01-01",
+    "got": "2027-01-01"
+   }
+  ],
+  "at": "2026-11-03T06:40:45.182Z"
+ }
+]

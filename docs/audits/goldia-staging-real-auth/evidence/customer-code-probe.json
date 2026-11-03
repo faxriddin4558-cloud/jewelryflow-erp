@@ -1,0 +1,22 @@
+[
+ {
+  "id": "F1a",
+  "title": "rpc_create_customer_with_code works on staging",
+  "ok": false,
+  "expected": "ok",
+  "actual": "value \"0561793002353699\" is out of range for type integer",
+  "at": "2026-11-03T06:37:28.725Z"
+ },
+ {
+  "id": "F1b",
+  "title": "tenant seller can INSERT a customer with an arbitrary customer_code directly (bypassing the RPC)",
+  "ok": true,
+  "expected": "documented behaviour",
+  "actual": {
+   "AUD-STG-A1": "e3396d57-693b-4e87-93dc-680a4c53b96a",
+   "AUD-STG-A2": "8a3cf31e-7d2e-4bf0-850e-02fc3444c64e",
+   "AUD-STG-B1": "8f4126c6-bc38-4629-8737-b81f965729cd"
+  },
+  "at": "2026-11-03T06:37:29.905Z"
+ }
+]
