@@ -1,0 +1,21 @@
+[
+ {
+  "id": "RLS4b",
+  "title": "markup report for another org seller reveals nothing (own director sees the real value, foreign director gets 0 / no entries)",
+  "ok": true,
+  "expected": {
+   "orgB_truth": 0.1,
+   "own": 0.1,
+   "foreign": 0
+  },
+  "actual": {
+   "orgB_truth": 0.1,
+   "own": 0.1,
+   "foreign": {
+    "total": 0,
+    "entries": 0
+   }
+  },
+  "at": "2026-11-03T09:20:54.521Z"
+ }
+]

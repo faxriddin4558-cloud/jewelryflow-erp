@@ -1,0 +1,708 @@
+{
+ "checks": [
+  {
+   "id": "A1",
+   "title": "org A: first four customers get CUST-0001..0004 (own numbering, independent of the other 60+ orgs)",
+   "ok": true,
+   "expected": [
+    "CUST-0001",
+    "CUST-0002",
+    "CUST-0003",
+    "CUST-0004"
+   ],
+   "actual": [
+    "CUST-0001",
+    "CUST-0002",
+    "CUST-0003",
+    "CUST-0004"
+   ],
+   "at": "2026-11-03T09:12:55.940Z"
+  },
+  {
+   "id": "A2",
+   "title": "manager creates a customer for seller C (seller and org stored correctly)",
+   "ok": true,
+   "expected": {
+    "seller": "sellerc",
+    "org": "A"
+   },
+   "actual": {
+    "seller_id": "b6f83454-aed3-4dad-9f07-109f57c7a584",
+    "organization_id": "a5d17075-0000-4000-8000-202611030075"
+   },
+   "at": "2026-11-03T09:12:56.186Z"
+  },
+  {
+   "id": "A3",
+   "title": "org B starts its own numbering at CUST-0001",
+   "ok": true,
+   "expected": "CUST-0001",
+   "actual": "CUST-0001",
+   "at": "2026-11-03T09:12:57.233Z"
+  },
+  {
+   "id": "A4",
+   "title": "same name (case-insensitive) for the same seller returns the existing customer",
+   "ok": true,
+   "expected": "existing",
+   "actual": "existing",
+   "at": "2026-11-03T09:12:57.489Z"
+  },
+  {
+   "id": "A5",
+   "title": "refused: worker role, seller for another seller, seller of another org, user without employee",
+   "ok": true,
+   "expected": "refused x4",
+   "actual": [
+    "Permission denied: mijoz yaratish huquqi yo'q (rol: worker)",
+    "Permission denied: sotuvchi faqat o'zi uchun mijoz yarata ol",
+    "Permission denied: sotuvchi boshqa tashkilotga tegishli yoki",
+    "Permission denied: User must belong to an active organizatio"
+   ],
+   "at": "2026-11-03T09:12:59.601Z"
+  },
+  {
+   "id": "A6",
+   "title": "direct PostgREST INSERT of a customer (long code) refused for every role",
+   "ok": true,
+   "expected": "refused x4",
+   "actual": {
+    "sellera": "403 permission denied for table customers",
+    "manager": "403 permission denied for table customers",
+    "director": "403 permission denied for table customers",
+    "sellerB1": "403 permission denied for table customers"
+   },
+   "at": "2026-11-03T09:13:00.828Z"
+  },
+  {
+   "id": "A7",
+   "title": "direct UPDATE of code/org refused; director edits phone; other org director changes 0 rows",
+   "ok": true,
+   "expected": {
+    "code": "refused",
+    "org": "refused",
+    "phone": 1,
+    "foreign": 0
+   },
+   "actual": {
+    "code": "Permission denied: mijoz kodi va tashkiloti faqat ",
+    "org": "Permission denied: mijoz kodi va tashkiloti faqat ",
+    "phone": 1,
+    "foreign": 0
+   },
+   "at": "2026-11-03T09:13:02.712Z"
+  },
+  {
+   "id": "A8",
+   "title": "30 parallel creations in org A + 10 in org B: no error, no duplicate, contiguous codes per org",
+   "ok": true,
+   "expected": {
+    "orgA": "CUST-0001..0034",
+    "orgB_new": 10
+   },
+   "actual": {
+    "errors": [],
+    "orgA_count": 34,
+    "orgA_last": "CUST-0034",
+    "orgB": "CUST-0002,CUST-0003,CUST-0004,CUST-0005,CUST-0006,CUST-0007,CUST-0008,CUST-0009,CUST-0010,CUST-0011"
+   },
+   "at": "2026-11-03T09:13:05.420Z"
+  },
+  {
+   "id": "A9",
+   "title": "factory settings: own org only; other org id refused; no fallback without organization",
+   "ok": true,
+   "expected": "own only",
+   "actual": {
+    "own": "a5d17075-0000-4000-8000-202611030075",
+    "foreign": "refused",
+    "seller_foreign": "refused",
+    "noemp": "refused"
+   },
+   "at": "2026-11-03T09:13:06.390Z"
+  }
+ ],
+ "operations": [
+  {
+   "at": "2026-11-03T09:12:54.447Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "A mijoz 1 (sintetik)",
+   "id": "61052aee-3d35-422a-935a-3769fb7d8ab9",
+   "code": "CUST-0001",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:12:54.703Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "A mijoz 2 (sintetik)",
+   "id": "7792b7a5-4ea6-4bda-b16e-430d4ac81ef6",
+   "code": "CUST-0002",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:12:55.319Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "B mijoz 1 (sintetik)",
+   "id": "118a1902-5abc-4327-bda9-98db2fa8b0db",
+   "code": "CUST-0003",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:12:55.940Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "manager",
+   "name": "C mijoz 1 (sintetik, menejer)",
+   "id": "dc0fae2a-ee44-46e4-9f7d-747824ea851f",
+   "code": "CUST-0004",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:12:57.233Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "B-org mijoz 1 (sintetik)",
+   "id": "ed24d6d4-4fcc-41a8-8dfc-825debeb17f5",
+   "code": "CUST-0001",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:12:57.489Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "a mijoz 1 (SINTETIK)",
+   "id": "61052aee-3d35-422a-935a-3769fb7d8ab9",
+   "status": "existing",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:12:58.116Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "worker",
+   "name": "by worker",
+   "id": null,
+   "code": null,
+   "status": "error",
+   "error": "Permission denied: mijoz yaratish huquqi yo'q (rol: worker)"
+  },
+  {
+   "at": "2026-11-03T09:12:58.360Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "for B",
+   "id": null,
+   "code": null,
+   "status": "error",
+   "error": "Permission denied: sotuvchi faqat o'zi uchun mijoz yarata oladi"
+  },
+  {
+   "at": "2026-11-03T09:12:58.980Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "director",
+   "name": "for org B seller",
+   "id": null,
+   "code": null,
+   "status": "error",
+   "error": "Permission denied: sotuvchi boshqa tashkilotga tegishli yoki topilmadi"
+  },
+  {
+   "at": "2026-11-03T09:12:59.601Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "noemp",
+   "name": "no employee",
+   "id": null,
+   "code": null,
+   "status": "error",
+   "error": "Permission denied: User must belong to an active organization"
+  },
+  {
+   "at": "2026-11-03T09:12:59.849Z",
+   "step": "A",
+   "action": "direct_insert_attempt",
+   "actor": "sellera",
+   "expected": "refused",
+   "actual": "403 permission denied for table customers"
+  },
+  {
+   "at": "2026-11-03T09:13:00.089Z",
+   "step": "A",
+   "action": "direct_insert_attempt",
+   "actor": "manager",
+   "expected": "refused",
+   "actual": "403 permission denied for table customers"
+  },
+  {
+   "at": "2026-11-03T09:13:00.334Z",
+   "step": "A",
+   "action": "direct_insert_attempt",
+   "actor": "director",
+   "expected": "refused",
+   "actual": "403 permission denied for table customers"
+  },
+  {
+   "at": "2026-11-03T09:13:00.577Z",
+   "step": "A",
+   "action": "direct_insert_attempt",
+   "actor": "sellerB1",
+   "expected": "refused",
+   "actual": "403 permission denied for table customers"
+  },
+  {
+   "at": "2026-11-03T09:13:03.002Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "paralel A 0 (sintetik)",
+   "id": "95aba06c-ab01-485b-95ef-05442a697630",
+   "code": "CUST-0005",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.059Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "paralel A 13 (sintetik)",
+   "id": "e1c854e3-411d-4407-882b-44b1e040f9ab",
+   "code": "CUST-0006",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.072Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "paralel A 10 (sintetik)",
+   "id": "a7539c96-63b5-40e8-8ea4-5e3328e175a1",
+   "code": "CUST-0007",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.079Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "paralel A 28 (sintetik)",
+   "id": "b26321bd-5a51-45cd-a928-ae1b68cdb122",
+   "code": "CUST-0008",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.488Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "paralel A 9 (sintetik)",
+   "id": "4917b57a-236f-4876-8506-d15211001ac8",
+   "code": "CUST-0009",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.518Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "paralel B 9 (sintetik)",
+   "id": "a50aa34d-3a7b-4c25-b35d-cabfc2eda9d0",
+   "code": "CUST-0002",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.619Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "paralel A 4 (sintetik)",
+   "id": "52ffc56d-1ca5-45ad-ae5e-dd679e26e0db",
+   "code": "CUST-0010",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.625Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "paralel B 6 (sintetik)",
+   "id": "c9555ff7-43a6-4b40-8555-e12847eb6346",
+   "code": "CUST-0003",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.628Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "paralel A 3 (sintetik)",
+   "id": "e3b0b695-c47b-47ad-83c8-bf6eb97e86b5",
+   "code": "CUST-0011",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.630Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "paralel A 6 (sintetik)",
+   "id": "e3c00a32-1a36-4405-bc70-cf457a6403c2",
+   "code": "CUST-0012",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.640Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "paralel A 22 (sintetik)",
+   "id": "03000500-49ae-4b23-adb7-95093a27c3cd",
+   "code": "CUST-0013",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.665Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "paralel B 2 (sintetik)",
+   "id": "5794226e-8bea-4571-a241-bf3ae94dc2c1",
+   "code": "CUST-0004",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.689Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "paralel B 1 (sintetik)",
+   "id": "83de2b14-def2-4146-bde3-c3790e5100c5",
+   "code": "CUST-0005",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.718Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "paralel A 12 (sintetik)",
+   "id": "1788eb9e-20e3-4c9c-b118-72d29fa7ceb3",
+   "code": "CUST-0014",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.725Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "paralel A 15 (sintetik)",
+   "id": "b1839d32-1d0d-4b3e-bdf4-92d0084db3c0",
+   "code": "CUST-0015",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.759Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "paralel B 7 (sintetik)",
+   "id": "35650eb5-8976-406a-bb8a-7000b141b20c",
+   "code": "CUST-0006",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.800Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "paralel A 1 (sintetik)",
+   "id": "49348dec-b015-4853-93b7-4a88f035d297",
+   "code": "CUST-0016",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.806Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "paralel A 16 (sintetik)",
+   "id": "f278ffef-1ca6-4a1b-9999-6b1263fb3267",
+   "code": "CUST-0017",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.845Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "paralel B 4 (sintetik)",
+   "id": "3f9f3207-be69-4f63-b7fb-efca99abbc5b",
+   "code": "CUST-0007",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.853Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "paralel A 7 (sintetik)",
+   "id": "97c0702b-6aea-42fd-a0e9-0af9a5bf4a37",
+   "code": "CUST-0018",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.864Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "paralel A 18 (sintetik)",
+   "id": "6a252a37-e2b2-4787-9bca-ee6685b28d3a",
+   "code": "CUST-0019",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.879Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "paralel B 0 (sintetik)",
+   "id": "eb95b2b2-9d33-44bb-b54f-c70b9418768c",
+   "code": "CUST-0008",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.915Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "paralel A 25 (sintetik)",
+   "id": "8c16558e-7d4a-40dd-80c7-ff9169d503c2",
+   "code": "CUST-0020",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.934Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "paralel B 5 (sintetik)",
+   "id": "e470aee4-9a53-4620-b512-fedfd502ed74",
+   "code": "CUST-0009",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.962Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "paralel B 8 (sintetik)",
+   "id": "7ad42541-7fa9-4de3-b90d-92657eda5b78",
+   "code": "CUST-0010",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.974Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerB1",
+   "name": "paralel B 3 (sintetik)",
+   "id": "699607af-51f4-4afd-9048-b611e64a3b82",
+   "code": "CUST-0011",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.983Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "paralel A 21 (sintetik)",
+   "id": "9d008668-4549-4aa1-a35b-8dd894157cd5",
+   "code": "CUST-0022",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.988Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "paralel A 24 (sintetik)",
+   "id": "766fa529-633d-440d-a3e9-c34390f3cc18",
+   "code": "CUST-0021",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:03.994Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellera",
+   "name": "paralel A 27 (sintetik)",
+   "id": "87993b61-e182-4f14-9768-c733a239a9c0",
+   "code": "CUST-0023",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:04.014Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerb",
+   "name": "paralel A 19 (sintetik)",
+   "id": "243c2a47-68e9-485e-ac9c-fdcd7a123e4d",
+   "code": "CUST-0024",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:05.069Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerc",
+   "name": "paralel A 23 (sintetik)",
+   "id": "3bde5d9e-7bb4-4b96-9d32-85594b90f201",
+   "code": "CUST-0025",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:05.093Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerc",
+   "name": "paralel A 17 (sintetik)",
+   "id": "521a198e-0dbc-4fc6-b48e-aaa840f68ac3",
+   "code": "CUST-0026",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:05.106Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerc",
+   "name": "paralel A 11 (sintetik)",
+   "id": "5e7ea4c2-e826-4a2c-add3-f034fbf029bc",
+   "code": "CUST-0027",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:05.127Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerc",
+   "name": "paralel A 14 (sintetik)",
+   "id": "fb650220-dece-4c7d-b98c-df4ff996d685",
+   "code": "CUST-0028",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:05.127Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerc",
+   "name": "paralel A 8 (sintetik)",
+   "id": "4e1bdf75-b4cd-43ef-9c6d-6f12662a3dcc",
+   "code": "CUST-0029",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:05.135Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerc",
+   "name": "paralel A 5 (sintetik)",
+   "id": "654a911a-f87d-452d-865c-d03b7303fc00",
+   "code": "CUST-0030",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:05.148Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerc",
+   "name": "paralel A 29 (sintetik)",
+   "id": "8be304a3-fefc-476d-8a35-d846bca1a791",
+   "code": "CUST-0032",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:05.149Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerc",
+   "name": "paralel A 20 (sintetik)",
+   "id": "f064425d-f3ca-43b4-a1dd-7f15016d90f5",
+   "code": "CUST-0031",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:05.160Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerc",
+   "name": "paralel A 26 (sintetik)",
+   "id": "ca407345-4ff7-459f-b618-7fb65f50a8fe",
+   "code": "CUST-0033",
+   "status": "ok",
+   "error": null
+  },
+  {
+   "at": "2026-11-03T09:13:05.172Z",
+   "step": "A",
+   "action": "create_customer",
+   "actor": "sellerc",
+   "name": "paralel A 2 (sintetik)",
+   "id": "99a55aa1-aa7f-46ab-ae6b-215a5340fb6d",
+   "code": "CUST-0034",
+   "status": "ok",
+   "error": null
+  }
+ ]
+}
