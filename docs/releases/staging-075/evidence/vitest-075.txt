@@ -1,0 +1,2 @@
+ ✓ src/lib/__tests__/goldia-075-customer-codes-and-factory-settings.test.ts (10 tests) 4018ms
+      Tests  10 passed (10)

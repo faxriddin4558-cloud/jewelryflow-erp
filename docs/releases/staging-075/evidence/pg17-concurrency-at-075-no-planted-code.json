@@ -1,0 +1,59 @@
+[
+ {
+  "id": "C1",
+  "title": "60 parallel creations in one org: 60 distinct consecutive codes, no error",
+  "ok": true,
+  "detail": {
+   "ok": 60,
+   "distinct": 60,
+   "errors": []
+  }
+ },
+ {
+  "id": "C2",
+  "title": "12 parallel creations of the same name: exactly one customer",
+  "ok": true,
+  "detail": {
+   "customers": 1,
+   "statuses": [
+    "ok",
+    "existing"
+   ]
+  }
+ },
+ {
+  "id": "C3",
+  "title": "parallel creations in two orgs; planted long code in org B does not overflow; org B numbers from 1",
+  "ok": true,
+  "detail": {
+   "orgB_first": "CUST-0001",
+   "orgB_last": "CUST-0020",
+   "errors": []
+  }
+ },
+ {
+  "id": "C4",
+  "title": "direct INSERT of a customer (with a long code) by a seller is refused",
+  "ok": true,
+  "detail": [
+   "permission denied for table customers",
+   "permission denied for table customers"
+  ]
+ },
+ {
+  "id": "C5",
+  "title": "10 parallel first reads of own factory settings: one row, no error; another org id refused",
+  "ok": true,
+  "detail": {
+   "errors": [],
+   "rows": 1,
+   "foreign": "Permission denied: boshqa tashkilot sozlamalari"
+  }
+ },
+ {
+  "id": "C6",
+  "title": "seller reads no other organization customers",
+  "ok": true,
+  "detail": 0
+ }
+]

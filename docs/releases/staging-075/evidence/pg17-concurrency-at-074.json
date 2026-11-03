@@ -1,0 +1,62 @@
+[
+ {
+  "id": "C1",
+  "title": "60 parallel creations in one org: 60 distinct consecutive codes, no error",
+  "ok": false,
+  "detail": {
+   "ok": 0,
+   "distinct": 0,
+   "errors": [
+    "value \"0561793002353699\" is out of range for type integer"
+   ]
+  }
+ },
+ {
+  "id": "C2",
+  "title": "12 parallel creations of the same name: exactly one customer",
+  "ok": false,
+  "detail": {
+   "customers": 0,
+   "statuses": [
+    "value \"0561793002353699\" is out of range for type "
+   ]
+  }
+ },
+ {
+  "id": "C3",
+  "title": "parallel creations in two orgs; planted long code in org B does not overflow; org B numbers from 1",
+  "ok": false,
+  "detail": {
+   "errors": [
+    "value \"0561793002353699\" is out of range for type integer"
+   ]
+  }
+ },
+ {
+  "id": "C4",
+  "title": "direct INSERT of a customer (with a long code) by a seller is refused",
+  "ok": false,
+  "detail": [
+   "duplicate key value violates unique constraint \"customers_cu",
+   "INSERTED"
+  ]
+ },
+ {
+  "id": "C5",
+  "title": "10 parallel first reads of own factory settings: one row, no error; another org id refused",
+  "ok": false,
+  "detail": {
+   "errors": [
+    "duplicate key value violates unique constraint \"organization"
+   ],
+   "rows": 1,
+   "foreign": "RETURNED c0750000-0000-4000-8000-00000000000b"
+  }
+ },
+ {
+  "id": "C6",
+  "title": "seller reads no other organization customers",
+  "ok": true,
+  "detail": 0
+ }
+]

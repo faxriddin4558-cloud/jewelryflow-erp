@@ -1,0 +1,26 @@
+{
+ "run": "final-s404",
+ "seed": 404,
+ "successful_writes": 242,
+ "by_type": {
+  "daily_rate": 1,
+  "factory_receipt": 6,
+  "consignment": 9,
+  "seller_rate": 19,
+  "customer_create": 24,
+  "barcode_sale": 63,
+  "weight_sale": 44,
+  "payment": 47,
+  "piece_return": 8,
+  "reversal": 14,
+  "handover": 7
+ },
+ "unexpected_failures": 0,
+ "failures": [],
+ "customers": 24,
+ "pieces": 87,
+ "distinct_customer_codes": 24,
+ "customer_codes_created": 24,
+ "max_gram_diff": "0.0000",
+ "differences": []
+}

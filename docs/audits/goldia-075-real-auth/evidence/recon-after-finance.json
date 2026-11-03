@@ -1,0 +1,28 @@
+{
+ "clients_summary": {
+  "total_client_debt_grams": 41.3448,
+  "total_client_advance_grams": 11.4111
+ },
+ "organization_id": "a0750000-0000-4000-8000-000000000075",
+ "sellers_summary": {
+  "total_seller_obligation_g": 230,
+  "total_settled_to_manager_g": 33.0663,
+  "total_manager_owes_seller_g": 0,
+  "total_seller_owes_manager_g": 196.9337,
+  "total_transferred_physical_g": 200,
+  "total_seller_till_cash_amount": 0,
+  "total_seller_till_scrap_grams": 0
+ },
+ "manager_vault_holdings": {
+  "manager_cash_amount": 20350000,
+  "manager_scrap_grams": 0,
+  "manager_refined_gold_grams": 0,
+  "manager_purchased_gold_grams": 0
+ },
+ "manager_factory_account": {
+  "total_factory_received_g": 500,
+  "total_factory_obligation_g": 540,
+  "total_factory_handed_over_g": 6.3252,
+  "current_factory_obligation_g": 533.6748
+ }
+}

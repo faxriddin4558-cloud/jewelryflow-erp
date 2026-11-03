@@ -1,0 +1,173 @@
+[
+ {
+  "id": "A1",
+  "title": "seller A creates a customer in the UI (double click): one row, CUST-0001, own org, own seller",
+  "ok": true,
+  "expected": {
+   "ui": "CUST-0001",
+   "rows": 1
+  },
+  "actual": {
+   "ui": {
+    "saved": "CUST-0001",
+    "exists": false,
+    "error": null
+   },
+   "rows": 1,
+   "row": {
+    "id": "da74c17f-68ee-44d2-99cb-a232637eb091",
+    "customer_code": "CUST-0001",
+    "seller_id": "72794222-2e25-4616-b3b7-2adf76b771e5",
+    "organization_id": "a0750000-0000-4000-8000-000000000075"
+   }
+  },
+  "at": "2026-11-03T07:18:35.234Z"
+ },
+ {
+  "id": "A2",
+  "title": "second customer of org gets CUST-0002",
+  "ok": true,
+  "expected": "CUST-0002",
+  "actual": {
+   "saved": "CUST-0002",
+   "exists": false,
+   "error": null
+  },
+  "at": "2026-11-03T07:18:39.857Z"
+ },
+ {
+  "id": "A3",
+  "title": "same name again (case-insensitive) is reported as existing, no new row",
+  "ok": true,
+  "expected": "existing",
+  "actual": {
+   "saved": null,
+   "exists": true,
+   "error": null
+  },
+  "at": "2026-11-03T07:18:44.689Z"
+ },
+ {
+  "id": "A4",
+  "title": "seller A pages: no failed API calls during customer creation",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-03T07:18:44.689Z"
+ },
+ {
+  "id": "A5",
+  "title": "seller B (mobile 390px) creates a customer: CUST-0003, seller B",
+  "ok": true,
+  "expected": "CUST-0003",
+  "actual": {
+   "ui": {
+    "saved": "CUST-0003",
+    "exists": false,
+    "error": null
+   },
+   "row": {
+    "id": "e875c0a1-33a0-4423-be60-77b08e3828b5",
+    "customer_code": "CUST-0003",
+    "seller_id": "28d2f145-271b-4ee9-830f-0268fdcd2d1f",
+    "organization_id": "a0750000-0000-4000-8000-000000000075"
+   }
+  },
+  "at": "2026-11-03T07:18:52.609Z"
+ },
+ {
+  "id": "A6",
+  "title": "manager creates a customer for seller C (legitimate)",
+  "ok": true,
+  "expected": {
+   "code": "CUST-0004",
+   "seller": "sellerc"
+  },
+  "actual": {
+   "ui": {
+    "saved": "CUST-0004",
+    "exists": false,
+    "error": null
+   },
+   "row": {
+    "id": "3b70b87f-08fc-4881-ac06-3eeae5ce8373",
+    "customer_code": "CUST-0004",
+    "seller_id": "a8e80224-d1b5-422a-914e-7facaa060ed1",
+    "organization_id": "a0750000-0000-4000-8000-000000000075"
+   }
+  },
+  "at": "2026-11-03T07:19:00.641Z"
+ },
+ {
+  "id": "A7",
+  "title": "in the org with CUST-T056_1793002353699 the UI creates a customer (no overflow), next own number",
+  "ok": true,
+  "expected": "CUST-0001",
+  "actual": {
+   "ui": {
+    "saved": "CUST-0001",
+    "exists": false,
+    "error": null
+   },
+   "row": {
+    "id": "e6104d1b-6041-4701-9db0-21ed6a413183",
+    "customer_code": "CUST-0001",
+    "seller_id": "76829b97-50b8-4ac5-b183-3e74f310783b",
+    "organization_id": "00000000-0000-0000-0000-000000000056"
+   }
+  },
+  "at": "2026-11-03T07:19:08.467Z"
+ },
+ {
+  "id": "A8",
+  "title": "direct PostgREST INSERT of a customer is refused for seller, manager, director",
+  "ok": true,
+  "expected": "refused x4",
+  "actual": {
+   "sellera": "403 permission denied for table customers",
+   "manager": "403 permission denied for table customers",
+   "director": "403 permission denied for table customers",
+   "seller56": "403 permission denied for table customers"
+  },
+  "at": "2026-11-03T07:19:08.980Z"
+ },
+ {
+  "id": "A9",
+  "title": "direct UPDATE of customer_code refused; director can still edit the phone",
+  "ok": true,
+  "expected": {
+   "code": "refused",
+   "phone": "updated"
+  },
+  "actual": {
+   "code": "Permission denied: mijoz kodi va tashkiloti faqat server tom",
+   "phone": 1
+  },
+  "at": "2026-11-03T07:19:09.011Z"
+ },
+ {
+  "id": "A10",
+  "title": "worker refused; seller cannot create for another seller; director cannot attach another org seller",
+  "ok": true,
+  "expected": "refused x3",
+  "actual": [
+   "Permission denied: mijoz yaratish huquqi yo'q (rol",
+   "Permission denied: sotuvchi faqat o'zi uchun mijoz",
+   "Permission denied: sotuvchi boshqa tashkilotga teg"
+  ],
+  "at": "2026-11-03T07:19:09.118Z"
+ },
+ {
+  "id": "A11",
+  "title": "factory settings: own org returned; another org id refused (director, seller); no fallback without org",
+  "ok": true,
+  "expected": "own only",
+  "actual": {
+   "own": "a0750000-0000-4000-8000-000000000075",
+   "foreign": "Permission denied: boshqa tashkilot sozlamalari",
+   "seller": "refused",
+   "noemp": "refused"
+  },
+  "at": "2026-11-03T07:19:09.229Z"
+ }
+]

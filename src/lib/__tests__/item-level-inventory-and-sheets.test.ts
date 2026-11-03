@@ -197,7 +197,7 @@ describe("JewelryFlow Sales — Item-Level Inventory, 3-Tier Debt, Sheets Parity
     const custRes = await db.query<{ id: string }>(`
       INSERT INTO public.customers (organization_id, customer_code, contact_name, phone, seller_id)
       VALUES ('${orgId}', 'CUST-0001', 'Dilrabo', '+998 90 123 45 67', '${sellerJamshidId}')
-      ON CONFLICT (customer_code) DO UPDATE SET contact_name = EXCLUDED.contact_name
+      ON CONFLICT (organization_id, customer_code) DO UPDATE SET contact_name = EXCLUDED.contact_name
       RETURNING id;
     `);
     custDilraboId = custRes.rows[0]!.id;

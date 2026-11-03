@@ -1,5 +1,7 @@
 # Goldia Sales — staging’da haqiqiy Supabase Auth bilan moliyaviy audit (074)
 
+> **Yangilanish:** F-STG-1 va F-STG-2 migratsiya 075 da tuzatildi (staging’ga hali qo‘llanmagan) — `docs/releases/staging-075/README.md`, audit: `docs/audits/goldia-075-real-auth/README.md`.
+
 **Sana:** 2026-11-03 · **Staging:** `vouehtlmsunebracahon` (sxema 063–074, POSTFLIGHT PASS) · **Release candidate:** `90b8191` (PR #13)
 **Production va JFS Demo:** tegilmadi (hatto o‘qilmadi). Yangi migratsiya yo‘q, production deploy yo‘q.
 

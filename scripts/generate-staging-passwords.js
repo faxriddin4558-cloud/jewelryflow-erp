@@ -503,7 +503,7 @@ INSERT INTO public.customers (
 VALUES
   ('77777777-7777-4001-8001-000000000001'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, 'CUST-DEMO-01', 'Rustam Zargar (Demo)', 'Chorsu Savdo Rastasi #14', '+998901234567', 'Toshkent, Chorsu bozori', true, '11111111-1111-4001-8001-000000000007'::uuid),
   ('77777777-7777-4001-8001-000000000002'::uuid, '00000000-0000-4001-8001-000000000001'::uuid, 'CUST-DEMO-02', 'Sherzod Akfa (Demo)', 'Qo''qon Savdo Markazi', '+998909876543', 'Farg''ona viloyati, Qo''qon', true, '11111111-1111-4001-8001-000000000007'::uuid)
-ON CONFLICT (customer_code) DO UPDATE SET
+ON CONFLICT (organization_id, customer_code) DO UPDATE SET
   contact_name = EXCLUDED.contact_name,
   company_name = EXCLUDED.company_name,
   phone = EXCLUDED.phone,

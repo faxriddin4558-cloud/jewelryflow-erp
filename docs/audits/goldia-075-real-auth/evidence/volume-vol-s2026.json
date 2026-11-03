@@ -1,0 +1,26 @@
+{
+ "run": "vol-s2026",
+ "seed": 2026,
+ "successful_writes": 243,
+ "by_type": {
+  "daily_rate": 1,
+  "factory_receipt": 6,
+  "consignment": 9,
+  "seller_rate": 13,
+  "customer_create": 24,
+  "piece_return": 10,
+  "payment": 52,
+  "barcode_sale": 68,
+  "weight_sale": 39,
+  "reversal": 12,
+  "handover": 9
+ },
+ "unexpected_failures": 0,
+ "failures": [],
+ "customers": 24,
+ "pieces": 89,
+ "distinct_customer_codes": 24,
+ "customer_codes_created": 24,
+ "max_gram_diff": "0.0000",
+ "differences": []
+}

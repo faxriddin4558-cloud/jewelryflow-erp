@@ -1,0 +1,38 @@
+{
+ "run": "vol-s11-exact",
+ "seed": 11,
+ "successful_writes": 246,
+ "by_type": {
+  "daily_rate": 1,
+  "factory_receipt": 6,
+  "consignment": 9,
+  "seller_rate": 13,
+  "customer_create": 24,
+  "payment": 63,
+  "weight_sale": 39,
+  "barcode_sale": 65,
+  "reversal": 12,
+  "piece_return": 7,
+  "handover": 7
+ },
+ "unexpected_failures": 1,
+ "failures": [
+  {
+   "kind": "due_mismatch",
+   "expected": 3.5392,
+   "got": 3.5393
+  }
+ ],
+ "customers": 24,
+ "pieces": 81,
+ "distinct_customer_codes": 24,
+ "customer_codes_created": 24,
+ "max_gram_diff": "0.0001",
+ "differences": [
+  {
+   "what": "customer CUST-0123 net (debt - advance)",
+   "expected": 14.8051,
+   "actual": 14.8052
+  }
+ ]
+}

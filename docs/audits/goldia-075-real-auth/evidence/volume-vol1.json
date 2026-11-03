@@ -1,0 +1,333 @@
+{
+ "run": "vol1",
+ "seed": 75075,
+ "successful_writes": 246,
+ "by_type": {
+  "daily_rate": 1,
+  "factory_receipt": 6,
+  "consignment": 9,
+  "seller_rate": 17,
+  "customer_create": 24,
+  "piece_return": 5,
+  "barcode_sale": 66,
+  "payment": 49,
+  "weight_sale": 45,
+  "reversal": 13,
+  "handover": 11
+ },
+ "unexpected_failures": 2,
+ "failures": [
+  {
+   "kind": "barcode_sale",
+   "tag": "sellerb",
+   "error": "Bu mahsulot donasi (vol1-sellerb-0-1 — 1.5924 g) allaqachon sotilgan (Sotuv ID: 5354d34f-3196-4d04-b4e1-b55fd7037bbf)"
+  },
+  {
+   "kind": "due_mismatch",
+   "expected": 6.0495,
+   "got": 1.7676
+  }
+ ],
+ "customers": 24,
+ "pieces": 97,
+ "distinct_customer_codes": 24,
+ "customer_codes_created": 24,
+ "max_gram_diff": "8.8782",
+ "differences": [
+  {
+   "what": "customer CUST-0016 net (debt - advance)",
+   "expected": 16.7988,
+   "actual": 12.5169
+  },
+  {
+   "what": "sellerb physical stock",
+   "expected": 33.9212,
+   "actual": 37.7788
+  },
+  {
+   "what": "piece 1f52ce78 weight",
+   "expected": 8.8486,
+   "actual": 0
+  },
+  {
+   "what": "piece bf3d1e44 weight",
+   "expected": 4.5357,
+   "actual": 0
+  },
+  {
+   "what": "piece 0ba1294d weight",
+   "expected": 8.2866,
+   "actual": 0
+  },
+  {
+   "what": "piece 921d4202 weight",
+   "expected": 3.6733,
+   "actual": 0
+  },
+  {
+   "what": "piece d83d83c4 weight",
+   "expected": 8.8782,
+   "actual": 0
+  },
+  {
+   "what": "piece c74e340b weight",
+   "expected": 5.0772,
+   "actual": 0
+  },
+  {
+   "what": "piece 2eeb5a85 weight",
+   "expected": 7.6364,
+   "actual": 0
+  },
+  {
+   "what": "piece cdaff19c weight",
+   "expected": 4.0578,
+   "actual": 0
+  },
+  {
+   "what": "piece 7a20c149 weight",
+   "expected": 7.0442,
+   "actual": 0
+  },
+  {
+   "what": "piece 80644ea3 weight",
+   "expected": 1.2874,
+   "actual": 0
+  },
+  {
+   "what": "piece b79deb3f weight",
+   "expected": 8.4149,
+   "actual": 0
+  },
+  {
+   "what": "piece c956aad1 weight",
+   "expected": 3.6458,
+   "actual": 0
+  },
+  {
+   "what": "piece 1f6f8f2d weight",
+   "expected": 8.4293,
+   "actual": 0
+  },
+  {
+   "what": "piece b8ac4ca0 weight",
+   "expected": 5.4923,
+   "actual": 0
+  },
+  {
+   "what": "piece fcf1ff42 weight",
+   "expected": 1.9935,
+   "actual": 0
+  },
+  {
+   "what": "piece d0e5ef05 weight",
+   "expected": 2.0675,
+   "actual": 0
+  },
+  {
+   "what": "piece c722fd60 weight",
+   "expected": 4.1438,
+   "actual": 0
+  },
+  {
+   "what": "piece c5575be4 weight",
+   "expected": 8.6325,
+   "actual": 0
+  },
+  {
+   "what": "piece 74bd58d1 weight",
+   "expected": 8.4724,
+   "actual": 0
+  },
+  {
+   "what": "piece a4e4a28c weight",
+   "expected": 0.0234,
+   "actual": 0
+  },
+  {
+   "what": "piece f43455d6 weight",
+   "expected": 6.4281,
+   "actual": 0
+  },
+  {
+   "what": "piece 0ad76e06 weight",
+   "expected": 5.45,
+   "actual": 0
+  },
+  {
+   "what": "piece 79c28b7b weight",
+   "expected": 4.6963,
+   "actual": 0
+  },
+  {
+   "what": "piece 4ffd8b12 weight",
+   "expected": 3.7833,
+   "actual": 0
+  },
+  {
+   "what": "piece 2728809e weight",
+   "expected": 2.6894,
+   "actual": 0
+  },
+  {
+   "what": "piece 7f20d248 weight",
+   "expected": 3.2825,
+   "actual": 0
+  },
+  {
+   "what": "piece cf779d3f weight",
+   "expected": 3.4375,
+   "actual": 0
+  },
+  {
+   "what": "piece e4746246 weight",
+   "expected": 5.6074,
+   "actual": 0
+  },
+  {
+   "what": "piece d31f856c weight",
+   "expected": 2.4897,
+   "actual": 0
+  },
+  {
+   "what": "piece 4db63883 weight",
+   "expected": 3.2374,
+   "actual": 0
+  },
+  {
+   "what": "piece c53a3cf1 weight",
+   "expected": 6.3428,
+   "actual": 0
+  },
+  {
+   "what": "piece 0fbee778 weight",
+   "expected": 6.9226,
+   "actual": 0
+  },
+  {
+   "what": "piece 6688f0a1 weight",
+   "expected": 8.1094,
+   "actual": 0
+  },
+  {
+   "what": "piece c1d0ab65 weight",
+   "expected": 3.1481,
+   "actual": 0
+  },
+  {
+   "what": "piece b684d03b weight",
+   "expected": 5.7689,
+   "actual": 0
+  },
+  {
+   "what": "piece 1b1da957 weight",
+   "expected": 2.3842,
+   "actual": 0
+  },
+  {
+   "what": "piece 4d0047c1 weight",
+   "expected": 2.157,
+   "actual": 0
+  },
+  {
+   "what": "piece e3223474 weight",
+   "expected": 6.5574,
+   "actual": 0
+  },
+  {
+   "what": "piece 4a9d5747 weight",
+   "expected": 6.0173,
+   "actual": 0
+  },
+  {
+   "what": "piece 4c3440c5 weight",
+   "expected": 4.3131,
+   "actual": 0
+  },
+  {
+   "what": "piece 388f6743 weight",
+   "expected": 4.9503,
+   "actual": 0
+  },
+  {
+   "what": "piece 196edc17 weight",
+   "expected": 5.2618,
+   "actual": 0
+  },
+  {
+   "what": "piece 4f21ba8e weight",
+   "expected": 3.0545,
+   "actual": 0
+  },
+  {
+   "what": "piece cfb1b3b9 weight",
+   "expected": 3.9189,
+   "actual": 0
+  },
+  {
+   "what": "piece 79dba237 weight",
+   "expected": 0.849,
+   "actual": 0
+  },
+  {
+   "what": "piece 56082dc8 weight",
+   "expected": 3.0017,
+   "actual": 0
+  },
+  {
+   "what": "piece ccadf344 weight",
+   "expected": 5.9391,
+   "actual": 0
+  },
+  {
+   "what": "piece 496856fe weight",
+   "expected": 4.3466,
+   "actual": 0
+  },
+  {
+   "what": "piece 4257fe5e weight",
+   "expected": 6.7931,
+   "actual": 0
+  },
+  {
+   "what": "piece 4d94dbe3 weight",
+   "expected": 2.5077,
+   "actual": 0
+  },
+  {
+   "what": "piece 51feecca weight",
+   "expected": 5.6389,
+   "actual": 0
+  },
+  {
+   "what": "piece 61ba6871 weight",
+   "expected": 4.1314,
+   "actual": 0
+  },
+  {
+   "what": "piece 7b608655 weight",
+   "expected": 6.3356,
+   "actual": 0
+  },
+  {
+   "what": "piece 0cfb98f4 weight",
+   "expected": 3.4909,
+   "actual": 0
+  },
+  {
+   "what": "piece f538f9c1 weight",
+   "expected": 7.8744,
+   "actual": 0
+  },
+  {
+   "what": "piece 685377e1 weight",
+   "expected": 0.6544,
+   "actual": 0
+  },
+  {
+   "what": "piece e3d35fc7 weight",
+   "expected": 5.524,
+   "actual": 0
+  }
+ ]
+}

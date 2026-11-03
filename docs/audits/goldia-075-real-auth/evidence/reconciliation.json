@@ -1,0 +1,117 @@
+{
+ "max_gram_diff": "0.0000",
+ "checks": [
+  {
+   "id": "X-client_debt",
+   "title": "reconciliation client_debt",
+   "ok": true,
+   "expected": 41.3448,
+   "actual": 41.3448,
+   "at": "2026-11-03T07:19:23.001Z"
+  },
+  {
+   "id": "X-client_advance",
+   "title": "reconciliation client_advance",
+   "ok": true,
+   "expected": 11.4111,
+   "actual": 11.4111,
+   "at": "2026-11-03T07:19:23.001Z"
+  },
+  {
+   "id": "X-sellerA_obligation",
+   "title": "reconciliation sellerA_obligation",
+   "ok": true,
+   "expected": 118,
+   "actual": 118,
+   "at": "2026-11-03T07:19:23.001Z"
+  },
+  {
+   "id": "X-sellerB_obligation",
+   "title": "reconciliation sellerB_obligation",
+   "ok": true,
+   "expected": 112,
+   "actual": 112,
+   "at": "2026-11-03T07:19:23.002Z"
+  },
+  {
+   "id": "X-sellerA_owes",
+   "title": "reconciliation sellerA_owes",
+   "ok": true,
+   "expected": 96.3448,
+   "actual": 96.3448,
+   "at": "2026-11-03T07:19:23.002Z"
+  },
+  {
+   "id": "X-sellerB_owes",
+   "title": "reconciliation sellerB_owes",
+   "ok": true,
+   "expected": 100.5889,
+   "actual": 100.5889,
+   "at": "2026-11-03T07:19:23.002Z"
+  },
+  {
+   "id": "X-sellerA_held_g",
+   "title": "reconciliation sellerA_held_g",
+   "ok": true,
+   "expected": 47.5,
+   "actual": 47.5,
+   "at": "2026-11-03T07:19:23.002Z"
+  },
+  {
+   "id": "X-sellerB_held_g",
+   "title": "reconciliation sellerB_held_g",
+   "ok": true,
+   "expected": 100,
+   "actual": 100,
+   "at": "2026-11-03T07:19:23.002Z"
+  },
+  {
+   "id": "X-sellerA_conservation_g",
+   "title": "reconciliation sellerA_conservation_g",
+   "ok": true,
+   "expected": 200,
+   "actual": 200,
+   "at": "2026-11-03T07:19:23.002Z"
+  },
+  {
+   "id": "X-manager_stock_g",
+   "title": "reconciliation manager_stock_g",
+   "ok": true,
+   "expected": 300,
+   "actual": 300,
+   "at": "2026-11-03T07:19:23.002Z"
+  },
+  {
+   "id": "X-manager_cash_uzs",
+   "title": "reconciliation manager_cash_uzs",
+   "ok": true,
+   "expected": 20350000,
+   "actual": 20350000,
+   "at": "2026-11-03T07:19:23.002Z"
+  },
+  {
+   "id": "X-manager_usd",
+   "title": "reconciliation manager_usd",
+   "ok": true,
+   "expected": 300,
+   "actual": 300,
+   "at": "2026-11-03T07:19:23.002Z"
+  },
+  {
+   "id": "X-factory_obligation_g",
+   "title": "reconciliation factory_obligation_g",
+   "ok": true,
+   "expected": 533.6748,
+   "actual": 533.6748,
+   "at": "2026-11-03T07:19:23.002Z"
+  },
+  {
+   "id": "X-app",
+   "title": "app reconciliation report agrees (client debt, seller owes, factory obligation)",
+   "ok": true,
+   "expected": "agree",
+   "actual": "agree-check",
+   "at": "2026-11-03T07:19:23.096Z"
+  }
+ ]
+}

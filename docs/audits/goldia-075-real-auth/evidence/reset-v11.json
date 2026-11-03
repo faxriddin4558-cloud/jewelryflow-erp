@@ -1,0 +1,47 @@
+[
+ {
+  "id": "reset-v11-R1",
+  "title": "reset denied for manager, seller and wrong confirmation code",
+  "ok": true,
+  "expected": "denied x3",
+  "actual": [
+   "Permission denied for role \"production_manager\" (r",
+   "Permission denied for role \"seller\" (required one ",
+   "Tasdiqlash kodi noto'g'ri. Talab qilinadi: RESET_T"
+  ],
+  "at": "2026-11-03T07:22:31.730Z"
+ },
+ {
+  "id": "reset-v11-R2",
+  "title": "director reset: audit org balances all zero (incl. 072 valued till pool)",
+  "ok": true,
+  "expected": "all zero",
+  "actual": {
+   "ok": true,
+   "before": {
+    "sales": 99,
+    "receipts": 6
+   },
+   "after": {
+    "sales": 0,
+    "receipts": 0
+   },
+   "vault": {
+    "o": 0,
+    "s": 0,
+    "c": 0,
+    "u": 0
+   },
+   "seller_nonzero": []
+  },
+  "at": "2026-11-03T07:22:31.846Z"
+ },
+ {
+  "id": "reset-v11-R3",
+  "title": "other 60 organizations unchanged by the reset",
+  "ok": true,
+  "expected": "identical",
+  "actual": "identical",
+  "at": "2026-11-03T07:22:31.846Z"
+ }
+]

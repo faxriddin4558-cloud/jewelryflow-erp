@@ -1,0 +1,26 @@
+{
+ "run": "final-s75075",
+ "seed": 75075,
+ "successful_writes": 248,
+ "by_type": {
+  "daily_rate": 1,
+  "factory_receipt": 6,
+  "consignment": 9,
+  "seller_rate": 17,
+  "customer_create": 24,
+  "piece_return": 5,
+  "barcode_sale": 67,
+  "payment": 49,
+  "weight_sale": 45,
+  "reversal": 13,
+  "handover": 12
+ },
+ "unexpected_failures": 0,
+ "failures": [],
+ "customers": 24,
+ "pieces": 98,
+ "distinct_customer_codes": 24,
+ "customer_codes_created": 24,
+ "max_gram_diff": "0.0000",
+ "differences": []
+}
