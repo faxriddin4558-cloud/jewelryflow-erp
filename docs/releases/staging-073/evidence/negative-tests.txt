@@ -7,3 +7,4 @@ N3  failure inside the chain    : ERROR:  division by zero; history 62 -> 62; sc
 N3b table locked by another user: ERROR:  canceling statement due to lock timeout after 10s; history: 62
 N4  staging lacks an RPC        : STOP: after the chain the copy lacks 1 object(s) of 073 (parity-073-local.txt) | history after: 20260101000062
 N5  JFS demo marker             : STOP: deployment_environment() exists — this is a JewelryFlow SaaS demo database, not Goldia staging
+N6  2 versions not in history   :   repository versions <= 062 not recorded on staging: 20260101000030, 20260101000031 RESULT: DRY RUN PASS. Report: /opt/goldia-audit/stg/neg/goldia-staging-2026-11-03T05-17-25/STAGING-073-RESULT.txt 
