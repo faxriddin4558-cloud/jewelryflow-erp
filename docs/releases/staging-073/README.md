@@ -1,59 +1,171 @@
-# Goldia Sales staging — 073 tayyorgarligi (2026-11-03)
+# Goldia Sales staging → 073: release tartibi (2026-11-03)
 
-`jfs-demo` (`yvvbdoqncubtwlzskgml`) JewelryFlow SaaS loyihasi. Goldia testlari uchun ishlatilmaydi.
-Hech qaysi bazaga yozilmagan.
-
-## Dalillar (ochiq HTTPS orqali, faqat o‘qish)
-
-| | Staging `jewelryflow-sales-staging.vercel.app` | Production `goldia-sales-production.vercel.app` |
+| Loyiha | Ref | Bu ishda |
 |---|---|---|
-| `/api/version` → `supabase_ref` | `vouehtlmsunebracahon` | `vrozlllcaxinavzxueif` |
-| Brauzer bundle’idagi `NEXT_PUBLIC_SUPABASE_URL` | `https://vouehtlmsunebracahon.supabase.co` | `https://vrozlllcaxinavzxueif.supabase.co` |
-| Anon kalit JWT `ref` / `role` | `vouehtlmsunebracahon` / `anon` | — |
-| `env` / `staging_mode` | `staging` / `true` | `production` / `false` |
-| `/api/version` → `commit` | `da6e930` (7 belgi) | `2a70155…` (to‘liq SHA) |
+| **Goldia Sales staging** | `vouehtlmsunebracahon` | yagona maqsad |
+| Production | `vrozlllcaxinavzxueif` | tegilmaydi (skript ref’ni ko‘rsa, ulanmasdan STOP qiladi) |
+| JewelryFlow SaaS demo (`jfs-demo`) | `yvvbdoqncubtwlzskgml` | tegilmaydi (xuddi shunday STOP) |
 
-**Mustaqillik.** Ikki sayt ikki xil Supabase project’iga ulangan.
-- Kodda faqat bitta Supabase URL bor (`NEXT_PUBLIC_SUPABASE_URL`). Server tomonidagi `SUPABASE_SERVICE_ROLE_KEY` ham shu URL bilan ishlatiladi.
-- `DATABASE_URL` yoki ikkinchi Supabase manzili kodda yo‘q.
-- Shu sabab staging’dagi yozuvlar production bazasiga tusha olmaydi. Production kaliti staging project’ida qabul qilinmaydi (JWT boshqa project siri bilan imzolangan).
+Bu tayyorgarlik davomida staging’ga hech narsa yozilmagan.
 
-**Staging kodi.**
-- `commit=da6e930` ishonchli emas. `da6e930` — migratsiya 045 davri. Unda `/api/version` route’i umuman yo‘q (route 058 da qo‘shilgan).
-- Qiymat 7 belgili, demak u Vercel’ning git SHA’si emas, qo‘lda berilgan `NEXT_PUBLIC_GIT_COMMIT_SHA`.
-- Bundle taqqoslovi: 12 ta JS chunk’dan 9 tasi production bilan aynan bir xil. Farq qilgan 3 tasida `sales` roli `Accountant` deb belgilangan. Bu 071 (`49ba461`) dan oldingi kod.
-- Xulosa: staging frontend’i 058–070 oralig‘idagi commit, 071/072/073 frontend’i emas.
+## 1. Staging holati (egasi yuborgan read-only inventarizatsiya)
 
-**Server env.** Vercel API va dashboard bu sessiyadan ko‘rinmaydi. Shuning uchun server env qiymatlari (`SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN`) tekshirilmagan. Kod ishlatadigan nomlar:
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`;
-- `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_STAGING_MODE`, `NEXT_PUBLIC_GIT_COMMIT_SHA`;
-- `NEXT_PUBLIC_DEMO_PASSWORD`;
-- `SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN`.
+| Ko‘rsatkich | Staging | Repo 001–062 (lokal PG17) | Repo 001–073 |
+|---|---|---|---|
+| PostgreSQL | 17.11 | 17.11 | 17.11 |
+| Migratsiya tarixi | 60 qator, oxirgisi `…062` | 62 | 73 |
+| `public` jadvallar | 61 | 61 | 66 |
+| `rpc_*` funksiyalar | **93** | **94** | 99 |
+| Tashkilot / xodim / `auth.users` | 60 / 109 / 10 | — | — |
+| `jewelry_sales` / `financial_transactions` | 82 / 85 | — | — |
+| 069–073 belgilari | yo‘q | — | bor |
 
-## Bloklangan qism
+Farqlar:
+- **Tarix:** staging’da 2 ta versiya yozilmagan.
+- **RPC:** staging’da bitta funksiya varianti kam.
 
-Staging bazasining migratsiya tarixi va ma’lumotlari tekshirilmagan (**NOT VERIFIED**). Sababi:
-- sessiya tarmog‘i `vouehtlmsunebracahon.supabase.co:443` ga ulanishni rad etadi (proxy CONNECT 403);
-- `supabase_migrations` jadvali PostgREST orqali umuman ko‘rinmaydi.
+Skript shu ikkalasini avval nomma-nom ko‘rsatadi (`parity-062.txt`). Ruxsat beradigan shart — **zanjirdan keyin 073 bilan to‘liq moslik** (7-qadam).
+- Yetishmagan obyektni 063–073 qayta yaratsa → davom etadi.
+- Yaratmasa → STOP, staging’ga hech narsa yozilmaydi.
 
-## Faqat o‘qiydigan inventarizatsiya
+## 2. Tanlangan yo‘l — eng qisqa va xavfsiz
 
-`01_staging_inventory_readonly.sql` faylini staging SQL Editor’ida ishga tushiring.
-- `begin transaction read only … rollback` ichida ishlaydi.
-- Natija bitta `check | value` jadvali. Ism, telefon, summa va e-mail chiqmaydi, faqat sonlar va obyekt mavjudligi.
-- Ko‘rsatadi:
-  - migratsiya tarixi (≥060, nomlari bilan);
-  - 069–073 belgilari;
-  - JFS qo‘shimcha jadvallari bormi;
-  - `auth.users` va xodimlar soni (rollar bo‘yicha);
-  - asosiy jadvallardagi qatorlar soni.
-- Lokal PG16’da sinovdan o‘tgan: migratsiya jadvali bor va yo‘q holatlar, 069 bazasi.
+063–073 (11 migratsiya) repo’dagi fayllarning o‘zi, **bitta tranzaksiyada**, har biridan keyin o‘sha versiyaning postflight tekshiruvi.
 
-## Natijaga qarab keyingi yo‘l
+Yangi kod yoki migratsiya yozilmagan. 073 — release candidate `162a377` dagi fayl.
 
-- **Tarix Goldia 001–072 bo‘lsa.** Production bilan bir xil yo‘l: `node scripts/goldia-prod-release.js --migration 073` staging’ga.
-  - backup → compat → damage scan → 073 → `073_postflight_readonly.sql` 12/12;
-  - so‘ng PR #13 frontend’ini staging’ga deploy qilish.
-  - Bu ham production release’ining repetitsiyasi bo‘ladi.
-- **Tarixda boshqa 070–072 bo‘lsa** (JFS kabi). Staging uchun `docs/releases/demo-073` dagi himoyali bundle moslashtiriladi.
-- **Haqiqiy Auth testi uchun** sessiya Allowed domains ro‘yxatiga `vouehtlmsunebracahon.supabase.co` qo‘shilishi kerak. Audit foydalanuvchilarini yaratish/o‘chirish uchun staging service kaliti muhit sirlariga qo‘yilishi kerak (chatga emas).
+Bitta tranzaksiya: biror joyda xato bo‘lsa yoki 10 s ichida qulf olinmasa, PostgreSQL hammasini qaytaradi, staging 062 da qoladi.
+
+Skript: `scripts/goldia-staging-release.js`
+- **Dry run:** staging faqat o‘qiladi.
+- **`--apply`:** barcha gate’lar o‘tgandan keyin project ref’ni qo‘lda yozish so‘raladi.
+
+## 3. Bitta buyruq (Windows PowerShell, repo ildizida, PostgreSQL 17 tools)
+
+```powershell
+git fetch origin ccr-fb8951ce-65agfo; git checkout ccr-fb8951ce-65agfo; git pull --ff-only; node scripts/goldia-staging-release.js --apply
+```
+
+- **Parol:** staging DB paroli yashirin so‘raladi (`postgres.vouehtlmsunebracahon`); hech qayerga yozilmaydi.
+- **Pooler:** staging pooler’i parol yuborilmasdan topiladi. Topilmasa: `--host <Dashboard → Connect → Session pooler host>`.
+- **Tasdiq:** hamma natija ekranga chiqadi, so‘ng `Type the staging project ref…` so‘raladi. Faqat `vouehtlmsunebracahon` yozilsa qo‘llanadi; boshqa javob yoki Ctrl+C — hech narsa yozilmaydi.
+- **Natija fayli:** `%USERPROFILE%\GoldiaBackups\goldia-staging-<vaqt>\STAGING-073-RESULT.txt`. Unda maxfiy ma’lumot yo‘q.
+
+## 4. PASS / STOP shartlari
+
+Birinchi muvaffaqiyatsiz shartda STOP. 9-qadamgacha staging’ga yozilmaydi.
+
+| # | Qadam | PASS | STOP |
+|---|---|---|---|
+| 0 | Nishon | user `postgres.vouehtlmsunebracahon` | host/user/`PGHOST`/`PGUSER`/`DATABASE_URL` da production yoki JFS demo ref’i bor; boshqa user |
+| 1 | Vositalar | PG17 `psql, pg_dump, pg_dumpall, pg_restore, initdb, pg_ctl`; 063–073 fayllari bor | topilmadi |
+| 2 | Ulanish | PostgreSQL **17** | ulanmadi; 17 emas; `pg_dump` serverdan eski |
+| 3 | Identifikatsiya | `deployment_environment()` yo‘q (JFS emas), tarixda `062` bor, `>062` yo‘q | JFS belgisi; 062 yo‘q; 063+ allaqachon yozilgan |
+| 4 | Backup | `pg_dump -Fc` (public, auth, storage, supabase_migrations) + sxema + rollar, SHA256SUMS, `pg_restore --list` | dump xatosi; backup paytida staging qatorlari o‘zgardi |
+| 5 | Restore testi | lokal klasterdagi barcha jadval qator sonlari = staging | farq bor |
+| 6 | 062 pariteti | hisobot (`parity-062.txt`) | — (qaror 7-qadamda) |
+| 7a | Zanjir lokal nusxada | 11 migratsiya + 33 postflight tekshiruvi bitta tranzaksiyada | biror migratsiya yoki tekshiruv xatosi |
+| 7b | Ma’lumot saqlanishi | biznes jadvallari qator soni o‘zgarmagan; har bir tashkilot balansi (mijoz qarzi/avansi, sotuvchi qarzi/zaxirasi, seyf so‘m/USD) bir xil | biror son yoki balans o‘zgardi |
+| 7c | 073 pariteti | repo 001–073 dagi har bir funksiya, ustun, policy, trigger, RLS bor | biror obyekt yetishmaydi (funksiya tanasi farqi — REVIEW ro‘yxati) |
+| 7d | 073 postflight | 12/12 | biror ustun `false` |
+| 7e | RLS — **har bir login × har bir tashkilot** | `authenticated` (har bir xodim JWT bilan) va `anon`: boshqa tashkilot qatorlarini o‘qish, o‘zgartirish va o‘chirish; sotuvchi boshqa sotuvchi qatorlarini o‘qishi. Zanjir oqishni faqat yopadi | zanjir **yangi** oqish ochdi; yoki `jewelry_models`/`stage_loss_configs` dan tashqari oqish qoldi |
+| 7f | Rollback | 073 rollback → qayta qo‘llash → postflight 12/12 | xato |
+| 8 | Dry run | `DRY RUN PASS` (`--apply` siz shu yerda tugaydi) | — |
+| 9 | Qo‘llash | backup’dan beri staging o‘zgarmagan; ref qo‘lda yozildi; bitta tranzaksiya, `lock_timeout 10s` | o‘zgargan; tasdiq mos emas; xato → avtomatik ROLLBACK, staging 062 da |
+| 10 | Postflight (staging, read only) | tarix 11/11; 073 postflight 12/12; 073 pariteti; RLS’da kutilmagan oqish yo‘q; biznes qatorlari va tashkilot balanslari o‘zgarmagan | biror shart → STOP + rollback ko‘rsatmasi |
+
+**Muvaffaqiyatli yakun:**
+`RESULT: STAGING 062 -> 073 APPLIED, POSTFLIGHT PASS`
+
+**Orqaga qaytarish (faqat 10-qadam STOP bo‘lsa):**
+- 073 ni o‘zi: `supabase/rollback/20260101000073_rollback.sql` (ma’lumotni saqlaydi).
+- To‘liq 062 holatiga: shu papkadagi `staging-full.dump` dan tiklash.
+
+## 5. Lokal sinov natijalari (PG17.11, staging shaklidagi baza)
+
+Staging shaklidagi baza:
+- repo 001–062 qo‘llangan;
+- 60 tashkilot, 202 xodim (200 ta login), 56 sotuv;
+- zavod kirimi, konsignatsiya, sotuv, to‘lov, xarid va topshiruv haqiqiy RPC’lar orqali.
+
+Skript `--local-rehearsal` rejimida shu bazani "staging" deb ishlatdi.
+
+| Sinov | Natija |
+|---|---|
+| Dry run | **DRY RUN PASS** (`evidence/rehearsal-1-dry-run.txt`) |
+| `--apply` + postflight | **APPLIED, POSTFLIGHT PASS** (`evidence/rehearsal-2-apply.txt`) |
+| Qayta ishga tushirish | STOP: 063+ allaqachon bor (`evidence/rehearsal-3-rerun-after-apply.txt`) |
+| Biznes qator sonlari / tashkilot balanslari | o‘zgarmadi |
+| Qo‘shilgan qatorlar | tarix +11; `audit_logs` +1 (068 repair yozuvi); `weight_sale_allocations` (yangi jadval) |
+| 073 pariteti | missing 0, tana farqi 0, ortiqcha 0 |
+| 073 tranzaksiyasiga sun’iy xato | tarix 62 da qoldi, sxema imzosi o‘zgarmadi (atomar) |
+| Boshqa sessiya jadvalni qulflagan | 10 s da `lock timeout`, hammasi qaytarildi |
+| Staging’da zanjir tiklamaydigan RPC yo‘q bo‘lsa | STOP (7c), staging yozilmagan |
+| JFS demo belgisi | STOP (3) |
+| Production / JFS ref, boshqa user, lokal bo‘lmagan rehearsal | STOP (0), ulanish ochilmagan |
+| Tarixda 2 versiya yozilmagan (staging kabi) | aniqlandi va ko‘rsatildi, sxema to‘liq → PASS |
+| 073 dan keyin eski 062 ma’lumotlarida, 24 tashkilot (`evidence/smoke-073-on-062-data.json`) | dona tanlanmagan vazn sotuvi rad etildi 24/24; tanlangan donadan aniq 1.5 g kesildi 24/24; to‘lov (sotuvchining o‘z LOM kursi bilan) 24/24; kassani topshirish 24/24; boshqa tashkilot sotuvchisi rad etildi 24/24; sotuvni bekor qilish 9/9; manfiy dona 0; 073 postflight `t` |
+
+### RLS: 60 tashkilot, 200 login (o‘qish 9 233, yozish 16 800 tekshiruv)
+
+**062 da 11 ta oqish bor edi; 073 zanjiri ulardan 5 tasini yopdi.**
+
+| Oqish | 062 | 073 |
+|---|---|---|
+| Direktor/menejer boshqa tashkilotlarning **xodimlarini** o‘qiydi va **o‘zgartiradi** (`employees`) | bor | **yopildi** (070 F9) |
+| Direktor/menejer boshqa tashkilotlarning `audit_logs` ini o‘qiydi | bor | **yopildi** |
+| Sotuvchi boshqa sotuvchining `client_legacy_debts` ini o‘qiydi | bor | **yopildi** (070 F11) |
+| `jewelry_models` (shtrix-kod model katalogi): istalgan tashkilot xodimi boshqa tashkilot modelini **o‘qiydi va o‘zgartiradi** | bor | **qoldi** |
+| `stage_loss_configs` (ishlab chiqarish): direktor/menejer boshqa tashkilot yozuvlarini **o‘zgartiradi va o‘chiradi** | bor | **qoldi** |
+
+**Yangi oqish ochilmadi.**
+
+Oxirgi ikkitasi 063–073 dan oldin ham bor. Production 072 ham xuddi shu migratsiyalardan qurilgan, demak u yerda ham bor bo‘lishi kerak. Production’da bu tekshirilmagan.
+
+Sabablari:
+- `jewelry_models` — `authenticated read … using (true)` va rol bo‘yicha yozish policy’si, tashkilot sharti yo‘q;
+- `stage_loss_configs` — `is_admin_or_manager()` bilan `ALL`.
+
+Bu **HIGH** topilma. U staging release’ni to‘xtatmaydi (073 uni o‘zgartirmaydi). Lekin haqiqiy oltin uchun FULL GO’dan oldin alohida ruxsat bilan tuzatilishi kerak (074: policy’larni `organization_id = current_organization_id()` ga bog‘lash).
+
+Tekshiruv fayllari:
+- `supabase/release/staging_rls_isolation_readonly.sql` — read only, staging’da ham ishlaydi;
+- `supabase/release/staging_rls_write_isolation_LOCAL_COPY_ONLY.sql` — faqat lokal nusxada, har bir urinish va butun tranzaksiya qaytariladi.
+
+## 6. Frontend: staging’ni `162a377` ga moslashtirish (DB 073 dan keyin)
+
+Hozir staging frontend’i 058–070 oralig‘idagi kod. `/api/version` dagi `da6e930` qo‘lda yozilgan va noto‘g‘ri.
+
+`162a377` dan keyingi commit’larda `src/` o‘zgarmagan: `ccr-fb8951ce-65agfo` HEAD frontend’i = `162a377`.
+
+**Tartib (DB `POSTFLIGHT PASS` dan keyin):**
+
+1. **Env.** Vercel → staging project (`jewelryflow-sales-staging`) → Settings → Environment Variables, **Production va Preview** uchun:
+   - `NEXT_PUBLIC_SUPABASE_URL=https://vouehtlmsunebracahon.supabase.co`;
+   - staging anon kaliti;
+   - `NEXT_PUBLIC_APP_ENV=staging`, `NEXT_PUBLIC_STAGING_MODE=true`;
+   - `SUPABASE_SERVICE_ROLE_KEY` — **staging** kaliti (production yoki JFS kaliti emas).
+   - `NEXT_PUBLIC_GIT_COMMIT_SHA=da6e930` ni **o‘chiring**: shunda versiya Vercel’ning haqiqiy SHA’sini ko‘rsatadi.
+2. **Deploy.** Deployments → Create Deployment → Git ref `162a377ac18bf7d1e34d80ad0b744dc9264dbcbf` (yoki branch `ccr-fb8951ce-65agfo`) → Production’ga.
+   - `NEXT_PUBLIC_*` qiymatlari build paytida kiritiladi. Preview build’ni "Promote" qilsangiz, Preview env ham staging qiymatlarida bo‘lishi shart.
+3. **Tekshiruv.** `https://jewelryflow-sales-staging.vercel.app/api/version` → `full_commit=162a377ac18b…`, `supabase_ref=vouehtlmsunebracahon`, `env=staging`. Buni men ham HTTPS orqali faqat o‘qib tasdiqlay olaman.
+4. **Oraliq.** DB va frontend deploy oralig‘ida staging’da vazn sotuvi qilmang: eski frontend dona tanlamaydi, 073 uni xavfsiz rad etadi.
+
+## 7. Keyingi maqsad: haqiqiy Supabase Auth bilan to‘liq moliyaviy brauzer audit
+
+Kerak:
+- sessiyaning Allowed domains ro‘yxatida `vouehtlmsunebracahon.supabase.co`;
+- audit foydalanuvchilarini yaratish/o‘chirish uchun staging service kaliti sessiya muhit sirida (chatda emas).
+
+Audit:
+- **Zanjir:** 5 rol, zavod → menejer → sotuvchi → mijoz → to‘lov → topshiruv.
+- **Tekshiriladi:** sotuvchining LOM/USD kurslari, nol-reset, Toshkent sana chegarasi, dona tanlash, 60 tashkilot izolyatsiyasi.
+- **Talab:** rekonsilyatsiya 0.0000 g.
+
+## Fayllar
+- `scripts/goldia-staging-release.js` — release skripti.
+- `scripts/lib/goldia-release-checks.js` — versiya postflight tekshiruvlari (production skriptidagi bilan bir xil).
+- `supabase/release/staging-073/signature.sql`, `expected-062-signature.txt`, `expected-073-signature.txt` — sxema imzosi (repo’dan PG17 da qurilgan).
+- `supabase/release/staging_rls_isolation_readonly.sql`, `staging_rls_write_isolation_LOCAL_COPY_ONLY.sql`.
+- `evidence/` — repetitsiya natijalari; `harness/` — lokal PG17 stend (sintetik ma’lumot, parolsiz).
+- `01_staging_inventory_readonly.sql` — oldingi read-only inventarizatsiya.
