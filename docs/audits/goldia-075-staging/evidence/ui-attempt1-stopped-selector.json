@@ -1,0 +1,57 @@
+{
+ "checks": [
+  {
+   "id": "UI-L1",
+   "title": "director logs in (real GoTrue) and lands in the sales app",
+   "ok": true,
+   "expected": "/sales/app",
+   "actual": "https://jewelryflow-sales-staging.vercel.app/sales/app",
+   "at": "2026-11-03T09:46:04.354Z"
+  },
+  {
+   "id": "UI-1",
+   "title": "director sets today's 585 rate 900,000 in the UI",
+   "ok": true,
+   "expected": 900000,
+   "actual": {
+    "id": "0c650bf7-a861-445a-aa0c-73956532d8fa",
+    "rate_per_gram": 900000
+   },
+   "record_id": "0c650bf7-a861-445a-aa0c-73956532d8fa",
+   "at": "2026-11-03T09:46:08.928Z"
+  },
+  {
+   "id": "UI-1e",
+   "title": "director session: no failed API call",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T09:46:08.928Z"
+  },
+  {
+   "id": "UI-2",
+   "title": "manager receives 200 g @8% in the UI (double click): one receipt, obligation +216, stock +200",
+   "ok": true,
+   "expected": {
+    "receipts": 1,
+    "obligation_delta": 216,
+    "stock_delta": 200
+   },
+   "actual": {
+    "receipts": 1,
+    "obligation_delta": 216,
+    "stock_delta": 200
+   },
+   "record_id": "fe261313-252c-40f5-b8cb-cb820c3969f3",
+   "at": "2026-11-03T09:46:25.171Z"
+  }
+ ],
+ "notes": [
+  {
+   "setup": "jewelry model via RPC (manager JWT)",
+   "ok": true,
+   "error": null
+  }
+ ],
+ "pieces": {}
+}

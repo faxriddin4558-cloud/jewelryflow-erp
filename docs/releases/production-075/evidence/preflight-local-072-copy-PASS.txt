@@ -1,0 +1,30 @@
+RESULT | preflight_072_to_075 | PASS | 0 STOP, 0 WARN
+GATE | 073_open_weight_sales_without_allocation | INFO | 0 (pre-068 history; reversals keep the 068 fallback)
+GATE | 074_loss_configs_without_org | INFO | 0 stage_loss_configs with NULL organization
+GATE | 074_models_without_org | INFO | 1 jewelry_models with NULL organization (read-only shared after 074)
+GATE | 074_rows_of_unknown_org | PASS | 0 models of a non-existent organization
+GATE | 075_customers_direct_insert_today | INFO | authenticated INSERT=true, anon SELECT=true
+GATE | 075_customers_without_org | PASS | 0 customers with organization_id NULL (stay unique among themselves)
+GATE | 075_factory_settings_one_row_per_org | PASS | 1 rows
+GATE | 075_global_code_unique_today | PASS | customers_customer_code_key present
+GATE | 075_long_or_odd_codes | INFO | 1 codes with >9 digits (F-STG-1 trigger: customer creation already fails if >0); 1 non-canonical codes (kept, ignored by the new numbering)
+GATE | 075_no_duplicate_code_in_org | PASS | 0 duplicate (organization_id, customer_code) groups
+GATE | 075_rpc_create_customer_today | INFO | BROKEN for every organization (integer overflow) until 075
+GATE | function_bodies_crlf_only | PASS | 0 (differ only by \r from a Windows checkout; no behavioural effect)
+GATE | function_bodies_DIFFERENT | PASS | none
+GATE | function_bodies_identical | INFO | 153
+GATE | history_072_recorded | PASS | latest=20260101000072
+GATE | history_nothing_after_072 | PASS | none
+GATE | history_repo_001_072_recorded | PASS | missing: none
+GATE | idle_in_transaction | PASS | 0
+GATE | locks_on_sales_tables | PASS | strong locks held by other sessions
+GATE | long_running_queries_over_60s | PASS | 0
+GATE | not_jfs_demo | PASS | deployment_environment() absent
+GATE | organizations | INFO | 3
+GATE | other_sessions | INFO | 0
+GATE | schema_objects_extra | INFO | 0 extra (kept)
+GATE | schema_objects_missing | PASS | 0 missing; first: -
+GATE | server_version | PASS | 17.11 (Debian 17.11-1.pgdg13+2)
+GATE | session_read_only | PASS | transaction_read_only=on
+GATE | snapshot_balances | INFO | client_debt_g=0 client_advance_g=0 seller_owes_g=0 seller_stock_g=0 vault_uzs=0.00 vault_usd=0.00 factory_obligation_g=0.0000
+GATE | snapshot_counts | INFO | customers=3 sales=0 settlements=0 receipts=0 pieces=0 employees=0

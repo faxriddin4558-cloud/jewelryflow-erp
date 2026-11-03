@@ -20,12 +20,12 @@ const people = [
   const c = creds();
   for (const [tag, org, role, roleType, position] of people) {
     if (c[tag]) { console.log(tag, 'exists'); continue; }
-    const email = `audit.stg075.${tag.toLowerCase()}@goldia-audit.test`; const password = crypto.randomBytes(18).toString('base64url');
+    const email = `${process.env.GA_EMAIL_PREFIX || 'audit.stg075'}.${tag.toLowerCase()}@goldia-audit.test`; const password = crypto.randomBytes(18).toString('base64url');
     const u = await svc('POST', 'auth/v1/admin/users', { email, password, email_confirm: true, user_metadata: { full_name: `AUDIT075 ${tag}`, audit: true } });
     if (!u.ok) { console.log(tag, 'auth create failed', u.status, u.error); continue; }
     const id = u.data.id;
     if (role) {
-      const e = await svc('POST', 'rest/v1/employees', { id, user_id: id, employee_code: `A75-${tag.toUpperCase()}`, name: `AUDIT075 ${tag}`, full_name: `AUDIT075 ${tag}`, email, role, role_type: roleType, position, department: role === 'sales' ? 'Savdo' : 'Boshqaruv', is_active: true, status: 'active', organization_id: org }, { Prefer: 'return=minimal' });
+      const e = await svc('POST', 'rest/v1/employees', { id, user_id: id, employee_code: `${(process.env.GA_EMAIL_PREFIX || "A75").replace(/[^a-z0-9]/gi, "").slice(-6).toUpperCase()}-${tag.toUpperCase()}`, name: `AUDIT075 ${tag}`, full_name: `AUDIT075 ${tag}`, email, role, role_type: roleType, position, department: role === 'sales' ? 'Savdo' : 'Boshqaruv', is_active: true, status: 'active', organization_id: org }, { Prefer: 'return=minimal' });
       if (!e.ok) { console.log(tag, 'employee insert failed', e.status, e.error); continue; }
     }
     c[tag] = { email, password, id, org }; fs.writeFileSync(CREDS, JSON.stringify(c), { mode: 0o600 });

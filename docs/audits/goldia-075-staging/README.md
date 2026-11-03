@@ -59,3 +59,14 @@ FULL GO uchun: `jewelryflow-sales-staging.vercel.app` ni Allowed domains’ga qo
 
 `harness/setup.js` (yangi foydalanuvchilar) → `a-customers.js` → `reset.js` → `finance.js` → `recon.js` → `reset.js` → `post-reset.js` → `sim30.js` → `conc-rls.js` → `reset.js` → `ban-users.js`.
 Bloklangan loginlarni qayta yoqish: `node ban-users.js none` (parollar shu konteynerdagi faylda; yangi konteynerda `setup.js` yangi foydalanuvchilar yaratadi).
+
+---
+
+## Yangilanish: brauzer UI auditi staging saytida bajarildi → `UI-README.md`
+
+Staging domeniga ruxsat berilgach, haqiqiy saytda Playwright bilan yakuniy UI tekshiruvlari: **90 ta, 85 PASS, 5 FAIL** (jami urinishlar bilan 111);
+UI sessiyasi rekonsilyatsiyasi **26/26, 0.0000 g**. 5 FAIL — F-UI-1 (sotuvchi to‘lov oynasi rasmiy kursni yuboradi, CBU 503 → USD kursi bo‘sh) va
+F-UI-3 (kassa qabulida USD kursi majburiy). Hisob buzilmaydi (server rad etadi), lekin sotuvchi kursni qo‘lda kiritmaguncha to‘lov/qabul bo‘lmaydi.
+69 ta funksiya tanasi farqi — CRLF, ta’siri yo‘q: `docs/releases/staging-075/FUNCTION-BODY-PARITY.md`. Production preflight: `docs/releases/production-075/`.
+
+**REAL GOLD qarori: LIMITED GO** (shartlar `UI-README.md` va yakuniy hisobotda).

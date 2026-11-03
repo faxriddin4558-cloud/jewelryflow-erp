@@ -1,0 +1,3 @@
+RESULT | preflight_072_to_075 | STOP | 2 STOP, 0 WARN
+GATE | function_bodies_DIFFERENT | STOP | DIFFERENT rpc_get_factory_settings(uuid)
+GATE | history_nothing_after_072 | STOP | 20260101000073

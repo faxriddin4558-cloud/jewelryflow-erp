@@ -1,0 +1,1974 @@
+{
+ "checks": [
+  {
+   "id": "UI-L1",
+   "title": "director logs in (real GoTrue) and lands in the sales app",
+   "ok": true,
+   "expected": "/sales/app",
+   "actual": "https://jewelryflow-sales-staging.vercel.app/sales/app",
+   "at": "2026-11-03T09:47:28.168Z"
+  },
+  {
+   "id": "UI-1",
+   "title": "director sets today's 585 rate 900,000 in the UI",
+   "ok": true,
+   "expected": 900000,
+   "actual": {
+    "id": "0c650bf7-a861-445a-aa0c-73956532d8fa",
+    "rate_per_gram": 900000
+   },
+   "record_id": "0c650bf7-a861-445a-aa0c-73956532d8fa",
+   "at": "2026-11-03T09:47:32.218Z"
+  },
+  {
+   "id": "UI-1e",
+   "title": "director session: no failed API call",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T09:47:32.218Z"
+  },
+  {
+   "id": "UI-2",
+   "title": "manager receives 200 g @8% in the UI (double click): one receipt, obligation +216, stock +200",
+   "ok": true,
+   "expected": {
+    "receipts": 1,
+    "obligation_delta": 216,
+    "stock_delta": 200
+   },
+   "actual": {
+    "receipts": 1,
+    "obligation_delta": 216,
+    "stock_delta": 200
+   },
+   "record_id": "7aaaac1c-3748-4062-b04d-4a98789a8398",
+   "at": "2026-11-03T09:47:47.593Z"
+  },
+  {
+   "id": "UI-3-sellera",
+   "title": "manager distributes 6 pieces (42.94 g) to sellera @15% in the barcode screen",
+   "ok": true,
+   "expected": {
+    "pieces": 6,
+    "obligation_delta": 49.381,
+    "seller_stock_delta": 42.94,
+    "manager_stock_delta": -42.94
+   },
+   "actual": {
+    "pieces": 6,
+    "obligation_delta": 49.381,
+    "seller_stock_delta": 42.94,
+    "manager_stock_delta": -42.94
+   },
+   "record_ids": [
+    "449ced17-9435-4732-9d46-25f34c4823bf"
+   ],
+   "at": "2026-11-03T09:48:00.294Z"
+  },
+  {
+   "id": "UI-3-sellerb",
+   "title": "manager distributes 4 pieces (25.2 g) to sellerb @12% in the barcode screen",
+   "ok": true,
+   "expected": {
+    "pieces": 4,
+    "obligation_delta": 28.224,
+    "seller_stock_delta": 25.2,
+    "manager_stock_delta": -25.2
+   },
+   "actual": {
+    "pieces": 4,
+    "obligation_delta": 28.224,
+    "seller_stock_delta": 25.2,
+    "manager_stock_delta": -25.2
+   },
+   "record_ids": [
+    "0b553c80-d7ff-45b7-9e7c-27205b129fdc"
+   ],
+   "at": "2026-11-03T09:48:12.556Z"
+  },
+  {
+   "id": "UI-3-sellerc",
+   "title": "manager distributes 4 pieces (25.12 g) to sellerc @10% in the barcode screen",
+   "ok": true,
+   "expected": {
+    "pieces": 4,
+    "obligation_delta": 27.632,
+    "seller_stock_delta": 25.12,
+    "manager_stock_delta": -25.12
+   },
+   "actual": {
+    "pieces": 4,
+    "obligation_delta": 27.632,
+    "seller_stock_delta": 25.12,
+    "manager_stock_delta": -25.12
+   },
+   "record_ids": [
+    "fadfef46-17e3-4563-968a-f8bc56cd59b0"
+   ],
+   "at": "2026-11-03T09:48:24.161Z"
+  },
+  {
+   "id": "UI-3e",
+   "title": "manager session: no failed API call",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T09:48:24.161Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try1-L",
+   "title": "sellera logs in (desktop)",
+   "ok": true,
+   "expected": "/sales/app",
+   "actual": "/sales/app",
+   "at": "2026-11-03T09:50:18.064Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try1-R1",
+   "title": "rates 890000/12500 saved from Kassam (double click)",
+   "ok": true,
+   "expected": {
+    "lom": 890000,
+    "usd": 12500
+   },
+   "actual": {
+    "lom_rate_uzs": 890000,
+    "usd_rate_uzs": 12500,
+    "history_added": 1
+   },
+   "at": "2026-11-03T09:50:33.312Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try1-R2",
+   "title": "out-of-range LOM 5,000,000 refused by the server, error shown, rate unchanged",
+   "ok": true,
+   "expected": {
+    "lom": 890000,
+    "message": "shown"
+   },
+   "actual": {
+    "lom": 890000,
+    "message": "ERR_RATE_OUT_OF_RANGE: LOM kursi (UZS/g) 5000000 ruxsat etilgan oraliqdan tashqar"
+   },
+   "at": "2026-11-03T09:50:36.106Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try1-C",
+   "title": "customer \"UI A mijoz 1 (sintetik)\" created in the UI (double click -> one row, own seller)",
+   "ok": true,
+   "expected": {
+    "rows": 1,
+    "seller": "sellera"
+   },
+   "actual": [
+    {
+     "id": "b16538bb-4f76-4e43-94e6-a322fcc005c2",
+     "customer_code": "CUST-0059",
+     "seller_id": "4c8fda3c-6c02-45de-ac53-2ff50a2355d0",
+     "organization_id": "a5d17075-0000-4000-8000-202611030075"
+    }
+   ],
+   "record_id": "b16538bb-4f76-4e43-94e6-a322fcc005c2",
+   "at": "2026-11-03T09:50:45.365Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try1-S1",
+   "title": "scan sale of the 5.11 g piece @12% (double click): one sale, due 5.7232 g, piece sold, seller stock -5.11",
+   "ok": true,
+   "expected": {
+    "sales": 1,
+    "due": 5.7232,
+    "stock_delta": -5.11
+   },
+   "actual": {
+    "sales": 1,
+    "due": 5.7232,
+    "stock_delta": -5.11,
+    "rpc_calls": [
+     200
+    ]
+   },
+   "record_id": "7d9e400d-cfc4-45d8-b182-6cb0abde16a4",
+   "sale_no": "SALE-BC-F20B85D4",
+   "at": "2026-11-03T09:51:02.738Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try1-S2",
+   "title": "receipt (kvitansiya) shown after the scan sale",
+   "ok": true,
+   "expected": "visible",
+   "actual": true,
+   "at": "2026-11-03T09:51:02.738Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try2-L",
+   "title": "sellera logs in (desktop)",
+   "ok": true,
+   "expected": "/sales/app",
+   "actual": "/sales/app",
+   "at": "2026-11-03T09:52:36.798Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try2-R1",
+   "title": "rates 890000/12500 saved from Kassam (double click)",
+   "ok": true,
+   "expected": {
+    "lom": 890000,
+    "usd": 12500
+   },
+   "actual": {
+    "lom_rate_uzs": 890000,
+    "usd_rate_uzs": 12500,
+    "history_added": 1
+   },
+   "at": "2026-11-03T09:52:51.831Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try2-R2",
+   "title": "out-of-range LOM 5,000,000 refused by the server, error shown, rate unchanged",
+   "ok": true,
+   "expected": {
+    "lom": 890000,
+    "message": "shown"
+   },
+   "actual": {
+    "lom": 890000,
+    "message": "ERR_RATE_OUT_OF_RANGE: LOM kursi (UZS/g) 5000000 ruxsat etilgan oraliqdan tashqar"
+   },
+   "at": "2026-11-03T09:52:54.632Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try2-C",
+   "title": "customer \"UI A mijoz 2 (sintetik)\" created in the UI (double click -> one row, own seller)",
+   "ok": true,
+   "expected": {
+    "rows": 1,
+    "seller": "sellera"
+   },
+   "actual": [
+    {
+     "id": "6b03021d-56dc-4ef4-b737-8f5e0d65ec5c",
+     "customer_code": "CUST-0060",
+     "seller_id": "4c8fda3c-6c02-45de-ac53-2ff50a2355d0",
+     "organization_id": "a5d17075-0000-4000-8000-202611030075"
+    }
+   ],
+   "record_id": "6b03021d-56dc-4ef4-b737-8f5e0d65ec5c",
+   "at": "2026-11-03T09:53:02.905Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try2-S1",
+   "title": "scan sale of the 6.23 g piece @12% (double click): one sale, due 6.9776 g, piece sold, seller stock -6.23",
+   "ok": true,
+   "expected": {
+    "sales": 1,
+    "due": 6.9776,
+    "stock_delta": -6.23
+   },
+   "actual": {
+    "sales": 1,
+    "due": 6.9776,
+    "stock_delta": -6.23,
+    "rpc_calls": [
+     200
+    ]
+   },
+   "record_id": "9d35d0d8-a7dd-4cff-ada1-1a6f8096278b",
+   "sale_no": "SALE-BC-DF4CE5C4",
+   "at": "2026-11-03T09:53:20.721Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try2-S2",
+   "title": "receipt (kvitansiya) shown after the scan sale",
+   "ok": true,
+   "expected": "visible",
+   "actual": true,
+   "at": "2026-11-03T09:53:20.721Z"
+  },
+  {
+   "id": "UI2-sellera-desktop-try2-W",
+   "title": "weight sale 3 g @15% cut from the chosen 12.53 g piece (double click -> one sale)",
+   "ok": true,
+   "expected": {
+    "sales": 1,
+    "due": 3.45,
+    "piece_left": 9.53
+   },
+   "actual": {
+    "sales": 1,
+    "due": 3.45,
+    "alloc": [
+     {
+      "piece_id": "839257d7-f60d-4ae5-8760-7396f9b34efc",
+      "grams": 3
+     }
+    ],
+    "piece_left": 9.53
+   },
+   "record_id": "86b28a0e-fae7-43de-8634-a919b4fed990",
+   "sale_no": "SALE-W-20261103-B5538F",
+   "at": "2026-11-03T09:53:31.875Z"
+  },
+  {
+   "id": "UIPAY-sellera-desktop-a",
+   "title": "payment form pre-fill: LOM rate = seller's own 890000, USD rate = seller's own 12500; submitting as pre-filled records the payment",
+   "ok": false,
+   "expected": {
+    "form_lom": 890000,
+    "form_usd": 12500,
+    "payment": 1
+   },
+   "actual": {
+    "form_lom": "900000",
+    "form_usd": "(empty)",
+    "preview": "Jami hisobdan o'chiriladigan:2.91 g",
+    "payment_rows": 0,
+    "rpc": [],
+    "browser_invalid_fields": [],
+    "message": "xatolik: USD to'lovi uchun USD kursi (UZS/$) kiritilishi shart! Iltimos, kursni kiriting.Mijozlar"
+   },
+   "at": "2026-11-03T09:55:16.907Z"
+  },
+  {
+   "id": "UIPAY-sellera-desktop-b",
+   "title": "with own rates typed by hand the payment is recorded: 4.3276 g",
+   "ok": true,
+   "expected": {
+    "payment": 1,
+    "grams": 4.3276
+   },
+   "actual": {
+    "payment_rows": 1,
+    "grams": 4.3276,
+    "rpc": [
+     [
+      200,
+      null
+     ]
+    ],
+    "invalid": []
+   },
+   "record_id": "137f6f8f-0c80-4772-92e6-ffbea3d707c5",
+   "settlement_no": "SETTL-F7C92AED",
+   "at": "2026-11-03T09:55:28.520Z"
+  },
+  {
+   "id": "UIPAY-sellera-desktop-d",
+   "title": "customer debt after the payment = 6.1 g",
+   "ok": true,
+   "expected": 6.1,
+   "actual": 6.1,
+   "at": "2026-11-03T09:55:29.187Z"
+  },
+  {
+   "id": "UI2-sellerb-mobile-L",
+   "title": "sellerb logs in (mobile)",
+   "ok": true,
+   "expected": "/sales/app",
+   "actual": "/sales/app",
+   "at": "2026-11-03T09:56:06.978Z"
+  },
+  {
+   "id": "UI2-sellerb-mobile-R1",
+   "title": "rates 905000/12650 saved from Kassam (double click)",
+   "ok": true,
+   "expected": {
+    "lom": 905000,
+    "usd": 12650
+   },
+   "actual": {
+    "lom_rate_uzs": 905000,
+    "usd_rate_uzs": 12650,
+    "history_added": 1
+   },
+   "at": "2026-11-03T09:56:23.076Z"
+  },
+  {
+   "id": "UI2-sellerb-mobile-R2",
+   "title": "out-of-range LOM 5,000,000 refused by the server, error shown, rate unchanged",
+   "ok": true,
+   "expected": {
+    "lom": 905000,
+    "message": "shown"
+   },
+   "actual": {
+    "lom": 905000,
+    "message": "ERR_RATE_OUT_OF_RANGE: LOM kursi (UZS/g) 5000000 ruxsat etilgan oraliqdan tashqar"
+   },
+   "at": "2026-11-03T09:56:25.879Z"
+  },
+  {
+   "id": "UI2-sellerb-mobile-C",
+   "title": "customer \"UI B mijoz 1 (sintetik)\" created in the UI (double click -> one row, own seller)",
+   "ok": true,
+   "expected": {
+    "rows": 1,
+    "seller": "sellerb"
+   },
+   "actual": [
+    {
+     "id": "192f7056-e7be-4fc7-ba22-1f56ef29ddd9",
+     "customer_code": "CUST-0061",
+     "seller_id": "3e86e1ef-36ca-4f6c-9e57-61214feab642",
+     "organization_id": "a5d17075-0000-4000-8000-202611030075"
+    }
+   ],
+   "record_id": "192f7056-e7be-4fc7-ba22-1f56ef29ddd9",
+   "at": "2026-11-03T09:56:34.215Z"
+  },
+  {
+   "id": "UI2-sellerb-mobile-S1",
+   "title": "scan sale of the 4.17 g piece @14% (double click): one sale, due 4.7538 g, piece sold, seller stock -4.17",
+   "ok": true,
+   "expected": {
+    "sales": 1,
+    "due": 4.7538,
+    "stock_delta": -4.17
+   },
+   "actual": {
+    "sales": 1,
+    "due": 4.7538,
+    "stock_delta": -4.17,
+    "rpc_calls": [
+     200
+    ]
+   },
+   "record_id": "18442f06-7f58-4176-a8fc-7fda43173508",
+   "sale_no": "SALE-BC-72EDCB66",
+   "at": "2026-11-03T09:56:51.452Z"
+  },
+  {
+   "id": "UI2-sellerb-mobile-S2",
+   "title": "receipt (kvitansiya) shown after the scan sale",
+   "ok": true,
+   "expected": "visible",
+   "actual": true,
+   "at": "2026-11-03T09:56:51.452Z"
+  },
+  {
+   "id": "UI2-sellerb-mobile-W",
+   "title": "weight sale 2.5 g @12% cut from the chosen 9.43 g piece (double click -> one sale)",
+   "ok": true,
+   "expected": {
+    "sales": 1,
+    "due": 2.8,
+    "piece_left": 6.93
+   },
+   "actual": {
+    "sales": 1,
+    "due": 2.8,
+    "alloc": [
+     {
+      "piece_id": "6add5dc0-c005-4970-ae60-c070e1cfa796",
+      "grams": 2.5
+     }
+    ],
+    "piece_left": 6.93
+   },
+   "record_id": "a2746326-eff1-4479-882f-1889ba3432ee",
+   "sale_no": "SALE-W-20261103-F5176D",
+   "at": "2026-11-03T09:57:02.244Z"
+  },
+  {
+   "id": "UI2-sellerb-mobile-F",
+   "title": "session survives a refresh",
+   "ok": true,
+   "expected": "logged in",
+   "actual": "/sales/app/customers",
+   "at": "2026-11-03T09:57:07.216Z"
+  },
+  {
+   "id": "UIPAY-sellerb-mobile-a",
+   "title": "payment form pre-fill: LOM rate = seller's own 905000, USD rate = seller's own 12650; submitting as pre-filled records the payment",
+   "ok": false,
+   "expected": {
+    "form_lom": 905000,
+    "form_usd": 12650,
+    "payment": 1
+   },
+   "actual": {
+    "form_lom": "900000",
+    "form_usd": "(empty)",
+    "preview": "Jami hisobdan o'chiriladigan:2.01 g",
+    "payment_rows": 0,
+    "rpc": [
+     [
+      403,
+      "ERR_RATE_MISMATCH: Sizning joriy LOM kursingiz 905000.00 UZS/g. Yuborilgan kurs: 900000 UZS/g. Sahifani yangilang."
+     ]
+    ],
+    "browser_invalid_fields": [],
+    "message": "xatolik: ERR_RATE_MISMATCH: Sizning joriy LOM kursingiz 905000.00 UZS/g. Yuborilgan kurs: 900000 "
+   },
+   "at": "2026-11-03T09:58:27.822Z"
+  },
+  {
+   "id": "UIPAY-sellerb-mobile-b",
+   "title": "with own rates typed by hand the payment is recorded: 2 g",
+   "ok": true,
+   "expected": {
+    "payment": 1,
+    "grams": 2
+   },
+   "actual": {
+    "payment_rows": 1,
+    "grams": 2,
+    "rpc": [
+     [
+      200,
+      null
+     ]
+    ],
+    "invalid": []
+   },
+   "record_id": "bccb9dfe-e143-43e8-a9f5-f6b62325f02d",
+   "settlement_no": "SETTL-29976A5C",
+   "at": "2026-11-03T09:58:40.040Z"
+  },
+  {
+   "id": "UIPAY-sellerb-mobile-d",
+   "title": "customer debt after the payment = 5.5538 g",
+   "ok": true,
+   "expected": 5.5538,
+   "actual": 5.5538,
+   "at": "2026-11-03T09:58:40.282Z"
+  },
+  {
+   "id": "UI2-sellerc-desktop-L",
+   "title": "sellerc logs in (desktop)",
+   "ok": true,
+   "expected": "/sales/app",
+   "actual": "/sales/app",
+   "at": "2026-11-03T09:59:06.791Z"
+  },
+  {
+   "id": "UI2-sellerc-desktop-R1",
+   "title": "rates 895000/12550 saved from Kassam (double click)",
+   "ok": true,
+   "expected": {
+    "lom": 895000,
+    "usd": 12550
+   },
+   "actual": {
+    "lom_rate_uzs": 895000,
+    "usd_rate_uzs": 12550,
+    "history_added": 1
+   },
+   "at": "2026-11-03T09:59:21.225Z"
+  },
+  {
+   "id": "UI2-sellerc-desktop-R2",
+   "title": "out-of-range LOM 5,000,000 refused by the server, error shown, rate unchanged",
+   "ok": true,
+   "expected": {
+    "lom": 895000,
+    "message": "shown"
+   },
+   "actual": {
+    "lom": 895000,
+    "message": "ERR_RATE_OUT_OF_RANGE: LOM kursi (UZS/g) 5000000 ruxsat etilgan oraliqdan tashqar"
+   },
+   "at": "2026-11-03T09:59:24.018Z"
+  },
+  {
+   "id": "UI2-sellerc-desktop-C",
+   "title": "customer \"UI C mijoz 1 (sintetik)\" created in the UI (double click -> one row, own seller)",
+   "ok": true,
+   "expected": {
+    "rows": 1,
+    "seller": "sellerc"
+   },
+   "actual": [
+    {
+     "id": "a2e90138-14e8-4824-9e47-32f56e3cf6e0",
+     "customer_code": "CUST-0062",
+     "seller_id": "ad71cd7a-23f8-4fe3-9b3b-6781a9524b3e",
+     "organization_id": "a5d17075-0000-4000-8000-202611030075"
+    }
+   ],
+   "record_id": "a2e90138-14e8-4824-9e47-32f56e3cf6e0",
+   "at": "2026-11-03T09:59:32.707Z"
+  },
+  {
+   "id": "UI2-sellerc-desktop-S1",
+   "title": "scan sale of the 4.61 g piece @13% (double click): one sale, due 5.2093 g, piece sold, seller stock -4.61",
+   "ok": true,
+   "expected": {
+    "sales": 1,
+    "due": 5.2093,
+    "stock_delta": -4.61
+   },
+   "actual": {
+    "sales": 1,
+    "due": 5.2093,
+    "stock_delta": -4.61,
+    "rpc_calls": [
+     200
+    ]
+   },
+   "record_id": "b69e729a-721b-44a6-a30e-f35955a28599",
+   "sale_no": "SALE-BC-3C07589C",
+   "at": "2026-11-03T09:59:50.413Z"
+  },
+  {
+   "id": "UI2-sellerc-desktop-S2",
+   "title": "receipt (kvitansiya) shown after the scan sale",
+   "ok": true,
+   "expected": "visible",
+   "actual": true,
+   "at": "2026-11-03T09:59:50.413Z"
+  },
+  {
+   "id": "UI2-sellerc-desktop-W",
+   "title": "weight sale 2 g @10% cut from the chosen 7.91 g piece (double click -> one sale)",
+   "ok": true,
+   "expected": {
+    "sales": 1,
+    "due": 2.2,
+    "piece_left": 5.91
+   },
+   "actual": {
+    "sales": 1,
+    "due": 2.2,
+    "alloc": [
+     {
+      "piece_id": "64a72c90-243d-44d4-8d15-fad0b58c325e",
+      "grams": 2
+     }
+    ],
+    "piece_left": 5.91
+   },
+   "record_id": "121ab08e-9214-45f9-a089-4f4273f791e7",
+   "sale_no": "SALE-W-20261103-86EE16",
+   "at": "2026-11-03T10:00:01.997Z"
+  },
+  {
+   "id": "UI2-sellerc-desktop-F",
+   "title": "session survives a refresh",
+   "ok": true,
+   "expected": "logged in",
+   "actual": "/sales/app/customers",
+   "at": "2026-11-03T10:00:06.740Z"
+  },
+  {
+   "id": "UI2-sellerc-desktop-O",
+   "title": "logout ends the session (protected page goes to login)",
+   "ok": true,
+   "expected": "/sales/login",
+   "actual": "/sales/login?redirectedFrom=%2Fsales%2Fapp",
+   "at": "2026-11-03T10:00:11.728Z"
+  },
+  {
+   "id": "UI2-sellerc-desktop-E",
+   "title": "sellerc session: no unexpected failed API call",
+   "ok": true,
+   "expected": [],
+   "actual": [
+    "400 /rest/v1/rpc/rpc_set_my_seller_rates"
+   ],
+   "at": "2026-11-03T10:00:11.729Z"
+  },
+  {
+   "id": "UIPAY-sellerc-desktop-try1-a",
+   "title": "payment form pre-fill: LOM rate = seller's own 895000, USD rate = seller's own 12550; submitting as pre-filled records the payment",
+   "ok": false,
+   "expected": {
+    "form_lom": 895000,
+    "form_usd": 12550,
+    "payment": 1
+   },
+   "actual": {
+    "form_lom": "900000",
+    "form_usd": "(empty)",
+    "preview": "Jami hisobdan o'chiriladigan:2.50 g",
+    "payment_rows": 0,
+    "rpc": [],
+    "browser_invalid_fields": [
+     "0"
+    ],
+    "message": ""
+   },
+   "at": "2026-11-03T10:00:34.320Z",
+   "note": "cash 447500 blocked by the browser: input step=1000 (finding F-UI-2)"
+  },
+  {
+   "id": "UIPAY-sellerc-desktop-try1-b",
+   "title": "with own rates typed by hand the payment is recorded: 3.2011 g",
+   "ok": false,
+   "expected": {
+    "payment": 1,
+    "grams": 3.2011
+   },
+   "actual": {
+    "payment_rows": 0,
+    "rpc": [],
+    "invalid": [
+     "0"
+    ]
+   },
+   "at": "2026-11-03T10:00:47.740Z",
+   "note": "cash 447500 blocked by the browser: input step=1000 (finding F-UI-2)"
+  },
+  {
+   "id": "UIPAY-sellerc-desktop-a",
+   "title": "payment form pre-fill: LOM rate = seller's own 895000, USD rate = seller's own 12550; submitting as pre-filled records the payment",
+   "ok": false,
+   "expected": {
+    "form_lom": 895000,
+    "form_usd": 12550,
+    "payment": 1
+   },
+   "actual": {
+    "form_lom": "900000",
+    "form_usd": "(empty)",
+    "preview": "Jami hisobdan o'chiriladigan:2.50 g",
+    "payment_rows": 0,
+    "rpc": [],
+    "browser_invalid_fields": [],
+    "message": "xatolik: USD to'lovi uchun USD kursi (UZS/$) kiritilishi shart! Iltimos, kursni kiriting.Mijozlar"
+   },
+   "at": "2026-11-03T10:01:29.461Z"
+  },
+  {
+   "id": "UIPAY-sellerc-desktop-b",
+   "title": "with own rates typed by hand the payment is recorded: 3.2017 g",
+   "ok": true,
+   "expected": {
+    "payment": 1,
+    "grams": 3.2017
+   },
+   "actual": {
+    "payment_rows": 1,
+    "grams": 3.2017,
+    "rpc": [
+     [
+      200,
+      null
+     ]
+    ],
+    "invalid": []
+   },
+   "record_id": "7aee375b-a140-45e9-990e-830b8f325543",
+   "settlement_no": "SETTL-B59417C2",
+   "at": "2026-11-03T10:01:43.201Z"
+  },
+  {
+   "id": "UIPAY-sellerc-desktop-d",
+   "title": "customer debt after the payment = 4.2076 g",
+   "ok": true,
+   "expected": 4.2076,
+   "actual": 4.2076,
+   "at": "2026-11-03T10:01:43.558Z"
+  },
+  {
+   "id": "UI3-try1-H-sellera",
+   "title": "manager receives sellera's till in the UI (double click): settled = captured 4.3276 g, till 0, vault +cash/+USD",
+   "ok": false,
+   "expected": {
+    "settled": 4.3276,
+    "till_after": 0,
+    "vault_cash_delta": 890000,
+    "vault_usd_delta": 100
+   },
+   "actual": {
+    "settled": 0,
+    "till_after": [
+     890000,
+     100,
+     1.9231
+    ],
+    "vault_cash_delta": 0,
+    "vault_usd_delta": 0,
+    "prefilled_form": [
+     "2",
+     "448000",
+     "50",
+     ""
+    ],
+    "rpc": []
+   },
+   "at": "2026-11-03T10:03:13.710Z",
+   "note": "try 1: card selector opened seller C for every seller; USD rate field empty (CBU 503) blocked submit; journal row looked up by sale number (column not shown)"
+  },
+  {
+   "id": "UI3-try1-H-sellerb",
+   "title": "manager receives sellerb's till in the UI (double click): settled = captured 2 g, till 0, vault +cash/+USD",
+   "ok": false,
+   "expected": {
+    "settled": 2,
+    "till_after": 0,
+    "vault_cash_delta": 1810000,
+    "vault_usd_delta": 0
+   },
+   "actual": {
+    "settled": 0,
+    "till_after": [
+     1810000,
+     0,
+     0
+    ],
+    "vault_cash_delta": 0,
+    "vault_usd_delta": 0,
+    "prefilled_form": [
+     "2",
+     "448000",
+     "50",
+     ""
+    ],
+    "rpc": []
+   },
+   "at": "2026-11-03T10:03:25.913Z",
+   "note": "try 1: card selector opened seller C for every seller; USD rate field empty (CBU 503) blocked submit; journal row looked up by sale number (column not shown)"
+  },
+  {
+   "id": "UI3-try1-H-sellerc",
+   "title": "manager receives sellerc's till in the UI (double click): settled = captured 3.2017 g, till 0, vault +cash/+USD",
+   "ok": false,
+   "expected": {
+    "settled": 3.2017,
+    "till_after": 0,
+    "vault_cash_delta": 448000,
+    "vault_usd_delta": 50
+   },
+   "actual": {
+    "settled": 0,
+    "till_after": [
+     448000,
+     50,
+     2
+    ],
+    "vault_cash_delta": 0,
+    "vault_usd_delta": 0,
+    "prefilled_form": [
+     "2",
+     "448000",
+     "50",
+     ""
+    ],
+    "rpc": []
+   },
+   "at": "2026-11-03T10:03:38.406Z",
+   "note": "try 1: card selector opened seller C for every seller; USD rate field empty (CBU 503) blocked submit; journal row looked up by sale number (column not shown)"
+  },
+  {
+   "id": "UI3-try1-REV",
+   "title": "manager reverses seller B's scan sale SALE-BC-72EDCB66 in the daily journal: sale reversed, piece back with the seller, customer net -4.7538 g",
+   "ok": false,
+   "expected": {
+    "status": "reversed",
+    "piece": "held_by_seller",
+    "net_delta": -4.7538
+   },
+   "actual": {
+    "row_found": 0,
+    "status": "open_debt",
+    "piece": {
+     "status": "sold",
+     "weight_grams": 4.17
+    },
+    "net_delta": 0
+   },
+   "record_id": "18442f06-7f58-4176-a8fc-7fda43173508",
+   "at": "2026-11-03T10:03:47.589Z",
+   "note": "try 1: card selector opened seller C for every seller; USD rate field empty (CBU 503) blocked submit; journal row looked up by sale number (column not shown)"
+  },
+  {
+   "id": "UI3-C",
+   "title": "manager creates a customer for seller C in the UI",
+   "ok": true,
+   "expected": {
+    "rows": 1,
+    "seller": "sellerc"
+   },
+   "actual": [
+    {
+     "id": "f11ec509-25af-495e-aa3b-7eb5a93867a9",
+     "customer_code": "CUST-0063",
+     "seller_id": "ad71cd7a-23f8-4fe3-9b3b-6781a9524b3e"
+    }
+   ],
+   "record_id": "f11ec509-25af-495e-aa3b-7eb5a93867a9",
+   "at": "2026-11-03T10:03:55.536Z"
+  },
+  {
+   "id": "UI3-PG/sales/app",
+   "title": "manager /sales/app loads without failed API calls",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T10:03:59.851Z"
+  },
+  {
+   "id": "UI3-PG/sales/app/reports",
+   "title": "manager /sales/app/reports loads without failed API calls",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T10:04:04.795Z"
+  },
+  {
+   "id": "UI3-PG/sales/app/cash",
+   "title": "manager /sales/app/cash loads without failed API calls",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T10:04:08.892Z"
+  },
+  {
+   "id": "UI3-PG/sales/app/inventory",
+   "title": "manager /sales/app/inventory loads without failed API calls",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T10:04:12.924Z"
+  },
+  {
+   "id": "UI3-PG/sales/app/factory",
+   "title": "manager /sales/app/factory loads without failed API calls",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T10:04:16.989Z"
+  },
+  {
+   "id": "UI3-H-sellerb",
+   "title": "manager receives sellerb's till in the UI (as pre-filled, double click): settled = captured 2 g, till 0, vault +cash/+USD",
+   "ok": true,
+   "expected": {
+    "settled": 2,
+    "till_after": 0,
+    "vault_cash_delta": 1810000,
+    "vault_usd_delta": 0
+   },
+   "actual": {
+    "card_opened": true,
+    "settled": 2,
+    "till_after": [
+     0,
+     0,
+     0
+    ],
+    "vault_cash_delta": 1810000,
+    "vault_usd_delta": 0,
+    "rpc": [
+     [
+      200,
+      "ok"
+     ]
+    ]
+   },
+   "record_id": "a3b3715a-800b-405a-a669-db21f7ea3721",
+   "at": "2026-11-03T10:06:07.589Z"
+  },
+  {
+   "id": "UI3-H-sellera-a",
+   "title": "sellera till with USD: submitting the pre-filled handover form",
+   "ok": false,
+   "expected": "submitted",
+   "actual": {
+    "usd_rate_field": "(empty, CBU unavailable)",
+    "blocked": "browser required-field validation"
+   },
+   "at": "2026-11-03T10:06:19.452Z"
+  },
+  {
+   "id": "UI3-H-sellera",
+   "title": "manager receives sellera's till in the UI (USD rate 12500 typed by the manager, double click): settled = captured 4.3276 g, till 0, vault +cash/+USD",
+   "ok": true,
+   "expected": {
+    "settled": 4.3276,
+    "till_after": 0,
+    "vault_cash_delta": 890000,
+    "vault_usd_delta": 100
+   },
+   "actual": {
+    "card_opened": true,
+    "settled": 4.3276,
+    "till_after": [
+     0,
+     0,
+     0
+    ],
+    "vault_cash_delta": 890000,
+    "vault_usd_delta": 100,
+    "rpc": [
+     [
+      200,
+      "ok"
+     ]
+    ]
+   },
+   "record_id": "9c8a5138-925f-4922-bf44-e2324a2a5c85",
+   "at": "2026-11-03T10:06:25.091Z"
+  },
+  {
+   "id": "UI3-H-sellerc-a",
+   "title": "sellerc till with USD: submitting the pre-filled handover form",
+   "ok": false,
+   "expected": "submitted",
+   "actual": {
+    "usd_rate_field": "(empty, CBU unavailable)",
+    "blocked": "browser required-field validation"
+   },
+   "at": "2026-11-03T10:06:35.148Z"
+  },
+  {
+   "id": "UI3-H-sellerc",
+   "title": "manager receives sellerc's till in the UI (USD rate 12550 typed by the manager, double click): settled = captured 3.2017 g, till 0, vault +cash/+USD",
+   "ok": true,
+   "expected": {
+    "settled": 3.2017,
+    "till_after": 0,
+    "vault_cash_delta": 448000,
+    "vault_usd_delta": 50
+   },
+   "actual": {
+    "card_opened": true,
+    "settled": 3.2017,
+    "till_after": [
+     0,
+     0,
+     0
+    ],
+    "vault_cash_delta": 448000,
+    "vault_usd_delta": 50,
+    "rpc": [
+     [
+      200,
+      "ok"
+     ]
+    ]
+   },
+   "record_id": "0f1e39bd-6412-4c9c-93d0-ea1a17b8b340",
+   "at": "2026-11-03T10:06:40.370Z"
+  },
+  {
+   "id": "UI3-REV",
+   "title": "manager reverses seller B's scan sale (UI B mijoz 1 (sintetik), 4.17 g) in the daily journal: reversed, piece back with seller B, customer net -4.7538 g",
+   "ok": true,
+   "expected": {
+    "status": "reversed",
+    "piece": "held_by_seller",
+    "net_delta": -4.7538
+   },
+   "actual": {
+    "row_found": 1,
+    "status": "reversed",
+    "piece": {
+     "status": "held_by_seller",
+     "weight_grams": 4.17
+    },
+    "net_delta": -4.7538
+   },
+   "record_id": "18442f06-7f58-4176-a8fc-7fda43173508",
+   "at": "2026-11-03T10:06:56.099Z"
+  },
+  {
+   "id": "UI3-O",
+   "title": "manager logout ends the session",
+   "ok": true,
+   "expected": "/sales/login",
+   "actual": "/sales/login?redirectedFrom=%2Fsales%2Fapp",
+   "at": "2026-11-03T10:07:00.380Z"
+  },
+  {
+   "id": "UI3-D/sales/app",
+   "title": "director (mobile) /sales/app loads without failed API calls",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T10:07:12.231Z"
+  },
+  {
+   "id": "UI3-D/sales/app/customers",
+   "title": "director (mobile) /sales/app/customers loads without failed API calls",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T10:07:16.681Z"
+  },
+  {
+   "id": "UI3-D/sales/app/reports",
+   "title": "director (mobile) /sales/app/reports loads without failed API calls",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T10:07:21.197Z"
+  },
+  {
+   "id": "UI3-D/sales/app/sellers",
+   "title": "director (mobile) /sales/app/sellers loads without failed API calls",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T10:07:25.222Z"
+  },
+  {
+   "id": "UI3-D/sales/app/settings",
+   "title": "director (mobile) /sales/app/settings loads without failed API calls",
+   "ok": true,
+   "expected": [],
+   "actual": [],
+   "at": "2026-11-03T10:07:29.680Z"
+  },
+  {
+   "id": "UI3-DF",
+   "title": "director session survives refresh (mobile)",
+   "ok": true,
+   "expected": "logged in",
+   "actual": "/sales/app/settings",
+   "at": "2026-11-03T10:07:32.582Z"
+  },
+  {
+   "id": "UI4-wrong-password",
+   "title": "wrong password: stays on login, no session cookie",
+   "ok": true,
+   "expected": {
+    "url": "/sales/login",
+    "cookies": 0
+   },
+   "actual": {
+    "url": "/sales/login",
+    "cookies": 0
+   },
+   "at": "2026-11-03T10:08:53.223Z"
+  },
+  {
+   "id": "UI4-unknown-user",
+   "title": "unknown user: stays on login, no session cookie",
+   "ok": true,
+   "expected": {
+    "url": "/sales/login",
+    "cookies": 0
+   },
+   "actual": {
+    "url": "/sales/login",
+    "cookies": 0
+   },
+   "at": "2026-11-03T10:08:58.286Z"
+  },
+  {
+   "id": "UI4-anon/sales/app",
+   "title": "anonymous /sales/app -> login",
+   "ok": true,
+   "expected": "/sales/login",
+   "actual": "/sales/login?redirectedFrom=%2Fsales%2Fapp",
+   "at": "2026-11-03T10:08:59.700Z"
+  },
+  {
+   "id": "UI4-anon/sales/app/customers",
+   "title": "anonymous /sales/app/customers -> login",
+   "ok": true,
+   "expected": "/sales/login",
+   "actual": "/sales/login?redirectedFrom=%2Fsales%2Fapp%2Fcustomers",
+   "at": "2026-11-03T10:09:00.399Z"
+  },
+  {
+   "id": "UI4-anon/sales/app/sellers",
+   "title": "anonymous /sales/app/sellers -> login",
+   "ok": true,
+   "expected": "/sales/login",
+   "actual": "/sales/login?redirectedFrom=%2Fsales%2Fapp%2Fsellers",
+   "at": "2026-11-03T10:09:01.065Z"
+  },
+  {
+   "id": "UI4-menu-desktop",
+   "title": "seller menu has exactly 5 sections (desktop)",
+   "ok": true,
+   "expected": 5,
+   "actual": [
+    "/sales/app",
+    "/sales/app/customers",
+    "/sales/app/kassam",
+    "/sales/app/markup",
+    "/sales/app/scan"
+   ],
+   "at": "2026-11-03T10:09:09.234Z"
+  },
+  {
+   "id": "UI4-forbid-desktop/sales/director",
+   "title": "seller (desktop) opening /sales/director stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:09:19.935Z"
+  },
+  {
+   "id": "UI4-forbid-desktop/sales/mobile",
+   "title": "seller (desktop) opening /sales/mobile stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app/scan",
+   "at": "2026-11-03T10:09:31.919Z"
+  },
+  {
+   "id": "UI4-forbid-desktop/sales/app/factory",
+   "title": "seller (desktop) opening /sales/app/factory stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:09:42.120Z"
+  },
+  {
+   "id": "UI4-forbid-desktop/sales/app/inventory",
+   "title": "seller (desktop) opening /sales/app/inventory stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:09:53.533Z"
+  },
+  {
+   "id": "UI4-forbid-desktop/sales/app/sellers",
+   "title": "seller (desktop) opening /sales/app/sellers stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:10:04.563Z"
+  },
+  {
+   "id": "UI4-forbid-desktop/sales/app/settings",
+   "title": "seller (desktop) opening /sales/app/settings stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:10:18.368Z"
+  },
+  {
+   "id": "UI4-forbid-desktop/sales/app/users",
+   "title": "seller (desktop) opening /sales/app/users stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:10:31.760Z"
+  },
+  {
+   "id": "UI4-forbid-desktop/",
+   "title": "seller (desktop) opening / stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:10:44.051Z"
+  },
+  {
+   "id": "UI4-scan-unknown-desktop",
+   "title": "scanning a weight the seller does not hold warns and creates no sale",
+   "ok": true,
+   "expected": {
+    "new_sales": 0,
+    "warning": true
+   },
+   "actual": {
+    "new_sales": 0,
+    "warning": true
+   },
+   "at": "2026-11-03T10:11:05.535Z"
+  },
+  {
+   "id": "UI4-nopiece-desktop",
+   "title": "weight sale without choosing the source piece creates no sale",
+   "ok": true,
+   "expected": 0,
+   "actual": 0,
+   "at": "2026-11-03T10:11:14.569Z"
+  },
+  {
+   "id": "UI4-logout-desktop-try1",
+   "title": "seller logout (desktop) ends the session",
+   "ok": false,
+   "expected": "/sales/login",
+   "actual": {
+    "url": "/sales/app",
+    "via": "force"
+   },
+   "at": "2026-11-03T10:11:24.948Z",
+   "note": "the \"+ Nasiya\" dialog from the previous step was still open over the logout button (Escape does not close it); forced click landed on the overlay"
+  },
+  {
+   "id": "UI4-menu-mobile",
+   "title": "seller menu has exactly 5 sections (mobile)",
+   "ok": true,
+   "expected": 5,
+   "actual": [
+    "/sales/app",
+    "/sales/app/customers",
+    "/sales/app/kassam",
+    "/sales/app/markup",
+    "/sales/app/scan"
+   ],
+   "at": "2026-11-03T10:11:32.183Z"
+  },
+  {
+   "id": "UI4-forbid-mobile/sales/director",
+   "title": "seller (mobile) opening /sales/director stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:11:43.277Z"
+  },
+  {
+   "id": "UI4-forbid-mobile/sales/mobile",
+   "title": "seller (mobile) opening /sales/mobile stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app/scan",
+   "at": "2026-11-03T10:11:54.988Z"
+  },
+  {
+   "id": "UI4-forbid-mobile/sales/app/factory",
+   "title": "seller (mobile) opening /sales/app/factory stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:12:06.129Z"
+  },
+  {
+   "id": "UI4-forbid-mobile/sales/app/inventory",
+   "title": "seller (mobile) opening /sales/app/inventory stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:12:18.553Z"
+  },
+  {
+   "id": "UI4-forbid-mobile/sales/app/sellers",
+   "title": "seller (mobile) opening /sales/app/sellers stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:12:28.753Z"
+  },
+  {
+   "id": "UI4-forbid-mobile/sales/app/settings",
+   "title": "seller (mobile) opening /sales/app/settings stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:12:39.373Z"
+  },
+  {
+   "id": "UI4-forbid-mobile/sales/app/users",
+   "title": "seller (mobile) opening /sales/app/users stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:12:50.520Z"
+  },
+  {
+   "id": "UI4-forbid-mobile/",
+   "title": "seller (mobile) opening / stays inside the seller area",
+   "ok": true,
+   "expected": "seller area",
+   "actual": "/sales/app",
+   "at": "2026-11-03T10:13:01.112Z"
+  },
+  {
+   "id": "UI4-scan-unknown-mobile",
+   "title": "scanning a weight the seller does not hold warns and creates no sale",
+   "ok": true,
+   "expected": {
+    "new_sales": 0,
+    "warning": true
+   },
+   "actual": {
+    "new_sales": 0,
+    "warning": true
+   },
+   "at": "2026-11-03T10:13:22.329Z"
+  },
+  {
+   "id": "UI4-nopiece-mobile",
+   "title": "weight sale without choosing the source piece creates no sale",
+   "ok": true,
+   "expected": 0,
+   "actual": 0,
+   "at": "2026-11-03T10:13:30.878Z"
+  },
+  {
+   "id": "UI4-logout-mobile-try1",
+   "title": "seller logout (mobile) ends the session",
+   "ok": false,
+   "expected": "/sales/login",
+   "actual": {
+    "url": "/sales/app",
+    "via": "force"
+   },
+   "at": "2026-11-03T10:13:45.806Z",
+   "note": "the \"+ Nasiya\" dialog from the previous step was still open over the logout button (Escape does not close it); forced click landed on the overlay"
+  },
+  {
+   "id": "UI4-logout-director-mobile",
+   "title": "director logout (mobile) ends the session",
+   "ok": true,
+   "expected": "/sales/login",
+   "actual": {
+    "url": "/sales/login?redirectedFrom=%2Fsales%2Fapp",
+    "via": "click"
+   },
+   "at": "2026-11-03T10:14:02.975Z"
+  },
+  {
+   "id": "UI4-orgB-sellerB1",
+   "title": "sellerB1 (other organization) sees none of organization A's customers in the UI",
+   "ok": true,
+   "expected": 0,
+   "actual": {
+    "leaked": []
+   },
+   "at": "2026-11-03T10:14:15.658Z"
+  },
+  {
+   "id": "UI4-orgB-directorB",
+   "title": "directorB (other organization) sees none of organization A's customers in the UI",
+   "ok": true,
+   "expected": 0,
+   "actual": {
+    "leaked": []
+   },
+   "at": "2026-11-03T10:14:27.584Z"
+  },
+  {
+   "id": "UI4-worker",
+   "title": "worker login sees no customer data",
+   "ok": true,
+   "expected": "no data",
+   "actual": {
+    "landed": "/sales/app",
+    "customers_page": "/sales/app/customers",
+    "visible_org_A_customers": 0
+   },
+   "at": "2026-11-03T10:14:41.047Z"
+  },
+  {
+   "id": "UI4-noemp",
+   "title": "noemp login sees no customer data",
+   "ok": true,
+   "expected": "no data",
+   "actual": {
+    "landed": "/sales/app",
+    "customers_page": "/sales/app/customers",
+    "visible_org_A_customers": 0
+   },
+   "at": "2026-11-03T10:14:54.243Z"
+  },
+  {
+   "id": "UI4-logout-sellerc-desktop",
+   "title": "sellerc logout (desktop) from a clean page ends the session",
+   "ok": true,
+   "expected": {
+    "url": "/sales/login",
+    "cookies": 0
+   },
+   "actual": {
+    "clicked": true,
+    "url": "/sales/login?redirectedFrom=%2Fsales%2Fapp",
+    "cookies": 0
+   },
+   "at": "2026-11-03T10:16:57.012Z"
+  },
+  {
+   "id": "UI4-logout-sellerb-mobile",
+   "title": "sellerb logout (mobile) from a clean page ends the session",
+   "ok": true,
+   "expected": {
+    "url": "/sales/login",
+    "cookies": 0
+   },
+   "actual": {
+    "clicked": true,
+    "url": "/sales/login?redirectedFrom=%2Fsales%2Fapp",
+    "cookies": 0
+   },
+   "at": "2026-11-03T10:17:19.209Z"
+  },
+  {
+   "id": "UI4-logout-sellera-mobile",
+   "title": "sellera logout (mobile) from a clean page ends the session",
+   "ok": true,
+   "expected": {
+    "url": "/sales/login",
+    "cookies": 0
+   },
+   "actual": {
+    "clicked": true,
+    "url": "/sales/login?redirectedFrom=%2Fsales%2Fapp",
+    "cookies": 0
+   },
+   "at": "2026-11-03T10:17:41.894Z"
+  },
+  {
+   "id": "UI4-logout-manager-mobile",
+   "title": "manager logout (mobile) from a clean page ends the session",
+   "ok": true,
+   "expected": {
+    "url": "/sales/login",
+    "cookies": 0
+   },
+   "actual": {
+    "clicked": true,
+    "url": "/sales/login?redirectedFrom=%2Fsales%2Fapp",
+    "cookies": 0
+   },
+   "at": "2026-11-03T10:17:58.334Z"
+  }
+ ],
+ "notes": [
+  {
+   "attempt": "UI2-sellera-desktop attempt 1 stopped at the \"+ Nasiya\" selector (hidden mobile card on desktop); its passed checks and the scan sale stay in the evidence; rerun continues with a new customer and the 6.23 g piece"
+  },
+  {
+   "attempt": "UI2-sellera-desktop attempt 2 crashed after submitting the payment (harness read a non-existent column gold_settlements.rate_applied); DB shows NO settlement was recorded -> investigated in ui-pay.js"
+  },
+  {
+   "attempt": "UI3b director mobile logout: the 🚪 button was covered (click timeout) -> repeated in UI4 with a fallback"
+  }
+ ],
+ "pieces": {
+  "sellera": [
+   {
+    "id": "c1de6321-949e-4a10-b518-98e0e3d9b901",
+    "weight_grams": 5.11,
+    "model_code": "UIM-1",
+    "consignment_id": "449ced17-9435-4732-9d46-25f34c4823bf"
+   },
+   {
+    "id": "5398d635-0465-4320-9237-5c7922b829d1",
+    "weight_grams": 6.23,
+    "model_code": "UIM-1",
+    "consignment_id": "449ced17-9435-4732-9d46-25f34c4823bf"
+   },
+   {
+    "id": "ab9e0ff8-8879-4f82-b780-b9d73a152b84",
+    "weight_grams": 7.37,
+    "model_code": "UIM-1",
+    "consignment_id": "449ced17-9435-4732-9d46-25f34c4823bf"
+   },
+   {
+    "id": "01c76191-df1c-4678-9e7c-60894014b5d9",
+    "weight_grams": 8.41,
+    "model_code": "UIM-1",
+    "consignment_id": "449ced17-9435-4732-9d46-25f34c4823bf"
+   },
+   {
+    "id": "839257d7-f60d-4ae5-8760-7396f9b34efc",
+    "weight_grams": 12.53,
+    "model_code": "UIM-1",
+    "consignment_id": "449ced17-9435-4732-9d46-25f34c4823bf"
+   },
+   {
+    "id": "f480c1f3-f5b3-43e7-b116-d9fa89b8df5d",
+    "weight_grams": 3.29,
+    "model_code": "UIM-1",
+    "consignment_id": "449ced17-9435-4732-9d46-25f34c4823bf"
+   }
+  ],
+  "sellerb": [
+   {
+    "id": "c3c7a743-a723-44b2-8275-694f24ec9075",
+    "weight_grams": 4.17,
+    "model_code": "UIM-1",
+    "consignment_id": "0b553c80-d7ff-45b7-9e7c-27205b129fdc"
+   },
+   {
+    "id": "78163b35-09ca-4818-a89a-4ca2a22245d8",
+    "weight_grams": 5.29,
+    "model_code": "UIM-1",
+    "consignment_id": "0b553c80-d7ff-45b7-9e7c-27205b129fdc"
+   },
+   {
+    "id": "24c152bf-a0b2-41b9-a424-a5a7d0ab6292",
+    "weight_grams": 6.31,
+    "model_code": "UIM-1",
+    "consignment_id": "0b553c80-d7ff-45b7-9e7c-27205b129fdc"
+   },
+   {
+    "id": "6add5dc0-c005-4970-ae60-c070e1cfa796",
+    "weight_grams": 9.43,
+    "model_code": "UIM-1",
+    "consignment_id": "0b553c80-d7ff-45b7-9e7c-27205b129fdc"
+   }
+  ],
+  "sellerc": [
+   {
+    "id": "e19f6b59-b403-4e14-bc8b-e0465015c7e8",
+    "weight_grams": 4.61,
+    "model_code": "UIM-1",
+    "consignment_id": "fadfef46-17e3-4563-968a-f8bc56cd59b0"
+   },
+   {
+    "id": "85491cf8-028c-4e55-b5e0-0094395c24ae",
+    "weight_grams": 5.73,
+    "model_code": "UIM-1",
+    "consignment_id": "fadfef46-17e3-4563-968a-f8bc56cd59b0"
+   },
+   {
+    "id": "28167464-f73c-4004-bfb0-4089b5261f28",
+    "weight_grams": 6.87,
+    "model_code": "UIM-1",
+    "consignment_id": "fadfef46-17e3-4563-968a-f8bc56cd59b0"
+   },
+   {
+    "id": "64a72c90-243d-44d4-8d15-fad0b58c325e",
+    "weight_grams": 7.91,
+    "model_code": "UIM-1",
+    "consignment_id": "fadfef46-17e3-4563-968a-f8bc56cd59b0"
+   }
+  ]
+ },
+ "ops": [
+  {
+   "op": "scan_sale",
+   "ui": "UI2-sellera-desktop (attempt 1, stopped later at a selector)",
+   "customer": "b16538bb-4f76-4e43-94e6-a322fcc005c2",
+   "sale_id": "7d9e400d-cfc4-45d8-b182-6cb0abde16a4",
+   "sale_no": "SALE-BC-F20B85D4",
+   "piece_g": 5.11,
+   "markup": 12,
+   "expected_due": 5.7232,
+   "actual_due": 5.7232
+  },
+  {
+   "op": "scan_sale",
+   "ui": "UI2-sellera-desktop",
+   "customer": "6b03021d-56dc-4ef4-b737-8f5e0d65ec5c",
+   "sale_id": "9d35d0d8-a7dd-4cff-ada1-1a6f8096278b",
+   "sale_no": "SALE-BC-DF4CE5C4",
+   "piece_g": 6.23,
+   "markup": 12,
+   "expected_due": 6.9776,
+   "actual_due": 6.9776
+  },
+  {
+   "op": "weight_sale",
+   "ui": "UI2-sellera-desktop",
+   "customer": "6b03021d-56dc-4ef4-b737-8f5e0d65ec5c",
+   "sale_id": "86b28a0e-fae7-43de-8634-a919b4fed990",
+   "sale_no": "SALE-W-20261103-B5538F",
+   "grams": 3,
+   "piece": "839257d7-f60d-4ae5-8760-7396f9b34efc",
+   "markup": 15,
+   "expected_due": 3.45,
+   "actual_due": 3.45
+  },
+  {
+   "op": "payment",
+   "ui": "UIPAY-sellera-desktop",
+   "customer": "6b03021d-56dc-4ef4-b737-8f5e0d65ec5c",
+   "settlement_id": "137f6f8f-0c80-4772-92e6-ffbea3d707c5",
+   "settlement_no": "SETTL-F7C92AED",
+   "cash": 890000,
+   "usd": 100,
+   "scrap_g": 1.5,
+   "proba": 750,
+   "rate": 890000,
+   "usd_rate": 12500,
+   "expected_grams": 4.3276,
+   "actual_grams": 4.3276,
+   "note": "rates typed by hand",
+   "handed_over": true
+  },
+  {
+   "op": "scan_sale",
+   "ui": "UI2-sellerb-mobile",
+   "customer": "192f7056-e7be-4fc7-ba22-1f56ef29ddd9",
+   "sale_id": "18442f06-7f58-4176-a8fc-7fda43173508",
+   "sale_no": "SALE-BC-72EDCB66",
+   "piece_g": 4.17,
+   "markup": 14,
+   "expected_due": 4.7538,
+   "actual_due": 4.7538
+  },
+  {
+   "op": "weight_sale",
+   "ui": "UI2-sellerb-mobile",
+   "customer": "192f7056-e7be-4fc7-ba22-1f56ef29ddd9",
+   "sale_id": "a2746326-eff1-4479-882f-1889ba3432ee",
+   "sale_no": "SALE-W-20261103-F5176D",
+   "grams": 2.5,
+   "piece": "6add5dc0-c005-4970-ae60-c070e1cfa796",
+   "markup": 12,
+   "expected_due": 2.8,
+   "actual_due": 2.8
+  },
+  {
+   "op": "payment",
+   "ui": "UIPAY-sellerb-mobile",
+   "customer": "192f7056-e7be-4fc7-ba22-1f56ef29ddd9",
+   "settlement_id": "bccb9dfe-e143-43e8-a9f5-f6b62325f02d",
+   "settlement_no": "SETTL-29976A5C",
+   "cash": 1810000,
+   "usd": 0,
+   "scrap_g": 0,
+   "proba": 585,
+   "rate": 905000,
+   "usd_rate": 12650,
+   "expected_grams": 2,
+   "actual_grams": 2,
+   "note": "rates typed by hand",
+   "handed_over": true
+  },
+  {
+   "op": "scan_sale",
+   "ui": "UI2-sellerc-desktop",
+   "customer": "a2e90138-14e8-4824-9e47-32f56e3cf6e0",
+   "sale_id": "b69e729a-721b-44a6-a30e-f35955a28599",
+   "sale_no": "SALE-BC-3C07589C",
+   "piece_g": 4.61,
+   "markup": 13,
+   "expected_due": 5.2093,
+   "actual_due": 5.2093
+  },
+  {
+   "op": "weight_sale",
+   "ui": "UI2-sellerc-desktop",
+   "customer": "a2e90138-14e8-4824-9e47-32f56e3cf6e0",
+   "sale_id": "121ab08e-9214-45f9-a089-4f4273f791e7",
+   "sale_no": "SALE-W-20261103-86EE16",
+   "grams": 2,
+   "piece": "64a72c90-243d-44d4-8d15-fad0b58c325e",
+   "markup": 10,
+   "expected_due": 2.2,
+   "actual_due": 2.2
+  },
+  {
+   "op": "payment",
+   "ui": "UIPAY-sellerc-desktop",
+   "customer": "a2e90138-14e8-4824-9e47-32f56e3cf6e0",
+   "settlement_id": "7aee375b-a140-45e9-990e-830b8f325543",
+   "settlement_no": "SETTL-B59417C2",
+   "cash": 448000,
+   "usd": 50,
+   "scrap_g": 2,
+   "proba": 585,
+   "rate": 895000,
+   "usd_rate": 12550,
+   "expected_grams": 3.2017,
+   "actual_grams": 3.2017,
+   "note": "rates typed by hand",
+   "handed_over": true
+  },
+  {
+   "op": "handover",
+   "ui": "UI3b",
+   "seller": "sellerb",
+   "mode": "as pre-filled",
+   "expected_grams": 2,
+   "actual_grams": 2,
+   "cash": 1810000,
+   "usd": 0,
+   "record_id": "a3b3715a-800b-405a-a669-db21f7ea3721"
+  },
+  {
+   "op": "handover",
+   "ui": "UI3b",
+   "seller": "sellera",
+   "mode": "USD rate 12500 typed by the manager",
+   "expected_grams": 4.3276,
+   "actual_grams": 4.3276,
+   "cash": 890000,
+   "usd": 100,
+   "record_id": "9c8a5138-925f-4922-bf44-e2324a2a5c85"
+  },
+  {
+   "op": "handover",
+   "ui": "UI3b",
+   "seller": "sellerc",
+   "mode": "USD rate 12550 typed by the manager",
+   "expected_grams": 3.2017,
+   "actual_grams": 3.2017,
+   "cash": 448000,
+   "usd": 50,
+   "record_id": "0f1e39bd-6412-4c9c-93d0-ea1a17b8b340"
+  },
+  {
+   "op": "reversal",
+   "ui": "UI3b",
+   "sale_id": "18442f06-7f58-4176-a8fc-7fda43173508",
+   "sale_no": "SALE-BC-72EDCB66",
+   "customer": "192f7056-e7be-4fc7-ba22-1f56ef29ddd9",
+   "expected_due_removed": 4.7538
+  }
+ ],
+ "sessions": {
+  "UI2-sellerc-desktop": {
+   "customer": "a2e90138-14e8-4824-9e47-32f56e3cf6e0",
+   "scan_sale": {
+    "id": "b69e729a-721b-44a6-a30e-f35955a28599",
+    "sale_no": "SALE-BC-3C07589C",
+    "base_weight_grams": 4.61,
+    "client_gold_due_grams": 5.2093,
+    "sale_type": "piece"
+   },
+   "weight_sale": {
+    "id": "121ab08e-9214-45f9-a089-4f4273f791e7",
+    "sale_no": "SALE-W-20261103-86EE16",
+    "client_gold_due_grams": 2.2
+   },
+   "expDebt": 7.4093
+  }
+ },
+ "reconciliation": {
+  "rows": [
+   {
+    "item": "factory_obligation_g",
+    "expected": 216,
+    "actual": 216,
+    "diff": 0
+   },
+   {
+    "item": "manager_stock_g",
+    "expected": 106.74,
+    "actual": 106.74,
+    "diff": 0
+   },
+   {
+    "item": "sellera_obligation_g",
+    "expected": 49.381,
+    "actual": 49.381,
+    "diff": 0
+   },
+   {
+    "item": "sellera_settled_g",
+    "expected": 4.3276,
+    "actual": 4.3276,
+    "diff": 0
+   },
+   {
+    "item": "sellera_owes_g",
+    "expected": 45.0534,
+    "actual": 45.0534,
+    "diff": 0
+   },
+   {
+    "item": "sellera_stock_g",
+    "expected": 28.6,
+    "actual": 28.6,
+    "diff": 0
+   },
+   {
+    "item": "sellera_till_cash",
+    "expected": 0,
+    "actual": 0,
+    "diff": 0
+   },
+   {
+    "item": "sellera_till_usd",
+    "expected": 0,
+    "actual": 0,
+    "diff": 0
+   },
+   {
+    "item": "sellerb_obligation_g",
+    "expected": 28.224,
+    "actual": 28.224,
+    "diff": 0
+   },
+   {
+    "item": "sellerb_settled_g",
+    "expected": 2,
+    "actual": 2,
+    "diff": 0
+   },
+   {
+    "item": "sellerb_owes_g",
+    "expected": 26.224,
+    "actual": 26.224,
+    "diff": 0
+   },
+   {
+    "item": "sellerb_stock_g",
+    "expected": 22.7,
+    "actual": 22.7,
+    "diff": 0
+   },
+   {
+    "item": "sellerb_till_cash",
+    "expected": 0,
+    "actual": 0,
+    "diff": 0
+   },
+   {
+    "item": "sellerb_till_usd",
+    "expected": 0,
+    "actual": 0,
+    "diff": 0
+   },
+   {
+    "item": "sellerc_obligation_g",
+    "expected": 27.632,
+    "actual": 27.632,
+    "diff": 0
+   },
+   {
+    "item": "sellerc_settled_g",
+    "expected": 3.2017,
+    "actual": 3.2017,
+    "diff": 0
+   },
+   {
+    "item": "sellerc_owes_g",
+    "expected": 24.4303,
+    "actual": 24.4303,
+    "diff": 0
+   },
+   {
+    "item": "sellerc_stock_g",
+    "expected": 18.51,
+    "actual": 18.51,
+    "diff": 0
+   },
+   {
+    "item": "sellerc_till_cash",
+    "expected": 0,
+    "actual": 0,
+    "diff": 0
+   },
+   {
+    "item": "sellerc_till_usd",
+    "expected": 0,
+    "actual": 0,
+    "diff": 0
+   },
+   {
+    "item": "customer_CUST-0059_net_g",
+    "expected": 5.7232,
+    "actual": 5.7232,
+    "diff": 0
+   },
+   {
+    "item": "customer_CUST-0060_net_g",
+    "expected": 6.1,
+    "actual": 6.1,
+    "diff": 0
+   },
+   {
+    "item": "customer_CUST-0061_net_g",
+    "expected": 0.8,
+    "actual": 0.8,
+    "diff": 0
+   },
+   {
+    "item": "customer_CUST-0062_net_g",
+    "expected": 4.2076,
+    "actual": 4.2076,
+    "diff": 0
+   },
+   {
+    "item": "manager_cash_uzs",
+    "expected": 3148000,
+    "actual": 3148000,
+    "diff": 0
+   },
+   {
+    "item": "manager_usd",
+    "expected": 150,
+    "actual": 150,
+    "diff": 0
+   }
+  ],
+  "mismatching_rows": [],
+  "operation_mismatches": [],
+  "max_gram_diff": "0.0000",
+  "at": "2026-11-03T10:18:33.751Z"
+ }
+}

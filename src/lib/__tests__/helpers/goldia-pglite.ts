@@ -47,7 +47,10 @@ export async function createGoldiaDb() {
     const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8")
       .replace(/create\s+extension\s+if\s+not\s+exists\s+"moddatetime";/gi, "-- moddatetime handled")
       .replace(/create\s+extension\s+if\s+not\s+exists\s+"pgcrypto";/gi, "-- pgcrypto handled");
-    await db.exec(sql);
+    // GOLDIA_TEST_CRLF_FROM=<version>: apply later migrations with Windows line endings (CRLF) to prove that a
+    // release run from a Windows checkout behaves identically (function bodies then differ only by \r).
+    const crlfFrom = process.env.GOLDIA_TEST_CRLF_FROM;
+    await db.exec(crlfFrom && file.slice(0, 14) > crlfFrom ? sql.replace(/\r?\n/g, "\r\n") : sql);
   }
 
   const asAdmin = () => db.exec(`RESET ROLE;`);
