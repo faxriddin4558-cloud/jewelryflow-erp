@@ -1,0 +1,29 @@
+{
+ "console": [
+  "Access to fetch at 'http://localhost:3200/sales/login?redirectedFrom=%2Fsales%2Fmobile' (redirected from 'http://127.0.0.1:3200/sales/mobile?_rsc=haeaztK3yC4tVrGJ') from origin 'http://127.0.0.1:3200'",
+  "Failed to load resource: net::ERR_FAILED",
+  "Failed to fetch RSC payload for http://127.0.0.1:3200/sales/mobile. Falling back to browser navigation. TypeError: Failed to fetch\n    at y (http://127.0.0.1:3200/_next/static/chunks/1255-7316b50163a4",
+  "Failed to load resource: the server responded with a status of 404 ()",
+  "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+  "Failed to load resource: the server responded with a status of 404 ()",
+  "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+  "Failed to load resource: the server responded with a status of 404 ()",
+  "Failed to load resource: the server responded with a status of 404 ()",
+  "Failed to load resource: the server responded with a status of 404 ()",
+  "Failed to load resource: the server responded with a status of 404 ()",
+  "Failed to load resource: the server responded with a status of 404 ()",
+  "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "Access to fetch at 'http://localhost:3200/sales/login?redirectedFrom=%2Fsales%2Fmobile' (redirected from 'http://127.0.0.1:3200/sales/mobile?_rsc=haeaztK3yC4tVrGJ') from origin 'http://127.0.0.1:3200'",
+  "Failed to load resource: net::ERR_FAILED",
+  "Failed to fetch RSC payload for http://127.0.0.1:3200/sales/mobile. Falling back to browser navigation. TypeError: Failed to fetch\n    at y (http://127.0.0.1:3200/_next/static/chunks/1255-7316b50163a4"
+ ],
+ "api": [
+  "404 /rest/v1/rpc/rpc_get_manager_available_stock_grams",
+  "404 /rest/v1/rpc/rpc_get_manager_available_stock_grams",
+  "404 /rest/v1/rpc/rpc_get_manager_available_stock_grams",
+  "404 /rest/v1/rpc/rpc_get_manager_available_stock_grams",
+  "404 /rest/v1/rpc/rpc_get_seller_rates",
+  "404 /rest/v1/rpc/rpc_get_seller_rates",
+  "404 /rest/v1/rpc/rpc_get_seller_rates"
+ ]
+}

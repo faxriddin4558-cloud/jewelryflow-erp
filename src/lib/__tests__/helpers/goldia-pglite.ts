@@ -91,3 +91,17 @@ export async function createGoldiaDb() {
 
   return { db, asAdmin, asUser, rpc, scalar, expectError, addUser };
 }
+
+// 073: weight sales name their physical pieces. Returns the seller's held pieces in the former automatic (068) order —
+// consignment, then piece creation, then id — cut to the shortest prefix that covers `grams`, as an SQL argument.
+// Runs as the table owner; call it before switching to the seller session (or re-switch afterwards).
+export async function pieceIdsArg(db: PGlite, sellerEmployeeId: string, grams: number): Promise<string> {
+  const res = await db.query<{ id: string }>(`
+    SELECT id FROM (
+      SELECT cp.id, sum(cp.weight_grams) OVER (ORDER BY sc.created_at, cp.created_at, cp.id) - cp.weight_grams AS before
+        FROM public.consignment_pieces cp JOIN public.seller_consignments sc ON sc.id = cp.consignment_id
+       WHERE cp.seller_id = '${sellerEmployeeId}' AND cp.status = 'held_by_seller' AND cp.sale_id IS NULL
+         AND sc.status IN ('held_by_seller', 'partially_sold', 'fully_sold')
+    ) x WHERE before < ${grams} - 0.00005`);
+  return `p_piece_ids := ARRAY[${res.rows.map((r) => `'${r.id}'`).join(",")}]::uuid[]`;
+}

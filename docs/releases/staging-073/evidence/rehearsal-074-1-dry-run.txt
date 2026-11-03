@@ -1,0 +1,62 @@
+GOLDIA SALES — staging release 062 -> 074 (DRY RUN: staging is only read)
+
+started: 2026-11-03T05:29:20.946Z  mode: DRY RUN (LOCAL REHEARSAL)
+[1/10] tools: /opt/goldia-audit/pg17w (pg_dump (PostgreSQL) 17.11)
+  chain file: chain-063-074.sql sha256=b743addc32156c7c (12 migrations)
+[2/10] connection
+  host=127.0.0.1 port=55437 user=postgres
+  server: PostgreSQL 17.11, user postgres
+[3/10] identity and state gates (read only)
+  organizations=60 employees=202 auth.users=203 jewelry_sales=56
+  history: 62 rows, latest 20260101000062
+  repository versions <= 062 not recorded on staging: none
+  recorded versions unknown to the repository: none
+[4/10] fresh backup (outside the repository)
+  schemas: public, auth, storage, supabase_migrations; roles dump: ok
+  833f0b58410bfdafb081631c07c79c2daa0402156da8d1ebd209e3f29b407f04  staging-full.dump  1185144 bytes
+  39e3324426fbb6544224b4e8c8de469817b7d385e1a95a57ea92f58b4d4cca6c  staging-roles.sql  1305 bytes
+  c476ba42b8843b29e6816fe0dc0fc51f67fb587f07990fc34eac779238fc7659  staging-schema.sql  951654 bytes
+[5/10] restore test into a disposable LOCAL PostgreSQL (staging untouched)
+  extensions not available locally (platform only): none
+  restored copy vs staging row counts: identical (63 tables)
+  BACKUP: VERIFIED
+[6/10] schema parity of the restored copy with repository 001..062
+  missing objects: 0; different function bodies: 0; extra objects (kept): 0 — parity-062.txt
+  (information only: the decisive gate is parity with 074 after the chain on the local copy)
+[7/10] 063..074 on the restored LOCAL copy (one transaction)
+  chain + per-migration postflight checks: PASS
+  business row counts changed: none
+  ledger/history rows added: public.audit_logs: 267 -> 268; public.weight_sale_allocations: absent -> 4; supabase_migrations.schema_migrations: 62 -> 74
+  per-organization balances (customer/seller/vault): unchanged
+  factory obligation total: 3500.1538 -> 3500.1538
+  schema parity with repository 001..074: missing 0, different function bodies 0, extra 0
+  073 postflight: all true; 074 postflight: all true
+  RLS read  (every login x every organization + anon): 062 RLS_ISOLATION|LEAKS|11|users=200|orgs=60|checks=8228 -> 074 RLS_ISOLATION|PASS|users=200|orgs=60|checks=9233
+  RLS write (update/delete other organizations' rows, rolled back): 062 RLS_WRITE_ISOLATION|LEAKS|11|users=200|checks=14800 -> 074 RLS_WRITE_ISOLATION|PASS|users=200|checks=16800
+    closed by the chain: read read-other-seller|client_legacy_debts|seller
+    closed by the chain: read read|audit_logs|admin
+    closed by the chain: read read|audit_logs|production_manager
+    closed by the chain: read read|employees|admin
+    closed by the chain: read read|employees|production_manager
+    closed by the chain: read read|jewelry_models|admin
+    closed by the chain: read read|jewelry_models|production_manager
+    closed by the chain: read read|jewelry_models|seller
+    closed by the chain: read read|stage_loss_configs|admin
+    closed by the chain: read read|stage_loss_configs|production_manager
+    closed by the chain: read read|stage_loss_configs|seller
+    closed by the chain: write delete|jewelry_models|admin
+    closed by the chain: write delete|jewelry_models|production_manager
+    closed by the chain: write delete|jewelry_models|seller
+    closed by the chain: write delete|stage_loss_configs|admin
+    closed by the chain: write delete|stage_loss_configs|production_manager
+    closed by the chain: write update|employees|admin
+    closed by the chain: write update|jewelry_models|admin
+    closed by the chain: write update|jewelry_models|production_manager
+    closed by the chain: write update|jewelry_models|seller
+    closed by the chain: write update|stage_loss_configs|admin
+    closed by the chain: write update|stage_loss_configs|production_manager
+  074 rollback + re-apply on the copy: ok
+  LOCAL COPY: PASS
+[8/10] DRY RUN PASS — staging was only read. To apply, run the same command with --apply.
+
+RESULT: DRY RUN PASS. Report: /opt/goldia-audit/stg/final074/goldia-staging-2026-11-03T05-29-20/STAGING-074-RESULT.txt

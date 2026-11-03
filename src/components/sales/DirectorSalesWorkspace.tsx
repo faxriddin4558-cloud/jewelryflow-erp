@@ -39,6 +39,7 @@ import { parseErrorMessage } from "@/lib/error-utils";
 import { ProfitAccountingBanner } from "./ProfitAccountingBanner";
 import { CompanyRateDifferenceCard } from "./CompanyRateDifferenceCard";
 import { MarkupDifferenceCard } from "./MarkupDifferenceCard";
+import { tashkentBusinessDate } from "@/lib/business-date";
 
 export type DirectorSalesTab =
   | "factory"
@@ -159,7 +160,7 @@ export function DirectorSalesWorkspace({
 
   // Daily rate form
   const [newRateAmount, setNewRateAmount] = useState<string>("");
-  const [newRateDate, setNewRateDate] = useState<string>(() => (new Date().toISOString().split("T")[0] as string));
+  const [newRateDate, setNewRateDate] = useState<string>(() => tashkentBusinessDate());
   const [newRateNotes, setNewRateNotes] = useState<string>("");
   const [showRateModal, setShowRateModal] = useState(false);
 
@@ -476,7 +477,7 @@ export function DirectorSalesWorkspace({
       const { error } = await supabase.rpc("rpc_set_daily_gold_rate", {
         p_rate_per_gram: rateNum,
         p_currency: "UZS",
-        p_rate_date: newRateDate || new Date().toISOString().split("T")[0],
+        p_rate_date: newRateDate || tashkentBusinessDate(),
         p_proba: 585,
         p_notes: newRateNotes || "Direktor tomonidan kiritilgan kunlik lom narxi",
         p_idempotency_key: idempotencyKey,
@@ -1104,10 +1105,10 @@ export function DirectorSalesWorkspace({
   const totalClientDebtGrams = clientAccounts.reduce((acc, c) => acc + Number(c.current_debt_grams || c.current_gold_debt_grams || 0), 0);
 
   // Authoritative physical inventory and today's sales
-  const todayStr: string = new Date().toISOString().split("T")[0] || "";
+  const todayStr: string = tashkentBusinessDate();
   const availableSellerPieces = pieces.filter(p => p.status === "held_by_seller");
   const totalSellerPhysicalGrams = availableSellerPieces.reduce((acc, p) => acc + Number(p.weight_grams || 0), 0);
-  const todaySalesList = sales.filter(s => (s.sale_date === todayStr || Boolean(s.created_at?.startsWith(todayStr))) && s.status !== "reversed");
+  const todaySalesList = sales.filter(s => (s.sale_date === todayStr || (Boolean(s.created_at) && tashkentBusinessDate(s.created_at as string) === todayStr)) && s.status !== "reversed");
   const todaySalesCount = todaySalesList.length;
   const todaySalesGrams = todaySalesList.reduce((acc, s) => acc + Number(s.base_weight_grams || 0), 0);
 
@@ -1163,7 +1164,7 @@ export function DirectorSalesWorkspace({
                   )}
                 </div>
                 <div className="text-[11px] text-slate-300 font-medium">
-                  Sana: {dailyRate?.rate_date || new Date().toISOString().split("T")[0]}
+                  Sana: {dailyRate?.rate_date || tashkentBusinessDate()}
                 </div>
               </div>
               <button

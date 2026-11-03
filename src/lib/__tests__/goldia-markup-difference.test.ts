@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { createGoldiaDb, type Json } from "./helpers/goldia-pglite";
+import { createGoldiaDb, type Json, pieceIdsArg } from "./helpers/goldia-pglite";
 
 // Migration 067: signed seller markup difference ("Ustama farqi"). All calls run as the
 // `authenticated` role with RLS on. Letters refer to the required regression cases.
@@ -127,8 +127,10 @@ describe("Goldia 067 — seller markup difference", () => {
 
   it("G: partial weight sale and return of the unsold remainder", async () => {
     await consign(sellerC.employeeId, [40], 15);
+    await t.asAdmin();
+    const ids = await pieceIdsArg(t.db, sellerC.employeeId, 10);
     await t.asUser(sellerC.userId);
-    const ws = await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${customers.C}', p_weight_grams := 10, p_client_markup_pct := 25)`);
+    const ws = await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${customers.C}', p_weight_grams := 10, p_client_markup_pct := 25, ${ids})`);
     expect(Number((await report(sellerC)).total_difference_g)).toBe(1); // 10 g * 10 %
     await t.asAdmin();
     const rest = (await t.db.query<{ id: string; weight_grams: string }>(`SELECT id, weight_grams FROM public.consignment_pieces

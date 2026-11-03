@@ -9,6 +9,7 @@ import Link from "next/link";
 import { supabase, type DailyGoldRateRow } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 import { parseErrorMessage } from "@/lib/error-utils";
+import { tashkentBusinessDate } from "@/lib/business-date";
 
 type Statement = {
   section_b?: { item_count?: number; original_grams?: number };
@@ -39,10 +40,8 @@ export type SellerDashboardData = {
 };
 
 const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-const localToday = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+// 073: the seller's "today" is the Tashkent business date, not the phone's local date.
+const localToday = () => tashkentBusinessDate();
 
 // Pure aggregation, unit-tested.
 export function buildSellerDashboard(st: Statement, pieces: Piece[], todayRows: LedgerRow[], markupDiffG: number | null): SellerDashboardData {
@@ -96,8 +95,7 @@ export function SellerDashboard({ sellerName }: { sellerName?: string }) {
       const { data: empId, error: empErr } = await supabase.rpc("current_employee_id");
       if (empErr || !empId) throw empErr ?? new Error("Xodim aniqlanmadi");
       const today = localToday();
-      const from = new Date(Date.now() - 30 * 86400000);
-      const monthAgo = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}-${String(from.getDate()).padStart(2, "0")}`;
+      const monthAgo = tashkentBusinessDate(new Date(), -30);
       const [stRes, piecesRes, ledgerRes, markupRes, rateRes, ownRes, recentRes] = await Promise.all([
         supabase.rpc("rpc_get_seller_reconciliation_statement", { p_seller_id: empId }),
         supabase.from("consignment_pieces").select("model_code, model_name, weight_grams").eq("seller_id", empId).eq("status", "held_by_seller"),

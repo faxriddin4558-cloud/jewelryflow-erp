@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * GOLDIA — gated production release of one Sales migration (default 072).
+ * GOLDIA — gated production release of one Sales migration (default 073).
  *
  *   node scripts/goldia-prod-release.js [--migration 072] [--acknowledge-findings]
  *
@@ -30,7 +30,7 @@ for (let i = 2; i < process.argv.length; i++) {
   const next = process.argv[i + 1];
   args[a.slice(2)] = next === undefined || next.startsWith("--") ? true : (i++, next);
 }
-const TARGET = String(args.migration || "072").padStart(3, "0");
+const TARGET = String(args.migration || "073").padStart(3, "0");
 const PREVIOUS = String(Number(TARGET) - 1).padStart(3, "0");
 const TARGET_VERSION = `20260101000${TARGET}`;
 const PREVIOUS_VERSION = `20260101000${PREVIOUS}`;
@@ -48,7 +48,8 @@ const F = {
   migration: migrationName ? path.join(migrationDir, migrationName) : null,
   rollback: path.join(REPO, `supabase/rollback/${TARGET_VERSION}_rollback.sql`),
   postflight: path.join(REPO, `supabase/release/${TARGET}_postflight_readonly.sql`),
-  damageScan: path.join(REPO, `supabase/release/${TARGET}_damage_scan_readonly.sql`),
+  // historical damage scan: the version-specific one, else the latest generic one (070)
+  damageScan: [TARGET, "070"].map((v) => path.join(REPO, `supabase/release/${v}_damage_scan_readonly.sql`)).find((f) => fs.existsSync(f)),
 };
 
 // Turns a read-only "select <bool> as a, <bool> as b ...;" postflight file into one query that is true only
@@ -88,6 +89,12 @@ const POSTFLIGHT_CHECKS = {
     ["authenticated_keeps_execute", "select count(*) = 0 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.proname like 'rpc\\_%' and not has_function_privilege('authenticated', p.oid, 'EXECUTE')"],
     ["ledger_no_first_org_fallback", "select position('organizations' || chr(10) || '    limit 1' in pg_get_functiondef('public.rpc_get_unified_customer_ledger(uuid,uuid)'::regprocedure)) = 0"],
     ["ledger_no_admin_fallback", "select position(chr(39) || 'admin' || chr(39) || ')' in pg_get_functiondef('public.rpc_get_unified_customer_ledger(uuid,uuid)'::regprocedure)) = 0"],
+  ],
+  "073": [
+    ["all_073_checks", allColumnsTrue(path.join(REPO, "supabase/release/073_postflight_readonly.sql"))],
+  ],
+  "074": [
+    ["all_074_checks", allColumnsTrue(path.join(REPO, "supabase/release/074_postflight_readonly.sql"))],
   ],
   "070": [
     // every column of 070_postflight_readonly.sql must be true
@@ -253,7 +260,7 @@ async function main() {
   out(`  ${PREVIOUS}=${hasPrev} ${TARGET}=${hasTarget}`);
   if (hasPrev !== "t") stop(`migration ${PREVIOUS} is not recorded in production`);
   if (hasTarget === "t") stop(`migration ${TARGET} is already applied`);
-  if (fs.existsSync(F.damageScan)) {
+  if (F.damageScan && fs.existsSync(F.damageScan)) {
     const scan = psql(["-t", "-A", "-F", "|", "-v", "ON_ERROR_STOP=1", "-f", F.damageScan]);
     fs.writeFileSync(path.join(latest, `damage-scan-${TARGET}.txt`), String(scan.stdout || "") + String(scan.stderr || ""));
     if (scan.status !== 0) stop(`damage scan failed: ${firstError(scan)}`);

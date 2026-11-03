@@ -1,0 +1,8 @@
+psql:/home/user/jewelryflow-erp/supabase/release/staging_rls_write_isolation_LOCAL_COPY_ONLY.sql:79: NOTICE:  LEAK|delete|stage_loss_configs|admin|users=59|rows=11
+psql:/home/user/jewelryflow-erp/supabase/release/staging_rls_write_isolation_LOCAL_COPY_ONLY.sql:79: NOTICE:  LEAK|delete|stage_loss_configs|production_manager|users=58|rows=11
+psql:/home/user/jewelryflow-erp/supabase/release/staging_rls_write_isolation_LOCAL_COPY_ONLY.sql:79: NOTICE:  LEAK|update|jewelry_models|admin|users=59|rows=1
+psql:/home/user/jewelryflow-erp/supabase/release/staging_rls_write_isolation_LOCAL_COPY_ONLY.sql:79: NOTICE:  LEAK|update|jewelry_models|production_manager|users=58|rows=1
+psql:/home/user/jewelryflow-erp/supabase/release/staging_rls_write_isolation_LOCAL_COPY_ONLY.sql:79: NOTICE:  LEAK|update|jewelry_models|seller|users=78|rows=1
+psql:/home/user/jewelryflow-erp/supabase/release/staging_rls_write_isolation_LOCAL_COPY_ONLY.sql:79: NOTICE:  LEAK|update|stage_loss_configs|admin|users=59|rows=11
+psql:/home/user/jewelryflow-erp/supabase/release/staging_rls_write_isolation_LOCAL_COPY_ONLY.sql:79: NOTICE:  LEAK|update|stage_loss_configs|production_manager|users=58|rows=11
+psql:/home/user/jewelryflow-erp/supabase/release/staging_rls_write_isolation_LOCAL_COPY_ONLY.sql:79: NOTICE:  RLS_WRITE_ISOLATION|LEAKS|7|users=200|checks=16800

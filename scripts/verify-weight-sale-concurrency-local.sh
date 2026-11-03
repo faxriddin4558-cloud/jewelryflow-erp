@@ -52,7 +52,9 @@ cat > "$SALE_SQL" <<'SQL'
 \set ON_ERROR_STOP 0
 select set_config('request.jwt.claim.sub','22222222-2222-2222-2222-222222222222',false);
 begin;
-select 'sale ' || coalesce((public.rpc_record_weight_sale(p_customer_id := 'bbbbbbbb-0000-0000-0000-000000000001', p_weight_grams := 7, p_client_markup_pct := 10))->>'status','?') as result;
+-- 073: a weight sale names the physical piece it is cut from (the seller's only piece)
+select 'sale ' || coalesce((public.rpc_record_weight_sale(p_customer_id := 'bbbbbbbb-0000-0000-0000-000000000001', p_weight_grams := 7, p_client_markup_pct := 10,
+  p_piece_ids := array(select id from public.consignment_pieces where seller_id = 'aaaaaaaa-0000-0000-0000-000000000002' order by created_at limit 1)))->>'status','?') as result;
 select pg_sleep(:hold);
 commit;
 SQL
@@ -65,7 +67,7 @@ wait
 
 sold=$("${PSQL[@]}" -c "select coalesce(sum(base_weight_grams), 0)::numeric(14,4) from public.jewelry_sales where status not in ('reversed', 'cancelled')")
 ok_count=$(cat "$WORK/s1.out" "$WORK/s2.out" | grep -c '^sale ok' || true)
-rejected=$(cat "$WORK/s1.out" "$WORK/s2.out" | grep -c 'ERR_INSUFFICIENT_SELLER_STOCK' || true)
+rejected=$(cat "$WORK/s1.out" "$WORK/s2.out" | grep -c -E 'ERR_INSUFFICIENT_SELLER_STOCK|ERR_PIECE_NOT_AVAILABLE|ERR_PIECES_TOO_LIGHT' || true)
 echo "successful sales: $ok_count, rejected: $rejected, sold grams: $sold (stock 10 g)"
 if [ "$ok_count" = "1" ] && [ "$rejected" = "1" ] && [ "$sold" = "7.0000" ]; then
   echo "PASS: no oversell under concurrency"

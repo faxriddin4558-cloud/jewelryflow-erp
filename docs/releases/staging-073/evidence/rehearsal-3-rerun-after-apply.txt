@@ -1,0 +1,17 @@
+GOLDIA SALES — staging release 062 -> 073 (DRY RUN: staging is only read)
+
+started: 2026-11-03T05:13:25.285Z  mode: DRY RUN (LOCAL REHEARSAL)
+[1/10] tools: /opt/goldia-audit/pg17w (pg_dump (PostgreSQL) 17.11)
+  chain file: chain-063-073.sql sha256=3b3ce6f141dc6a8d (11 migrations)
+[2/10] connection
+  host=127.0.0.1 port=55437 user=postgres
+  server: PostgreSQL 17.11, user postgres
+[3/10] identity and state gates (read only)
+  organizations=60 employees=202 auth.users=203 jewelry_sales=56
+  history: 73 rows, latest 20260101000073
+  repository versions <= 062 not recorded on staging: none
+  recorded versions unknown to the repository: none
+
+STOP: versions after 062 already recorded (20260101000063, 20260101000064, 20260101000065, 20260101000066, 20260101000067, 20260101000068, 20260101000069, 20260101000070, 20260101000071, 20260101000072, 20260101000073) — this script only moves 062 -> 073
+Staging database was NOT changed.
+RESULT: STOP

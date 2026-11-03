@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { createGoldiaDb } from "./helpers/goldia-pglite";
+import { createGoldiaDb, pieceIdsArg } from "./helpers/goldia-pglite";
 import { buildSellerDashboard } from "@/components/sales/SellerDashboard";
 import { isRouteAllowedForSeller, isSellerUiRole, SELLER_NAVIGATION, shouldSendSellerToSalesApp } from "@/lib/sales-role-access";
 
@@ -47,8 +47,10 @@ describe("Goldia 071 — seller role access", () => {
     sellerB = await newSeller("sb071");
     await consign(sellerA.employeeId, 3);
     await consign(sellerB.employeeId, 2);
+    await t.asAdmin();
+    const ids = await pieceIdsArg(t.db, sellerA.employeeId, 50);
     await t.asUser(sellerA.userId);
-    await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${sellerA.customer}', p_weight_grams := 50, p_client_markup_pct := 15)`);
+    await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${sellerA.customer}', p_weight_grams := 50, p_client_markup_pct := 15, ${ids})`);
   });
 
   it("a seller cannot read the company manager stock, directly or through the wrapper", async () => {
