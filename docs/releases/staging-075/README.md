@@ -48,14 +48,26 @@ Kutilgan: `RESULT: STAGING 074 -> 075 APPLIED, POSTFLIGHT PASS`. Skript 074 yozi
 
 ## 4. Staging frontend deploy (075 qo‘llangandan keyin)
 
+Windows PowerShell 5.1 yoki 7, repo papkasida (bitta buyruq; branch head = release candidate):
 ```powershell
-git checkout --detach <RC_SHA>
-powershell -ExecutionPolicy Bypass -File docs/releases/staging-075/deploy-staging-frontend.ps1 -ReleaseCandidate <RC_SHA>
+git fetch origin claude/goldia-sales-staging-audit-qtrq1d; if ($LASTEXITCODE -eq 0) { git checkout --detach FETCH_HEAD; if ($LASTEXITCODE -eq 0) { powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\staging-075\deploy-staging-frontend.ps1 -ReleaseCandidate (git rev-parse HEAD) } }
 ```
-Skript: faqat `jewelryflow-sales-staging`; env (staging URL, `NEXT_PUBLIC_APP_ENV=staging`, `NEXT_PUBLIC_STAGING_MODE=true`) Production va Preview uchun;
-anon va service kalitlarini Vercel CLI interaktiv so‘raydi; eski `NEXT_PUBLIC_GIT_COMMIT_SHA=da6e930` o‘chiriladi; JWT `ref` staging ekanini tekshiradi;
-`vercel deploy --prod --build-env NEXT_PUBLIC_GIT_COMMIT_SHA=<RC>`; `/api/version` → `full_commit=<RC>`, `supabase_ref=vouehtlmsunebracahon`, `env=staging`.
-Skript bu sessiyada ishga tushirilmagan (Vercel tokeni va tarmoq ruxsati yo‘q).
+Skript (`deploy-staging-frontend.ps1`):
+- native buyruqlar (`git`, `npx vercel`) `System.Diagnostics.Process` orqali; stderr (masalan `Vercel CLI x.y.z` banner) xato emas, faqat **exit code** hal qiladi
+  (PS 5.1 dagi `NativeCommandError` sababi shu edi);
+- 1-bosqich, Vercel’da hech narsa o‘zgarmaydi: checkout = RC va toza; `vercel whoami`; `vercel link --project jewelryflow-sales-staging`
+  (avval boshqa project’ga link bo‘lgan bo‘lsa — STOP; ixtiyoriy `-ExpectedProjectId`); CLI’da `env add --force` borligi;
+  anon va service kalitlari yashirin kiritiladi va **yozishdan oldin** tekshiriladi: JWT `ref=vouehtlmsunebracahon`, rol `anon`/`service_role`,
+  hamda jonli staging API (anon — Auth qabul qiladi, admin API rad etadi; service — admin API qabul qiladi). Production/JFS ref → STOP;
+- 2-bosqich: 6 o‘zgaruvchi Production uchun `vercel env add <nom> production --force` bilan **joyida almashtiriladi** (qiymat stdin orqali),
+  hech biri oldindan o‘chirilmaydi — uzilish bo‘lsa har biri eski yoki yangi (tekshirilgan, staging) qiymatda qoladi;
+  `NEXT_PUBLIC_GIT_COMMIT_SHA` RC sha’ga almashtiriladi (eski `da6e930` o‘rniga);
+- 3-bosqich: `vercel deploy --prod`; yangi deployment tayyor bo‘lguncha eski staging deployment ishlayveradi;
+  `/api/version` → `full_commit=<RC>`, `supabase_ref=vouehtlmsunebracahon`, `env=staging`.
+- Preview env o‘zgartirilmaydi (deploy to‘g‘ridan-to‘g‘ri Production’ga).
+
+Tekshirildi: PowerShell 7 parser (0 xato) va kalit tekshiruvi birlik testlari (staging anon/service — o‘tadi; production, JFS, boshqa project,
+anon o‘rnida service, bo‘sh, noto‘g‘ri format — STOP). Vercel’ga qarshi bu sessiyada ishga tushirilmagan (ruxsat yo‘q).
 
 ## 5. Lokal stend (takrorlash uchun)
 
