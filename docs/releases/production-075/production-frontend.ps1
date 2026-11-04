@@ -18,7 +18,9 @@
       is ready; /api/version must then show <sha>, vrozlllcaxinavzxueif, production.
       Environment values are NOT changed by this script (set them in the Vercel dashboard; this script verifies them).
       The checkout must be clean BEFORE `vercel link`; the only change the script undoes is the Vercel CLI appending
-      ".vercel" (or ".env*.local") to the end of .gitignore - any other change stops the deploy untouched.
+      ".vercel", ".env*.local" or ".env*" to the end of .gitignore (the repository already ignores .env and .env.*;
+      the env pull goes to %TEMP% and is deleted) - any other change stops the deploy untouched. Each step prints the
+      lines appended since the previous state; the original .gitignore is restored byte-for-byte.
 #>
 param(
   [switch]$Apply,
@@ -65,7 +67,7 @@ function Get-JwtRef([string]$Jwt) {
 # file's line endings differ from the CLI's), which then trips the clean-checkout check in [4]. Only that exact,
 # append-only change is undone (original bytes written back); any other .gitignore change stops the script untouched.
 $GitignorePath = Join-Path (Get-Location).Path ".gitignore"
-$AllowedVercelGitignoreLines = @(".vercel", ".vercel/", "/.vercel", "/.vercel/", ".env*.local")
+$AllowedVercelGitignoreLines = @(".vercel", ".vercel/", "/.vercel", "/.vercel/", ".env*.local", ".env*")
 function Read-FileBytes([string]$Path) { if (Test-Path -LiteralPath $Path) { return ,([IO.File]::ReadAllBytes($Path)) }; return $null }
 function Test-BytePrefix([byte[]]$Prefix, [byte[]]$Full) {
   if ($Prefix.Length -gt $Full.Length) { return $false }
@@ -88,6 +90,31 @@ function Restore-VercelGitignore([string]$Step) {
   Write-Host "  .gitignore: Vercel CLI appended ($what) during $Step; original restored byte-for-byte" -ForegroundColor Yellow
 }
 
+# A previous run that stopped after `vercel link` can leave Vercel's appended lines in .gitignore. Before the clean
+# checkout check this is repaired ONLY when .gitignore is the single modified tracked file, every line of HEAD's
+# .gitignore is still there unchanged and in order at the top, and every extra line is one of the Vercel lines above.
+# The diff is printed and `git checkout -- .gitignore` restores the committed file. Anything else: STOP, untouched.
+function Repair-LeftoverVercelGitignore {
+  $st = Invoke-Native "git" @("status", "--porcelain", "--untracked-files=no")
+  if ($st.Code -ne 0) { Stop-Now "git status failed: $($st.Err.Trim())" }
+  $changed = @($st.Out -split "`r?`n" | Where-Object { $_.Trim() -ne "" })
+  if ($changed.Count -ne 1 -or $changed[0].Trim() -ne "M .gitignore") { return }
+  $headGi = Invoke-Native "git" @("show", "HEAD:.gitignore")
+  if ($headGi.Code -ne 0) { Stop-Now "cannot read HEAD:.gitignore" }
+  $headLines = @($headGi.Out -split "`r?`n")
+  while ($headLines.Count -gt 0 -and $headLines[$headLines.Count - 1] -eq "") { $headLines = @($headLines[0..($headLines.Count - 2)]) }
+  $nowLines = @([IO.File]::ReadAllText($GitignorePath) -split "`r?`n")
+  if ($nowLines.Count -lt $headLines.Count) { Stop-Now ".gitignore differs from HEAD (lines removed) - inspect it with git diff; nothing was changed" }
+  for ($i = 0; $i -lt $headLines.Count; $i++) { if ($nowLines[$i] -ne $headLines[$i]) { Stop-Now ".gitignore line $($i + 1) differs from HEAD - inspect it with git diff; nothing was changed" } }
+  $extra = @($nowLines[$headLines.Count..($nowLines.Count - 1)] | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
+  foreach ($l in $extra) { if ($AllowedVercelGitignoreLines -notcontains $l) { Stop-Now ".gitignore has an extra line '$l' that Vercel does not add - inspect it with git diff; nothing was changed" } }
+  Write-Host "  .gitignore differs from HEAD only by lines Vercel CLI appended in an earlier run:" -ForegroundColor Yellow
+  foreach ($l in $extra) { Write-Host "    + $l" -ForegroundColor Yellow }
+  $co = Invoke-Native "git" @("checkout", "--", ".gitignore")
+  if ($co.Code -ne 0) { Stop-Now "git checkout -- .gitignore failed: $($co.Err.Trim())" }
+  Write-Host "  .gitignore restored from HEAD (git checkout -- .gitignore)" -ForegroundColor Yellow
+}
+
 Write-Host "GOLDIA SALES - production frontend $(if ($Apply) { 'DEPLOY (-Apply)' } else { 'CHECK ONLY' })" -ForegroundColor Cyan
 
 Write-Host "`n[1] Vercel CLI, login, project link"
@@ -98,6 +125,7 @@ $before = $null; if (Test-Path ".vercel\project.json") { $before = Get-Content "
 if ($before -and -not $Apply) { Write-Host "  (this folder is linked to project $($before.projectId); it will be re-linked to $ProjectName - local file only)" }
 if ($Apply) {
   # Clean checkout BEFORE anything writes to the folder, so the owner's own edits are never touched or hidden.
+  Repair-LeftoverVercelGitignore
   $pre = (Invoke-Native "git" @("status", "--porcelain", "--untracked-files=no")).Out.Trim()
   if ($pre) { Stop-Now "tracked files are modified before vercel link (commit or stash them first):`n$pre" }
 }

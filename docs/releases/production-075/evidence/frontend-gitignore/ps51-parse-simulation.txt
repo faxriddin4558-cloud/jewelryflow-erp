@@ -1,0 +1,1 @@
+production-frontend.ps1: bom=False parse_errors_as_PS51=0

@@ -1,0 +1,7 @@
+ok  leftover .vercel + .env* (CRLF append)               expected=returned got=returned .gitignore = HEAD; status after: [] 
+ok  leftover only .env*                                  expected=returned got=returned .gitignore = HEAD; status after: [] 
+ok  clean checkout                                       expected=returned got=returned .gitignore = HEAD; status after: [] 
+ok  leftover + owner change in app.txt (not repaired)    expected=returned got=returned .gitignore untouched; status after: [M .gitignore  M app.txt] 
+ok  extra owner line in .gitignore                       expected=STOP     got=STOP     .gitignore untouched; status after: [M .gitignore] STOP: .gitignore has an extra line 'my-notes/' that Vercel does not ad
+ok  owner edited an existing .gitignore line             expected=STOP     got=STOP     .gitignore untouched; status after: [M .gitignore] STOP: .gitignore line 1 differs from HEAD - inspect it with git diff; 
+ok  owner removed a .gitignore line                      expected=STOP     got=STOP     .gitignore untouched; status after: [M .gitignore] STOP: .gitignore line 1 differs from HEAD - inspect it with git diff; 

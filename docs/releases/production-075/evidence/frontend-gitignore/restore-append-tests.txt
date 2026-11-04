@@ -1,0 +1,12 @@
+allowed lines loaded from the script: .vercel, .vercel/, /.vercel, /.vercel/, .env*.local, .env*
+ok  CRLF + .vercel + .env* (Vercel CLI, Windows)   expected=restored got=restored original bytes
+ok  CRLF + only .env*                              expected=restored got=restored original bytes
+ok  LF + .env*.local + .env*                       expected=restored got=restored original bytes
+ok  LF + .vercel/ (trailing slash)                 expected=restored got=restored original bytes
+ok  no change                                      expected=restored got=restored original bytes
+ok  no .gitignore; CLI creates .vercel + .env*     expected=restored got=restored original (no file)
+ok  CRLF + .env (not the exact Vercel line)        expected=STOP     got=STOP     left as found (nothing restored)
+ok  CRLF + !.env.production (negation)             expected=STOP     got=STOP     left as found (nothing restored)
+ok  CRLF + user line src/                          expected=STOP     got=STOP     left as found (nothing restored)
+ok  owner edited an existing line                  expected=STOP     got=STOP     left as found (nothing restored)
+ok  CRLF + '.env* ' spacing variant                expected=restored got=restored original bytes
