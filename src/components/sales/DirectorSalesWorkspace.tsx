@@ -861,15 +861,19 @@ export function DirectorSalesWorkspace({
     // Dollars collected since 072 are closed at the grams captured at payment time; the rate only matters for
     // older, unvalued dollars, so the field is required only for them.
     void (async () => {
-      const [ratesRes, cbuRate] = await Promise.all([
-        supabase.rpc("rpc_get_seller_rates"),
-        fetch("/api/sales/currency/cbu").then((res) => res.json())
-          .then((json) => (json.success && json.data?.rate ? Number(json.data.rate) : null)).catch(() => null),
-      ]);
-      if (cbuRate) setCbuUsdRate(cbuRate);
+      // The seller's stored USD rate fills the field at once; the CBU service (can take ~6 s and fail) is only a
+      // fallback when the seller has no stored USD rate.
+      const ratesRes = await supabase.rpc("rpc_get_seller_rates");
       const rows = ((ratesRes.data as { sellers?: { seller_id?: string; usd_rate_uzs?: number | string | null }[] } | null)?.sellers ?? []);
       const own = rows.find((r) => r.seller_id === acc.seller_id);
-      setSurrenderUsdRate(pickHandoverUsdRate(own?.usd_rate_uzs ? Number(own.usd_rate_uzs) : null, cbuRate));
+      const ownUsd = own?.usd_rate_uzs ? Number(own.usd_rate_uzs) : null;
+      setSurrenderUsdRate(pickHandoverUsdRate(ownUsd, null));
+      const cbuRate = await fetch("/api/sales/currency/cbu").then((res) => res.json())
+        .then((json) => (json.success && json.data?.rate ? Number(json.data.rate) : null)).catch(() => null);
+      if (cbuRate) {
+        setCbuUsdRate(cbuRate);
+        if (!ownUsd) setSurrenderUsdRate((current) => current || pickHandoverUsdRate(null, cbuRate));
+      }
     })();
   };
 

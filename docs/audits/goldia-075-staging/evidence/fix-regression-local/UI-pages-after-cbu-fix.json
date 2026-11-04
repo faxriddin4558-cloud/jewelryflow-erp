@@ -1,0 +1,315 @@
+[
+ {
+  "id": "U1-mobile",
+  "title": "seller A menu = 5 sections (mobile)",
+  "ok": true,
+  "expected": 5,
+  "actual": [
+   "/sales/app",
+   "/sales/app/customers",
+   "/sales/app/kassam",
+   "/sales/app/markup",
+   "/sales/app/scan"
+  ],
+  "at": "2026-11-04T05:54:11.766Z"
+ },
+ {
+  "id": "U2-mobile/sales/director",
+  "title": "forbidden URL /sales/director keeps the seller in the seller area",
+  "ok": true,
+  "expected": "/sales/app*",
+  "actual": "/sales/app",
+  "at": "2026-11-04T05:54:13.317Z"
+ },
+ {
+  "id": "U2-mobile/sales/app/factory",
+  "title": "forbidden URL /sales/app/factory keeps the seller in the seller area",
+  "ok": true,
+  "expected": "/sales/app*",
+  "actual": "/sales/app",
+  "at": "2026-11-04T05:54:14.840Z"
+ },
+ {
+  "id": "U2-mobile/sales/app/inventory",
+  "title": "forbidden URL /sales/app/inventory keeps the seller in the seller area",
+  "ok": true,
+  "expected": "/sales/app*",
+  "actual": "/sales/app",
+  "at": "2026-11-04T05:54:16.348Z"
+ },
+ {
+  "id": "U2-mobile/",
+  "title": "forbidden URL / keeps the seller in the seller area",
+  "ok": true,
+  "expected": "/sales/app*",
+  "actual": "/sales/app",
+  "at": "2026-11-04T05:54:17.834Z"
+ },
+ {
+  "id": "U3-mobile/sales/app",
+  "title": "seller A /sales/app loads without failed API calls (mobile)",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:54:19.699Z"
+ },
+ {
+  "id": "U3-mobile/sales/app/scan",
+  "title": "seller A /sales/app/scan loads without failed API calls (mobile)",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:54:21.720Z"
+ },
+ {
+  "id": "U3-mobile/sales/app/customers",
+  "title": "seller A /sales/app/customers loads without failed API calls (mobile)",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:54:23.690Z"
+ },
+ {
+  "id": "U3-mobile/sales/app/kassam",
+  "title": "seller A /sales/app/kassam loads without failed API calls (mobile)",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:54:25.731Z"
+ },
+ {
+  "id": "U3-mobile/sales/app/markup",
+  "title": "seller A /sales/app/markup loads without failed API calls (mobile)",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:54:27.635Z"
+ },
+ {
+  "id": "U1-desktop",
+  "title": "seller A menu = 5 sections (desktop)",
+  "ok": true,
+  "expected": 5,
+  "actual": [
+   "/sales/app",
+   "/sales/app/customers",
+   "/sales/app/kassam",
+   "/sales/app/markup",
+   "/sales/app/scan"
+  ],
+  "at": "2026-11-04T05:54:30.728Z"
+ },
+ {
+  "id": "U2-desktop/sales/director",
+  "title": "forbidden URL /sales/director keeps the seller in the seller area",
+  "ok": true,
+  "expected": "/sales/app*",
+  "actual": "/sales/app",
+  "at": "2026-11-04T05:54:32.275Z"
+ },
+ {
+  "id": "U2-desktop/sales/app/factory",
+  "title": "forbidden URL /sales/app/factory keeps the seller in the seller area",
+  "ok": true,
+  "expected": "/sales/app*",
+  "actual": "/sales/app",
+  "at": "2026-11-04T05:54:33.873Z"
+ },
+ {
+  "id": "U2-desktop/sales/app/inventory",
+  "title": "forbidden URL /sales/app/inventory keeps the seller in the seller area",
+  "ok": true,
+  "expected": "/sales/app*",
+  "actual": "/sales/app",
+  "at": "2026-11-04T05:54:35.460Z"
+ },
+ {
+  "id": "U2-desktop/",
+  "title": "forbidden URL / keeps the seller in the seller area",
+  "ok": true,
+  "expected": "/sales/app*",
+  "actual": "/sales/app",
+  "at": "2026-11-04T05:54:36.957Z"
+ },
+ {
+  "id": "U3-desktop/sales/app",
+  "title": "seller A /sales/app loads without failed API calls (desktop)",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:54:38.905Z"
+ },
+ {
+  "id": "U3-desktop/sales/app/scan",
+  "title": "seller A /sales/app/scan loads without failed API calls (desktop)",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:54:41.007Z"
+ },
+ {
+  "id": "U3-desktop/sales/app/customers",
+  "title": "seller A /sales/app/customers loads without failed API calls (desktop)",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:54:43.034Z"
+ },
+ {
+  "id": "U3-desktop/sales/app/kassam",
+  "title": "seller A /sales/app/kassam loads without failed API calls (desktop)",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:54:45.097Z"
+ },
+ {
+  "id": "U3-desktop/sales/app/markup",
+  "title": "seller A /sales/app/markup loads without failed API calls (desktop)",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:54:47.038Z"
+ },
+ {
+  "id": "U4",
+  "title": "weight-sale form shows \"Qaysi donadan?\" with the seller's own pieces",
+  "ok": true,
+  "expected": ">1 options",
+  "actual": 6,
+  "at": "2026-11-04T05:54:53.709Z"
+ },
+ {
+  "id": "U5",
+  "title": "submit without choosing a piece creates no sale",
+  "ok": true,
+  "expected": 0,
+  "actual": 0,
+  "at": "2026-11-04T05:54:55.299Z"
+ },
+ {
+  "id": "U6",
+  "title": "UI weight sale of 1 g cuts exactly the chosen piece (5.07 g -> 4.07 g), one sale despite double click",
+  "ok": true,
+  "expected": {
+   "new_sales": 1,
+   "piece": "a077d2e4",
+   "grams": 1
+  },
+  "actual": {
+   "new_sales": 1,
+   "alloc": [
+    {
+     "piece_id": "a077d2e4-14cf-437e-a758-f22e737c753e",
+     "grams": 1
+    }
+   ],
+   "piece_now": 4.07
+  },
+  "at": "2026-11-04T05:54:58.700Z"
+ },
+ {
+  "id": "U7",
+  "title": "UI sale dated with the Tashkent business date",
+  "ok": true,
+  "expected": "today TKT",
+  "actual": "2026-11-04",
+  "at": "2026-11-04T05:54:58.700Z"
+ },
+ {
+  "id": "U8",
+  "title": "session survives refresh",
+  "ok": true,
+  "expected": "logged in",
+  "actual": "/sales/app/customers",
+  "at": "2026-11-04T05:54:59.438Z"
+ },
+ {
+  "id": "U9/sales/app",
+  "title": "manager /sales/app loads without failed API calls",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:55:04.939Z"
+ },
+ {
+  "id": "U9/sales/app/consignments",
+  "title": "manager /sales/app/consignments loads without failed API calls",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:55:07.053Z"
+ },
+ {
+  "id": "U9/sales/app/sellers",
+  "title": "manager /sales/app/sellers loads without failed API calls",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:55:09.161Z"
+ },
+ {
+  "id": "U9/sales/app/reports",
+  "title": "manager /sales/app/reports loads without failed API calls",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:55:11.285Z"
+ },
+ {
+  "id": "U9/sales/app/cash",
+  "title": "manager /sales/app/cash loads without failed API calls",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:55:13.412Z"
+ },
+ {
+  "id": "U9/sales/app/factory",
+  "title": "manager /sales/app/factory loads without failed API calls",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:55:15.502Z"
+ },
+ {
+  "id": "U9/sales/app/customers",
+  "title": "manager /sales/app/customers loads without failed API calls",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:55:17.579Z"
+ },
+ {
+  "id": "U10/sales/app",
+  "title": "director /sales/app loads without failed API calls",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:55:22.855Z"
+ },
+ {
+  "id": "U10/sales/app/customers",
+  "title": "director /sales/app/customers loads without failed API calls",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:55:24.844Z"
+ },
+ {
+  "id": "U10/sales/app/reports",
+  "title": "director /sales/app/reports loads without failed API calls",
+  "ok": true,
+  "expected": [],
+  "actual": [],
+  "at": "2026-11-04T05:55:26.885Z"
+ },
+ {
+  "id": "U11",
+  "title": "wrong password stays on the login page",
+  "ok": true,
+  "expected": "/sales/login",
+  "actual": "/sales/login",
+  "at": "2026-11-04T05:55:30.214Z"
+ }
+]

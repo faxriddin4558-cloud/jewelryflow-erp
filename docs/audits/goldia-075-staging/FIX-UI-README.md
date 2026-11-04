@@ -23,3 +23,13 @@ birinchi `ui-pages` 35/36 (yangi stendda sotuvchi A da dona yo‘q edi, U4 shart
 ## Staging
 Tuzatilgan frontend hali staging’da emas (deploy egasi tomonidan). Deploy’dan keyin aynan shu skript staging’da ishlaydi:
 `GA_TARGET=staging GA_CREDS=<staging creds> node docs/audits/goldia-075-staging/harness/ui-fix-verify.js` (yangi vaqtinchalik staging loginlari kerak — eskilari bloklangan).
+
+## Staging, 1-raund (frontend `9086a74`, 2026-11-04) — 13/15
+`evidence/ui-fix-verify-staging-9086a74.json`, skrinshotlar `evidence/ui-fix-screens-staging-9086a74/`.
+- **PASS 13:** F-UI-1 uchala sotuvchida (A desktop 4.3276 g, B mobil 2 g, C desktop 3.2011 g — forma oldindan to‘ldirilganidek, o‘z kursi, read-only), F-UI-2 (447 500 so‘m), uchala kassa qabuli (topshirilgan gramm = to‘lovdagi gramm), server himoyasi (SRV-1/2), rekonsilyatsiya 22/22, **0.0000 g**.
+- **FAIL 2 (F3-prefill A va C):** kassa qabuli oynasi ochilganda USD kurs maydoni 2.5 s ichida **bo‘sh**. Sabab: kod sotuvchi kursini CBU javobi bilan birga kutgan; staging CBU endpoint’i **6.4 s** dan keyin 503 qaytaradi. Qabul baribir to‘g‘ri o‘tdi (maydon majburiy emas edi).
+- Lokal takrorlash (`GA_SLOW_CBU=1`, CBU 6.5 s → 503) 9086a74 build’ida: 13/16 — o‘sha 2 FAIL + **menejer to‘lov oynasida rasmiy kurs ham kechikadi (MGR-prefill)** — 9086a74 keltirgan regressiya (`evidence/ui-fix-verify-local-slowcbu-9086a74.json`).
+
+## 2-tuzatish: saqlangan kurslar CBU’ni kutmaydi
+To‘lov oynasi (barcha rollar) va kassa qabuli oynasi saqlangan kurslarni darhol to‘ldiradi; CBU faqat keyin, faqat bo‘sh maydon uchun (menejer/direktor USD, yoki sotuvchida saqlangan USD kursi bo‘lmasa).
+Lokal: sekin CBU bilan **16/16**, oddiy **16/16** (`ui-fix-verify-local-slowcbu-fixed.json`, `ui-fix-verify-local.json`); vitest 355/355; sahifalar regressiyasi 36/36.

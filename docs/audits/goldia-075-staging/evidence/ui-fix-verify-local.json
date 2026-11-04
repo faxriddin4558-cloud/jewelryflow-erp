@@ -1,7 +1,7 @@
 {
  "target": "local",
  "base": "http://127.0.0.1:3300",
- "at": "2026-11-04T04:28:35.935Z",
+ "at": "2026-11-04T05:53:24.022Z",
  "checks": [
   {
    "id": "SRV-1",
@@ -45,8 +45,8 @@
     "grams": 4.3276,
     "failed_api": []
    },
-   "record_id": "b87c1b59-575b-4b09-b9a6-8b54529ddaaf",
-   "settlement_no": "SETTL-D8D97B9F"
+   "record_id": "ded050ce-aad4-484f-9b06-81f35158134a",
+   "settlement_no": "SETTL-175D7D08"
   },
   {
    "id": "F1-prefill-sellerb-mobile",
@@ -76,8 +76,8 @@
     "grams": 2,
     "failed_api": []
    },
-   "record_id": "5ead3535-08c6-4c5d-9ce5-ddf233076b30",
-   "settlement_no": "SETTL-4B0C2853"
+   "record_id": "18c0300c-993f-486a-ab8e-8098bde5cd9c",
+   "settlement_no": "SETTL-779D5F0D"
   },
   {
    "id": "F1-prefill-sellerc-desktop",
@@ -107,8 +107,8 @@
     "grams": 3.2011,
     "failed_api": []
    },
-   "record_id": "aa98aaa2-99b5-4775-9ba4-158fdf26f35f",
-   "settlement_no": "SETTL-684D6799"
+   "record_id": "79605685-6d39-4073-9685-9245131a9742",
+   "settlement_no": "SETTL-7163A80D"
   },
   {
    "id": "F2-447500",
@@ -121,6 +121,19 @@
    "actual": {
     "browser_valid": true,
     "recorded": true
+   }
+  },
+  {
+   "id": "MGR-prefill",
+   "title": "manager payment dialog: official 585 rate 900000 shown within 2.5 s (not delayed by CBU), editable",
+   "ok": true,
+   "expected": {
+    "lom": 900000,
+    "readOnly": false
+   },
+   "actual": {
+    "lom": "900000",
+    "readOnly": false
    }
   },
   {
@@ -215,10 +228,10 @@
   },
   {
    "id": "RECON",
-   "title": "reconciliation from UI inputs only: 17 rows, every operation expected = actual",
+   "title": "reconciliation from UI inputs only: 22 rows, every operation expected = actual",
    "ok": true,
    "expected": {
-    "rows": 17,
+    "rows": 22,
     "max_gram_diff": "0.0000"
    },
    "actual": {
@@ -232,21 +245,21 @@
   {
    "op": "setup_sale",
    "seller": "sellera",
-   "sale_id": "ac1714a8-865c-4560-885d-5cfd62c34ba9",
+   "sale_id": "286e8319-6881-4d7c-9cd9-23a8b71a6b95",
    "expected_due": 6.8656,
    "actual_due": 6.8656
   },
   {
    "op": "setup_sale",
    "seller": "sellerb",
-   "sale_id": "39226f16-f56f-4a4e-b106-98d13fbd052b",
+   "sale_id": "eea7a9cb-8a85-4594-886b-c9a71abf49cf",
    "expected_due": 8.2194,
    "actual_due": 8.2194
   },
   {
    "op": "setup_sale",
    "seller": "sellerc",
-   "sale_id": "556d043a-528f-4a3e-8fb5-698a60bef20e",
+   "sale_id": "33094a0a-51d4-4e86-adda-6bcc6ff03c4f",
    "expected_due": 7.4241,
    "actual_due": 7.4241
   },
@@ -254,8 +267,8 @@
    "op": "ui_payment",
    "seller": "sellera",
    "form": "desktop",
-   "settlement_id": "b87c1b59-575b-4b09-b9a6-8b54529ddaaf",
-   "settlement_no": "SETTL-D8D97B9F",
+   "settlement_id": "ded050ce-aad4-484f-9b06-81f35158134a",
+   "settlement_no": "SETTL-175D7D08",
    "expected_grams": 4.3276,
    "actual_grams": 4.3276
   },
@@ -263,8 +276,8 @@
    "op": "ui_payment",
    "seller": "sellerb",
    "form": "mobile",
-   "settlement_id": "5ead3535-08c6-4c5d-9ce5-ddf233076b30",
-   "settlement_no": "SETTL-4B0C2853",
+   "settlement_id": "18c0300c-993f-486a-ab8e-8098bde5cd9c",
+   "settlement_no": "SETTL-779D5F0D",
    "expected_grams": 2,
    "actual_grams": 2
   },
@@ -272,8 +285,8 @@
    "op": "ui_payment",
    "seller": "sellerc",
    "form": "desktop",
-   "settlement_id": "aa98aaa2-99b5-4775-9ba4-158fdf26f35f",
-   "settlement_no": "SETTL-684D6799",
+   "settlement_id": "79605685-6d39-4073-9685-9245131a9742",
+   "settlement_no": "SETTL-7163A80D",
    "expected_grams": 3.2011,
    "actual_grams": 3.2011
   },
@@ -391,6 +404,36 @@
    "item": "sellerc till usd",
    "expected": 0,
    "actual": 0,
+   "ok": true
+  },
+  {
+   "item": "manager physical stock (delta)",
+   "expected": 26.3,
+   "actual": 26.3,
+   "ok": true
+  },
+  {
+   "item": "factory obligation (delta)",
+   "expected": 64.8,
+   "actual": 64.8,
+   "ok": true
+  },
+  {
+   "item": "sellera physical stock (delta)",
+   "expected": 5.07,
+   "actual": 5.07,
+   "ok": true
+  },
+  {
+   "item": "sellerb physical stock (delta)",
+   "expected": 4.19,
+   "actual": 4.19,
+   "ok": true
+  },
+  {
+   "item": "sellerc physical stock (delta)",
+   "expected": 4.53,
+   "actual": 4.53,
    "ok": true
   },
   {

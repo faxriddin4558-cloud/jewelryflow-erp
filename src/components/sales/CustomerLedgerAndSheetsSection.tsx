@@ -502,19 +502,26 @@ export function CustomerLedgerAndSheetsSection() {
     setPayRatesLocked(seller);
     setPaymentModalOpen(true);
     void (async () => {
-      const [officialRes, ownRes, cbuRate] = await Promise.all([
+      // Stored rates fill the dialog at once; the CBU service (can take ~6 s and fail) never delays them.
+      const [officialRes, ownRes] = await Promise.all([
         supabase.from("daily_gold_rates").select("rate_per_gram").eq("proba", 585)
           .order("rate_date", { ascending: false }).order("created_at", { ascending: false }).limit(1),
         seller ? supabase.rpc("rpc_get_seller_rates") : Promise.resolve({ data: null, error: null }),
-        seller ? Promise.resolve(null) : fetch("/api/sales/currency/cbu").then((res) => res.json())
-          .then((json) => (json.success && json.data?.rate ? Number(json.data.rate) : null)).catch(() => null),
       ]);
-      if (cbuRate) setCbuUsdRate(cbuRate);
       const official = officialRes.data && officialRes.data[0]?.rate_per_gram ? Number(officialRes.data[0].rate_per_gram) : null;
-      const prefill = pickPaymentRates({ role: currentRole, ownRates: seller && !ownRes.error ? ownRatesFromRpc(ownRes.data) : null, officialRate: official, cbuUsdRate: cbuRate });
+      const prefill = pickPaymentRates({ role: currentRole, ownRates: seller && !ownRes.error ? ownRatesFromRpc(ownRes.data) : null, officialRate: official, cbuUsdRate: null });
       setPayRate(prefill.lom);
       setPayUsdRate(prefill.usd);
       setPayRatesLocked(prefill.locked);
+      if (!seller) {
+        // director / manager: CBU USD rate when it arrives, unless a rate was typed meanwhile
+        const cbuRate = await fetch("/api/sales/currency/cbu").then((res) => res.json())
+          .then((json) => (json.success && json.data?.rate ? Number(json.data.rate) : null)).catch(() => null);
+        if (cbuRate) {
+          setCbuUsdRate(cbuRate);
+          setPayUsdRate((current) => current || String(cbuRate));
+        }
+      }
     })();
   };
 

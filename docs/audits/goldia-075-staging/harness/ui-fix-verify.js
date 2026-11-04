@@ -22,6 +22,8 @@ const grams = (cash, usd, scrap, proba, lom, usdRate) => r4((cash ? dh(cash * 1e
 async function login(br, tag, vp) {
   const c = creds()[tag];
   const ctx = await br.newContext({ viewport: vp, isMobile: vp.width < 500, hasTouch: vp.width < 500 });
+  // GA_SLOW_CBU=1 reproduces the staging CBU behaviour locally: the currency endpoint answers 503 after 6.5 s
+  if (process.env.GA_SLOW_CBU) await ctx.route('**/api/sales/currency/cbu', async (route) => { await new Promise((r) => setTimeout(r, 6500)); await route.fulfill({ status: 503, contentType: 'application/json', body: '{"success":false,"error":"ERR_CBU_SERVICE_UNAVAILABLE"}' }); });
   const p = await ctx.newPage(); const bad = [];
   p.on('response', (r) => { if (r.url().includes(API_HOST) && r.status() >= 400) bad.push(r.status() + ' ' + r.url().split(API_HOST)[1].split('?')[0]); });
   await p.goto(BASE + '/sales/login', { waitUntil: 'networkidle' });
@@ -36,6 +38,8 @@ const go = async (s, u) => { await s.p.goto(BASE + u, { waitUntil: 'networkidle'
   const C = creds(); const run = Date.now().toString(36);
   const S = { sellera: { markup: 15, lom: 890000, usd: 12500, w: [5.07, 6.13], sale: [6.13, 12] }, sellerb: { markup: 12, lom: 905000, usd: 12650, w: [4.19, 7.21], sale: [7.21, 14] }, sellerc: { markup: 10, lom: 895000, usd: 12550, w: [4.53, 6.57], sale: [6.57, 13] } };
   // ---------- setup with real JWTs ----------
+  const stock0 = (await sel(`manager_vault_account?organization_id=eq.${ORG}&select=s:manager_physical_stock_g,o:current_factory_obligation_g`))[0] || { s: 0, o: 0 };
+  const ph0 = {}; for (const t of Object.keys(S)) ph0[t] = Number(((await sel(`seller_gold_accounts?seller_id=eq.${C[t].id}&select=ph:current_physical_stock_g`))[0] || { ph: 0 }).ph);
   if (!(await rpc('director', 'rpc_set_daily_gold_rate', { p_rate_per_gram: 900000, p_rate_date: tashkentToday() })).ok) throw new Error('daily rate');
   const rc = await rpc('manager', 'rpc_record_factory_receipt', { p_product_name: `fix-verify ${run}`, p_original_physical_g: 60, p_factory_markup_pct: 8 });
   for (const [tag, cfg] of Object.entries(S)) {
@@ -93,6 +97,15 @@ const go = async (s, u) => { await s.p.goto(BASE + u, { waitUntil: 'networkidle'
   }
   // ---------- UI: manager receives every till as pre-filled ----------
   const m = await login(br, 'manager', { width: 1366, height: 860 });
+  // manager payment dialog (unchanged behaviour): official LOM rate shown at once and editable, even while CBU is slow
+  await go(m, '/sales/app/customers');
+  const mrow = m.p.locator(`tr:has-text("${S.sellera.customerName}"), div.rounded-2xl.p-4:has-text("${S.sellera.customerName}")`).locator('visible=true').first();
+  await mrow.locator('button', { hasText: "To'lov" }).locator('visible=true').first().click();
+  await m.p.waitForTimeout(2500);
+  const mLom = await m.p.locator('[data-testid="pay-lom-rate"]').inputValue();
+  const mRo = await m.p.locator('[data-testid="pay-lom-rate"]').evaluate((e) => e.readOnly);
+  T('MGR-prefill', 'manager payment dialog: official 585 rate 900000 shown within 2.5 s (not delayed by CBU), editable', Number(mLom) === 900000 && !mRo, { lom: 900000, readOnly: false }, { lom: mLom, readOnly: mRo });
+  await m.p.getByRole('button', { name: /Bekor Qilish/ }).first().click().catch(() => {});
   for (const tag of ['sellera', 'sellerc', 'sellerb']) {
     const sid = C[tag].id;
     const name = (await sel(`employees?id=eq.${sid}&select=full_name,name`))[0];
@@ -130,6 +143,14 @@ const go = async (s, u) => { await s.p.goto(BASE + u, { waitUntil: 'networkidle'
     cmp(`${tag} till cash`, 0, a.c, true); cmp(`${tag} till usd`, 0, a.u, true);
   }
   const v1 = (await sel(`manager_vault_account?organization_id=eq.${ORG}&select=c:manager_cash_amount,u:manager_usd_amount`))[0];
+  const st1 = (await sel(`manager_vault_account?organization_id=eq.${ORG}&select=s:manager_physical_stock_g,o:current_factory_obligation_g`))[0];
+  const consigned = Object.values(S).reduce((x, c) => x + c.w.reduce((a2, b2) => a2 + b2, 0), 0);
+  cmp('manager physical stock (delta)', r4(60 - consigned), r4(Number(st1.s) - Number(stock0.s)));
+  cmp('factory obligation (delta)', r4(60 * 1.08), r4(Number(st1.o) - Number(stock0.o)));
+  for (const [t, c] of Object.entries(S)) {
+    const ph = Number((await sel(`seller_gold_accounts?seller_id=eq.${C[t].id}&select=ph:current_physical_stock_g`))[0].ph);
+    cmp(`${t} physical stock (delta)`, r4(c.w.reduce((a2, b2) => a2 + b2, 0) - c.sale[0]), r4(ph - ph0[t]));
+  }
   cmp('manager cash UZS (delta)', Object.values(pay).reduce((x, p) => x + p.cash, 0), Number(v1.c) - Number(vault0.c), true);
   cmp('manager USD (delta)', Object.values(pay).reduce((x, p) => x + p.usd, 0), Number(v1.u) - Number(vault0.u), true);
   const opsBad = OPS.filter((o) => ('expected_due' in o && Math.abs(o.expected_due - o.actual_due) > 5e-5) || ('expected_grams' in o && Math.abs(o.expected_grams - o.actual_grams) > 5e-5));
