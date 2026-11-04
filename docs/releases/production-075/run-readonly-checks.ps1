@@ -2,9 +2,12 @@
   GOLDIA - READ-ONLY database checks (Windows PowerShell 5.1 and PowerShell 7; this file is pure ASCII on purpose:
   PowerShell 5.1 reads a .ps1 without BOM as Windows-1252, where UTF-8 dashes/quotes break the parser).
 
-  Nothing is written: every psql session runs with default_transaction_read_only=on and every SQL file runs inside
-  "begin transaction read only ... rollback". The password is asked once (hidden) and handed only to the psql child
-  process environment; it is never printed, logged or stored.
+  Nothing is written. The Supabase pooler (Supavisor) does NOT forward PGOPTIONS / startup "options" to the database,
+  so the session default cannot be trusted. Every query therefore runs in an EXPLICIT "BEGIN TRANSACTION READ ONLY":
+  the identity probe and every SQL file (wrapped by this script: BEGIN TRANSACTION READ ONLY -> guard that raises unless
+  transaction_read_only = on inside that same transaction -> file body -> ROLLBACK, with ON_ERROR_STOP). The first
+  failure stops everything; no further SQL is sent. The password is asked once (hidden) and handed only to the psql
+  child process environment; it is never printed, logged or stored.
 
   Production (Supabase vrozlllcaxinavzxueif): 072 -> 075 preflight + business baseline
     powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target production
@@ -16,7 +19,9 @@
   Output folder: %USERPROFILE%\GoldiaBackups\readonly-<target>-<time>\ (aggregates only, no customer data).
 
   -LocalRehearsal: test mode against a disposable LOCAL PostgreSQL (127.0.0.1/localhost only, user postgres,
-  no TLS, no password). It can never reach a Supabase host.
+  no TLS, no password). It can never reach a Supabase host. Test-only switches (accepted only with -LocalRehearsal):
+  -SimulatePoolerWithoutOptions (do not send PGOPTIONS, like the Supabase pooler) and -ExtraCheckFile <sql> (one more
+  file through the same read-only wrapper, used to prove that a write attempt fails).
 #>
 param(
   [Parameter(Mandatory = $true)][ValidateSet("production", "staging")][string]$Target,
@@ -24,7 +29,9 @@ param(
   [int]$Port = 5432,
   [string]$PgBin = "C:\Program Files\PostgreSQL\17\bin",
   [string]$OutRoot = "",
-  [switch]$LocalRehearsal
+  [switch]$LocalRehearsal,
+  [switch]$SimulatePoolerWithoutOptions,
+  [string]$ExtraCheckFile = ""
 )
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
@@ -46,6 +53,7 @@ function Finish([string]$Result, [string]$Why) {
 }
 
 # ---------------------------------------------------------------- target guard (before any connection)
+if (($SimulatePoolerWithoutOptions -or $ExtraCheckFile) -and -not $LocalRehearsal) { Finish "FAIL" "test-only switches require -LocalRehearsal" }
 if ($LocalRehearsal) {
   if (-not $PoolerHost) { $PoolerHost = "127.0.0.1" }
   if ($PoolerHost -ne "127.0.0.1" -and $PoolerHost -ne "localhost") { Finish "FAIL" "-LocalRehearsal only accepts 127.0.0.1 or localhost" }
@@ -74,8 +82,10 @@ if ($Target -eq "production") {
 } else {
   $checks = @(@{ Name = "function_body_parity_075"; File = "supabase/release/function_body_parity_075_readonly.sql"; Kind = "parity" })
 }
+if ($ExtraCheckFile) { $checks += @{ Name = "extra_check"; File = $ExtraCheckFile; Kind = "extra" } }
 foreach ($c in $checks) {
-  $full = Join-Path $repo $c.File
+  $full = $c.File
+  if (-not [System.IO.Path]::IsPathRooted($full)) { $full = Join-Path $repo $c.File }
   if (-not (Test-Path -LiteralPath $full)) { Finish "FAIL" "missing $($c.File) - run from the release branch checkout" }
   $c.Path = $full
 }
@@ -120,7 +130,9 @@ function Invoke-Psql([string[]]$PsqlArgs) {
   $psi.EnvironmentVariables["PGSSLMODE"] = $SslMode
   $psi.EnvironmentVariables["PGAPPNAME"] = "goldia-readonly-checks"
   $psi.EnvironmentVariables["PGCONNECT_TIMEOUT"] = "20"
-  $psi.EnvironmentVariables["PGOPTIONS"] = "-c default_transaction_read_only=on -c statement_timeout=120000"
+  # extra layer only - the Supabase pooler drops it; safety comes from the explicit read-only transactions below
+  if (-not $SimulatePoolerWithoutOptions) { $psi.EnvironmentVariables["PGOPTIONS"] = "-c default_transaction_read_only=on -c statement_timeout=120000" }
+  $psi.EnvironmentVariables["PGCLIENTENCODING"] = "UTF8"
   $psi.EnvironmentVariables["PGPASSWORD"] = $password
   $p = [System.Diagnostics.Process]::Start($psi)
   $outTask = $p.StandardOutput.ReadToEndAsync()
@@ -140,31 +152,58 @@ function First-Error([hashtable]$r) {
 Write-Host ("GOLDIA read-only checks - target " + $Target + " (" + $Ref + "), host " + $PoolerHost) -ForegroundColor Cyan
 
 # ---------------------------------------------------------------- identity probe
-$probeSql = "select current_setting('transaction_read_only') || '|' || current_user || '|' || (to_regprocedure('public.deployment_environment()') is null)::text || '|' || coalesce((select max(version) from supabase_migrations.schema_migrations), '-')"
-$probe = Invoke-Psql @("-X", "-q", "-A", "-t", "-w", "-v", "ON_ERROR_STOP=1", "-c", $probeSql)
+$probeSql = "select 'GOLDIA_ID|' || current_setting('transaction_read_only') || '|' || current_user || '|' || (to_regprocedure('public.deployment_environment()') is null)::text || '|' || coalesce((select max(version) from supabase_migrations.schema_migrations), '-') || '|' || current_setting('default_transaction_read_only')"
+# three statements in ONE session: the select runs inside the explicit read-only transaction
+$probe = Invoke-Psql @("-X", "-q", "-A", "-t", "-w", "-v", "ON_ERROR_STOP=1", "-c", "begin transaction read only", "-c", $probeSql, "-c", "rollback")
 if ($probe.Code -ne 0) { Finish "FAIL" ("connection/identity probe failed: " + (First-Error $probe)) }
-$probeLine = @($probe.Out -split "`r?`n" | Where-Object { $_ -match '\|' }) | Select-Object -Last 1
+$probeLine = @($probe.Out -split "`r?`n" | Where-Object { $_ -match '^GOLDIA_ID\|' }) | Select-Object -Last 1
 if (-not $probeLine) { Finish "FAIL" "identity probe returned no row" }
 $pp = $probeLine.Trim().Split("|")
-if ($pp.Count -lt 4) { Finish "FAIL" ("unexpected identity row: " + $probeLine) }
-$idLine = "identity: read_only=" + $pp[0] + " user=" + $pp[1] + " not_jfs=" + $pp[2] + " latest_migration=" + $pp[3]
+if ($pp.Count -lt 6) { Finish "FAIL" ("unexpected identity row: " + $probeLine) }
+$idLine = "identity: transaction_read_only=" + $pp[1] + " (explicit BEGIN TRANSACTION READ ONLY) user=" + $pp[2] + " not_jfs=" + $pp[3] + " latest_migration=" + $pp[4] + " session_default_read_only=" + $pp[5] + " (informational; the pooler ignores PGOPTIONS)"
 Write-Host ("  " + $idLine)
 Add-Content -Path $script:SummaryFile -Value $idLine -Encoding ASCII
-if ($pp[0] -ne "on") { Finish "FAIL" "session is not read-only" }
-if ($pp[2] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
+if ($pp[1] -ne "on") { Finish "FAIL" "the explicit read-only transaction is not read-only (transaction_read_only=" + $pp[1] + ")" }
+if ($pp[3] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
+
+# Wraps a read-only SQL file: its own BEGIN/ROLLBACK lines are replaced by the script's explicit transaction and a guard
+# that raises (ON_ERROR_STOP -> psql exits, nothing else runs) unless the SAME transaction is read-only.
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+function New-ReadOnlyWrapper([hashtable]$c) {
+  $body = [System.IO.File]::ReadAllText($c.Path, [System.Text.Encoding]::UTF8)
+  $kept = @($body -split "`r?`n" | Where-Object { $_.Trim().ToLowerInvariant() -ne "begin transaction read only;" -and $_.Trim().ToLowerInvariant() -ne "rollback;" -and $_.Trim().ToLowerInvariant() -ne "begin;" -and $_.Trim().ToLowerInvariant() -ne "commit;" })
+  # any other transaction control could leave the read-only transaction (the pooler session default is NOT read-only)
+  $tc = @($kept | Where-Object { $_ -match '^\s*(commit|end|abort|rollback|begin|start\s+transaction|savepoint|release|prepare\s+transaction|set\s+(session\s+)?(characteristics|transaction)|set\s+default_transaction_read_only|reset\s+(all|default_transaction_read_only)|\\(c|connect|i|ir|include))\b' })
+  if ($tc.Count -gt 0) { Finish "FAIL" ($c.Name + ": transaction control or psql meta command in the SQL file (" + $tc[0].Trim() + ") - refused before running") }
+  $sb = New-Object System.Text.StringBuilder
+  [void]$sb.AppendLine("\set ON_ERROR_STOP on")
+  [void]$sb.AppendLine("begin transaction read only;")
+  [void]$sb.AppendLine("do `$goldia_ro`$ begin if current_setting('transaction_read_only') <> 'on' then raise exception 'GOLDIA_RO_GUARD: transaction is not read-only - stopped before any check'; end if; end `$goldia_ro`$;")
+  [void]$sb.AppendLine("select 'GOLDIA_RO_GUARD|' || current_setting('transaction_read_only');")
+  foreach ($l in $kept) { [void]$sb.AppendLine($l) }
+  [void]$sb.AppendLine(";")
+  [void]$sb.AppendLine("select 'GOLDIA_RO_END|' || current_setting('transaction_read_only');")
+  [void]$sb.AppendLine("rollback;")
+  $w = Join-Path $outDir ("wrapped-" + $c.Name + ".sql")
+  [System.IO.File]::WriteAllText($w, $sb.ToString(), $utf8NoBom)
+  return $w
+}
 
 # ---------------------------------------------------------------- checks
 $overall = "PASS"; $why = New-Object System.Collections.ArrayList
 foreach ($c in $checks) {
-  $r = Invoke-Psql @("-X", "-q", "-A", "-t", "-w", "-F", " | ", "-v", "ON_ERROR_STOP=1", "-f", $c.Path)
+  $wrapped = New-ReadOnlyWrapper $c
+  $r = Invoke-Psql @("-X", "-q", "-A", "-t", "-w", "-F", " | ", "-v", "ON_ERROR_STOP=1", "-f", $wrapped)
   $outFile = Join-Path $outDir ($c.Name + ".txt")
   Set-Content -Path $outFile -Value ($r.Out + "`n--- stderr ---`n" + $r.Err) -Encoding UTF8
   if ($r.Code -ne 0) {
-    $overall = "FAIL"; [void]$why.Add($c.Name + ": psql exit " + $r.Code + " - " + (First-Error $r))
     Write-Host ("  " + $c.Name + ": FAIL (psql exit " + $r.Code + ") -> " + $outFile) -ForegroundColor Red
-    continue
+    Add-Content -Path $script:SummaryFile -Value ($c.Name + ": FAIL - psql exit " + $r.Code + " - " + (First-Error $r)) -Encoding ASCII
+    Finish "FAIL" ($c.Name + ": psql exit " + $r.Code + " - " + (First-Error $r) + " (remaining checks not run)")
   }
   $lines = @($r.Out -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+  $guardOk = (@($lines | Where-Object { $_ -eq "GOLDIA_RO_GUARD|on" }).Count -eq 1) -and (@($lines | Where-Object { $_ -eq "GOLDIA_RO_END|on" }).Count -eq 1)
+  if (-not $guardOk) { Finish "FAIL" ($c.Name + ": read-only guard lines missing - output not trusted (remaining checks not run)") }
   $verdict = "PASS"; $detail = ""
   switch ($c.Kind) {
     "preflight" {
@@ -184,6 +223,7 @@ foreach ($c in $checks) {
       if ($fp.Count -ne 1 -or $n -lt 20) { $verdict = "FAIL"; $detail = "baseline incomplete (" + $n + " lines, fingerprint " + $fp.Count + ")" }
       else { $detail = [string]$n + " lines, " + $fp[0] }
     }
+    "extra" { $detail = "extra check file ran read-only" }
     "parity" {
       $stat = @{}
       foreach ($l in $lines) { if ($l -match '^(identical|crlf_only|DIFFERENT|MISSING) \| (\d+)$') { $stat[$Matches[1]] = [int]$Matches[2] } }
@@ -198,7 +238,7 @@ foreach ($c in $checks) {
   $col = "Green"; if ($verdict -eq "FAIL") { $col = "Red" } elseif ($verdict -eq "REVIEW") { $col = "Yellow" }
   Write-Host ("  " + $c.Name + ": " + $verdict + " - " + $detail + " -> " + $outFile) -ForegroundColor $col
   Add-Content -Path $script:SummaryFile -Value ($c.Name + ": " + $verdict + " - " + $detail) -Encoding ASCII
-  if ($verdict -eq "FAIL") { $overall = "FAIL"; [void]$why.Add($c.Name + ": " + $detail) }
+  if ($verdict -eq "FAIL") { Finish "FAIL" ($c.Name + ": " + $detail + " (remaining checks not run)") }
   elseif ($verdict -eq "REVIEW" -and $overall -eq "PASS") { $overall = "REVIEW"; [void]$why.Add($c.Name + ": " + $detail) }
 }
 $password = $null

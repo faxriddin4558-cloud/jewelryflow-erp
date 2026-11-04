@@ -1,6 +1,6 @@
 GOLDIA read-only checks - target staging (vouehtlmsunebracahon), host 127.0.0.1
-  identity: read_only=on user=postgres not_jfs=true latest_migration=20260101000075
+  identity: transaction_read_only=on (explicit BEGIN TRANSACTION READ ONLY) user=postgres not_jfs=true latest_migration=20260101000075 session_default_read_only=off (informational; the pooler ignores PGOPTIONS)
     DETAIL DIFFERENT _goldia_business_date(timestamp with time zone) | 0
-  function_body_parity_075: FAIL - DIFFERENT=1 identical=156 -> /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests/runs/readonly-staging-20261104-072216/function_body_parity_075.txt
+  function_body_parity_075: FAIL - DIFFERENT=1 identical=156 -> <out>/runs/readonly-staging-20261104-074909/function_body_parity_075.txt
 
-RESULT: FAIL - function_body_parity_075: DIFFERENT=1 identical=156; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests/runs/readonly-staging-20261104-072216
+RESULT: FAIL - function_body_parity_075: DIFFERENT=1 identical=156 (remaining checks not run)

@@ -1,0 +1,6 @@
+GOLDIA read-only checks - target production (vrozlllcaxinavzxueif), host 127.0.0.1
+  identity: transaction_read_only=on (explicit BEGIN TRANSACTION READ ONLY) user=postgres not_jfs=true latest_migration=20260101000072 session_default_read_only=off (informational; the pooler ignores PGOPTIONS)
+  00_preflight: PASS - RESULT | preflight_072_to_075 | PASS | 0 STOP, 0 WARN -> <out>/runs/readonly-production-20261104-074904/00_preflight.txt
+  01_baseline: PASS - 140 lines, BASELINE | fingerprint business | 72f3a403a0f94c6911d6783c35745ee3 -> <out>/runs/readonly-production-20261104-074904/01_baseline.txt
+
+RESULT: PASS - all read-only checks passed; files in <out>/runs/readonly-production-20261104-074904

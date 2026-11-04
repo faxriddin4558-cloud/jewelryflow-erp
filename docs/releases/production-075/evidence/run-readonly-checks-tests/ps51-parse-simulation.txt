@@ -1,3 +1,2 @@
 run-readonly-checks.ps1: bom=False parse_errors_as_PS51=0
 production-frontend.ps1: bom=False parse_errors_as_PS51=0
-deploy-staging-frontend.ps1: bom=False parse_errors_as_PS51=0

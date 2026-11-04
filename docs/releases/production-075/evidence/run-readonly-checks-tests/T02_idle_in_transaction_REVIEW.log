@@ -1,8 +1,8 @@
 GOLDIA read-only checks - target production (vrozlllcaxinavzxueif), host 127.0.0.1
-  identity: read_only=on user=postgres not_jfs=true latest_migration=20260101000072
+  identity: transaction_read_only=on (explicit BEGIN TRANSACTION READ ONLY) user=postgres not_jfs=true latest_migration=20260101000072 session_default_read_only=off (informational; the pooler ignores PGOPTIONS)
     RESULT | preflight_072_to_075 | WARN | 0 STOP, 1 WARN
     GATE | idle_in_transaction | WARN | 1
-  00_preflight: REVIEW - RESULT | preflight_072_to_075 | WARN | 0 STOP, 1 WARN -> /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests/runs/readonly-production-20261104-072145/00_preflight.txt
-  01_baseline: PASS - 140 lines, BASELINE | fingerprint business | 72f3a403a0f94c6911d6783c35745ee3 -> /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests/runs/readonly-production-20261104-072145/01_baseline.txt
+  00_preflight: REVIEW - RESULT | preflight_072_to_075 | WARN | 0 STOP, 1 WARN -> <out>/runs/readonly-production-20261104-074835/00_preflight.txt
+  01_baseline: PASS - 140 lines, BASELINE | fingerprint business | 72f3a403a0f94c6911d6783c35745ee3 -> <out>/runs/readonly-production-20261104-074835/01_baseline.txt
 
-RESULT: REVIEW - 00_preflight: RESULT | preflight_072_to_075 | WARN | 0 STOP, 1 WARN; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests/runs/readonly-production-20261104-072145
+RESULT: REVIEW - 00_preflight: RESULT | preflight_072_to_075 | WARN | 0 STOP, 1 WARN; files in <out>/runs/readonly-production-20261104-074835

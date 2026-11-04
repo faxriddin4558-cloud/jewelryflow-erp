@@ -43,6 +43,18 @@ ichidagi `0x94` qo'shtirnoq bo'lib qoladi -> 46-49-qatorlarda ParserError. Endi 
 psql jarayoni muhitiga beriladi; `RESULT: PASS` (0) / `REVIEW` (2, WARN) / `FAIL` (1) - har qanday ulanish/SQL xatosi, STOP, natija qatori yo'qligi yoki
 parity farqi FAIL. Lokal PG17 bilan xatti-harakat testlari **13/13** (`harness/test-run-readonly-checks.sh`, `evidence/run-readonly-checks-tests/`).
 
+### Pooler: PGOPTIONS ishlamaydi (2026-11-04 tuzatish)
+Production’da birinchi haqiqiy ishga tushirish: ulanish PASS, lekin `read_only=off` → skript to‘g‘ri **FAIL** qildi (SQL ishga tushmadi).
+Sabab: Supabase pooleri (Supavisor) ulanishdagi `options` / `PGOPTIONS` (`-c default_transaction_read_only=on`) ni backend’ga uzatmaydi.
+Endi xavfsizlik sessiya standartiga bog‘liq emas:
+- identity so‘rovi `BEGIN TRANSACTION READ ONLY` → select → `ROLLBACK` ichida; tranzaksiyada `transaction_read_only=on` bo‘lishi shart (sessiya standarti faqat INFO);
+- har bir SQL fayl skript o‘ramida: `\set ON_ERROR_STOP on` → `BEGIN TRANSACTION READ ONLY` → shu tranzaksiyada guard (`transaction_read_only <> 'on'` bo‘lsa exception) →
+  fayl tanasi → yakuniy tekshiruv → `ROLLBACK`; guard qatorlari chiqishda bo‘lmasa natijaga ishonilmaydi (FAIL);
+- faylda tranzaksiya boshqaruvi (`COMMIT/END/ABORT/SAVEPOINT/SET TRANSACTION`, `default_transaction_read_only`) yoki psql `\c`/`\i` bo‘lsa — ishga tushirishdan oldin rad;
+- birinchi FAIL’da qolgan SQL yuborilmaydi.
+Lokal PG17 testlari (pooler simulyatsiyasi — PGOPTIONS yuborilmaydi) **19/19**: shu jumladan yozish urinishi → `cannot execute INSERT in a read-only transaction` → FAIL,
+`END;` orqali chiqish urinishi → ishga tushirishdan oldin rad, ma’lumotlar o‘zgarmagan (`evidence/run-readonly-checks-tests/`).
+
 ## 2. Nima tekshiriladi
 | Hujjat | Mazmun |
 |---|---|
