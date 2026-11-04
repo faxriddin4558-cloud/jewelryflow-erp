@@ -1,0 +1,8 @@
+GOLDIA read-only checks - target production (vrozlllcaxinavzxueif), host 127.0.0.1
+  identity: read_only=on user=postgres not_jfs=true latest_migration=20260101000072
+    RESULT | preflight_072_to_075 | STOP | 1 STOP, 0 WARN
+    GATE | function_bodies_DIFFERENT | STOP | DIFFERENT rpc_get_factory_settings(uuid)
+  00_preflight: FAIL - RESULT | preflight_072_to_075 | STOP | 1 STOP, 0 WARN -> /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests/runs/readonly-production-20261104-072213/00_preflight.txt
+  01_baseline: PASS - 140 lines, BASELINE | fingerprint business | 72f3a403a0f94c6911d6783c35745ee3 -> /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests/runs/readonly-production-20261104-072213/01_baseline.txt
+
+RESULT: FAIL - 00_preflight: RESULT | preflight_072_to_075 | STOP | 1 STOP, 0 WARN; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests/runs/readonly-production-20261104-072213

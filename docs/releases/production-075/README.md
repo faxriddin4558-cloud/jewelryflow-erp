@@ -35,6 +35,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075
 Talablar: PostgreSQL 17 client (`C:\Program Files\PostgreSQL\17\bin`, boshqa joyda bo‘lsa `-PgBin`), Node 20+, Vercel login.
 Staging pooler host — staging release hisobotidagi `host=...` qatori (`%USERPROFILE%\GoldiaBackups\goldia-staging-*\STAGING-075-RESULT.txt`).
 
+### Windows PowerShell 5.1 (2026-11-04 tuzatish)
+`run-readonly-checks.ps1` va `production-frontend.ps1` BOM'siz UTF-8 edi: PowerShell 5.1 ularni Windows-1252 deb o'qiydi, em-dash (`E2 80 94`)
+ichidagi `0x94` qo'shtirnoq bo'lib qoladi -> 46-49-qatorlarda ParserError. Endi ikkala fayl ham **faqat ASCII**; PS 5.1 o'qish simulyatsiyasi
+(`harness/ps51-parse-check.ps1`, faylni cp1252 sifatida dekodlab parse qiladi) - 0 xato (`evidence/run-readonly-checks-tests/ps51-parse-simulation.txt`).
+`run-readonly-checks.ps1`: psql `System.Diagnostics.Process` orqali, exit code va natija qatori tekshiriladi; parol bir marta yashirin so'raladi va faqat
+psql jarayoni muhitiga beriladi; `RESULT: PASS` (0) / `REVIEW` (2, WARN) / `FAIL` (1) - har qanday ulanish/SQL xatosi, STOP, natija qatori yo'qligi yoki
+parity farqi FAIL. Lokal PG17 bilan xatti-harakat testlari **13/13** (`harness/test-run-readonly-checks.sh`, `evidence/run-readonly-checks-tests/`).
+
 ## 2. Nima tekshiriladi
 | Hujjat | Mazmun |
 |---|---|

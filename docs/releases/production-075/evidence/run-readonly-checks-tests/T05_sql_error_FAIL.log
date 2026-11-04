@@ -1,0 +1,3 @@
+GOLDIA read-only checks - target production (vrozlllcaxinavzxueif), host 127.0.0.1
+
+RESULT: FAIL - connection/identity probe failed: ERROR:  relation "supabase_migrations.schema_migrations" does not exist

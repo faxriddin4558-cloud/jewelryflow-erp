@@ -1,0 +1,14 @@
+ok   T01_production_072_PASS exit=0 | RESULT: PASS - all read-only checks passed; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests
+ok   T02_idle_in_transaction_REVIEW exit=2 | RESULT: REVIEW - 00_preflight: RESULT | preflight_072_to_075 | WARN | 0 STOP, 1 WARN; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-
+ok   T03_history_after_072_FAIL exit=1 | RESULT: FAIL - 00_preflight: RESULT | preflight_072_to_075 | STOP | 1 STOP, 0 WARN; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c
+ok   T04_connection_refused_FAIL exit=1 | RESULT: FAIL - connection/identity probe failed: psql: error: connection to server at "127.0.0.1", port 59999 failed: Connection refused
+ok   T05_sql_error_FAIL exit=1 | RESULT: FAIL - connection/identity probe failed: ERROR:  relation "supabase_migrations.schema_migrations" does not exist
+ok   T06_guard_staging_ref_in_host_FAIL exit=1 | RESULT: FAIL - host contains another project's ref (vouehtlmsunebracahon)
+ok   T07_guard_jfs_ref_FAIL exit=1 | RESULT: FAIL - host contains another project's ref (yvvbdoqncubtwlzskgml)
+ok   T08_guard_local_with_remote_host_FAIL exit=1 | RESULT: FAIL - -LocalRehearsal only accepts 127.0.0.1 or localhost
+ok   T09_guard_unexpected_host_FAIL exit=1 | RESULT: FAIL - unexpected host evil.example.com
+ok   T10_function_body_different_FAIL exit=1 | RESULT: FAIL - 00_preflight: RESULT | preflight_072_to_075 | STOP | 1 STOP, 0 WARN; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c
+ok   T11_production_072_PASS_again exit=0 | RESULT: PASS - all read-only checks passed; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests
+ok   T12_staging_parity_075_PASS exit=0 | RESULT: PASS - all read-only checks passed; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests
+ok   T13_staging_parity_DIFFERENT_FAIL exit=1 | RESULT: FAIL - function_body_parity_075: DIFFERENT=1 identical=156; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e21
+TOTAL ok=13 bad=0

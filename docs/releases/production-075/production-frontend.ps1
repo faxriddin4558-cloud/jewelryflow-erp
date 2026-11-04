@@ -1,5 +1,5 @@
 <#
-  GOLDIA SALES — PRODUCTION frontend guard (Vercel project goldia-sales-production, Supabase vrozlllcaxinavzxueif).
+  GOLDIA SALES - PRODUCTION frontend guard (pure ASCII file: Windows PowerShell 5.1 reads a .ps1 without BOM as Windows-1252) (Vercel project goldia-sales-production, Supabase vrozlllcaxinavzxueif).
   Windows PowerShell 5.1 / PowerShell 7. Native commands run through System.Diagnostics.Process (stderr is not fatal).
 
   DEFAULT = CHECK ONLY (nothing in Vercel or Supabase changes):
@@ -59,14 +59,14 @@ function Get-JwtRef([string]$Jwt) {
   if ($c.PSObject.Properties.Name -contains "ref") { return [string]$c.ref }; return ""
 }
 
-Write-Host "GOLDIA SALES — production frontend $(if ($Apply) { 'DEPLOY (-Apply)' } else { 'CHECK ONLY' })" -ForegroundColor Cyan
+Write-Host "GOLDIA SALES - production frontend $(if ($Apply) { 'DEPLOY (-Apply)' } else { 'CHECK ONLY' })" -ForegroundColor Cyan
 
 Write-Host "`n[1] Vercel CLI, login, project link"
 $ver = Invoke-Vercel @("--version"); if ($ver.Code -ne 0) { Stop-Now "Vercel CLI did not start: $($ver.Err.Trim())" }
 $who = Invoke-Vercel @("whoami"); if ($who.Code -ne 0) { Stop-Now "not logged in to Vercel (npx vercel@latest login)" }
 Write-Host "  logged in as $($who.Out.Trim())"
 $before = $null; if (Test-Path ".vercel\project.json") { $before = Get-Content ".vercel\project.json" -Raw | ConvertFrom-Json }
-if ($before -and -not $Apply) { Write-Host "  (this folder is linked to project $($before.projectId); it will be re-linked to $ProjectName — local file only)" }
+if ($before -and -not $Apply) { Write-Host "  (this folder is linked to project $($before.projectId); it will be re-linked to $ProjectName - local file only)" }
 $link = Invoke-Vercel @("link", "--yes", "--project", $ProjectName); if ($link.Code -ne 0) { Stop-Now "vercel link failed: $($link.Err.Trim())" }
 $linked = Get-Content ".vercel\project.json" -Raw | ConvertFrom-Json
 if ($linked.PSObject.Properties.Name -contains "projectName" -and $linked.projectName -and $linked.projectName -ne $ProjectName) { Stop-Now "linked project is $($linked.projectName)" }
@@ -89,7 +89,7 @@ $appEnv = if ($vars.ContainsKey("NEXT_PUBLIC_APP_ENV")) { $vars["NEXT_PUBLIC_APP
 if ($appEnv -ne "production") { Note-Problem "NEXT_PUBLIC_APP_ENV is '$appEnv', expected production" } else { Write-Host "  NEXT_PUBLIC_APP_ENV = production" -ForegroundColor Green }
 if ($vars.ContainsKey("NEXT_PUBLIC_STAGING_MODE") -and $vars["NEXT_PUBLIC_STAGING_MODE"] -eq "true") { Note-Problem "NEXT_PUBLIC_STAGING_MODE=true in production" }
 foreach ($k in @("NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY")) {
-  if (-not $vars.ContainsKey($k) -or -not $vars[$k]) { Note-Problem "$k is missing or not readable (sensitive variables cannot be pulled — verify it in the dashboard)"; continue }
+  if (-not $vars.ContainsKey($k) -or -not $vars[$k]) { Note-Problem "$k is missing or not readable (sensitive variables cannot be pulled - verify it in the dashboard)"; continue }
   $r = Get-JwtRef $vars[$k]
   if ($r -eq $null) { if ($vars[$k] -match '^sb_(publishable|secret)_') { Write-Host "  $k : new-style key (ref checked live below)" } else { Note-Problem "$k is not a JWT or sb_ key" } }
   elseif ($r -ne $ProdRef) { Note-Problem "$k belongs to '$r', not production" } else { Write-Host "  $k : production ($ProdRef)" -ForegroundColor Green }
@@ -108,8 +108,8 @@ try {
   if ($v.staging_mode -eq $true) { Note-Problem "live frontend runs in staging mode" }
 } catch { Note-Problem "cannot read https://$ProjectName.vercel.app/api/version" }
 
-if ($problems.Count) { Write-Host "`nRESULT: $($problems.Count) PROBLEM(S) — fix the Production environment in the Vercel dashboard first." -ForegroundColor Red; if ($Apply) { Stop-Now "deploy refused" }; exit 1 }
-if (-not $Apply) { Write-Host "`nRESULT: CHECK PASS — production frontend environment points only to $ProdRef. Nothing was changed." -ForegroundColor Green; exit 0 }
+if ($problems.Count) { Write-Host "`nRESULT: $($problems.Count) PROBLEM(S) - fix the Production environment in the Vercel dashboard first." -ForegroundColor Red; if ($Apply) { Stop-Now "deploy refused" }; exit 1 }
+if (-not $Apply) { Write-Host "`nRESULT: CHECK PASS - production frontend environment points only to $ProdRef. Nothing was changed." -ForegroundColor Green; exit 0 }
 
 Write-Host "`n[4] deploy (owner-approved)"
 if (-not $ReleaseCandidate) { Stop-Now "-ReleaseCandidate <sha> is required with -Apply" }
@@ -123,5 +123,5 @@ Write-Host $dep.Out
 if ($dep.Code -ne 0) { Write-Host $dep.Err; Write-Host "STOP: deploy failed; the previous production deployment is still live." -ForegroundColor Red; exit 1 }
 $ok = $false
 for ($i = 0; $i -lt 12 -and -not $ok; $i++) { Start-Sleep -Seconds 10; try { $v = Invoke-RestMethod -Uri "https://$ProjectName.vercel.app/api/version" -UseBasicParsing -TimeoutSec 30; $ok = ($v.full_commit -eq $head -and $v.supabase_ref -eq $ProdRef -and $v.env -eq "production") } catch { } }
-if (-not $ok) { Write-Host "STOP: /api/version does not show $head / $ProdRef / production — use Vercel 'Instant Rollback' to the previous deployment if the site is wrong." -ForegroundColor Red; exit 1 }
+if (-not $ok) { Write-Host "STOP: /api/version does not show $head / $ProdRef / production - use Vercel 'Instant Rollback' to the previous deployment if the site is wrong." -ForegroundColor Red; exit 1 }
 Write-Host "RESULT: PRODUCTION FRONTEND $($head.Substring(0,7)) DEPLOYED (supabase_ref $ProdRef)" -ForegroundColor Green

@@ -1,0 +1,5 @@
+GOLDIA read-only checks - target staging (vouehtlmsunebracahon), host 127.0.0.1
+  identity: read_only=on user=postgres not_jfs=true latest_migration=20260101000075
+  function_body_parity_075: PASS - identical=157 -> /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests/runs/readonly-staging-20261104-072215/function_body_parity_075.txt
+
+RESULT: PASS - all read-only checks passed; files in /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/ro-tests/runs/readonly-staging-20261104-072215
