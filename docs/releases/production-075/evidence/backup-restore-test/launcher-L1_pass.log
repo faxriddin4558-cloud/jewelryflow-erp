@@ -1,0 +1,13 @@
+GOLDIA production backup + local restore test - vrozlllcaxinavzxueif via aws-0-ap-southeast-1.pooler.supabase.com
+
+Gates:
+  backup      True
+  baseline    True
+  recovery    True
+  preflight   True
+  compat      True
+  accounting  True
+  chain       True
+Folder: <tmp>/launcher-test/out/goldia-prod-2099-01-01T00-00-01
+
+RESULT: PASS - backup verified, restored copy identical to production (rows + baseline), recovery to 072 and forward path 073-075 proven on the copy. Production was only read.

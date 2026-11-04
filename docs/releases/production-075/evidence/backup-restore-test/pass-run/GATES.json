@@ -1,0 +1,13 @@
+{
+  "backup": true,
+  "baseline": true,
+  "recovery": true,
+  "migration064": true,
+  "preflight": true,
+  "accounting": true,
+  "compat": true,
+  "chain": true,
+  "ready": true,
+  "target": "073",
+  "backupDir": "<local>
+}

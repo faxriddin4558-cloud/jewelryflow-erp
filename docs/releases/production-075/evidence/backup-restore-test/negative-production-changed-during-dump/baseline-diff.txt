@@ -1,0 +1,6 @@
+production: BASELINE|fingerprint business|c3ea17767569b3fefaa26098d44ffd16
+production: BASELINE|org 00000000-0000-0000-0000-000000000001|cust=2 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=12.5000 mgr_uzs=3.00 mgr_usd=0.00 fac_obl_g=33.4800 fac_recv_g=31.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+production: BASELINE|total manager_uzs|8100003.00
+restored:   BASELINE|fingerprint business|53c2b02d2fe035bbbe7a2836f4d62625
+restored:   BASELINE|org 00000000-0000-0000-0000-000000000001|cust=2 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=12.5000 mgr_uzs=1.00 mgr_usd=0.00 fac_obl_g=33.4800 fac_recv_g=31.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+restored:   BASELINE|total manager_uzs|8100001.00

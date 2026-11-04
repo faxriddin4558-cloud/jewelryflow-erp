@@ -11,7 +11,14 @@
  * The database password is asked in a hidden prompt (or taken from PGPASSWORD / pgpass).
  * It is never printed, written to disk or committed.
  *
- * Options: --host --port --user --db --sslmode --pg-bin <dir> --out <dir> --keep-restore
+ * 2026-11 (075 release): every production query and SQL file runs in an EXPLICIT "begin transaction read only" with a
+ * guard (the Supabase pooler ignores PGOPTIONS); staging / JFS demo / ERP refs are refused; the business baseline
+ * (docs/releases/production-075/01_baseline_readonly.sql) must be identical on production before and after the dump
+ * and on the restored copy; the restored copy must pass the 072 -> 075 preflight (schema = repository 072);
+ * --chain applies 073 -> 074 -> 075 on the restored copy (postflights, business fingerprint unchanged) and then the
+ * emergency rollbacks back to an exact 072 copy. Exit code 0 only when every gate passes.
+ *
+ * Options: --host --port --user --db --sslmode --pg-bin <dir> --out <dir> --keep-restore --chain
  *          --migration <NNN>  migration to verify on the restored copy (default 065); the gates
  *                             then require NNN-1 applied and NNN absent in production
  *          --reuse <backup folder>  reuse that backup (after SHA256 + pg_restore --list checks)
@@ -53,7 +60,11 @@ const FILES = {
   advisor: path.join(REPO, "supabase/release/security_advisor_readonly.sql"),
   migration065: migrationFile(),
   rollback065: path.join(REPO, `supabase/rollback/${TARGET_VERSION}_rollback.sql`),
+  baseline: path.join(REPO, "docs/releases/production-075/01_baseline_readonly.sql"),
+  preflight075: path.join(REPO, "docs/releases/production-075/00_preflight_072_to_075_readonly.sql"),
 };
+const FORBIDDEN_REFS = { vouehtlmsunebracahon: "Goldia STAGING", yvvbdoqncubtwlzskgml: "JewelryFlow SaaS demo", hbbuskyifxkowlozsaym: "manufacturing ERP", vrozlilcaxinavzxueif: "typo of the production ref" };
+const LOCAL_TARGET = /^(localhost|127\.0\.0\.1)$/.test(String(PROD.host)) || String(PROD.host).startsWith("/");
 
 const summary = [];
 const gate = {};
@@ -187,6 +198,41 @@ function psql(envFn, sqlOrFile, { file = false, tuples = true, onErrorStop = tru
 
 function readOnly(sql) {
   return `begin transaction read only; ${sql}; rollback;`;
+}
+
+// A read-only SQL file is never trusted to keep its own transaction: its BEGIN/ROLLBACK lines are replaced by an
+// explicit read-only transaction with a guard that raises unless that same transaction is read-only. Files with any
+// other transaction control or psql meta command are refused (they could leave the read-only transaction).
+let wrapSeq = 0;
+function readOnlyFile(file) {
+  const body = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "");
+  const kept = body.split(/\r?\n/).filter((l) => !/^\s*(begin transaction read only|rollback|begin|commit)\s*;\s*$/i.test(l));
+  const bad = kept.find((l) => /^\s*(commit|end|abort|rollback|begin|start\s+transaction|savepoint|release|prepare\s+transaction|set\s+(session\s+)?(characteristics|transaction)|set\s+default_transaction_read_only|reset\s+(all|default_transaction_read_only)|\\(c|connect|i|ir|include))\b/i.test(l));
+  if (bad) fail(`${path.basename(file)} contains transaction control or a psql meta command ("${bad.trim()}") - refused`);
+  const dir = path.join(outDir, "wrapped");
+  fs.mkdirSync(dir, { recursive: true });
+  const w = path.join(dir, `${String(++wrapSeq).padStart(2, "0")}-${path.basename(file)}`);
+  fs.writeFileSync(w, ["\\set ON_ERROR_STOP on", "begin transaction read only;",
+    "do $goldia_ro$ begin if current_setting('transaction_read_only') <> 'on' then raise exception 'GOLDIA_RO_GUARD: transaction is not read-only'; end if; end $goldia_ro$;",
+    ...kept, ";", "rollback;", ""].join("\n"));
+  return w;
+}
+function prodFile(file, opts = {}) {
+  return psql(prodEnv, readOnlyFile(file), { file: true, ...opts });
+}
+// business baseline lines (BASELINE|key|value); null when the query failed
+function baseline(envFn, label) {
+  const r = psql(envFn, readOnlyFile(FILES.baseline), { file: true });
+  const lines = String(r.stdout || "").split(/\r?\n/).filter((l) => l.startsWith("BASELINE|"));
+  fs.writeFileSync(path.join(outDir, `baseline-${label}.txt`), lines.join(os.EOL) + os.EOL);
+  if (r.status !== 0 || !lines.some((l) => /^BASELINE\|fingerprint business\|[0-9a-f]{32}$/.test(l))) return null;
+  return lines.join("\n");
+}
+function preflightResult(envFn, label) {
+  const r = psql(envFn, readOnlyFile(FILES.preflight075), { file: true });
+  fs.writeFileSync(path.join(outDir, `preflight-072-075-${label}.txt`), String(r.stdout || "") + String(r.stderr || ""));
+  const line = String(r.stdout || "").split(/\r?\n/).find((l) => l.startsWith("RESULT|preflight_072_to_075|"));
+  return r.status === 0 && line ? line.split("|")[2] : "ERROR";
 }
 
 function promptHidden(question) {
@@ -355,6 +401,10 @@ async function main() {
     process.exit(1);
   }
 
+  const joinedTarget = [PROD.host, PROD.user, process.env.PGHOST, process.env.PGUSER, process.env.DATABASE_URL].filter(Boolean).join(" ");
+  for (const [ref, label] of Object.entries(FORBIDDEN_REFS)) if (joinedTarget.includes(ref)) { console.error(`STOPPED: ${label} (${ref}) is never a target of this script`); process.exit(1); }
+  if (!LOCAL_TARGET && !String(PROD.user).endsWith(".vrozlllcaxinavzxueif")) { console.error(`STOPPED: unexpected database user ${PROD.user} (production is postgres.vrozlllcaxinavzxueif)`); process.exit(1); }
+  for (const f of [FILES.baseline, FILES.preflight075]) if (!fs.existsSync(f)) { console.error(`STOPPED: missing ${path.relative(REPO, f)}`); process.exit(1); }
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const outRoot = path.resolve(String(args.out || path.join(os.homedir(), "GoldiaBackups")));
   if (outRoot.toLowerCase().startsWith(REPO.toLowerCase())) {
@@ -376,12 +426,15 @@ async function main() {
   if (!process.env.PGPASSWORD && !args["no-password"]) {
     prodPassword = await promptHidden(`Supabase DB password for ${PROD.user} (hidden): `);
   }
-  const ver = psql(prodEnv, "select current_setting('server_version_num') || '|' || current_setting('server_version')");
+  const ver = psql(prodEnv, readOnly("select current_setting('server_version_num') || '|' || current_setting('server_version') || '|' || current_setting('transaction_read_only') || '|' || (to_regprocedure('public.deployment_environment()') is null)::text"));
   if (ver.status !== 0) {
     const err = String(ver.stderr || "").replace(/password=\S+/gi, "password=***").trim();
     fail(`connection failed: ${err.split(/\r?\n/)[0]}`);
   }
-  const [serverNum, serverVersion] = ver.stdout.trim().split("|");
+  const [serverNum, serverVersion, txReadOnly, notJfs] = ver.stdout.trim().split("|");
+  note("explicit read-only transaction on production", txReadOnly === "on" ? "on" : `NOT READ ONLY (${txReadOnly})`);
+  if (txReadOnly !== "on") fail("the explicit read-only transaction is not read-only");
+  if (notJfs !== "true") fail("deployment_environment() exists - this is a JewelryFlow SaaS demo database");
   const serverMajor = Math.floor(Number(serverNum) / 10000);
   note("production server", `PostgreSQL ${serverVersion}`);
   if (dumpMajor < serverMajor) fail(`pg_dump ${dumpMajor} is older than server ${serverMajor}; install PostgreSQL ${serverMajor}+`);
@@ -394,6 +447,8 @@ async function main() {
   let before;
   let after;
   let liveChanges = [];
+  let baseBefore = null;
+  let baseAfter = null;
   const reuseDir = findReusableBackup(outRoot);
   if (reuseDir) {
     full = path.join(reuseDir, "goldia-full.dump");
@@ -405,9 +460,13 @@ async function main() {
     before = counts(prodEnv);
     if (!before) fail("could not read production row counts");
     after = before;
+    baseBefore = baseline(prodEnv, "production-now");
+    baseAfter = baseBefore;
   } else {
     before = counts(prodEnv);
     if (!before) fail("could not read production row counts");
+    baseBefore = baseline(prodEnv, "production-before-dump");
+    note("production baseline before dump", baseBefore ? `${baseBefore.split("\n").length} lines` : "FAILED");
     full = path.join(outDir, "goldia-full.dump");
     log(`  pg_dump full backup... ${ts()}`);
     let r = run("pg_dump", ["-w", "-Fc", ...schemaFlags(schemas), "-f", full], { env: prodEnv(), timeoutMs: 60 * MIN });
@@ -427,6 +486,8 @@ async function main() {
     note("roles backup", r.status === 0 ? "ok" : "not permitted on Supabase pooler (non-critical: Supabase recreates platform roles)");
     after = counts(prodEnv);
     liveChanges = diffCounts(before, after);
+    baseAfter = baseline(prodEnv, "production-after-dump");
+    note("production baseline unchanged during dump", baseBefore && baseAfter && baseBefore === baseAfter ? "yes" : "NO (production changed or baseline failed - run again in a quiet window)");
     note("rows changed during backup", liveChanges.length ? liveChanges.join("; ") : "none");
     const checksums = fs.readdirSync(outDir).filter((f) => /\.(dump|sql)$/.test(f))
       .map((f) => `${sha256(path.join(outDir, f))}  ${f}  ${fs.statSync(path.join(outDir, f)).size} bytes`);
@@ -480,7 +541,9 @@ async function main() {
     note("extensions not available locally (Supabase platform only)", missingExt.length ? missingExt.join(", ") : "none");
     const restoreLog = path.join(outDir, "restore-test.log");
     log(`  pg_restore ${Math.round(fs.statSync(full).size / 1024 / 1024)} MB (can take several minutes) ${ts()}`);
-    r = run("pg_restore", ["-w", "--no-owner", "--no-acl", "-d", "postgres", full], { env: localEnv(), quiet: true, timeoutMs: 60 * MIN });
+    // Grants are restored too (074/075 postflights check them); grants to Supabase platform roles that do not exist
+    // locally only produce restore warnings.
+    r = run("pg_restore", ["-w", "--no-owner", "-d", "postgres", full], { env: localEnv(), quiet: true, timeoutMs: 60 * MIN });
     if (r.timedOut) fail("pg_restore timed out after 60 minutes");
     log(`  pg_restore finished ${ts()}`);
     fs.writeFileSync(restoreLog, String(r.stderr || ""));
@@ -502,6 +565,21 @@ async function main() {
     note("tables compared", Object.keys(local).length);
     gate.backup = restoreDiff.length === 0 && liveChanges.length === 0 && fnProd === fnLocal && Object.keys(local).length > 0;
     note("row-count differences prod vs restored", restoreDiff.length ? restoreDiff.join("; ") : "none");
+    const baseLocal = baseline(localEnv, "restored-copy");
+    gate.baseline = !!(baseBefore && baseAfter && baseLocal && baseBefore === baseAfter && baseAfter === baseLocal);
+    if (baseAfter && baseLocal && baseAfter !== baseLocal) {
+      const a = new Set(baseAfter.split("\n")), b = new Set(baseLocal.split("\n"));
+      fs.writeFileSync(path.join(outDir, "baseline-diff.txt"), [...[...a].filter((x) => !b.has(x)).map((x) => "production: " + x), ...[...b].filter((x) => !a.has(x)).map((x) => "restored:   " + x)].join(os.EOL) + os.EOL);
+    }
+    note("BASELINE (grams, debts, tills, vault, factory, rows, fingerprint) production = restored copy", gate.baseline ? "IDENTICAL" : "DIFFERENT or FAILED (see baseline-*.txt / baseline-diff.txt)");
+    if (TARGET === "073") {
+      const pf = preflightResult(localEnv, "restored-copy");
+      gate.recovery = pf === "PASS";
+      note("RECOVERY: restored copy passes the 072 -> 075 preflight (schema = repository 072, history 072)", pf);
+    } else {
+      gate.recovery = true;
+      note("RECOVERY preflight", `n/a for target ${TARGET} (the 072 preflight applies to production at 072 only)`);
+    }
     note("BACKUP", gate.backup ? "VERIFIED (restored copy matches production row counts)" : "FAILED");
 
     // 5-6. Read-only checks on production
@@ -537,14 +615,14 @@ async function main() {
     note("PREFLIGHT", gate.preflight ? "PASS" : "FAIL");
 
     for (const [name, file] of [["preflight", FILES.preflight], ["investigation", FILES.investigation], ["security-advisor", FILES.advisor]]) {
-      const res = psql(prodEnv, file, { file: true, tuples: false });
+      const res = prodFile(file, { tuples: false });
       fs.writeFileSync(path.join(outDir, `${name}.txt`), String(res.stdout || "") + String(res.stderr || ""));
       note(`${name} output`, res.status === 0 ? `${name}.txt` : `${name}.txt (ERRORS — see file)`);
     }
 
     // 7. Accounting findings (row counts per check, details stay in investigation.txt)
     log("[6/9] Accounting consistency findings");
-    const inv = psql(prodEnv, FILES.investigation, { file: true });
+    const inv = prodFile(FILES.investigation);
     const tally = {};
     for (const line of String(inv.stdout || "").split(/\r?\n/)) {
       const key = line.split("|")[0];
@@ -557,7 +635,7 @@ async function main() {
     note("CRITICAL ACCOUNTING FINDINGS", gate.accounting ? "none" : critical.filter((k) => tally[k]).join(", "));
 
     log("[7/9] Security Advisor equivalents");
-    const adv = psql(prodEnv, FILES.advisor, { file: true });
+    const adv = prodFile(FILES.advisor);
     const advTally = {};
     for (const line of String(adv.stdout || "").split(/\r?\n/)) {
       const key = line.split("|")[0];
@@ -585,17 +663,54 @@ async function main() {
     note(`${TARGET} changed row counts`, dataChanged.length ? dataChanged.join("; ") : "no");
     note("rollback + re-apply on copy", rb.status === 0 && re.status === 0 ? "ok" : "FAILED");
     note(`${TARGET} COMPATIBILITY`, gate.compat ? "PASS" : "FAIL");
+    if (args.chain) {
+      log("[8b/9] Chain 073 -> 074 -> 075 on the restored LOCAL copy, then emergency rollback to 072 (production untouched)");
+      const checks = require("./lib/goldia-release-checks");
+      const fingerprint = () => { const b = baseline(localEnv, `chain-${Date.now()}`); return b ? b.split("\n").filter((l) => l.startsWith("BASELINE|fingerprint business|")).join("") : null; };
+      const fp0 = fingerprint();
+      let ok = TARGET === "073" && m.status === 0 && fp0;
+      // step 8 left 073 applied without its history row: record it, then 074 and 075 with their history rows
+      if (ok) ok = psql(localEnv, "insert into supabase_migrations.schema_migrations(version) values ('20260101000073')", { tuples: false }).status === 0;
+      for (const v of ["073", "074", "075"]) {
+        if (!ok) break;
+        if (v !== "073") {
+          const mf = fs.readdirSync(path.join(REPO, "supabase/migrations")).find((n) => n.startsWith(`20260101000${v}_`));
+          const a = psql(localEnv, path.join(REPO, "supabase/migrations", mf), { file: true, tuples: false, singleTx: true });
+          const h = psql(localEnv, `insert into supabase_migrations.schema_migrations(version) values ('20260101000${v}')`, { tuples: false });
+          ok = a.status === 0 && h.status === 0;
+          note(`chain: ${v} applied on the copy`, ok ? "yes" : "NO");
+        }
+        const pf = psql(localEnv, checks.allColumnsTrue(path.join(REPO, `supabase/release/${v}_postflight_readonly.sql`)));
+        const pfOk = pf.status === 0 && pf.stdout.trim() === "t";
+        note(`chain: ${v} postflight on the copy`, pfOk ? "all true" : "FAIL");
+        ok = ok && pfOk;
+      }
+      const fp1 = ok ? fingerprint() : null;
+      note("chain: business fingerprint unchanged by 073..075", fp0 && fp1 && fp0 === fp1 ? "yes" : "NO");
+      ok = ok && fp0 === fp1;
+      for (const v of ["075", "074", "073"]) {
+        if (!ok) break;
+        const rb2 = psql(localEnv, path.join(REPO, `docs/releases/production-075/emergency/rollback_${v}_with_history.sql`), { file: true, tuples: false, singleTx: true });
+        ok = rb2.status === 0;
+        note(`chain: emergency rollback ${v} on the copy`, ok ? "ok" : "FAILED");
+      }
+      const back = ok ? preflightResult(localEnv, "after-emergency-rollback") : "not run";
+      const fp2 = ok ? fingerprint() : null;
+      gate.chain = !!(ok && back === "PASS" && fp2 === fp0);
+      note("chain: copy back at exact 072 (preflight) with the same business fingerprint", `${back}${fp2 === fp0 ? "" : " (fingerprint changed)"}`);
+      note("CHAIN 073->075 + RECOVERY TO 072", gate.chain ? "PASS" : "FAIL");
+    }
   } finally {
     stopLocal();
   }
 
   // 9. Decision
   log("[9/9] Decision");
-  const ready = gate.backup && gate.preflight && gate.compat && gate.accounting;
+  const ready = gate.backup && gate.preflight && gate.compat && gate.accounting && gate.baseline && gate.recovery && (!args.chain || gate.chain);
   const verdict = ready
     ? "ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval"
     : "NO-GO — see failed gates above";
-  note("GATES", `backup=${!!gate.backup} preflight=${!!gate.preflight} migration${PREVIOUS}=${!!gate.migration064} compat${TARGET}=${!!gate.compat} accounting=${!!gate.accounting}`);
+  note("GATES", `backup=${!!gate.backup} preflight=${!!gate.preflight} migration${PREVIOUS}=${!!gate.migration064} compat${TARGET}=${!!gate.compat} accounting=${!!gate.accounting} baseline=${!!gate.baseline} recovery=${!!gate.recovery}${args.chain ? ` chain=${!!gate.chain}` : ""}`);
   writeSummary(verdict);
   log(`\nRESULT: ${verdict}`);
   log(`Send this file back for review: ${path.join(outDir, "SUMMARY.txt")}`);

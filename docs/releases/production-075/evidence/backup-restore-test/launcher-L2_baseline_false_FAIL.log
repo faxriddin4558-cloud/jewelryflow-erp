@@ -1,0 +1,13 @@
+GOLDIA production backup + local restore test - vrozlllcaxinavzxueif via aws-0-ap-southeast-1.pooler.supabase.com
+
+Gates:
+  backup      True
+  baseline    False
+  recovery    True
+  preflight   True
+  compat      True
+  accounting  True
+  chain       True
+Folder: <tmp>/launcher-test/out/goldia-prod-2099-01-01T00-00-02
+
+RESULT: FAIL - exit 2, ready=False - see SUMMARY.txt in <tmp>/launcher-test/out/goldia-prod-2099-01-01T00-00-02

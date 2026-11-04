@@ -55,6 +55,28 @@ Endi xavfsizlik sessiya standartiga bog‘liq emas:
 Lokal PG17 testlari (pooler simulyatsiyasi — PGOPTIONS yuborilmaydi) **19/19**: shu jumladan yozish urinishi → `cannot execute INSERT in a read-only transaction` → FAIL,
 `END;` orqali chiqish urinishi → ishga tushirishdan oldin rad, ma’lumotlar o‘zgarmagan (`evidence/run-readonly-checks-tests/`).
 
+## Backup + LOCAL restore-test (S2/S3) — `run-backup-restore-test.ps1`
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-backup-restore-test.ps1
+```
+Production faqat o‘qiladi (pg_dump + aniq `BEGIN TRANSACTION READ ONLY` + guard; pooler PGOPTIONS’ni e’tiborsiz qoldiradi). 073 va 073→074→075 zanjiri
+**faqat** yangi backup’dan tiklangan lokal PostgreSQL 17 nusxada. Parolni Node skripti yashirin so‘raydi (faqat child process muhitida; logda yo‘q).
+
+| Gate | PASS mezoni | FAIL bo‘lsa |
+|---|---|---|
+| `backup` | pg_dump muvaffaqiyatli; SHA256SUMS; `pg_restore --list` o‘qiladi; tiklangan nusxada har jadval qatorlari soni = production; funksiya/policy/view soni teng; dump paytida qatorlar o‘zgarmagan | qayta tinch oynada |
+| `baseline` | `01_baseline` production’da **dump’dan oldin = dump’dan keyin = tiklangan nusxa** (gramm, qarz, sotuvchi kassasi, menejer ombori/kassa, zavod majburiyati, qatorlar, fingerprint) | `baseline-diff.txt`; production dump paytida o‘zgargan — tinch oynada qayta |
+| `recovery` | tiklangan nusxa `00_preflight` → PASS (sxema = repo 072, tarix 072) | backup recovery uchun yaroqsiz |
+| `preflight` / `accounting` | 072 yozilgan, 073 yo‘q; kritik hisob topilmalari yo‘q | — |
+| `compat` | 073 nusxada qo‘llanadi, qatorlar o‘zgarmaydi, rollback + qayta qo‘llash ok | — |
+| `chain` | nusxada 073→074→075, uchala postflight barcha ustun true, biznes fingerprint o‘zgarmagan; favqulodda rollback 075→074→073 → yana aniq 072 (preflight PASS) va o‘sha fingerprint | release yoki recovery yo‘li ishonchsiz |
+| natija | `RESULT: PASS` va exit 0 — faqat **hamma** gate true va `ready=true` bo‘lsa | `RESULT: FAIL`, exit 1 |
+
+Lokal rehearsal (072 stand-in): barcha gate’lar PASS (`evidence/backup-restore-test/pass-run/`); dump paytida production’da kassa summasi o‘zgartirilganda
+(qatorlar soni o‘zgarmagan) eski `backup` gate’i true qolardi — yangi `baseline` gate’i **FAIL** berdi (`negative-production-changed-during-dump/`);
+staging host / begona user → ulanishdan oldin STOP; launcher mantiqi 7/7 (`launcher-*.log`). `goldia-prod-release.js` yangi gate’lar bilan ham PASS.
+Backup papkasi (`*.dump`) mijoz ma’lumotini o‘z ichiga oladi — maxfiy saqlang, commit qilmang; menga faqat `SUMMARY.txt` va `GATES.json` yuboring.
+
 ## 2. Nima tekshiriladi
 | Hujjat | Mazmun |
 |---|---|

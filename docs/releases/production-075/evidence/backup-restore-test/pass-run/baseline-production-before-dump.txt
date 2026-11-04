@@ -1,0 +1,140 @@
+BASELINE|fingerprint business|72f3a403a0f94c6911d6783c35745ee3
+BASELINE|history count|72
+BASELINE|history latest|20260101000072
+BASELINE|org 00000000-0000-0000-0000-000000000001|cust=2 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=12.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=33.4800 fac_recv_g=31.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000002|cust=3 debt_g=10.3692 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1020000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.130800 mgr_stock_g=13.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=34.5600 fac_recv_g=32.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000003|cust=2 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=14.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=35.6400 fac_recv_g=33.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000004|cust=2 debt_g=10.3496 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1040000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.150400 mgr_stock_g=15.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=36.7200 fac_recv_g=34.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000005|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=16.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=37.8000 fac_recv_g=35.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000006|cust=2 debt_g=10.3300 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1060000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.170000 mgr_stock_g=17.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=38.8800 fac_recv_g=36.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000007|cust=0 debt_g=0 adv_g=0 sel_obl_g=0 sel_owes_g=0 sel_stock_g=0 till_uzs=0 till_usd=0 till_scrap_g=0 till_valued_g=0 mgr_stock_g=0 mgr_uzs=0 mgr_usd=0 fac_obl_g=0 fac_recv_g=0 sales=0 settl=0 rcpt=0 held=0 held_g=0
+BASELINE|org 00000000-0000-0000-0000-000000000008|cust=2 debt_g=10.3106 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1080000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.189400 mgr_stock_g=19.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=41.0400 fac_recv_g=38.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000009|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=20.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=42.1200 fac_recv_g=39.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000010|cust=2 debt_g=10.2912 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=19.5112 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=21.5000 mgr_uzs=1100000.00 mgr_usd=0.00 fac_obl_g=43.2000 fac_recv_g=40.0000 sales=1 settl=2 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000011|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=22.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=44.2800 fac_recv_g=41.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000012|cust=2 debt_g=10.2719 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1120000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.228100 mgr_stock_g=23.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=45.3600 fac_recv_g=42.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000013|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=24.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=46.4400 fac_recv_g=43.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000014|cust=0 debt_g=0 adv_g=0 sel_obl_g=0 sel_owes_g=0 sel_stock_g=0 till_uzs=0 till_usd=0 till_scrap_g=0 till_valued_g=0 mgr_stock_g=0 mgr_uzs=0 mgr_usd=0 fac_obl_g=0 fac_recv_g=0 sales=0 settl=0 rcpt=0 held=0 held_g=0
+BASELINE|org 00000000-0000-0000-0000-000000000015|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=26.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=48.6000 fac_recv_g=45.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000016|cust=2 debt_g=10.2336 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1160000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.266400 mgr_stock_g=27.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=49.6800 fac_recv_g=46.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000017|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=28.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=50.7600 fac_recv_g=47.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000018|cust=2 debt_g=10.2146 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1180000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.285400 mgr_stock_g=29.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=51.8400 fac_recv_g=48.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000019|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=30.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=52.9200 fac_recv_g=49.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000020|cust=2 debt_g=10.1957 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=19.4157 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=31.5000 mgr_uzs=1200000.00 mgr_usd=0.00 fac_obl_g=54.0000 fac_recv_g=50.0000 sales=1 settl=2 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000021|cust=0 debt_g=0 adv_g=0 sel_obl_g=0 sel_owes_g=0 sel_stock_g=0 till_uzs=0 till_usd=0 till_scrap_g=0 till_valued_g=0 mgr_stock_g=0 mgr_uzs=0 mgr_usd=0 fac_obl_g=0 fac_recv_g=0 sales=0 settl=0 rcpt=0 held=0 held_g=0
+BASELINE|org 00000000-0000-0000-0000-000000000022|cust=2 debt_g=10.1768 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1220000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.323200 mgr_stock_g=33.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=56.1600 fac_recv_g=52.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000023|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=34.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=57.2400 fac_recv_g=53.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000024|cust=2 debt_g=10.1580 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1240000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.342000 mgr_stock_g=35.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=58.3200 fac_recv_g=54.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000025|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=36.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=59.4000 fac_recv_g=55.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000026|cust=2 debt_g=10.1393 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1260000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.360700 mgr_stock_g=37.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=60.4800 fac_recv_g=56.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000027|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=38.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=61.5600 fac_recv_g=57.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000028|cust=0 debt_g=0 adv_g=0 sel_obl_g=0 sel_owes_g=0 sel_stock_g=0 till_uzs=0 till_usd=0 till_scrap_g=0 till_valued_g=0 mgr_stock_g=0 mgr_uzs=0 mgr_usd=0 fac_obl_g=0 fac_recv_g=0 sales=0 settl=0 rcpt=0 held=0 held_g=0
+BASELINE|org 00000000-0000-0000-0000-000000000029|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=40.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=63.7200 fac_recv_g=59.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000030|cust=2 debt_g=10.1022 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=19.3222 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=41.5000 mgr_uzs=1300000.00 mgr_usd=0.00 fac_obl_g=64.8000 fac_recv_g=60.0000 sales=1 settl=2 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000031|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=42.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=65.8800 fac_recv_g=61.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000032|cust=2 debt_g=10.0837 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1320000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.416300 mgr_stock_g=43.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=66.9600 fac_recv_g=62.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000033|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=44.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=68.0400 fac_recv_g=63.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000034|cust=2 debt_g=10.0653 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1340000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.434700 mgr_stock_g=45.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=69.1200 fac_recv_g=64.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000035|cust=0 debt_g=0 adv_g=0 sel_obl_g=0 sel_owes_g=0 sel_stock_g=0 till_uzs=0 till_usd=0 till_scrap_g=0 till_valued_g=0 mgr_stock_g=0 mgr_uzs=0 mgr_usd=0 fac_obl_g=0 fac_recv_g=0 sales=0 settl=0 rcpt=0 held=0 held_g=0
+BASELINE|org 00000000-0000-0000-0000-000000000036|cust=2 debt_g=10.0470 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1360000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.453000 mgr_stock_g=47.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=71.2800 fac_recv_g=66.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000037|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=48.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=72.3600 fac_recv_g=67.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000038|cust=2 debt_g=10.0288 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1380000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.471200 mgr_stock_g=49.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=73.4400 fac_recv_g=68.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000039|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=50.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=74.5200 fac_recv_g=69.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000040|cust=2 debt_g=10.0106 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=19.2306 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=51.5000 mgr_uzs=1400000.00 mgr_usd=0.00 fac_obl_g=75.6000 fac_recv_g=70.0000 sales=1 settl=2 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000041|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=52.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=76.6800 fac_recv_g=71.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000042|cust=0 debt_g=0 adv_g=0 sel_obl_g=0 sel_owes_g=0 sel_stock_g=0 till_uzs=0 till_usd=0 till_scrap_g=0 till_valued_g=0 mgr_stock_g=0 mgr_uzs=0 mgr_usd=0 fac_obl_g=0 fac_recv_g=0 sales=0 settl=0 rcpt=0 held=0 held_g=0
+BASELINE|org 00000000-0000-0000-0000-000000000043|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=54.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=78.8400 fac_recv_g=73.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000044|cust=2 debt_g=9.9746 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1440000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.525400 mgr_stock_g=55.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=79.9200 fac_recv_g=74.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000045|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=56.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=81.0000 fac_recv_g=75.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000046|cust=2 debt_g=9.9567 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1460000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.543300 mgr_stock_g=57.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=82.0800 fac_recv_g=76.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000047|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=58.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=83.1600 fac_recv_g=77.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000048|cust=2 debt_g=9.9388 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1480000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.561200 mgr_stock_g=59.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=84.2400 fac_recv_g=78.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000049|cust=0 debt_g=0 adv_g=0 sel_obl_g=0 sel_owes_g=0 sel_stock_g=0 till_uzs=0 till_usd=0 till_scrap_g=0 till_valued_g=0 mgr_stock_g=0 mgr_uzs=0 mgr_usd=0 fac_obl_g=0 fac_recv_g=0 sales=0 settl=0 rcpt=0 held=0 held_g=0
+BASELINE|org 00000000-0000-0000-0000-000000000050|cust=2 debt_g=9.9211 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=19.1411 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=61.5000 mgr_uzs=1500000.00 mgr_usd=0.00 fac_obl_g=86.4000 fac_recv_g=80.0000 sales=1 settl=2 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000051|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=62.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=87.4800 fac_recv_g=81.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000052|cust=2 debt_g=9.9034 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1520000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.596600 mgr_stock_g=63.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=88.5600 fac_recv_g=82.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000053|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=64.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=89.6400 fac_recv_g=83.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000054|cust=2 debt_g=9.8857 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1540000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.614300 mgr_stock_g=65.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=90.7200 fac_recv_g=84.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000055|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=66.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=91.8000 fac_recv_g=85.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000056|cust=1 debt_g=0 adv_g=0 sel_obl_g=0 sel_owes_g=0 sel_stock_g=0 till_uzs=0 till_usd=0 till_scrap_g=0 till_valued_g=0 mgr_stock_g=0 mgr_uzs=0 mgr_usd=0 fac_obl_g=0 fac_recv_g=0 sales=0 settl=0 rcpt=0 held=0 held_g=0
+BASELINE|org 00000000-0000-0000-0000-000000000057|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=68.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=93.9600 fac_recv_g=87.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000058|cust=2 debt_g=9.8507 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=1580000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.649300 mgr_stock_g=69.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=95.0400 fac_recv_g=88.0000 sales=1 settl=1 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000059|cust=1 debt_g=11.5000 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=20.7200 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=70.5000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=96.1200 fac_recv_g=89.0000 sales=1 settl=0 rcpt=1 held=1 held_g=8.5000
+BASELINE|org 00000000-0000-0000-0000-000000000060|cust=2 debt_g=9.8333 adv_g=0.0000 sel_obl_g=20.7200 sel_owes_g=19.0533 sel_stock_g=8.5000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=71.5000 mgr_uzs=1600000.00 mgr_usd=0.00 fac_obl_g=97.2000 fac_recv_g=90.0000 sales=1 settl=2 rcpt=1 held=1 held_g=8.5000
+BASELINE|rows accounting_baselines|0
+BASELINE|rows affinaj_records|0
+BASELINE|rows audit_log|200
+BASELINE|rows audit_logs|253
+BASELINE|rows batch_images|0
+BASELINE|rows batch_models|0
+BASELINE|rows batch_operations|0
+BASELINE|rows batch_stage_wip|0
+BASELINE|rows batch_status_history|0
+BASELINE|rows batches|0
+BASELINE|rows bom_items|0
+BASELINE|rows client_gold_accounts|52
+BASELINE|rows client_legacy_debts|0
+BASELINE|rows company_rate_differences|0
+BASELINE|rows consignment_pieces|104
+BASELINE|rows consumption|0
+BASELINE|rows customers|82
+BASELINE|rows daily_gold_rates|52
+BASELINE|rows debt_repayments|0
+BASELINE|rows departments|17
+BASELINE|rows employees|200
+BASELINE|rows factory_gold_handovers|0
+BASELINE|rows factory_receipts|52
+BASELINE|rows financial_transactions|0
+BASELINE|rows gold_lots|0
+BASELINE|rows gold_purchases|0
+BASELINE|rows gold_settlements|32
+BASELINE|rows gold_transactions|0
+BASELINE|rows idempotency_keys|0
+BASELINE|rows inventory_categories|0
+BASELINE|rows inventory_items|0
+BASELINE|rows inventory_reservations|0
+BASELINE|rows inventory_transactions|0
+BASELINE|rows jewelry_model_images|0
+BASELINE|rows jewelry_models|2
+BASELINE|rows jewelry_sales|52
+BASELINE|rows machines|0
+BASELINE|rows manager_vault_account|52
+BASELINE|rows order_items|0
+BASELINE|rows orders|0
+BASELINE|rows organization_factory_settings|1
+BASELINE|rows organizations|60
+BASELINE|rows production_stages|0
+BASELINE|rows products|0
+BASELINE|rows qc_checklist_items|0
+BASELINE|rows qc_checklists|0
+BASELINE|rows qc_inspection_results|0
+BASELINE|rows qc_inspections|0
+BASELINE|rows quality_control|0
+BASELINE|rows refining_batches|0
+BASELINE|rows salary_ledger|0
+BASELINE|rows sales|0
+BASELINE|rows sales_login_audit_logs|0
+BASELINE|rows sales_markup_presets|8
+BASELINE|rows seller_consignments|52
+BASELINE|rows seller_gold_accounts|52
+BASELINE|rows seller_rate_history|0
+BASELINE|rows seller_rate_limits|0
+BASELINE|rows seller_rates|0
+BASELINE|rows sheets_import_batches|0
+BASELINE|rows stage_loss_configs|11
+BASELINE|rows staging_backup_snapshots|0
+BASELINE|rows system_settings|0
+BASELINE|rows two_party_handovers|0
+BASELINE|rows weight_sale_allocations|0
+BASELINE|rows workflow_stages|20
+BASELINE|total client_advance_g|0.0000
+BASELINE|total client_debt_g|561.6424
+BASELINE|total factory_obligation_g|3389.0400
+BASELINE|total manager_stock_g|2176.0000
+BASELINE|total manager_usd|0.00
+BASELINE|total manager_uzs|8100000.00
+BASELINE|total pieces_held_g|442.0000
+BASELINE|total seller_owes_g|1068.7941
+BASELINE|total seller_stock_g|442.0000
+BASELINE|total seller_till_usd|0.00
+BASELINE|total seller_till_uzs|25800000.00

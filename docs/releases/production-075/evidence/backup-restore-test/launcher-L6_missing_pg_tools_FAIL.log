@@ -1,0 +1,2 @@
+
+RESULT: FAIL - pg_dump.exe not found in <tmp>/launcher-test/nope (install PostgreSQL 17 or pass -PgBin)
