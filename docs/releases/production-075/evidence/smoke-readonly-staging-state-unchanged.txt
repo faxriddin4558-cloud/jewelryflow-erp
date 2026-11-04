@@ -1,0 +1,4 @@
+# staging state of the synthetic audit organization before / after the smoke run (service-role GET reads)
+before: {"customers":72,"sales":264,"settlements":265,"login_audit":43,"cga_updated":"2026-11-04T06:22:32.163286+00:00","seller_rates":"[{\"seller_id\":\"e38a5bc4-15a3-4832-ad6a-fff7aca5e836\",\"organization_id\":\"a5d17075-0000-4000-8000-202611030075\",\"lom_rate_uzs\":890000,\"usd_rate_uzs\":12500,\"updated_by\":\"e38a5bc4-15a3-4832-ad6a-fff7aca5e836\",\"updated_at\":\"2026-11-04T06:21:13.809507+00:00\"}]"}
+after:  {"customers":72,"sales":264,"settlements":265,"login_audit":43,"cga_updated":"2026-11-04T06:22:32.163286+00:00","seller_rates":"[{\"seller_id\":\"e38a5bc4-15a3-4832-ad6a-fff7aca5e836\",\"organization_id\":\"a5d17075-0000-4000-8000-202611030075\",\"lom_rate_uzs\":890000,\"usd_rate_uzs\":12500,\"updated_by\":\"e38a5bc4-15a3-4832-ad6a-fff7aca5e836\",\"updated_at\":\"2026-11-04T06:21:13.809507+00:00\"}]"}
+diff: none (STAGING-STATE-UNCHANGED)

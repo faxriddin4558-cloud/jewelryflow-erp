@@ -1,0 +1,72 @@
+GOLDIA SALES read-only smoke - target staging https://jewelryflow-sales-staging.vercel.app (Supabase vouehtlmsunebracahon) at 2026-11-04T14:00:49.638Z
+write guard: GET/HEAD/OPTIONS + Auth login + 13 read RPCs allowed; every other request is aborted in the browser
+PASS   V1 /api/version answers | http 200
+PASS   V2 frontend talks to the right Supabase project | supabase_ref=vouehtlmsunebracahon expected=vouehtlmsunebracahon
+PASS   V3 deployed commit | commit=fc1a1fa expected=fc1a1fa
+PASS   V4 environment flags | env=staging staging_mode=true
+post-release SQL baseline: <scratchpad>/smoke/stg-baseline.txt (2 lines, history 20260101000075)
+PASS   L-director director logs in | landed on /sales/app
+PASS   E-director director has an active employee row (own row readable) | role=admin role_type=director
+PASS   P-director/sales/app director /sales/app | http 200
+PASS   P-director/sales/director director /sales/director | http 200 (React hydration notice #418, recovered on the client)
+PASS   P-director/sales/app/factory director /sales/app/factory | http 200
+PASS   P-director/sales/app/inventory director /sales/app/inventory | http 200
+PASS   P-director/sales/app/consignments director /sales/app/consignments | http 200
+PASS   P-director/sales/app/sellers director /sales/app/sellers | http 200
+PASS   P-director/sales/app/scan director /sales/app/scan | http 200
+PASS   P-director/sales/app/customers director /sales/app/customers | http 200
+PASS   P-director/sales/app/cash director /sales/app/cash | http 200
+PASS   P-director/sales/app/refining director /sales/app/refining | http 200
+PASS   P-director/sales/app/purchases director /sales/app/purchases | http 200
+PASS   P-director/sales/app/reports director /sales/app/reports | http 200
+PASS   P-director/sales/app/models director /sales/app/models | http 200
+PASS   P-director/sales/app/users director /sales/app/users | http 200
+PASS   P-director/sales/app/settings director /sales/app/settings | http 200
+PASS   P-director/sales/app/handovers director /sales/app/handovers | http 200
+PASS   P-director/sales/app/markup director /sales/app/markup | http 200
+PASS   P-director/sales/app/factory-receive director /sales/app/factory-receive | http 200
+PASS   L-manager manager logs in | landed on /sales/app
+PASS   E-manager manager has an active employee row (own row readable) | role=production_manager role_type=production manager
+PASS   P-manager/sales/app manager /sales/app | http 200
+PASS   P-manager/sales/app/factory manager /sales/app/factory | http 200
+PASS   P-manager/sales/app/inventory manager /sales/app/inventory | http 200
+PASS   P-manager/sales/app/consignments manager /sales/app/consignments | http 200
+PASS   P-manager/sales/app/sellers manager /sales/app/sellers | http 200
+PASS   P-manager/sales/app/scan manager /sales/app/scan | http 200
+PASS   P-manager/sales/app/customers manager /sales/app/customers | http 200
+PASS   P-manager/sales/app/cash manager /sales/app/cash | http 200
+PASS   P-manager/sales/app/refining manager /sales/app/refining | http 200
+PASS   P-manager/sales/app/purchases manager /sales/app/purchases | http 200
+PASS   P-manager/sales/app/reports manager /sales/app/reports | http 200
+PASS   P-manager/sales/app/handovers manager /sales/app/handovers | http 200
+PASS   L-seller seller logs in | landed on /sales/app
+PASS   E-seller seller has an active employee row (own row readable) | role=sales role_type=seller
+PASS   P-seller/sales/app seller /sales/app | http 200
+PASS   P-seller/sales/app/scan seller /sales/app/scan | http 200
+PASS   P-seller/sales/app/customers seller /sales/app/customers | http 200
+PASS   P-seller/sales/app/kassam seller /sales/app/kassam | http 200
+PASS   R1 Kassam shows the seller's own LOM rate | shown="890 000" server=890000 official=900000
+PASS   R2 Kassam shows the seller's own USD rate | shown="12 500" server=12500
+PASS   R3 the rates returned are the logged-in seller's own | seller_id matches employee
+PASS   R4 dashboard 'Bugungi kurslarim' shows the same LOM / USD | LOM: 890 000 UZS/g USD: 12 500 UZS
+PASS   B1 director sees only own organization's balance rows | foreign rows=0
+INFO   B2 director's organization totals (API) | debt_g=55.7720 adv_g=0.0000 sel_stock_g=111.1800 sel_owes_g=180.6956 till_uzs=0.0000 till_usd=0.0000 mgr_stock_g=185.6400 mgr_uzs=12590500.0000 mgr_usd=600.0000 fac_obl_g=410.4000
+PASS   B3 director's balances (debt, advance, stock, tills, vault, factory obligation) = SQL baseline of the organization | all equal
+PASS   S-director director cannot read other organizations (8 GET probes) | 0 foreign rows
+PASS   S-manager manager cannot read other organizations (8 GET probes) | 0 foreign rows
+PASS   S-seller seller cannot read other organizations or other sellers (13 GET probes) | 0 foreign rows
+PASS   S-anon anonymous (apikey only) reads no business rows | 7 tables, 0 rows
+PASS   M-director/sales/app director mobile 390px /sales/app | scrollWidth=390 innerWidth=390
+PASS   M-manager/sales/app manager mobile 390px /sales/app | scrollWidth=390 innerWidth=390
+PASS   M-seller/sales/app seller mobile 390px /sales/app | scrollWidth=390 innerWidth=390
+PASS   M-seller/sales/app/scan seller mobile 390px /sales/app/scan | scrollWidth=390 innerWidth=390
+PASS   M-seller/sales/app/customers seller mobile 390px /sales/app/customers | scrollWidth=390 innerWidth=390
+PASS   M-seller/sales/app/kassam seller mobile 390px /sales/app/kassam | scrollWidth=390 innerWidth=390
+PASS   GT guard self-test: 4 real write attempts from the page are aborted before leaving the browser | POST rpc_set_my_seller_rates -> blocked; POST rpc_create_customer_with_code -> blocked; PATCH customers?id=eq.00000000-0000-0000-0000-000000000000 -> blocked; POST link -> blocked
+INFO   X1 Central Bank (CBU) currency service through /api/sales/currency/cbu | unavailable (503) on 10 page load(s) - the app keeps working with the stored rates
+PASS   G1 no request to another Supabase project | none
+INFO   G2 writes the app tried on login / page view, blocked by the guard (expected) | rpc rpc_record_login_audit x6, rpc rpc_get_unified_customer_ledger x6
+PASS   G3 no other write attempted while only browsing | none
+INFO   C1 browser console errors (mostly the aborted requests) | 35 - see console-errors.json
+
+RESULT: PASS - 63 PASS, 0 REVIEW, 0 FAIL; nothing was written (guard blocked 12 write request(s)); folder <scratchpad>/smoke/out/smoke-staging-20261104-140049

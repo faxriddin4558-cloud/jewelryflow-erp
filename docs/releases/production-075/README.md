@@ -4,6 +4,37 @@
 **Holat (2026-11-04):** faqat tayyorgarlik. Bu sessiyada production’ga **ulanilmagan** (production kaliti/paroli yo‘q, frontend host tarmoqda bloklangan) —
 hech qanday production migratsiya, deploy, write RPC yoki ma’lumot o‘zgarishi bajarilmagan. Staging (`vouehtlmsunebracahon`) va JFS Demo (`yvvbdoqncubtwlzskgml`) skriptlarda rad etiladi.
 
+## P. YAKUNIY PRODUCTION SMOKE-TEST (release'dan keyin, QAT'IY READ-ONLY) — 2026-11-04
+Egasi xabar qildi: production DB 075, frontend `fec64ec` deploy PASS. Bu sessiyadan production'ga ulanib bo'lmaydi
+(host bloklangan, parol/kalit yo'q), shuning uchun smoke-test egasining Windows kompyuterida ishga tushiriladi.
+Ikkala bosqich ham hech narsa yozmaydi.
+
+```powershell
+# SQL: postflight 073/074/075, post-release gate'lar, har bir loginning RLS izolyatsiyasi, baseline (release'dan oldingi 072 baseline bilan solishtiriladi)
+powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target production-post
+# Brauzer: /api/version, direktor / menejer / sotuvchi login + sahifalar, sotuvchi LOM/USD kurslari, balanslar = SQL baseline, RLS (GET), mobil 390px
+powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-production-smoke.ps1
+```
+
+* **SQL (`-Target production-post`)**: identity `latest_migration=20260101000075` bo'lishi shart; `073/074/075_postflight` (har bir ustun `t`,
+  `f` bo'lsa ustun nomi chiqadi), `02_post_release_readonly.sql` (tarix, RLS har jadvalda, anon definer RPC yo'q, UI ruxsat bergan read RPC'lar
+  yozmaydi, manfiy qoldiq yo'q, mijoz kodi org ichida noyob), `03_rls_isolation_readonly.sql` (har bir faol login `authenticated` sifatida:
+  boshqa tashkilot / boshqa sotuvchi qatorlari 0, anon 0), `01_baseline` → `%USERPROFILE%\GoldiaBackups` dagi eng yangi `history latest = 072`
+  baseline bilan solishtiriladi (`-BaselineBefore <fayl>` bilan aniq fayl). Faqat tarix va biznes bo'lmagan log jadvallari
+  (`audit_logs`, `idempotency_keys`, `sales_login_audit_logs`, `organization_factory_settings` qator soni) farq qilishi mumkin; biznes qatori farq
+  qilsa — REVIEW va `baseline-diff.txt`. Hamma SQL avvalgidek explicit `BEGIN TRANSACTION READ ONLY` + guard ichida.
+* **Brauzer (`run-production-smoke.ps1` → `scripts/goldia-prod-smoke-readonly.js`)**: o'rnatilgan Edge (yoki `-Channel chrome`), parollar yashirin.
+  Write guard: GET/HEAD/OPTIONS, Auth login va 13 ta read RPC dan boshqa HAR QANDAY so'rov brauzerning o'zida to'xtatiladi (savdo, to'lov,
+  mijoz, kirim, topshiruv, kurs, login audit, ...). Hech qanday submit tugmasi bosilmaydi.
+* **Topilma (release blokeri emas, 069 dan beri)**: `rpc_get_unified_customer_ledger` (Mijozlar sahifasi) `client_gold_accounts` qarz keshini
+  upsert qiladi — ya'ni sahifani ochishning o'zi yozadi. Smoke-test uni (va login audit, `rpc_get_factory_settings` lazy insert'ni) bloklaydi
+  va hisobotda `G2` sifatida ko'rsatadi; shu sabab smoke-testda Mijozlar ro'yxati bo'sh ko'rinadi — mijoz qarzlari SQL baseline va
+  direktorning GET o'qishlari (`B1-B3`) orqali tekshiriladi.
+* **Natija**: SQL `RESULT: PASS` + brauzer `RESULT: PASS` → PRODUCTION GO. REVIEW → satrlar ko'rib chiqiladi (LIMITED GO bo'lishi mumkin). FAIL → NO-GO.
+* **Sinov**: SQL rejimi lokal 075 stand-in'da 10/10 (`harness/test-production-post.sh`), eski harness 19/19; brauzer skripti haqiqiy
+  staging'da sintetik audit tashkiloti bilan 63 PASS / 0 REVIEW / 0 FAIL, guard self-test'da 4 ta haqiqiy yozish urinishi to'xtatildi, staging
+  holati oldin/keyin bir xil (`evidence/smoke-readonly-staging-*`). Staging audit loginlari qayta bloklandi.
+
 ## 0. Preflight xulosasi: **NO-GO (hozircha)** — production preflight hali ishga tushirilmagan
 Release uchun hamma vosita tayyor va production shaklidagi 072 stand-in’da to‘liq sinalgan (pastda). GO bo‘lishi uchun quyidagi shartlar bajarilishi kerak.
 

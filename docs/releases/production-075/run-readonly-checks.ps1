@@ -11,6 +11,9 @@
 
   Production (Supabase vrozlllcaxinavzxueif): 072 -> 075 preflight + business baseline
     powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target production
+  Production AFTER the release (history at 075): postflights 073/074/075, post-release gates, RLS isolation of every
+  login, business baseline compared with the newest pre-release baseline (history 072) found in -OutRoot or -BaselineBefore
+    powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target production-post
   Staging (vouehtlmsunebracahon): CRLF-tolerant function-body parity of 075
     powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target staging -PoolerHost aws-0-<region>.pooler.supabase.com
 
@@ -24,14 +27,15 @@
   file through the same read-only wrapper, used to prove that a write attempt fails).
 #>
 param(
-  [Parameter(Mandatory = $true)][ValidateSet("production", "staging")][string]$Target,
+  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "staging")][string]$Target,
   [string]$PoolerHost = "",
   [int]$Port = 5432,
   [string]$PgBin = "C:\Program Files\PostgreSQL\17\bin",
   [string]$OutRoot = "",
   [switch]$LocalRehearsal,
   [switch]$SimulatePoolerWithoutOptions,
-  [string]$ExtraCheckFile = ""
+  [string]$ExtraCheckFile = "",
+  [string]$BaselineBefore = ""
 )
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
@@ -39,7 +43,8 @@ $script:SummaryFile = $null
 
 $Refs = @{ production = "vrozlllcaxinavzxueif"; staging = "vouehtlmsunebracahon" }
 $Never = @("yvvbdoqncubtwlzskgml", "hbbuskyifxkowlozsaym", "vrozlilcaxinavzxueif")   # JFS demo, ERP, typo of prod ref
-$Ref = $Refs[$Target]
+$RefKey = $Target; if ($Target -eq "production-post") { $RefKey = "production" }
+$Ref = $Refs[$RefKey]
 
 function Finish([string]$Result, [string]$Why) {
   $color = "Green"; $code = 0
@@ -60,7 +65,7 @@ if ($LocalRehearsal) {
   $DbUser = "postgres"; $SslMode = "disable"
 } else {
   if (-not $PoolerHost) {
-    if ($Target -eq "production") { $PoolerHost = "aws-0-ap-southeast-1.pooler.supabase.com" }   # default of scripts/goldia-prod-release.js
+    if ($RefKey -eq "production") { $PoolerHost = "aws-0-ap-southeast-1.pooler.supabase.com" }   # default of scripts/goldia-prod-release.js
     else { Finish "FAIL" "-PoolerHost is required for staging (Supabase Dashboard > Connect > Session pooler)" }
   }
   $others = @($Never) + @($Refs.Values | Where-Object { $_ -ne $Ref })
@@ -78,6 +83,15 @@ if ($Target -eq "production") {
   $checks = @(
     @{ Name = "00_preflight"; File = "docs/releases/production-075/00_preflight_072_to_075_readonly.sql"; Kind = "preflight" },
     @{ Name = "01_baseline";  File = "docs/releases/production-075/01_baseline_readonly.sql";             Kind = "baseline" }
+  )
+} elseif ($Target -eq "production-post") {
+  $checks = @(
+    @{ Name = "073_postflight"; File = "supabase/release/073_postflight_readonly.sql"; Kind = "postflight" },
+    @{ Name = "074_postflight"; File = "supabase/release/074_postflight_readonly.sql"; Kind = "postflight" },
+    @{ Name = "075_postflight"; File = "supabase/release/075_postflight_readonly.sql"; Kind = "postflight" },
+    @{ Name = "02_post_release"; File = "docs/releases/production-075/02_post_release_readonly.sql"; Kind = "post" },
+    @{ Name = "rls_isolation"; File = "docs/releases/production-075/03_rls_isolation_readonly.sql"; Kind = "rls" },
+    @{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" }
   )
 } else {
   $checks = @(@{ Name = "function_body_parity_075"; File = "supabase/release/function_body_parity_075_readonly.sql"; Kind = "parity" })
@@ -165,6 +179,34 @@ Write-Host ("  " + $idLine)
 Add-Content -Path $script:SummaryFile -Value $idLine -Encoding ASCII
 if ($pp[1] -ne "on") { Finish "FAIL" "the explicit read-only transaction is not read-only (transaction_read_only=" + $pp[1] + ")" }
 if ($pp[3] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
+if ($Target -eq "production-post" -and $pp[4] -ne "20260101000075") { Finish "FAIL" ("production-post expects migration history at 20260101000075, found " + $pp[4]) }
+
+# ---------------------------------------------------------------- pre-release baseline (production-post)
+# BASELINE lines from run-readonly-checks (BASELINE | k | v) or from the backup kit (BASELINE|k|v), normalized to k -> v
+function Read-BaselineFile([string]$f) {
+  $m = @{}
+  foreach ($l in [System.IO.File]::ReadAllLines($f)) {
+    $t = ($l.Trim() -replace '\s*\|\s*', '|')
+    if ($t -match '^BASELINE\|([^|]+)\|(.*)$') { $m[$Matches[1]] = $Matches[2] }
+  }
+  return $m
+}
+$beforeFile = $null
+if ($Target -eq "production-post") {
+  if ($BaselineBefore) {
+    if (-not (Test-Path -LiteralPath $BaselineBefore)) { Finish "FAIL" "-BaselineBefore file not found: $BaselineBefore" }
+    $beforeFile = (Resolve-Path -LiteralPath $BaselineBefore).Path
+  } else {
+    $cands = @()
+    $cands += @(Get-ChildItem -LiteralPath $OutRoot -Directory -Filter "readonly-production-*" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike "readonly-production-post-*" } | ForEach-Object { Join-Path $_.FullName "01_baseline.txt" } | Where-Object { Test-Path -LiteralPath $_ })
+    $cands += @(Get-ChildItem -LiteralPath $OutRoot -Directory -Filter "goldia-prod-*" -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -File -Filter "baseline-production-*.txt" -ErrorAction SilentlyContinue } | ForEach-Object { $_.FullName })
+    $pre = @($cands | Where-Object { $b = Read-BaselineFile $_; $b.ContainsKey("history latest") -and $b["history latest"] -eq "20260101000072" -and $b.ContainsKey("fingerprint business") } | Sort-Object { (Get-Item -LiteralPath $_).LastWriteTimeUtc } -Descending)
+    if ($pre.Count -gt 0) { $beforeFile = $pre[0] }
+  }
+  $bfText = "(none found - pass -BaselineBefore <file>)"; if ($beforeFile) { $bfText = $beforeFile }
+  Write-Host ("  pre-release baseline: " + $bfText)
+  Add-Content -Path $script:SummaryFile -Value ("pre-release baseline: " + $bfText) -Encoding ASCII
+}
 
 # Wraps a read-only SQL file: its own BEGIN/ROLLBACK lines are replaced by the script's explicit transaction and a guard
 # that raises (ON_ERROR_STOP -> psql exits, nothing else runs) unless the SAME transaction is read-only.
@@ -193,7 +235,9 @@ function New-ReadOnlyWrapper([hashtable]$c) {
 $overall = "PASS"; $why = New-Object System.Collections.ArrayList
 foreach ($c in $checks) {
   $wrapped = New-ReadOnlyWrapper $c
-  $r = Invoke-Psql @("-X", "-q", "-A", "-t", "-w", "-F", " | ", "-v", "ON_ERROR_STOP=1", "-f", $wrapped)
+  # postflights print a header row (column names) so a false column can be named
+  if ($c.Kind -eq "postflight") { $r = Invoke-Psql @("-X", "-q", "-A", "-w", "-F", " | ", "-P", "footer=off", "-v", "ON_ERROR_STOP=1", "-f", $wrapped) }
+  else { $r = Invoke-Psql @("-X", "-q", "-A", "-t", "-w", "-F", " | ", "-v", "ON_ERROR_STOP=1", "-f", $wrapped) }
   $outFile = Join-Path $outDir ($c.Name + ".txt")
   Set-Content -Path $outFile -Value ($r.Out + "`n--- stderr ---`n" + $r.Err) -Encoding UTF8
   if ($r.Code -ne 0) {
@@ -222,8 +266,78 @@ foreach ($c in $checks) {
       $n = @($lines | Where-Object { $_ -match '^BASELINE \| ' }).Count
       if ($fp.Count -ne 1 -or $n -lt 20) { $verdict = "FAIL"; $detail = "baseline incomplete (" + $n + " lines, fingerprint " + $fp.Count + ")" }
       else { $detail = [string]$n + " lines, " + $fp[0] }
+      if ($verdict -eq "PASS" -and $Target -eq "production-post") {
+        # compare with the pre-release baseline: only migration history and non-business log tables may differ
+        $nowMap = @{}
+        foreach ($l in $lines) { $t = ($l -replace '\s*\|\s*', '|'); if ($t -match '^BASELINE\|([^|]+)\|(.*)$') { $nowMap[$Matches[1]] = $Matches[2] } }
+        $expected = @("history latest", "history count", "fingerprint business")
+        $nonBusiness = @("rows audit_logs", "rows idempotency_keys", "rows sales_login_audit_logs", "rows organization_factory_settings")
+        if (-not $beforeFile) { $verdict = "REVIEW"; $detail += "; NOT compared - no pre-release baseline (history 072) found, pass -BaselineBefore <file>" }
+        else {
+          $befMap = Read-BaselineFile $beforeFile
+          $keys = @(@($befMap.Keys) + @($nowMap.Keys) | Sort-Object -Unique)
+          $biz = New-Object System.Collections.ArrayList; $info = New-Object System.Collections.ArrayList
+          foreach ($k in $keys) {
+            $bv = "<missing>"; if ($befMap.ContainsKey($k)) { $bv = $befMap[$k] }
+            $nv = "<missing>"; if ($nowMap.ContainsKey($k)) { $nv = $nowMap[$k] }
+            if ($bv -ceq $nv) { continue }
+            $d = $k + ": before=" + $bv + " now=" + $nv
+            if ($expected -contains $k) { [void]$info.Add("expected   " + $d) }
+            elseif ($nonBusiness -contains $k) { [void]$info.Add("non-business " + $d) }
+            else { [void]$biz.Add($d) }
+          }
+          $diffFile = Join-Path $outDir "baseline-diff.txt"
+          $diffBody = @(("before: " + $beforeFile), ("BUSINESS differences: " + $biz.Count)) + @($biz) + @("other differences:") + @($info)
+          [System.IO.File]::WriteAllLines($diffFile, [string[]]$diffBody, $utf8NoBom)
+          foreach ($x in $info) { Write-Host ("    " + $x) -ForegroundColor Gray }
+          foreach ($x in $biz) { Write-Host ("    BUSINESS " + $x) -ForegroundColor Yellow }
+          if ($nowMap["history count"] -and $befMap.ContainsKey("history count")) {
+            $hc = 0; [void][int]::TryParse($befMap["history count"], [ref]$hc)
+            if ([string]($hc + 3) -ne $nowMap["history count"]) { [void]$biz.Add("history count is not before+3") }
+          }
+          if ($biz.Count -eq 0) { $detail += "; business lines IDENTICAL to the pre-release baseline (" + $info.Count + " expected/non-business differences) -> " + $diffFile }
+          else { $verdict = "REVIEW"; $detail += "; " + $biz.Count + " BUSINESS line(s) differ from the pre-release baseline -> " + $diffFile }
+        }
+      }
     }
     "extra" { $detail = "extra check file ran read-only" }
+    "postflight" {
+      $vals = @(); $falseCols = @()
+      for ($i = 1; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^[tf]( \| [tf])*$') {
+          $v = $lines[$i] -split ' \| '; $h = $lines[$i - 1] -split ' \| '
+          if ($h.Count -ne $v.Count) { $falseCols += "header/value mismatch"; continue }
+          $vals += $v
+          for ($j = 0; $j -lt $v.Count; $j++) { if ($v[$j] -ne "t") { $falseCols += $h[$j] } }
+        }
+      }
+      if ($vals.Count -eq 0) { $verdict = "FAIL"; $detail = "no result row" }
+      elseif ($falseCols.Count -gt 0) { $verdict = "FAIL"; $detail = "false: " + ($falseCols -join ", ") }
+      else { $detail = [string]$vals.Count + " checks true" }
+    }
+    "post" {
+      $res = @($lines | Where-Object { $_ -match '^RESULT\|post_release\|' })
+      foreach ($g in @($lines | Where-Object { $_ -match '^POST\|' })) {
+        $gc = "Gray"; if ($g -match '\|FAIL\|') { $gc = "Red" } elseif ($g -match '\|WARN\|') { $gc = "Yellow" } elseif ($g -match '\|PASS\|') { $gc = "Green" }
+        Write-Host ("    " + $g) -ForegroundColor $gc
+        Add-Content -Path $script:SummaryFile -Value ("    " + $g) -Encoding ASCII
+      }
+      if ($res.Count -ne 1) { $verdict = "FAIL"; $detail = "no RESULT line" }
+      else {
+        $state = ($res[0] -split '\|')[2]; $detail = $res[0]
+        if ($state -eq "WARN") { $verdict = "REVIEW" } elseif ($state -ne "PASS") { $verdict = "FAIL" }
+      }
+    }
+    "rls" {
+      $all = @((($r.Err + "`n" + $r.Out) -split "`r?`n") | ForEach-Object { ($_ -replace '^.*?NOTICE:\s*', '').Trim() })
+      $leaks = @($all | Where-Object { $_ -match '^LEAK\|' })
+      $pass = @($all | Where-Object { $_ -match '^RLS_ISOLATION\|PASS\|' })
+      foreach ($lk in $leaks) { Write-Host ("    " + $lk) -ForegroundColor Red; Add-Content -Path $script:SummaryFile -Value ("    " + $lk) -Encoding ASCII }
+      if ($leaks.Count -gt 0 -or $pass.Count -ne 1) {
+        $verdict = "FAIL"; $sum = @($all | Where-Object { $_ -match '^RLS_ISOLATION\|' })
+        if ($sum.Count -gt 0) { $detail = $sum[0] } else { $detail = "no RLS_ISOLATION line" }
+      } else { $detail = $pass[0] }
+    }
     "parity" {
       $stat = @{}
       foreach ($l in $lines) { if ($l -match '^(identical|crlf_only|DIFFERENT|MISSING) \| (\d+)$') { $stat[$Matches[1]] = [int]$Matches[2] } }
