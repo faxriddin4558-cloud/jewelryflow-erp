@@ -19,7 +19,7 @@
     "expected": "+206.83",
     "actual": {
       "legacy": 206.82999999999998,
-      "obligation": 206.82999999999998
+      "obligation": 206.83000000000004
     }
   },
   {
@@ -43,8 +43,8 @@
     "id": "LD-04",
     "title": "retry with the SAME key returns the first result, no second row",
     "ok": true,
-    "expected": "84ce7a70-f90a-4979-8a65-9fe5016b5cf4",
-    "actual": "84ce7a70-f90a-4979-8a65-9fe5016b5cf4"
+    "expected": "304488aa-71f5-48e9-9db2-777470967aa2",
+    "actual": "304488aa-71f5-48e9-9db2-777470967aa2"
   },
   {
     "id": "LD-05",
@@ -93,7 +93,7 @@
     "title": "seller cannot touch another organization",
     "ok": true,
     "expected": "refused",
-    "actual": "Mijoz topilmadi: f68d9be0-6d9d-4352-8021-717e01c36766"
+    "actual": "Mijoz topilmadi: d01efc53-dff8-4f1f-afff-977cfe2f9c08"
   },
   {
     "id": "LD-11",
@@ -183,7 +183,7 @@
     "title": "manager cannot touch another organization's customer",
     "ok": true,
     "expected": "refused",
-    "actual": "Mijoz topilmadi: f68d9be0-6d9d-4352-8021-717e01c36"
+    "actual": "Mijoz topilmadi: d01efc53-dff8-4f1f-afff-977cfe2f9"
   },
   {
     "id": "LD-22",
@@ -251,8 +251,8 @@
     "id": "LD-28",
     "title": "seller legacy obligation = independent sum of active debt entries",
     "ok": true,
-    "expected": 39.67,
-    "actual": 39.67
+    "expected": 55.17,
+    "actual": 55.17
   },
   {
     "id": "LD-29",
@@ -294,5 +294,19 @@
     "ok": true,
     "expected": "refused",
     "actual": "new row violates row-level security policy for table \"client"
+  },
+  {
+    "id": "LD-33",
+    "title": "manager reconciles a 70 g SALES debt down to the notebook 69 g (075: check constraint error)",
+    "ok": true,
+    "expected": 69,
+    "actual": 69
+  },
+  {
+    "id": "LD-34",
+    "title": "seller's legacy obligation never negative (clamped at 0)",
+    "ok": true,
+    "expected": 28,
+    "actual": 28
   }
 ]

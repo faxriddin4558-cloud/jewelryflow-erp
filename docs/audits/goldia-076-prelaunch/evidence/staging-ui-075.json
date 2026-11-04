@@ -1,0 +1,46 @@
+{
+  "version": {
+    "status": "ok",
+    "commit": "fc1a1fa",
+    "full_commit": "fc1a1fa8ef0be7e3f1974b600796d8b911dd9cd3",
+    "env": "staging",
+    "staging_mode": true,
+    "supabase_ref": "vouehtlmsunebracahon",
+    "timestamp": "2026-11-04T18:58:08.721Z"
+  },
+  "api": [
+    "200 rpc_record_login_audit",
+    "200 current_employee_id",
+    "200 rpc_get_seller_rates",
+    "200 rpc_get_seller_reconciliation_statement",
+    "200 rpc_get_seller_markup_difference_report",
+    "200 rpc_get_daily_sales_ledger",
+    "200 rpc_get_daily_sales_ledger",
+    "200 current_employee_id",
+    "200 rpc_get_unified_customer_ledger",
+    "200 current_employee_role_text",
+    "200 rpc_get_unified_customer_ledger",
+    "403 rpc_record_client_legacy_debt",
+    "200 rpc_get_unified_customer_ledger",
+    "200 current_employee_role_text",
+    "200 current_employee_id",
+    "200 rpc_get_unified_customer_ledger",
+    "200 get_seller_available_stock_grams"
+  ],
+  "results": [
+    {
+      "id": "STG-075-01",
+      "title": "staging UI (fc1a1fa): seller enters 206.83 g legacy debt",
+      "ok": true,
+      "expected": "permission denied (incident reproduced)",
+      "actual": "Eski qarzni saqlashda xatolik: Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, accountant, buxgalter) MIJOZLAR RO'YXATI VA NASIYA QOLDIQLARI ("
+    },
+    {
+      "id": "STG-075-02",
+      "title": "staging UI: seller sells 30 g by weight without choosing a product (piece select required=true)",
+      "ok": true,
+      "expected": "blocked (rule 1 not met at 075)",
+      "actual": "Savdoni rasmiylashtirishda xatolik: Tanlangan dona 4"
+    }
+  ]
+}

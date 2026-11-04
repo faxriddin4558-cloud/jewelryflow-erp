@@ -29,6 +29,7 @@ select
   (select count(*) = 2 from pg_proc where pronamespace = 'public'::regnamespace
      and proname in ('_goldia_consume_weight_sale_pieces', '_goldia_consume_selected_pieces')
      and position('v_left > 0.00005' in prosrc) > 0 and position('v_left > 0.0001 ' in prosrc) = 0) as piece_cut_threshold_fixed,
+  position('GREATEST(0, COALESCE(SUM(delta_585_g), 0))' in pg_get_functiondef('public.recalc_seller_gold_account(uuid,uuid)'::regprocedure)) > 0 as legacy_obligation_clamped,
   (select prosecdef and proconfig::text like '%search_path=public, pg_temp%' from pg_proc where oid = 'public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure) as definer_pinned_path,
   (select count(*) = 0 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.proname like 'rpc\_%'
      and has_function_privilege('anon', p.oid, 'EXECUTE')) as no_anon_rpcs;

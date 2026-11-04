@@ -249,7 +249,8 @@ const dueOf = (w, m) => dh(U4(w) * (100 + m), 100) / 1e4; // server: round(w * (
     const pz = r4((await L.sel(`consignment_pieces?seller_id=eq.${sid(t)}&status=eq.held_by_seller&select=weight_grams`)).reduce((x, y) => x + N(y.weight_grams), 0));
     T(`REC-ST-${t}`, `${t} gram stock: model = database = held pieces`, Math.abs(N(a.st) - M.stock[t]) < 0.00005 && Math.abs(pz - N(a.st)) < 0.00005, M.stock[t], { db: N(a.st), pieces: pz });
     T(`REC-TILL-${t}`, `${t} till UZS / USD: model = database`, Math.abs(N(a.c) - M.cashUzs[t]) < 0.005 && Math.abs(N(a.u) - M.cashUsd[t]) < 0.005, { uzs: M.cashUzs[t], usd: M.cashUsd[t] }, { uzs: N(a.c), usd: N(a.u) });
-    T(`REC-LEG-${t}`, `${t} legacy obligation: model = database`, Math.abs(N(a.l) - M.legacy[t]) < 0.00005, M.legacy[t], N(a.l));
+    // 076 clamps the seller's legacy obligation at 0 (075: a negative total raised a check-constraint error)
+    T(`REC-LEG-${t}`, `${t} legacy obligation: model max(0, sum of active debt deltas) = database`, Math.abs(N(a.l) - Math.max(0, M.legacy[t])) < 0.00005, Math.max(0, M.legacy[t]), N(a.l));
   }
   // per-operation expected/actual
   const saleBad = OPS.filter((o) => o.kind === 'sale' && o.ok && Math.abs(o.actual_due - o.expected_due) > 0.00005).length;

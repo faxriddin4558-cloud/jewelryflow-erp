@@ -1,0 +1,12 @@
+{
+  "backup": true,
+  "baseline": true,
+  "recovery": true,
+  "migration064": true,
+  "preflight": true,
+  "accounting": true,
+  "compat": true,
+  "ready": true,
+  "target": "076",
+  "backupDir": "/tmp/g76rel/goldia-prod-2026-11-04T19-05-11"
+}

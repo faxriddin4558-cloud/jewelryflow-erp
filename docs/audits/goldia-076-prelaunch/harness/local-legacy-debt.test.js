@@ -109,6 +109,16 @@ const N = (x) => Number(x);
   T('LD-31', "seller cannot SELECT another seller's customer legacy rows (RLS)", sel.ok && sel.data === 0, 0, sel.ok ? sel.data : sel.error);
   const dir = await as(S, "insert into client_legacy_debts (organization_id, customer_id, seller_id, balance_type, amount_585_g, as_of_date) values ('" + ORG + "', '" + cS + "', '" + S + "', 'debt', 1, current_date) returning 1 r");
   T('LD-32', 'direct INSERT into client_legacy_debts by a seller is refused (RPC only)', !dir.ok, 'refused', dir.ok ? 'ACCEPTED' : dir.error.slice(0, 60));
+  // a SALES debt reconciled down by the manager (staging stress found a constraint error here before 076)
+  const cR = await mk(M, `LD recon sales ${run}`);
+  await pool.query('update customers set seller_id=$1 where id=$2', [S2, cR]);
+  await pool.query(`insert into client_gold_accounts (customer_id, organization_id, seller_id, current_debt_grams, advance_balance_grams, total_purchased_gold_grams) values ($1, $2, $3, 70, 0, 70)
+                    on conflict (customer_id) do update set current_debt_grams = 70, advance_balance_grams = 0`, [cR, ORG, S2]);
+  const legS2 = await sobl(S2);
+  const recDown = await leg(M, cR, { p_entry_type: 'reconciliation_adjustment', p_amount_585_g: 0, p_target_final_balance: 69 });
+  const legS2b = await sobl(S2);
+  T('LD-33', 'manager reconciles a 70 g SALES debt down to the notebook 69 g (075: check constraint error)', recDown.ok && N((await acc(cR)).d) === 69, 69, recDown.ok ? N((await acc(cR)).d) : recDown.error.slice(0, 90));
+  T('LD-34', "seller's legacy obligation never negative (clamped at 0)", N(legS2b.l) >= 0 && N(legS2b.l) === Math.max(0, N(legS2.l) - 1), Math.max(0, N(legS2.l) - 1), N(legS2b.l));
   const pass = R.filter((x) => x.ok).length;
   console.log(`TOTAL ${pass}/${R.length}`);
   require('fs').writeFileSync(process.env.OUT || '/dev/null', JSON.stringify(R, null, 2));

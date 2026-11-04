@@ -1,0 +1,5 @@
+ recorded | record_roles | seller_limits | seller_id_org_checked | duplicate_guard | reverse_fixed | grants | weight_sale_piece_optional | financial_reversal_unambiguous | no_other_rpc_overloads | sales_own_customers_only | piece_cut_threshold_fixed | legacy_obligation_clamped | definer_pinned_path | no_anon_rpcs 
+----------+--------------+---------------+-----------------------+-----------------+---------------+--------+----------------------------+--------------------------------+------------------------+--------------------------+---------------------------+---------------------------+---------------------+--------------
+ t        | t            | t             | t                     | t               | t             | t      | t                          | t                              | t                      | t                        | t                         | t                         | t                   | t
+(1 row)
+

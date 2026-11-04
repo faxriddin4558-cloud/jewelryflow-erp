@@ -12,7 +12,8 @@
   Production (Supabase vrozlllcaxinavzxueif): 072 -> 075 preflight + business baseline
     powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target production
   Production AFTER the release (history at 075): postflights 073/074/075, post-release gates, RLS isolation of every
-  login, business baseline compared with the newest pre-release baseline (history 072) found in -OutRoot or -BaselineBefore
+  login, business baseline compared with the newest baseline taken before the current migration level (072 before 073-075,
+  075 before 076) found in -OutRoot or -BaselineBefore; with history at 076 the 076 postflight runs as well
     powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target production-post
   Production BEFORE 076 (history at 075): incident 206.83 g, real login roles, 076 impact, legacy obligation drift,
   hidden negative stock, 075 function-body parity
@@ -187,7 +188,15 @@ Write-Host ("  " + $idLine)
 Add-Content -Path $script:SummaryFile -Value $idLine -Encoding ASCII
 if ($pp[1] -ne "on") { Finish "FAIL" "the explicit read-only transaction is not read-only (transaction_read_only=" + $pp[1] + ")" }
 if ($pp[3] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
-if (($Target -eq "production-post" -or $Target -eq "production-prelaunch") -and $pp[4] -ne "20260101000075") { Finish "FAIL" ("production-post expects migration history at 20260101000075, found " + $pp[4]) }
+if ($Target -eq "production-prelaunch" -and $pp[4] -ne "20260101000075") { Finish "FAIL" ("production-prelaunch expects migration history at 20260101000075, found " + $pp[4]) }
+if ($Target -eq "production-post" -and @("20260101000075", "20260101000076") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 20260101000075 or 20260101000076, found " + $pp[4]) }
+if ($Target -eq "production-post" -and $pp[4] -eq "20260101000076") {
+  # after 076 its postflight runs too (073/074/075 must stay true)
+  $pf76 = @{ Name = "076_postflight"; File = "supabase/release/076_postflight_readonly.sql"; Kind = "postflight" }
+  $pf76.Path = Join-Path $repo $pf76.File
+  if (-not (Test-Path -LiteralPath $pf76.Path)) { Finish "FAIL" "missing supabase/release/076_postflight_readonly.sql - run from the release branch checkout" }
+  $checks = @($checks[0], $checks[1], $checks[2], $pf76) + @($checks[3..($checks.Count - 1)])
+}
 
 # ---------------------------------------------------------------- pre-release baseline (production-post)
 # BASELINE lines from run-readonly-checks (BASELINE | k | v) or from the backup kit (BASELINE|k|v), normalized to k -> v
@@ -206,9 +215,10 @@ if ($Target -eq "production-post") {
     $beforeFile = (Resolve-Path -LiteralPath $BaselineBefore).Path
   } else {
     $cands = @()
-    $cands += @(Get-ChildItem -LiteralPath $OutRoot -Directory -Filter "readonly-production-*" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike "readonly-production-post-*" } | ForEach-Object { Join-Path $_.FullName "01_baseline.txt" } | Where-Object { Test-Path -LiteralPath $_ })
+    $cands += @(Get-ChildItem -LiteralPath $OutRoot -Directory -Filter "readonly-production-*" -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName "01_baseline.txt" } | Where-Object { Test-Path -LiteralPath $_ })
     $cands += @(Get-ChildItem -LiteralPath $OutRoot -Directory -Filter "goldia-prod-*" -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -File -Filter "baseline-production-*.txt" -ErrorAction SilentlyContinue } | ForEach-Object { $_.FullName })
-    $pre = @($cands | Where-Object { $b = Read-BaselineFile $_; $b.ContainsKey("history latest") -and $b["history latest"] -eq "20260101000072" -and $b.ContainsKey("fingerprint business") } | Sort-Object { (Get-Item -LiteralPath $_).LastWriteTimeUtc } -Descending)
+    # the newest baseline taken BEFORE the current migration level (072 before 073-075, 075 before 076)
+    $pre = @($cands | Where-Object { $b = Read-BaselineFile $_; $b.ContainsKey("history latest") -and [string]::CompareOrdinal([string]$b["history latest"], [string]$pp[4]) -lt 0 -and $b.ContainsKey("fingerprint business") } | Sort-Object { (Get-Item -LiteralPath $_).LastWriteTimeUtc } -Descending)
     if ($pre.Count -gt 0) { $beforeFile = $pre[0] }
   }
   $bfText = "(none found - pass -BaselineBefore <file>)"; if ($beforeFile) { $bfText = $beforeFile }
@@ -280,7 +290,7 @@ foreach ($c in $checks) {
         foreach ($l in $lines) { $t = ($l -replace '\s*\|\s*', '|'); if ($t -match '^BASELINE\|([^|]+)\|(.*)$') { $nowMap[$Matches[1]] = $Matches[2] } }
         $expected = @("history latest", "history count", "fingerprint business")
         $nonBusiness = @("rows audit_logs", "rows idempotency_keys", "rows sales_login_audit_logs", "rows organization_factory_settings")
-        if (-not $beforeFile) { $verdict = "REVIEW"; $detail += "; NOT compared - no pre-release baseline (history 072) found, pass -BaselineBefore <file>" }
+        if (-not $beforeFile) { $verdict = "REVIEW"; $detail += "; NOT compared - no baseline from before the current migration level found, pass -BaselineBefore <file>" }
         else {
           $befMap = Read-BaselineFile $beforeFile
           $keys = @(@($befMap.Keys) + @($nowMap.Keys) | Sort-Object -Unique)
@@ -301,7 +311,8 @@ foreach ($c in $checks) {
           foreach ($x in $biz) { Write-Host ("    BUSINESS " + $x) -ForegroundColor Yellow }
           if ($nowMap["history count"] -and $befMap.ContainsKey("history count")) {
             $hc = 0; [void][int]::TryParse($befMap["history count"], [ref]$hc)
-            if ([string]($hc + 3) -ne $nowMap["history count"]) { [void]$biz.Add("history count is not before+3") }
+            $steps = [int]($nowMap["history latest"].Substring($nowMap["history latest"].Length - 3)) - [int]($befMap["history latest"].Substring($befMap["history latest"].Length - 3))
+            if ([string]($hc + $steps) -ne $nowMap["history count"]) { [void]$biz.Add("history count is not before+" + $steps) }
           }
           if ($biz.Count -eq 0) { $detail += "; business lines IDENTICAL to the pre-release baseline (" + $info.Count + " expected/non-business differences) -> " + $diffFile }
           else { $verdict = "REVIEW"; $detail += "; " + $biz.Count + " BUSINESS line(s) differ from the pre-release baseline -> " + $diffFile }

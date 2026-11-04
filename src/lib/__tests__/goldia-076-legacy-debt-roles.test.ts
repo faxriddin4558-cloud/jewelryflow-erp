@@ -87,6 +87,20 @@ describe("Goldia 076 — legacy debt for managers and sellers", () => {
     expect(await obligation(seller.employeeId)).toBe(0);
   });
 
+  it("manager reconciles a SALES debt down; the seller's legacy obligation is clamped at 0 (075: check constraint error)", async () => {
+    await t.asAdmin();
+    await t.db.exec(`INSERT INTO public.client_gold_accounts (customer_id, organization_id, seller_id, current_debt_grams, advance_balance_grams, total_purchased_gold_grams)
+      VALUES ('${cust}', '${org}', '${seller.employeeId}', 70, 0, 70)
+      ON CONFLICT (customer_id) DO UPDATE SET current_debt_grams = 70, advance_balance_grams = 0`);
+    expect(await obligation(seller.employeeId)).toBe(0);
+    await t.asUser(mgr.userId);
+    const r = await t.rpc(`public.rpc_record_client_legacy_debt(p_customer_id := '${cust}', p_balance_type := 'debt', p_amount_585_g := 0,
+      p_as_of_date := ${today}, p_entry_type := 'reconciliation_adjustment', p_target_final_balance := 69)`);
+    expect(Number(r.delta_585_g)).toBe(-1);
+    expect(await debt(cust)).toBe(69);
+    expect(await obligation(seller.employeeId)).toBe(0);
+  });
+
   it("financial reversal has one unambiguous signature", async () => {
     await t.asAdmin();
     expect(await t.scalar(`(SELECT count(*) FROM pg_proc WHERE proname = 'rpc_reverse_financial_transaction')`)).toBe(1);

@@ -24,6 +24,9 @@
 --     sale - and debt - on another seller's customer).
 --   * _goldia_consume_weight_sale_pieces / _goldia_consume_selected_pieces: a 0.0001 g remainder no longer consumes the whole
 --     piece (found by the stress model: a 20.7665 g sale consumed 20.7666 g of pieces).
+--   * recalc_seller_gold_account: the seller's legacy obligation is clamped at 0 (CHECK >= 0). A manager reconciling a
+--     customer's SALES debt down to the notebook (e.g. 70 g -> 69 g) failed with "violates check constraint
+--     seller_gold_accounts_seller_legacy_debt_obligation_g_check" (found by the staging stress run).
 -- Legacy debt: stock, factory obligation, vault and profit are not touched (unchanged from 056: only client_legacy_debts,
 -- client_gold_accounts and recalc_seller_gold_account). Signatures and grants are unchanged.
 
@@ -1221,4 +1224,103 @@ begin
    where sc.id in (select consignment_id from public.weight_sale_allocations where sale_id = p_sale_id);
   return 0;
 end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.recalc_seller_gold_account(p_seller_id uuid, p_org_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_total_phys       numeric(14, 4);
+  v_consignment_obl  numeric(14, 4);
+  v_legacy_debt_obl  numeric(14, 4);
+  v_total_obl        numeric(14, 4);
+  v_total_stl        numeric(14, 4);
+  v_s_owes           numeric(14, 4);
+  v_m_owes           numeric(14, 4);
+  v_signed           numeric(14, 4);
+  v_total_sold       numeric(14, 4);
+  v_cur_stock        numeric(14, 4);
+BEGIN
+  IF p_seller_id IS NULL OR p_org_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- 1. Active Consignments: sum base_weight_grams which represents active remaining physical grams
+  SELECT
+    COALESCE(SUM(base_weight_grams), 0),
+    COALESCE(SUM(COALESCE(seller_obligation_g, factory_gold_due_grams)), 0)
+  INTO v_total_phys, v_consignment_obl
+  FROM public.seller_consignments
+  WHERE seller_id = p_seller_id AND organization_id = p_org_id
+    AND status IN ('held_by_seller', 'partially_sold', 'fully_sold');
+
+  -- 1b. Legacy client debts assigned to this seller (unreversed)
+  -- 076: a downward reconciliation of a SALES debt has a negative delta; the seller's legacy obligation never goes below
+  -- zero (the column has CHECK >= 0 - before 076 such a reconciliation failed with a constraint error). The seller
+  -- still owes the manager for the consigned goods; only the customer's debt is lowered.
+  SELECT GREATEST(0, COALESCE(SUM(delta_585_g), 0))
+  INTO v_legacy_debt_obl
+  FROM public.client_legacy_debts
+  WHERE seller_id = p_seller_id AND organization_id = p_org_id
+    AND balance_type = 'debt'
+    AND status <> 'reversed';
+
+  v_total_obl := ROUND(v_consignment_obl + v_legacy_debt_obl, 4);
+
+  -- 2. Total non-reversed settlements surrendered to manager/factory
+  SELECT COALESCE(SUM(total_settled_grams), 0)
+  INTO v_total_stl
+  FROM public.gold_settlements
+  WHERE seller_id = p_seller_id AND organization_id = p_org_id
+    AND direction IN ('seller_to_manager', 'seller_to_factory')
+    AND (status IS NULL OR status NOT IN ('reversed', 'cancelled'))
+    AND reversal_of_id IS NULL;
+
+  v_s_owes := ROUND(GREATEST(0, v_total_obl - v_total_stl), 4);
+  v_m_owes := ROUND(GREATEST(0, v_total_stl - v_total_obl), 4);
+  v_signed := ROUND(v_m_owes - v_s_owes, 4);
+
+  -- 3. Total sold physical grams (sales not cancelled or reversed)
+  SELECT COALESCE(SUM(base_weight_grams), 0)
+  INTO v_total_sold
+  FROM public.jewelry_sales
+  WHERE seller_id = p_seller_id AND organization_id = p_org_id
+    AND status NOT IN ('cancelled', 'reversed');
+
+  -- Note: v_total_phys ALREADY reflects base_weight_grams reduced by returned pieces!
+  v_cur_stock := ROUND(GREATEST(0, v_total_phys - v_total_sold), 4);
+
+  INSERT INTO public.seller_gold_accounts (
+    seller_id, organization_id,
+    total_transferred_physical_g, total_seller_obligation_g,
+    total_settled_to_manager_g, seller_owes_manager_g,
+    manager_owes_seller_g, bozor_qarzi_signed_g,
+    total_consigned_gold_grams, current_factory_obligation_grams,
+    current_physical_stock_g, seller_legacy_debt_obligation_g,
+    updated_at
+  ) VALUES (
+    p_seller_id, p_org_id,
+    v_total_phys, v_total_obl,
+    v_total_stl, v_s_owes,
+    v_m_owes, v_signed,
+    v_consignment_obl, v_s_owes,
+    v_cur_stock, v_legacy_debt_obl,
+    NOW()
+  )
+  ON CONFLICT (seller_id) DO UPDATE SET
+    total_transferred_physical_g = v_total_phys,
+    total_seller_obligation_g = v_total_obl,
+    total_settled_to_manager_g = v_total_stl,
+    seller_owes_manager_g = v_s_owes,
+    manager_owes_seller_g = v_m_owes,
+    bozor_qarzi_signed_g = v_signed,
+    total_consigned_gold_grams = v_consignment_obl,
+    current_factory_obligation_grams = v_s_owes,
+    current_physical_stock_g = v_cur_stock,
+    seller_legacy_debt_obligation_g = v_legacy_debt_obl,
+    updated_at = NOW();
+END;
 $function$;
