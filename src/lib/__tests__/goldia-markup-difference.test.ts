@@ -170,7 +170,7 @@ describe("Goldia 067 — seller markup difference", () => {
     expect(debtA).toBe(dueA);
 
     await t.asUser(director.userId);
-    const ledger = await t.db.query(`SELECT * FROM public.rpc_get_daily_sales_ledger(p_seller_id := null, p_start_date := CURRENT_DATE - 1, p_end_date := CURRENT_DATE)`);
+    const ledger = await t.db.query(`SELECT * FROM public.rpc_get_daily_sales_ledger(p_seller_id := null, p_start_date := (timezone('Asia/Tashkent', now()))::date - 1, p_end_date := (timezone('Asia/Tashkent', now()))::date)`);
     expect(ledger.rows.length).toBeGreaterThan(0);
   });
 

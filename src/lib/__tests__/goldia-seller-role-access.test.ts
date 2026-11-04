@@ -90,7 +90,7 @@ describe("Goldia 071 — seller role access", () => {
     const pieces = (await t.db.query<{ model_code: string; weight_grams: string }>(
       `SELECT model_code, weight_grams FROM public.consignment_pieces WHERE status = 'held_by_seller'`)).rows;
     const ledger = (await t.db.query<Record<string, unknown>>(
-      `SELECT * FROM public.rpc_get_daily_sales_ledger('${sellerA.employeeId}', current_date, current_date)`)).rows;
+      `SELECT * FROM public.rpc_get_daily_sales_ledger('${sellerA.employeeId}', (timezone('Asia/Tashkent', now()))::date, (timezone('Asia/Tashkent', now()))::date)`)).rows;
     const markup = await t.rpc(`public.rpc_get_seller_markup_difference_report('${sellerA.employeeId}', null, null)`);
     const d = buildSellerDashboard(st as never, pieces as never, ledger as never, Number(markup.total_difference_g));
 
