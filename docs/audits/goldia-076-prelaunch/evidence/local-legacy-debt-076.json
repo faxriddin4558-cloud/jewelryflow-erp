@@ -18,8 +18,8 @@
     "ok": true,
     "expected": "+206.83",
     "actual": {
-      "legacy": 206.82999999999998,
-      "obligation": 206.83000000000004
+      "legacy": 206.83,
+      "obligation": 206.83
     }
   },
   {
@@ -43,8 +43,8 @@
     "id": "LD-04",
     "title": "retry with the SAME key returns the first result, no second row",
     "ok": true,
-    "expected": "304488aa-71f5-48e9-9db2-777470967aa2",
-    "actual": "304488aa-71f5-48e9-9db2-777470967aa2"
+    "expected": "739c5cb9-e315-48a7-912d-ff7e76e8df03",
+    "actual": "739c5cb9-e315-48a7-912d-ff7e76e8df03"
   },
   {
     "id": "LD-05",
@@ -93,7 +93,7 @@
     "title": "seller cannot touch another organization",
     "ok": true,
     "expected": "refused",
-    "actual": "Mijoz topilmadi: d01efc53-dff8-4f1f-afff-977cfe2f9c08"
+    "actual": "Mijoz topilmadi: 648a0299-c1f0-479a-b2b6-3f7b11966cfc"
   },
   {
     "id": "LD-11",
@@ -183,7 +183,7 @@
     "title": "manager cannot touch another organization's customer",
     "ok": true,
     "expected": "refused",
-    "actual": "Mijoz topilmadi: d01efc53-dff8-4f1f-afff-977cfe2f9"
+    "actual": "Mijoz topilmadi: 648a0299-c1f0-479a-b2b6-3f7b11966"
   },
   {
     "id": "LD-22",
@@ -238,7 +238,7 @@
     "title": "seller obligation recalculated after the reversal (-206.83 g; before 076 it stayed)",
     "ok": true,
     "expected": -206.83,
-    "actual": -206.82999999999998
+    "actual": -206.83
   },
   {
     "id": "LD-27",
@@ -251,8 +251,8 @@
     "id": "LD-28",
     "title": "seller legacy obligation = independent sum of active debt entries",
     "ok": true,
-    "expected": 55.17,
-    "actual": 55.17
+    "expected": 15.5,
+    "actual": 15.5
   },
   {
     "id": "LD-29",
@@ -306,7 +306,7 @@
     "id": "LD-34",
     "title": "seller's legacy obligation never negative (clamped at 0)",
     "ok": true,
-    "expected": 28,
-    "actual": 28
+    "expected": 6.25,
+    "actual": 6.25
   }
 ]

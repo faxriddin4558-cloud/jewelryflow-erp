@@ -1,5 +1,5 @@
 {
-  "run": "mw2gwg0l",
+  "run": "mw2hxdba",
   "results": [
     {
       "id": "UI-01",
@@ -19,7 +19,7 @@
       "title": "seller saves 206.83 g legacy debt in the UI (075: permission denied) - success message, no error",
       "ok": true,
       "expected": "success",
-      "actual": "Eski qarz/avans muvaffaqiyatli saqlandi! (UI76 Aziza mw2gwg0l): Tuzatish: +206"
+      "actual": "Eski qarz/avans muvaffaqiyatli saqlandi! (UI76 Aziza mw2hxdba): Tuzatish: +206"
     },
     {
       "id": "UI-03",
@@ -44,8 +44,8 @@
       },
       "actual": {
         "l": 206.83,
-        "stock0": 381,
-        "stock1": 381
+        "stock0": 88.5,
+        "stock1": 88.5
       }
     },
     {
@@ -82,7 +82,7 @@
       "ok": true,
       "expected": 33.6,
       "actual": {
-        "msg": "Vazn bo'yicha savdo muvaffaqiyatli rasmiylashtirildi! (UI76 Bobur mw2gwg0l): 30",
+        "msg": "Vazn bo'yicha savdo muvaffaqiyatli rasmiylashtirildi! (UI76 Bobur mw2hxdba): 30",
         "debt": 33.6
       }
     },
@@ -95,8 +95,8 @@
       },
       "actual": {
         "dec": 30,
-        "held": 351,
-        "stock": 351
+        "held": 58.5,
+        "stock": 58.5
       }
     },
     {

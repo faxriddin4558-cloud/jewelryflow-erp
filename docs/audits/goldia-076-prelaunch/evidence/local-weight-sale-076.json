@@ -3,15 +3,15 @@
     "id": "WS-00",
     "title": "before: gram stock equals held piece grams",
     "ok": true,
-    "expected": 363.78,
-    "actual": 363.78
+    "expected": 244.75,
+    "actual": 244.75
   },
   {
     "id": "WS-01",
     "title": "seller sells 100 g at 12 % WITHOUT choosing a product (075 refused: ERR_PIECE_REQUIRED)",
     "ok": true,
     "expected": "ok",
-    "actual": "SALE-W-20261104-40178B"
+    "actual": "SALE-W-20261105-EEE112"
   },
   {
     "id": "WS-02",
@@ -40,8 +40,8 @@
     },
     "actual": {
       "held": 100,
-      "stock": 263.78,
-      "pieces": 263.78
+      "stock": 144.75,
+      "pieces": 144.75
     }
   },
   {
@@ -62,8 +62,8 @@
     "id": "WS-06",
     "title": "retry with the same key returns the same sale, nothing deducted twice",
     "ok": true,
-    "expected": "c94231c6-3ece-47ad-925a-a9c86ca419a5",
-    "actual": "c94231c6-3ece-47ad-925a-a9c86ca419a5"
+    "expected": "1fd2ec95-2553-4914-bd32-bfff058068c9",
+    "actual": "1fd2ec95-2553-4914-bd32-bfff058068c9"
   },
   {
     "id": "WS-07-10",
@@ -173,8 +173,8 @@
     "actual": {
       "ok": 12,
       "dec": 108,
-      "after": 147.56,
-      "pieces": 147.56
+      "after": 28.53,
+      "pieces": 28.53
     }
   },
   {
@@ -189,7 +189,7 @@
     "title": "a piece consumed by the gram sale cannot be sold again by barcode",
     "ok": true,
     "expected": "refused",
-    "actual": "Bu mahsulot donasi (M6B — 8.5000 g) allaqachon sotilgan (Sotuv ID: c94"
+    "actual": "Bu mahsulot donasi (M6B — 8.5000 g) allaqachon sotilgan (Sotuv ID: 1fd"
   },
   {
     "id": "WS-16",
@@ -211,23 +211,23 @@
     "title": "second reversal refused (no double restore)",
     "ok": true,
     "expected": "refused",
-    "actual": "Ushbu savdo allaqachon bekor qilingan (SALE-W-20261104-40178"
+    "actual": "Ushbu savdo allaqachon bekor qilingan (SALE-W-20261105-EEE11"
   },
   {
     "id": "WS-18",
     "title": "end: stock = consigned - active sales (independent) = held piece grams",
     "ok": true,
-    "expected": 247.56,
+    "expected": 128.53,
     "actual": {
-      "stock": 247.56,
-      "pieces": 247.56
+      "stock": 128.53,
+      "pieces": 128.53
     }
   },
   {
     "id": "WS-19",
     "title": "seller account physical stock = model",
     "ok": true,
-    "expected": 247.56,
-    "actual": 247.56
+    "expected": 128.53,
+    "actual": 128.53
   }
 ]

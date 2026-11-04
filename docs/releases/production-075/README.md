@@ -4,6 +4,12 @@
 **Holat (2026-11-04):** faqat tayyorgarlik. Bu sessiyada production’ga **ulanilmagan** (production kaliti/paroli yo‘q, frontend host tarmoqda bloklangan) —
 hech qanday production migratsiya, deploy, write RPC yoki ma’lumot o‘zgarishi bajarilmagan. Staging (`vouehtlmsunebracahon`) va JFS Demo (`yvvbdoqncubtwlzskgml`) skriptlarda rad etiladi.
 
+## 076. PRE-LAUNCH INCIDENT (2026-11-04) — sotuvchi eski qarz kiritolmadi
+To'liq hisobot, topilmalar (CRITICAL/HIGH/...), dalillar va release tartibi: `docs/audits/goldia-076-prelaunch/REPORT.md`.
+Tartib: staging DB 076 → staging frontend → staging qayta tekshiruv → `run-readonly-checks.ps1 -Target production-prelaunch`
+→ (alohida ruxsat bilan) `node scripts/goldia-prod-release.js --migration 076` → production frontend →
+`-Target production-post` + `run-production-smoke.ps1`. Favqulodda qaytarish: `emergency/rollback_076_with_history.sql`.
+
 ## P. YAKUNIY PRODUCTION SMOKE-TEST (release'dan keyin, QAT'IY READ-ONLY) — 2026-11-04
 Egasi xabar qildi: production DB 075, frontend `fec64ec` deploy PASS. Bu sessiyadan production'ga ulanib bo'lmaydi
 (host bloklangan, parol/kalit yo'q), shuning uchun smoke-test egasining Windows kompyuterida ishga tushiriladi.
