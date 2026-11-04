@@ -23,6 +23,12 @@ select
     and to_regprocedure('public.rpc_reverse_financial_transaction(uuid,text)') is not null as financial_reversal_unambiguous,
   (select count(*) = 0 from (select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'rpc\_%'
        and p.proname not in ('rpc_record_refining_batch') group by 1 having count(*) > 1) d) as no_other_rpc_overloads,
+  (select count(*) = 3 from pg_proc where pronamespace = 'public'::regnamespace
+     and proname in ('rpc_record_weight_sale', 'rpc_record_barcode_piece_sale', 'rpc_record_client_jewelry_sale')
+     and position('boshqa sotuvchiga biriktirilgan' in prosrc) > 0) as sales_own_customers_only,
+  (select count(*) = 2 from pg_proc where pronamespace = 'public'::regnamespace
+     and proname in ('_goldia_consume_weight_sale_pieces', '_goldia_consume_selected_pieces')
+     and position('v_left > 0.00005' in prosrc) > 0 and position('v_left > 0.0001 ' in prosrc) = 0) as piece_cut_threshold_fixed,
   (select prosecdef and proconfig::text like '%search_path=public, pg_temp%' from pg_proc where oid = 'public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure) as definer_pinned_path,
   (select count(*) = 0 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.proname like 'rpc\_%'
      and has_function_privilege('anon', p.oid, 'EXECUTE')) as no_anon_rpcs;

@@ -14,6 +14,9 @@
   Production AFTER the release (history at 075): postflights 073/074/075, post-release gates, RLS isolation of every
   login, business baseline compared with the newest pre-release baseline (history 072) found in -OutRoot or -BaselineBefore
     powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target production-post
+  Production BEFORE 076 (history at 075): incident 206.83 g, real login roles, 076 impact, legacy obligation drift,
+  hidden negative stock, 075 function-body parity
+    powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target production-prelaunch
   Staging (vouehtlmsunebracahon): CRLF-tolerant function-body parity of 075
     powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target staging -PoolerHost aws-0-<region>.pooler.supabase.com
 
@@ -27,7 +30,7 @@
   file through the same read-only wrapper, used to prove that a write attempt fails).
 #>
 param(
-  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "staging")][string]$Target,
+  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging")][string]$Target,
   [string]$PoolerHost = "",
   [int]$Port = 5432,
   [string]$PgBin = "C:\Program Files\PostgreSQL\17\bin",
@@ -43,7 +46,7 @@ $script:SummaryFile = $null
 
 $Refs = @{ production = "vrozlllcaxinavzxueif"; staging = "vouehtlmsunebracahon" }
 $Never = @("yvvbdoqncubtwlzskgml", "hbbuskyifxkowlozsaym", "vrozlilcaxinavzxueif")   # JFS demo, ERP, typo of prod ref
-$RefKey = $Target; if ($Target -eq "production-post") { $RefKey = "production" }
+$RefKey = $Target; if ($Target -eq "production-post" -or $Target -eq "production-prelaunch") { $RefKey = "production" }
 $Ref = $Refs[$RefKey]
 
 function Finish([string]$Result, [string]$Why) {
@@ -83,6 +86,11 @@ if ($Target -eq "production") {
   $checks = @(
     @{ Name = "00_preflight"; File = "docs/releases/production-075/00_preflight_072_to_075_readonly.sql"; Kind = "preflight" },
     @{ Name = "01_baseline";  File = "docs/releases/production-075/01_baseline_readonly.sql";             Kind = "baseline" }
+  )
+} elseif ($Target -eq "production-prelaunch") {
+  $checks = @(
+    @{ Name = "04_prelaunch_076"; File = "docs/releases/production-075/04_prelaunch_076_readonly.sql"; Kind = "pre" },
+    @{ Name = "function_body_parity_075"; File = "supabase/release/function_body_parity_075_readonly.sql"; Kind = "parity" }
   )
 } elseif ($Target -eq "production-post") {
   $checks = @(
@@ -179,7 +187,7 @@ Write-Host ("  " + $idLine)
 Add-Content -Path $script:SummaryFile -Value $idLine -Encoding ASCII
 if ($pp[1] -ne "on") { Finish "FAIL" "the explicit read-only transaction is not read-only (transaction_read_only=" + $pp[1] + ")" }
 if ($pp[3] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
-if ($Target -eq "production-post" -and $pp[4] -ne "20260101000075") { Finish "FAIL" ("production-post expects migration history at 20260101000075, found " + $pp[4]) }
+if (($Target -eq "production-post" -or $Target -eq "production-prelaunch") -and $pp[4] -ne "20260101000075") { Finish "FAIL" ("production-post expects migration history at 20260101000075, found " + $pp[4]) }
 
 # ---------------------------------------------------------------- pre-release baseline (production-post)
 # BASELINE lines from run-readonly-checks (BASELINE | k | v) or from the backup kit (BASELINE|k|v), normalized to k -> v
@@ -326,6 +334,19 @@ foreach ($c in $checks) {
       else {
         $state = ($res[0] -split '\|')[2]; $detail = $res[0]
         if ($state -eq "WARN") { $verdict = "REVIEW" } elseif ($state -ne "PASS") { $verdict = "FAIL" }
+      }
+    }
+    "pre" {
+      $res = @($lines | Where-Object { $_ -match '^RESULT\|prelaunch_076\|' })
+      foreach ($g in @($lines | Where-Object { $_ -match '^PRE\|' })) {
+        $gc = "Gray"; if ($g -match '\|STOP\|') { $gc = "Red" } elseif ($g -match '\|WARN\|') { $gc = "Yellow" } elseif ($g -match '\|OK\|') { $gc = "Green" }
+        Write-Host ("    " + $g) -ForegroundColor $gc
+        Add-Content -Path $script:SummaryFile -Value ("    " + $g) -Encoding ASCII
+      }
+      if ($res.Count -ne 1) { $verdict = "FAIL"; $detail = "no RESULT line" }
+      else {
+        $state = ($res[0] -split '\|')[2]; $detail = $res[0]
+        if ($state -eq "WARN") { $verdict = "REVIEW" } elseif ($state -ne "OK") { $verdict = "FAIL" }
       }
     }
     "rls" {

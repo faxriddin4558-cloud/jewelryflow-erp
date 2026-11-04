@@ -1,0 +1,233 @@
+[
+  {
+    "id": "WS-00",
+    "title": "before: gram stock equals held piece grams",
+    "ok": true,
+    "expected": 363.78,
+    "actual": 363.78
+  },
+  {
+    "id": "WS-01",
+    "title": "seller sells 100 g at 12 % WITHOUT choosing a product (075 refused: ERR_PIECE_REQUIRED)",
+    "ok": true,
+    "expected": "ok",
+    "actual": "SALE-W-20261104-40178B"
+  },
+  {
+    "id": "WS-02",
+    "title": "customer debt = 112 g (12 % of the base 100 g)",
+    "ok": true,
+    "expected": 112,
+    "actual": {
+      "due": 112,
+      "debt": 112
+    }
+  },
+  {
+    "id": "WS-03",
+    "title": "seller gram stock -100 g exactly",
+    "ok": true,
+    "expected": 100,
+    "actual": 100
+  },
+  {
+    "id": "WS-04",
+    "title": "held piece grams -100 g exactly (pieces and grams agree)",
+    "ok": true,
+    "expected": {
+      "held": 100,
+      "equal": true
+    },
+    "actual": {
+      "held": 100,
+      "stock": 263.78,
+      "pieces": 263.78
+    }
+  },
+  {
+    "id": "WS-05",
+    "title": "allocations: whole pieces + at most one cut piece, sum 100 g",
+    "ok": true,
+    "expected": {
+      "g": 100,
+      "cut": "<=1"
+    },
+    "actual": {
+      "n": "13",
+      "g": "100.0000",
+      "cut": "1"
+    }
+  },
+  {
+    "id": "WS-06",
+    "title": "retry with the same key returns the same sale, nothing deducted twice",
+    "ok": true,
+    "expected": "c94231c6-3ece-47ad-925a-a9c86ca419a5",
+    "actual": "c94231c6-3ece-47ad-925a-a9c86ca419a5"
+  },
+  {
+    "id": "WS-07-10",
+    "title": "10 % on 1.37 g = 1.507 g (no markup on markup)",
+    "ok": true,
+    "expected": 1.507,
+    "actual": 1.507
+  },
+  {
+    "id": "WS-07-12",
+    "title": "12 % on 1.37 g = 1.5344 g (no markup on markup)",
+    "ok": true,
+    "expected": 1.5344,
+    "actual": 1.5344
+  },
+  {
+    "id": "WS-07-15",
+    "title": "15 % on 1.37 g = 1.5755 g (no markup on markup)",
+    "ok": true,
+    "expected": 1.5755,
+    "actual": 1.5755
+  },
+  {
+    "id": "WS-07-25",
+    "title": "25 % on 1.37 g = 1.7125 g (no markup on markup)",
+    "ok": true,
+    "expected": 1.7125,
+    "actual": 1.7125
+  },
+  {
+    "id": "WS-07-30",
+    "title": "30 % on 1.37 g = 1.781 g (no markup on markup)",
+    "ok": true,
+    "expected": 1.781,
+    "actual": 1.781
+  },
+  {
+    "id": "WS-07-35",
+    "title": "35 % on 1.37 g = 1.8495 g (no markup on markup)",
+    "ok": true,
+    "expected": 1.8495,
+    "actual": 1.8495
+  },
+  {
+    "id": "WS-08",
+    "title": "customer debt is the exact sum of the six sales",
+    "ok": true,
+    "expected": 9.9599,
+    "actual": 9.9599
+  },
+  {
+    "id": "WS-09",
+    "title": "selling 0.0001 g more than the stock is refused (no negative stock)",
+    "ok": true,
+    "expected": "refused",
+    "actual": "ERR_INSUFFICIENT_SELLER_STOCK: Sotuvchi omborida yetarli olt"
+  },
+  {
+    "id": "WS-10-zero",
+    "title": "weight 0 refused",
+    "ok": true,
+    "expected": "refused",
+    "actual": "Sotilayotgan mahsulot vazni 0 dan katta bo'lishi s"
+  },
+  {
+    "id": "WS-10-negative",
+    "title": "weight -1 refused",
+    "ok": true,
+    "expected": "refused",
+    "actual": "Sotilayotgan mahsulot vazni 0 dan katta bo'lishi s"
+  },
+  {
+    "id": "WS-11-neg",
+    "title": "markup -1 refused",
+    "ok": true,
+    "expected": "refused",
+    "actual": "ERR_MARKUP_OUT_OF_RANGE: Mijoz ustama foizi 0 dan "
+  },
+  {
+    "id": "WS-11-101",
+    "title": "markup 101 refused",
+    "ok": true,
+    "expected": "refused",
+    "actual": "ERR_MARKUP_OUT_OF_RANGE: Mijoz ustama foizi 0 dan "
+  },
+  {
+    "id": "WS-11-null",
+    "title": "markup null refused",
+    "ok": true,
+    "expected": "refused",
+    "actual": "ERR_MARKUP_REQUIRED: Mijoz ustama foizi aniq ko'rs"
+  },
+  {
+    "id": "WS-12",
+    "title": "seller cannot sell to another seller's customer (075 accepted it through the API)",
+    "ok": true,
+    "expected": "42501",
+    "actual": "42501 Ruxsat etilmadi: Ushbu mijoz boshqa sotuvchiga biriktirilgan"
+  },
+  {
+    "id": "WS-13",
+    "title": "12 parallel 9 g sales: accepted x 9 g = stock decrease, stock >= 0, pieces == grams",
+    "ok": true,
+    "expected": {
+      "dec": 108
+    },
+    "actual": {
+      "ok": 12,
+      "dec": 108,
+      "after": 147.56,
+      "pieces": 147.56
+    }
+  },
+  {
+    "id": "WS-14",
+    "title": "no piece fully consumed by two active sales",
+    "ok": true,
+    "expected": 0,
+    "actual": 0
+  },
+  {
+    "id": "WS-15",
+    "title": "a piece consumed by the gram sale cannot be sold again by barcode",
+    "ok": true,
+    "expected": "refused",
+    "actual": "Bu mahsulot donasi (M6B — 8.5000 g) allaqachon sotilgan (Sotuv ID: c94"
+  },
+  {
+    "id": "WS-16",
+    "title": "manager reverses the 100 g sale: stock +100, pieces +100, debt -112",
+    "ok": true,
+    "expected": {
+      "stock": 100,
+      "pieces": 100,
+      "debt": -112
+    },
+    "actual": {
+      "stock": 100,
+      "pieces": 100,
+      "debt": -112
+    }
+  },
+  {
+    "id": "WS-17",
+    "title": "second reversal refused (no double restore)",
+    "ok": true,
+    "expected": "refused",
+    "actual": "Ushbu savdo allaqachon bekor qilingan (SALE-W-20261104-40178"
+  },
+  {
+    "id": "WS-18",
+    "title": "end: stock = consigned - active sales (independent) = held piece grams",
+    "ok": true,
+    "expected": 247.56,
+    "actual": {
+      "stock": 247.56,
+      "pieces": 247.56
+    }
+  },
+  {
+    "id": "WS-19",
+    "title": "seller account physical stock = model",
+    "ok": true,
+    "expected": 247.56,
+    "actual": 247.56
+  }
+]

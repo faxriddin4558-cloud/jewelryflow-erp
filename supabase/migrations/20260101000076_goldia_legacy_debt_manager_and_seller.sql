@@ -19,6 +19,11 @@
 --     choose between (uuid, text) and (uuid, text, text) for the UI call {p_transaction_id, p_reason} and answered
 --     HTTP 300 PGRST203 to EVERY role - no cash / capital operation could be reversed. The 060 body (uuid, text),
 --     which is the current logic, stays unchanged.
+--   * rpc_record_weight_sale / rpc_record_barcode_piece_sale / rpc_record_client_jewelry_sale: a seller may sell only to
+--     his own or to unassigned customers (payments have had this rule since 065; through the API a seller could book a
+--     sale - and debt - on another seller's customer).
+--   * _goldia_consume_weight_sale_pieces / _goldia_consume_selected_pieces: a 0.0001 g remainder no longer consumes the whole
+--     piece (found by the stress model: a 20.7665 g sale consumed 20.7666 g of pieces).
 -- Legacy debt: stock, factory obligation, vault and profit are not touched (unchanged from 056: only client_legacy_debts,
 -- client_gold_accounts and recalc_seller_gold_account). Signatures and grants are unchanged.
 
@@ -475,6 +480,12 @@ begin
     raise exception 'Mijoz (%) topilmadi', p_customer_id;
   end if;
 
+  -- 076: a seller sells only to his own or to unassigned customers (same rule as payments since 065)
+  if public._goldia_is_seller_role(public.current_employee_role_text())
+     and v_customer.seller_id is not null and v_customer.seller_id is distinct from public.current_employee_id() then
+    raise exception 'Ruxsat etilmadi: Ushbu mijoz boshqa sotuvchiga biriktirilgan' using errcode = '42501';
+  end if;
+
   -- Check available physical stock via canonical helper.
   -- 065: serialize stock-changing sales per seller before checking availability
   perform pg_advisory_xact_lock(hashtextextended('goldia_seller_stock:' || v_seller.id::text, 0));
@@ -645,3 +656,569 @@ revoke execute on function public.rpc_record_weight_sale(uuid, uuid, numeric, nu
 grant execute on function public.rpc_record_weight_sale(uuid, uuid, numeric, numeric, text, text, uuid[]) to authenticated, service_role;
 
 drop function if exists public.rpc_reverse_financial_transaction(uuid, text, text);
+
+CREATE OR REPLACE FUNCTION public.rpc_record_barcode_piece_sale(p_customer_id uuid, p_seller_id uuid DEFAULT NULL::uuid, p_piece_id uuid DEFAULT NULL::uuid, p_model_id uuid DEFAULT NULL::uuid, p_weight_grams numeric DEFAULT NULL::numeric, p_client_markup_pct numeric DEFAULT NULL::numeric, p_notes text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org        uuid := public.current_organization_id();
+  v_seller            public.employees%rowtype;
+  v_customer          public.customers%rowtype;
+  v_piece             public.consignment_pieces%rowtype;
+  v_consign           public.seller_consignments%rowtype;
+  v_client_pct        numeric(6, 2);
+  v_base_w            numeric(14, 4);
+  v_factory_due       numeric(14, 4);
+  v_client_due        numeric(14, 4);
+  v_spread            numeric(14, 4);
+  v_client_acc        public.client_gold_accounts%rowtype;
+  v_avail_adv         numeric(14, 4) := 0;
+  v_apply_adv         numeric(14, 4) := 0;
+  v_net_rem_due       numeric(14, 4);
+  v_sale_id           uuid;
+  v_sale_no           text;
+  v_existing          jsonb;
+  v_payload           jsonb;
+  v_remaining_pieces  int;
+  v_avail_stock       numeric(14, 4);
+  v_caller_role       text := public.current_employee_role_text();
+  v_caller_emp_id     uuid := public.current_employee_id();
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar', 'sales', 'seller', 'sotuvchi', 'manager', 'production_manager', 'boshqaruvchi'
+  ]);
+
+  v_payload := jsonb_build_object(
+    'action', 'record_barcode_piece_sale',
+    'customer_id', p_customer_id,
+    'piece_id', p_piece_id,
+    'model_id', p_model_id,
+    'weight_grams', p_weight_grams,
+    'seller_id', p_seller_id
+  );
+
+  v_existing := public.check_and_lock_idempotency(p_idempotency_key, 'rpc_record_barcode_piece_sale', v_payload);
+  if v_existing is not null then
+    return v_existing;
+  end if;
+
+  select * into v_customer
+    from public.customers
+   where id = p_customer_id and organization_id = v_caller_org;
+  if not found then
+    raise exception 'Mijoz topilmadi (%)', p_customer_id;
+  end if;
+
+  -- 076: a seller sells only to his own or to unassigned customers (same rule as payments since 065)
+  if public._goldia_is_seller_role(public.current_employee_role_text())
+     and v_customer.seller_id is not null and v_customer.seller_id is distinct from public.current_employee_id() then
+    raise exception 'Ruxsat etilmadi: Ushbu mijoz boshqa sotuvchiga biriktirilgan' using errcode = '42501';
+  end if;
+
+  -- Resolve seller
+  if p_seller_id is not null then
+    select * into v_seller from public.employees where id = p_seller_id and organization_id = v_caller_org limit 1;
+  else
+    select * into v_seller from public.employees where user_id = auth.uid() and organization_id = v_caller_org limit 1;
+  end if;
+
+  if v_seller.id is null and v_customer.seller_id is not null then
+    select * into v_seller from public.employees where id = v_customer.seller_id and organization_id = v_caller_org limit 1;
+  end if;
+
+  if v_seller.id is null then
+    raise exception 'Sotuvchi aniqlanmadi';
+  end if;
+  if public._goldia_is_seller_role(v_caller_role) and (v_caller_emp_id is null or v_seller.id <> v_caller_emp_id) then
+    raise exception 'Ruxsat etilmadi: Sotuvchi faqat o''z nomidan sotuv qila oladi' using errcode = '42501';
+  end if;
+  -- 065: markup must be explicit (no hidden 15% server default) and within 0..100
+  if p_client_markup_pct is null then
+    raise exception 'ERR_MARKUP_REQUIRED: Mijoz ustama foizi aniq ko''rsatilishi shart';
+  end if;
+  v_client_pct := round(p_client_markup_pct::numeric, 2);
+  if v_client_pct < 0 or v_client_pct > 100 then
+    raise exception 'ERR_MARKUP_OUT_OF_RANGE: Mijoz ustama foizi 0 dan 100 gacha bo''lishi shart (kiritildi: %)', v_client_pct;
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('goldia_seller_stock:' || v_seller.id::text, 0));
+
+  -- Fetch piece
+  if p_piece_id is not null then
+    select * into v_piece
+      from public.consignment_pieces
+     where id = p_piece_id and organization_id = v_caller_org
+     for update;
+  elsif p_model_id is not null and p_weight_grams is not null then
+    select cp.* into v_piece
+      from public.consignment_pieces cp
+      join public.seller_consignments sc on sc.id = cp.consignment_id
+     where cp.model_id = p_model_id
+       and cp.weight_grams = round(p_weight_grams::numeric, 4)
+       and cp.seller_id = v_seller.id
+       and cp.status = 'held_by_seller'
+       and cp.sale_id is null
+       and sc.status not in ('returned_to_manager', 'cancelled', 'reversed')
+       and cp.organization_id = v_caller_org
+     order by cp.created_at asc
+     limit 1
+     for update of cp;
+  else
+    raise exception 'Mahsulot donasini aniqlash uchun piece_id yoki (model_id + weight_grams) talab qilinadi';
+  end if;
+
+  if not found or v_piece.id is null then
+    raise exception 'Tanlangan mahsulot donasi sotuvchi javonida mavjud emas yoki allaqachon sotilgan';
+  end if;
+
+  if v_piece.sale_id is not null or v_piece.status = 'sold' then
+    raise exception 'Bu mahsulot donasi (% — % g) allaqachon sotilgan (Sotuv ID: %)',
+      v_piece.model_code, v_piece.weight_grams, coalesce(v_piece.sale_id::text, 'MAVJUD');
+  end if;
+
+  if v_piece.status <> 'held_by_seller' then
+    raise exception 'Mahsulot sotuvga yaroqsiz holatda (Joriy holat: %)', v_piece.status;
+  end if;
+  if v_piece.seller_id is distinct from v_seller.id then
+    raise exception 'Ruxsat etilmadi: Ushbu mahsulot donasi boshqa sotuvchiga biriktirilgan' using errcode = '42501';
+  end if;
+
+  v_base_w := v_piece.weight_grams;
+
+  select * into v_consign
+    from public.seller_consignments
+   where id = v_piece.consignment_id
+   for update;
+
+  if not found then
+    raise exception 'Konsignatsiya yozuvi topilmadi';
+  end if;
+
+  v_factory_due := round((v_base_w * (1.0 + coalesce(v_consign.factory_markup_pct, 0) / 100.0))::numeric, 4);
+  v_client_due  := round((v_base_w * (1.0 + v_client_pct / 100.0))::numeric, 4);
+  v_spread      := round((v_client_due - v_factory_due)::numeric, 4);
+
+  select * into v_client_acc
+    from public.client_gold_accounts
+   where customer_id = v_customer.id and organization_id = v_caller_org
+   for update;
+
+  v_avail_adv := coalesce(v_client_acc.advance_balance_grams, 0);
+  v_apply_adv := round(least(v_avail_adv, v_client_due), 4);
+  v_net_rem_due := round(v_client_due - v_apply_adv, 4);
+
+  v_sale_no := 'SALE-BC-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 8));
+
+  insert into public.jewelry_sales (
+    organization_id, sale_no, seller_id, customer_id, consignment_id,
+    product_name, quantity, base_weight_grams, proba, factory_markup_pct,
+    factory_gold_due_grams, client_markup_pct, client_gold_due_grams,
+    markup_spread_grams, settled_gold_grams, remaining_gold_grams,
+    status, sale_date, notes, sale_type, model_id, model_code,
+    category, purity, seller_profit_spread_grams
+  ) values (
+    v_caller_org, v_sale_no, v_seller.id, v_customer.id, v_consign.id,
+    v_piece.model_name, 1, v_base_w, coalesce(v_piece.purity, 585), coalesce(v_consign.factory_markup_pct, 0),
+    v_factory_due, v_client_pct, v_client_due,
+    v_spread, v_apply_adv, v_net_rem_due,
+    case when v_net_rem_due <= 0 then 'fully_paid' when v_apply_adv > 0 then 'partially_paid' else 'open_debt' end,
+    public._goldia_business_date(), p_notes, 'piece', v_piece.model_id, v_piece.model_code,
+    v_piece.category, v_piece.purity, v_spread
+  ) returning id into v_sale_id;
+
+  update public.consignment_pieces
+     set status = 'sold',
+         sale_id = v_sale_id,
+         sold_at = now(),
+         updated_at = now()
+   where id = v_piece.id;
+
+  -- Update consignment sold quantity
+  select count(*)::int into v_remaining_pieces
+    from public.consignment_pieces
+   where consignment_id = v_consign.id and status = 'held_by_seller';
+  update public.seller_consignments
+     set sold_quantity = coalesce(sold_quantity, 0) + 1,
+         status = case
+                    when v_remaining_pieces = 0 then 'fully_sold'
+                    else 'partially_sold'
+                  end,
+         updated_at = now()
+   where id = v_consign.id;
+
+  -- Recalculate seller responsibility
+  perform public.recalc_seller_gold_account(v_seller.id, v_caller_org);
+
+  -- Update client account
+  insert into public.client_gold_accounts (
+    organization_id, customer_id, seller_id, total_purchased_gold_grams,
+    total_settled_grams, current_debt_grams, advance_balance_grams, updated_at
+  ) values (
+    v_caller_org, v_customer.id, v_seller.id, v_client_due,
+    v_apply_adv, v_net_rem_due, round(greatest(0, v_avail_adv - v_apply_adv), 4), now()
+  )
+  on conflict (customer_id) do update set
+    total_purchased_gold_grams = round((client_gold_accounts.total_purchased_gold_grams + v_client_due)::numeric, 4),
+    total_settled_grams        = round((client_gold_accounts.total_settled_grams + v_apply_adv)::numeric, 4),
+    current_debt_grams         = round((client_gold_accounts.current_debt_grams + v_net_rem_due)::numeric, 4),
+    advance_balance_grams      = round(greatest(0, client_gold_accounts.advance_balance_grams - v_apply_adv)::numeric, 4),
+    updated_at                 = now();
+
+  -- Return complete payload with model_name, weight_grams, and client_markup_pct
+  v_existing := jsonb_build_object(
+    'status', 'ok',
+    'sale_id', v_sale_id,
+    'sale_no', v_sale_no,
+    'model_name', v_piece.model_name,
+    'model_code', v_piece.model_code,
+    'weight_grams', v_base_w,
+    'client_markup_pct', v_client_pct,
+    'client_gold_due_grams', v_client_due,
+    'gross_gold_due_grams', v_client_due,
+    'advance_applied_grams', v_apply_adv,
+    'net_remaining_debt_grams', v_net_rem_due,
+    'remaining_gold_grams', v_net_rem_due,
+    'piece_id', v_piece.id
+  );
+
+  if p_idempotency_key is not null then
+    perform public.save_idempotency_response(p_idempotency_key, 'rpc_record_barcode_piece_sale', v_existing, v_payload);
+  end if;
+
+  return v_existing;
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_record_client_jewelry_sale(p_customer_id uuid, p_consignment_id uuid, p_client_markup_pct numeric DEFAULT 0, p_notes text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org      uuid := public.current_organization_id();
+  v_cons            public.seller_consignments%rowtype;
+  v_cust            public.customers%rowtype;
+  v_client_acc      public.client_gold_accounts%rowtype;
+  v_caller_emp_id   uuid;
+  v_caller_role     text := public.current_employee_role_text();
+  v_client_markup   numeric(6, 2) := round(coalesce(p_client_markup_pct, 0)::numeric, 2);
+  v_client_gold_due numeric(14, 4);
+  v_markup_spread   numeric(14, 4);
+  v_avail_adv       numeric(14, 4) := 0;
+  v_apply_adv       numeric(14, 4) := 0;
+  v_net_rem_due     numeric(14, 4);
+  v_sale_id         uuid;
+  v_sale_no         text;
+  v_payload         jsonb;
+  v_existing        jsonb;
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  select id into v_caller_emp_id
+    from public.employees
+   where (user_id = auth.uid() or id = auth.uid())
+     and organization_id = v_caller_org
+   limit 1;
+
+  if v_client_markup < 0 then
+    raise exception 'Client markup percentage cannot be negative';
+  end if;
+
+  v_payload := jsonb_build_object(
+    'action', 'record_client_sale',
+    'customer_id', p_customer_id,
+    'consignment_id', p_consignment_id,
+    'client_markup_pct', v_client_markup
+  );
+  v_existing := public.check_and_lock_idempotency(p_idempotency_key, 'rpc_record_client_jewelry_sale', v_payload);
+  if v_existing is not null then
+    return v_existing;
+  end if;
+
+  -- Lock consignment
+  select * into v_cons
+    from public.seller_consignments
+   where id = p_consignment_id
+     and organization_id = v_caller_org
+   for update;
+  if not found then
+    raise exception 'Consignment (%) not found', p_consignment_id;
+  end if;
+
+  -- 070: only an untouched consignment may be sold as a whole; any weight sale, return or partial piece
+  -- consumption means base_weight_grams no longer matches what the seller physically holds.
+  if p_client_markup_pct is null or p_client_markup_pct < 0 or p_client_markup_pct > 100 then
+    raise exception 'ERR_MARKUP_OUT_OF_RANGE: Mijoz ustama foizi 0 dan 100 gacha aniq ko''rsatilishi shart (kiritildi: %)', p_client_markup_pct;
+  end if;
+  if v_cons.status <> 'held_by_seller'
+     or exists (select 1 from public.weight_sale_allocations w where w.consignment_id = v_cons.id and w.reversed_at is null)
+     or exists (select 1 from public.jewelry_sales js where js.consignment_id = v_cons.id and js.status not in ('reversed', 'cancelled'))
+     or (exists (select 1 from public.consignment_pieces p where p.consignment_id = v_cons.id)
+         and abs(coalesce((select sum(p.weight_grams) from public.consignment_pieces p
+                            where p.consignment_id = v_cons.id and p.status = 'held_by_seller'), 0) - v_cons.base_weight_grams) > 0.0001) then
+    raise exception 'ERR_CONSIGNMENT_PARTIALLY_USED: Partiya % qisman sotilgan yoki qaytarilgan; donalab yoki vazn bo''yicha sotuvdan foydalaning', v_cons.consignment_no;
+  end if;
+  if v_cons.status in ('fully_sold', 'returned_to_factory', 'closed') or coalesce(v_cons.sold_quantity, 0) >= coalesce(v_cons.quantity, 0) then
+    raise exception 'Consignment % is already closed or fully sold', v_cons.consignment_no;
+  end if;
+
+  -- P0-2: Check if pieces exist for this consignment in consignment_pieces and whether any piece was already sold
+  if exists (
+    select 1 from public.consignment_pieces
+    where consignment_id = v_cons.id
+      and status in ('sold', 'returned_to_factory', 'returned_to_manager')
+  ) then
+    raise exception 'Ushbu partiyadagi donalardan ayrimlari allaqachon sotilgan yoki qaytarilgan. Donalab sotuvdan foydalaning.';
+  end if;
+
+  -- Ensure seller owns this consignment unless privileged
+  if v_caller_role not in ('admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'boshqaruvchi') then
+    if v_cons.seller_id <> v_caller_emp_id then
+      raise exception 'Cross-seller violation: You can only sell consignments allocated to your account' using errcode = '42501';
+    end if;
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('goldia_seller_stock:' || v_cons.seller_id::text, 0));
+  -- Verify customer
+  select * into v_cust
+    from public.customers
+   where id = p_customer_id
+     and organization_id = v_caller_org
+   limit 1;
+  if not found then
+    raise exception 'Customer (%) not found in your organization', p_customer_id;
+  end if;
+
+  -- 076: a seller sells only to his own or to unassigned customers (same rule as payments since 065)
+  if public._goldia_is_seller_role(public.current_employee_role_text())
+     and v_cust.seller_id is not null and v_cust.seller_id is distinct from public.current_employee_id() then
+    raise exception 'Ruxsat etilmadi: Ushbu mijoz boshqa sotuvchiga biriktirilgan' using errcode = '42501';
+  end if;
+
+  -- Non-compounding: Client gold due is calculated strictly from base weight
+  v_client_gold_due := round((v_cons.base_weight_grams * (1.0 + v_client_markup / 100.0))::numeric, 4);
+  v_markup_spread   := round((v_client_gold_due - v_cons.factory_gold_due_grams)::numeric, 4);
+
+  -- Check existing advance balance
+  select * into v_client_acc
+    from public.client_gold_accounts
+   where customer_id = v_cust.id
+     and organization_id = v_caller_org
+   for update;
+
+  v_avail_adv := coalesce(v_client_acc.advance_balance_grams, 0);
+  if v_avail_adv > 0 then
+    v_apply_adv   := round(least(v_avail_adv, v_client_gold_due)::numeric, 4);
+    v_net_rem_due := round((v_client_gold_due - v_apply_adv)::numeric, 4);
+  else
+    v_apply_adv   := 0;
+    v_net_rem_due := v_client_gold_due;
+  end if;
+
+  v_sale_no := 'SALE-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 8));
+
+  insert into public.jewelry_sales (
+    organization_id, sale_no, seller_id, customer_id, consignment_id,
+    product_id, product_name, quantity, base_weight_grams, proba,
+    factory_markup_pct, factory_gold_due_grams,
+    client_markup_pct, client_gold_due_grams, markup_spread_grams,
+    settled_gold_grams, remaining_gold_grams, status,
+    sale_date, idempotency_key, notes
+  ) values (
+    v_caller_org, v_sale_no, v_cons.seller_id, v_cust.id, v_cons.id,
+    v_cons.product_id, v_cons.product_name, v_cons.quantity, v_cons.base_weight_grams, v_cons.proba,
+    v_cons.factory_markup_pct, v_cons.factory_gold_due_grams,
+    v_client_markup, v_client_gold_due, v_markup_spread,
+    v_apply_adv, v_net_rem_due,
+    case when v_net_rem_due <= 0.0001 then 'fully_paid' else 'open_debt' end,
+    public._goldia_business_date(), nullif(btrim(p_idempotency_key), ''), p_notes
+  ) returning id into v_sale_id;
+
+  -- P0-2: ATOMICALLY UPDATE ALL PIECES in this consignment to 'sold' with sale_id
+  update public.consignment_pieces
+     set status = 'sold',
+         sale_id = v_sale_id,
+         sold_at = now(),
+         updated_at = now()
+   where consignment_id = v_cons.id
+     and status = 'held_by_seller';
+
+  -- Update parent consignment status
+  update public.seller_consignments
+     set sold_quantity = quantity,
+         status        = 'fully_sold',
+         updated_at    = now()
+   where id = v_cons.id;
+
+  -- Update client running debt in client_gold_accounts
+  insert into public.client_gold_accounts (
+    customer_id, organization_id, seller_id, total_purchased_gold_grams,
+    current_debt_grams, advance_balance_grams, total_settled_grams, updated_at
+  ) values (
+    v_cust.id, v_caller_org, v_cons.seller_id, v_client_gold_due,
+    v_net_rem_due, greatest(0, v_avail_adv - v_apply_adv), v_apply_adv, now()
+  )
+  on conflict (customer_id) do update set
+    total_purchased_gold_grams = round((client_gold_accounts.total_purchased_gold_grams + v_client_gold_due)::numeric, 4),
+    current_debt_grams         = round((client_gold_accounts.current_debt_grams + v_net_rem_due)::numeric, 4),
+    advance_balance_grams      = round(greatest(0, client_gold_accounts.advance_balance_grams - v_apply_adv)::numeric, 4),
+    total_settled_grams        = round((client_gold_accounts.total_settled_grams + v_apply_adv)::numeric, 4),
+    seller_id                  = coalesce(client_gold_accounts.seller_id, v_cons.seller_id),
+    updated_at                 = now();
+
+  -- Update seller's total client debt tracking
+  insert into public.seller_gold_accounts (
+    seller_id, organization_id, total_client_debt_grams, updated_at
+  ) values (
+    v_cons.seller_id, v_caller_org, v_net_rem_due, now()
+  )
+  on conflict (seller_id) do update set
+    total_client_debt_grams = round((seller_gold_accounts.total_client_debt_grams + v_net_rem_due)::numeric, 4),
+    updated_at              = now();
+
+  v_existing := jsonb_build_object(
+    'status', 'ok',
+    'sale_id', v_sale_id,
+    'sale_no', v_sale_no,
+    'seller_id', v_cons.seller_id,
+    'customer_id', v_cust.id,
+    'product_name', v_cons.product_name,
+    'base_weight_grams', v_cons.base_weight_grams,
+    'factory_gold_due_grams', v_cons.factory_gold_due_grams,
+    'client_markup_pct', v_client_markup,
+    'gross_gold_due_grams', v_client_gold_due,
+    'client_gold_due_grams', v_client_gold_due,
+    'advance_applied_grams', v_apply_adv,
+    'net_remaining_debt_grams', v_net_rem_due,
+    'remaining_gold_grams', v_net_rem_due,
+    'markup_spread_grams', v_markup_spread
+  );
+
+  perform public.save_idempotency_response(p_idempotency_key, 'rpc_record_client_jewelry_sale', v_existing, v_payload);
+  return v_existing;
+end;
+$function$;
+
+revoke execute on function public.rpc_record_barcode_piece_sale(uuid, uuid, uuid, uuid, numeric, numeric, text, text) from public, anon;
+grant execute on function public.rpc_record_barcode_piece_sale(uuid, uuid, uuid, uuid, numeric, numeric, text, text) to authenticated, service_role;
+revoke execute on function public.rpc_record_client_jewelry_sale(uuid, uuid, numeric, text, text) from public, anon;
+grant execute on function public.rpc_record_client_jewelry_sale(uuid, uuid, numeric, text, text) to authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public._goldia_consume_weight_sale_pieces(p_sale_id uuid, p_seller_id uuid, p_consignment_id uuid, p_grams numeric, p_org_id uuid, p_source text DEFAULT 'sale'::text)
+ RETURNS numeric
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_left  numeric(14, 4) := round(coalesce(p_grams, 0)::numeric, 4);
+  v_piece public.consignment_pieces%rowtype;
+begin
+  for v_piece in
+    select cp.*
+      from public.consignment_pieces cp
+      join public.seller_consignments sc on sc.id = cp.consignment_id
+     where cp.seller_id = p_seller_id and cp.organization_id = p_org_id
+       and cp.status = 'held_by_seller' and cp.sale_id is null
+       and sc.status in ('held_by_seller', 'partially_sold', 'fully_sold')
+     order by (cp.consignment_id = p_consignment_id) desc nulls last, sc.created_at, cp.created_at, cp.id
+     for update of cp
+  loop
+    exit when v_left <= 0.00005;
+    -- 076: any remainder of a 4-decimal weight is >= 0.0001 g; before 076 a 0.0001 g remainder consumed the whole piece
+    -- (held pieces lost 0.0001 g more than the gram stock)
+    if v_piece.weight_grams - v_left > 0.00005 then
+      update public.consignment_pieces
+         set weight_grams = round((weight_grams - v_left)::numeric, 4), updated_at = now()
+       where id = v_piece.id;
+      insert into public.weight_sale_allocations (organization_id, sale_id, piece_id, consignment_id, grams,
+        piece_weight_before, fully_consumed, source)
+      values (p_org_id, p_sale_id, v_piece.id, v_piece.consignment_id, v_left, v_piece.weight_grams, false, p_source);
+      update public.jewelry_sales set source_piece_id = coalesce(source_piece_id, v_piece.id) where id = p_sale_id;
+      v_left := 0;
+    else
+      update public.consignment_pieces
+         set status = 'sold', sale_id = p_sale_id, sold_at = now(), updated_at = now()
+       where id = v_piece.id;
+      insert into public.weight_sale_allocations (organization_id, sale_id, piece_id, consignment_id, grams,
+        piece_weight_before, fully_consumed, source)
+      values (p_org_id, p_sale_id, v_piece.id, v_piece.consignment_id, v_piece.weight_grams, v_piece.weight_grams, true, p_source);
+      v_left := round(v_left - v_piece.weight_grams, 4);
+    end if;
+  end loop;
+
+  -- Pieces may run out for consignments issued without pieces (pre-barcode); that weight stays unallocated.
+  update public.seller_consignments sc
+     set status = case when exists (select 1 from public.consignment_pieces p
+                                     where p.consignment_id = sc.id and p.status = 'held_by_seller')
+                       then 'partially_sold' else 'fully_sold' end,
+         updated_at = now()
+   where p_source = 'sale'
+     and sc.id in (select consignment_id from public.weight_sale_allocations where sale_id = p_sale_id);
+  return greatest(v_left, 0);
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public._goldia_consume_selected_pieces(p_sale_id uuid, p_seller_id uuid, p_piece_ids uuid[], p_grams numeric, p_org_id uuid)
+ RETURNS numeric
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_left  numeric(14, 4) := round(coalesce(p_grams, 0)::numeric, 4);
+  v_piece public.consignment_pieces%rowtype;
+  v_id    uuid;
+begin
+  foreach v_id in array p_piece_ids loop
+    exit when v_left <= 0.00005;
+    select * into v_piece from public.consignment_pieces
+     where id = v_id and seller_id = p_seller_id and organization_id = p_org_id
+       and status = 'held_by_seller' and sale_id is null
+     for update;
+    if not found then
+      raise exception 'ERR_PIECE_NOT_AVAILABLE: Tanlangan dona (%) sotuvchida mavjud emas yoki allaqachon sotilgan', v_id;
+    end if;
+    -- 076: any remainder of a 4-decimal weight is >= 0.0001 g; before 076 a 0.0001 g remainder consumed the whole piece
+    -- (held pieces lost 0.0001 g more than the gram stock)
+    if v_piece.weight_grams - v_left > 0.00005 then
+      update public.consignment_pieces
+         set weight_grams = round((weight_grams - v_left)::numeric, 4), updated_at = now()
+       where id = v_piece.id;
+      insert into public.weight_sale_allocations (organization_id, sale_id, piece_id, consignment_id, grams,
+        piece_weight_before, fully_consumed, source)
+      values (p_org_id, p_sale_id, v_piece.id, v_piece.consignment_id, v_left, v_piece.weight_grams, false, 'sale');
+      update public.jewelry_sales set source_piece_id = coalesce(source_piece_id, v_piece.id) where id = p_sale_id;
+      v_left := 0;
+    else
+      update public.consignment_pieces
+         set status = 'sold', sale_id = p_sale_id, sold_at = now(), updated_at = now()
+       where id = v_piece.id;
+      insert into public.weight_sale_allocations (organization_id, sale_id, piece_id, consignment_id, grams,
+        piece_weight_before, fully_consumed, source)
+      values (p_org_id, p_sale_id, v_piece.id, v_piece.consignment_id, v_piece.weight_grams, v_piece.weight_grams, true, 'sale');
+      update public.jewelry_sales set source_piece_id = coalesce(source_piece_id, v_piece.id) where id = p_sale_id;
+      v_left := round(v_left - v_piece.weight_grams, 4);
+    end if;
+  end loop;
+  if v_left > 0.00005 then
+    raise exception 'ERR_PIECES_TOO_LIGHT: Tanlangan donalar sotilayotgan vazndan yengil (yetishmaydi: % g)', v_left;
+  end if;
+  update public.seller_consignments sc
+     set status = case when exists (select 1 from public.consignment_pieces p
+                                     where p.consignment_id = sc.id and p.status = 'held_by_seller')
+                       then 'partially_sold' else 'fully_sold' end,
+         updated_at = now()
+   where sc.id in (select consignment_id from public.weight_sale_allocations where sale_id = p_sale_id);
+  return 0;
+end;
+$function$;
