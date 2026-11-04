@@ -22,6 +22,7 @@ import {
   type GoldPurchaseRow,
   type FactoryGoldHandoverRow,
 } from "@/lib/erp-engine";
+import { pickHandoverUsdRate, tillValuation, type TillValuation } from "@/lib/sales-payment-rates";
 import { SalesReceiptModal, type ReceiptData } from "./SalesReceiptModal";
 import { ScannerDiagnostics } from "./ScannerDiagnostics";
 import { BarTenderModelManager } from "./BarTenderModelManager";
@@ -195,6 +196,8 @@ export function DirectorSalesWorkspace({
   const [surrenderCashAmount, setSurrenderCashAmount] = useState("0");
   const [surrenderUsdAmount, setSurrenderUsdAmount] = useState("0");
   const [surrenderUsdRate, setSurrenderUsdRate] = useState("");
+  // F-UI-3: what part of the till already carries the grams captured at payment time (072 valued pool)
+  const [surrenderValuation, setSurrenderValuation] = useState<TillValuation | null>(null);
   const [cbuUsdRate, setCbuUsdRate] = useState<number | null>(null);
   const [surrenderNotes, setSurrenderNotes] = useState("");
   // Safe Reversals Modal state
@@ -851,16 +854,23 @@ export function DirectorSalesWorkspace({
     setSurrenderCashAmount(String(acc.seller_till_cash_amount || 0));
     setSurrenderUsdAmount(String(acc.seller_till_usd_amount || 0));
     setSurrenderNotes("");
+    setSurrenderUsdRate("");
+    setSurrenderValuation(tillValuation(acc as unknown as Record<string, unknown>));
     setSurrenderModalOpen(true);
-    fetch("/api/sales/currency/cbu")
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success && json.data?.rate) {
-          setCbuUsdRate(json.data.rate);
-          if (!surrenderUsdRate) setSurrenderUsdRate(String(json.data.rate));
-        }
-      })
-      .catch(() => {});
+    // The USD rate is pre-filled from the seller's stored rate (works when the CBU service is down), else CBU.
+    // Dollars collected since 072 are closed at the grams captured at payment time; the rate only matters for
+    // older, unvalued dollars, so the field is required only for them.
+    void (async () => {
+      const [ratesRes, cbuRate] = await Promise.all([
+        supabase.rpc("rpc_get_seller_rates"),
+        fetch("/api/sales/currency/cbu").then((res) => res.json())
+          .then((json) => (json.success && json.data?.rate ? Number(json.data.rate) : null)).catch(() => null),
+      ]);
+      if (cbuRate) setCbuUsdRate(cbuRate);
+      const rows = ((ratesRes.data as { sellers?: { seller_id?: string; usd_rate_uzs?: number | string | null }[] } | null)?.sellers ?? []);
+      const own = rows.find((r) => r.seller_id === acc.seller_id);
+      setSurrenderUsdRate(pickHandoverUsdRate(own?.usd_rate_uzs ? Number(own.usd_rate_uzs) : null, cbuRate));
+    })();
   };
 
   const handleConfirmSurrender = async (e: React.FormEvent) => {
@@ -882,8 +892,9 @@ export function DirectorSalesWorkspace({
       return;
     }
 
-    if (usd > 0 && (!usdRate || usdRate <= 0)) {
-      notifyError("USD topshirish uchun USD kursi kiritilishi shart!");
+    const unvaluedUsd = Math.max(0, usd - (surrenderValuation?.valuedUsd ?? 0));
+    if (unvaluedUsd > 0 && (!usdRate || usdRate <= 0)) {
+      notifyError("072 dan oldingi (qiymatlanmagan) dollar uchun USD kursi kiritilishi shart!");
       return;
     }
 
@@ -895,7 +906,7 @@ export function DirectorSalesWorkspace({
         p_scrap_weight_grams: scrapW,
         p_cash_paid_amount: cash,
         p_usd_paid_amount: usd,
-        p_usd_rate: usd > 0 ? usdRate : null,
+        p_usd_rate: usd > 0 && usdRate > 0 ? usdRate : null,
         p_rate_per_gram: (cash > 0 || usd > 0) ? (dailyRate?.rate_per_gram || null) : null,
         p_notes: surrenderNotes.trim() || "Sotuvchi kassasidan boshqaruvchiga qabul qilingan tushum",
         p_idempotency_key: idempotencyKey,
@@ -2673,7 +2684,7 @@ export function DirectorSalesWorkspace({
                         <label className="block text-xs font-bold text-[#475569] mb-1">Sarflangan UZS (So&apos;m):</label>
                         <input
                           type="number"
-                          step="1000"
+                          step="1"
                           min="0"
                           value={buyCashUZS}
                           onChange={(e) => setBuyCashUZS(e.target.value)}
@@ -3885,7 +3896,7 @@ export function DirectorSalesWorkspace({
                   </label>
                   <input
                     type="number"
-                    step="1000"
+                    step="1"
                     min="0"
                     value={surrenderCashAmount}
                     onChange={(e) => setSurrenderCashAmount(e.target.value)}
@@ -3930,9 +3941,16 @@ export function DirectorSalesWorkspace({
                     placeholder="Masalan: 12800"
                     value={surrenderUsdRate}
                     onChange={(e) => setSurrenderUsdRate(e.target.value)}
+                    data-testid="surrender-usd-rate"
                     className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm text-[#0F172A]"
-                    required
+                    required={Math.max(0, Number(surrenderUsdAmount || 0) - (surrenderValuation?.valuedUsd ?? 0)) > 0}
                   />
+                  {surrenderValuation && surrenderValuation.valuedUsd > 0 && (
+                    <div className="text-[10px] text-[#475569] mt-1" data-testid="surrender-valued-usd">
+                      To&apos;lov vaqtida qiymatlangan: ${surrenderValuation.valuedUsd.toLocaleString()} = {formatScreenGrams(surrenderValuation.valuedUsdGrams, 4)} — joriy kurs bilan qayta hisoblanmaydi
+                      {surrenderValuation.unvaluedUsd > 0 ? `; kurs faqat qolgan $${surrenderValuation.unvaluedUsd.toLocaleString()} uchun` : ""}
+                    </div>
+                  )}
                 </div>
               )}
 

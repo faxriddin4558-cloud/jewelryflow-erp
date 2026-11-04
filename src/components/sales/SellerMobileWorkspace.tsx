@@ -1600,7 +1600,7 @@ export function SellerMobileWorkspace({
                 <input
                   id="settleCashAmountInput"
                   type="number"
-                  step="1000"
+                  step="1"
                   min="0"
                   placeholder={hasValidDailyRate ? "0" : "Kurs kerak"}
                   disabled={!hasValidDailyRate}

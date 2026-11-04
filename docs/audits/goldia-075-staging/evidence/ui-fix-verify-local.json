@@ -1,0 +1,409 @@
+{
+ "target": "local",
+ "base": "http://127.0.0.1:3300",
+ "at": "2026-11-04T04:28:35.935Z",
+ "checks": [
+  {
+   "id": "SRV-1",
+   "title": "server still refuses a seller payment at another LOM rate (ERR_RATE_MISMATCH)",
+   "ok": true,
+   "expected": "ERR_RATE_MISMATCH",
+   "actual": "ERR_RATE_MISMATCH: Sizning joriy LOM kursingiz 905000.00 UZS/g. Yuborilgan kurs: 900000 UZ"
+  },
+  {
+   "id": "SRV-2",
+   "title": "server still refuses a seller payment at another USD rate",
+   "ok": true,
+   "expected": "ERR_RATE_MISMATCH",
+   "actual": "ERR_RATE_MISMATCH: Sizning joriy USD kursingiz 12500.00 UZS. Yuborilgan kurs: 12999 UZS. S"
+  },
+  {
+   "id": "F1-prefill-sellera-desktop",
+   "title": "sellera (desktop) payment dialog pre-fills the seller's OWN stored rates 890000/12500, read-only",
+   "ok": true,
+   "expected": {
+    "lom": 890000,
+    "usd": 12500,
+    "readOnly": true
+   },
+   "actual": {
+    "lom": "890000",
+    "usd": "12500",
+    "readOnly": true
+   }
+  },
+  {
+   "id": "F1-pay-sellera-desktop",
+   "title": "sellera (desktop) pays 890000 UZS + $100 + 1.5 g @750 AS PRE-FILLED (double click): one payment of 4.3276 g",
+   "ok": true,
+   "expected": {
+    "payments": 1,
+    "grams": 4.3276
+   },
+   "actual": {
+    "payments": 1,
+    "grams": 4.3276,
+    "failed_api": []
+   },
+   "record_id": "b87c1b59-575b-4b09-b9a6-8b54529ddaaf",
+   "settlement_no": "SETTL-D8D97B9F"
+  },
+  {
+   "id": "F1-prefill-sellerb-mobile",
+   "title": "sellerb (mobile) payment dialog pre-fills the seller's OWN stored rates 905000/12650, read-only",
+   "ok": true,
+   "expected": {
+    "lom": 905000,
+    "usd": 12650,
+    "readOnly": true
+   },
+   "actual": {
+    "lom": "905000",
+    "usd": "12650",
+    "readOnly": true
+   }
+  },
+  {
+   "id": "F1-pay-sellerb-mobile",
+   "title": "sellerb (mobile) pays 1810000 UZS AS PRE-FILLED (double click): one payment of 2 g",
+   "ok": true,
+   "expected": {
+    "payments": 1,
+    "grams": 2
+   },
+   "actual": {
+    "payments": 1,
+    "grams": 2,
+    "failed_api": []
+   },
+   "record_id": "5ead3535-08c6-4c5d-9ce5-ddf233076b30",
+   "settlement_no": "SETTL-4B0C2853"
+  },
+  {
+   "id": "F1-prefill-sellerc-desktop",
+   "title": "sellerc (desktop) payment dialog pre-fills the seller's OWN stored rates 895000/12550, read-only",
+   "ok": true,
+   "expected": {
+    "lom": 895000,
+    "usd": 12550,
+    "readOnly": true
+   },
+   "actual": {
+    "lom": "895000",
+    "usd": "12550",
+    "readOnly": true
+   }
+  },
+  {
+   "id": "F1-pay-sellerc-desktop",
+   "title": "sellerc (desktop) pays 447500 UZS + $50 + 2 g @585 AS PRE-FILLED (double click): one payment of 3.2011 g",
+   "ok": true,
+   "expected": {
+    "payments": 1,
+    "grams": 3.2011
+   },
+   "actual": {
+    "payments": 1,
+    "grams": 3.2011,
+    "failed_api": []
+   },
+   "record_id": "aa98aaa2-99b5-4775-9ba4-158fdf26f35f",
+   "settlement_no": "SETTL-684D6799"
+  },
+  {
+   "id": "F2-447500",
+   "title": "UZS 447,500 is accepted by the browser (step=1) and recorded",
+   "ok": true,
+   "expected": {
+    "browser_valid": true,
+    "recorded": true
+   },
+   "actual": {
+    "browser_valid": true,
+    "recorded": true
+   }
+  },
+  {
+   "id": "F3-prefill-sellera",
+   "title": "handover dialog for sellera: USD rate field not empty (seller's stored 12500), not required for dollars valued at payment time",
+   "ok": true,
+   "expected": {
+    "usd_rate": 12500,
+    "required": false,
+    "valued_info": true
+   },
+   "actual": {
+    "usd_rate": "12500",
+    "required": false,
+    "valued_info": "To'lov vaqtida qiymatlangan: $100 = 1.4045 g — joriy kurs bilan qayta hisoblanmaydi"
+   }
+  },
+  {
+   "id": "F3-handover-sellera",
+   "title": "manager receives sellera's till AS PRE-FILLED (double click): settled = grams captured at payment 4.3276 g (no recalculation at today's rate), till 0",
+   "ok": true,
+   "expected": {
+    "settled": 4.3276,
+    "till": [
+     0,
+     0
+    ]
+   },
+   "actual": {
+    "settled": 4.3276,
+    "till": [
+     0,
+     0
+    ],
+    "failed_api": []
+   }
+  },
+  {
+   "id": "F3-prefill-sellerc",
+   "title": "handover dialog for sellerc: USD rate field not empty (seller's stored 12550), not required for dollars valued at payment time",
+   "ok": true,
+   "expected": {
+    "usd_rate": 12550,
+    "required": false,
+    "valued_info": true
+   },
+   "actual": {
+    "usd_rate": "12550",
+    "required": false,
+    "valued_info": "To'lov vaqtida qiymatlangan: $50 = 0.7011 g — joriy kurs bilan qayta hisoblanmaydi"
+   }
+  },
+  {
+   "id": "F3-handover-sellerc",
+   "title": "manager receives sellerc's till AS PRE-FILLED (double click): settled = grams captured at payment 3.2011 g (no recalculation at today's rate), till 0",
+   "ok": true,
+   "expected": {
+    "settled": 3.2011,
+    "till": [
+     0,
+     0
+    ]
+   },
+   "actual": {
+    "settled": 3.2011,
+    "till": [
+     0,
+     0
+    ],
+    "failed_api": []
+   }
+  },
+  {
+   "id": "F3-handover-sellerb",
+   "title": "manager receives sellerb's till AS PRE-FILLED (double click): settled = grams captured at payment 2 g (no recalculation at today's rate), till 0",
+   "ok": true,
+   "expected": {
+    "settled": 2,
+    "till": [
+     0,
+     0
+    ]
+   },
+   "actual": {
+    "settled": 2,
+    "till": [
+     0,
+     0
+    ],
+    "failed_api": []
+   }
+  },
+  {
+   "id": "RECON",
+   "title": "reconciliation from UI inputs only: 17 rows, every operation expected = actual",
+   "ok": true,
+   "expected": {
+    "rows": 17,
+    "max_gram_diff": "0.0000"
+   },
+   "actual": {
+    "bad_rows": [],
+    "op_mismatches": 0,
+    "max_gram_diff": "0.0000"
+   }
+  }
+ ],
+ "operations": [
+  {
+   "op": "setup_sale",
+   "seller": "sellera",
+   "sale_id": "ac1714a8-865c-4560-885d-5cfd62c34ba9",
+   "expected_due": 6.8656,
+   "actual_due": 6.8656
+  },
+  {
+   "op": "setup_sale",
+   "seller": "sellerb",
+   "sale_id": "39226f16-f56f-4a4e-b106-98d13fbd052b",
+   "expected_due": 8.2194,
+   "actual_due": 8.2194
+  },
+  {
+   "op": "setup_sale",
+   "seller": "sellerc",
+   "sale_id": "556d043a-528f-4a3e-8fb5-698a60bef20e",
+   "expected_due": 7.4241,
+   "actual_due": 7.4241
+  },
+  {
+   "op": "ui_payment",
+   "seller": "sellera",
+   "form": "desktop",
+   "settlement_id": "b87c1b59-575b-4b09-b9a6-8b54529ddaaf",
+   "settlement_no": "SETTL-D8D97B9F",
+   "expected_grams": 4.3276,
+   "actual_grams": 4.3276
+  },
+  {
+   "op": "ui_payment",
+   "seller": "sellerb",
+   "form": "mobile",
+   "settlement_id": "5ead3535-08c6-4c5d-9ce5-ddf233076b30",
+   "settlement_no": "SETTL-4B0C2853",
+   "expected_grams": 2,
+   "actual_grams": 2
+  },
+  {
+   "op": "ui_payment",
+   "seller": "sellerc",
+   "form": "desktop",
+   "settlement_id": "aa98aaa2-99b5-4775-9ba4-158fdf26f35f",
+   "settlement_no": "SETTL-684D6799",
+   "expected_grams": 3.2011,
+   "actual_grams": 3.2011
+  },
+  {
+   "op": "ui_handover",
+   "seller": "sellera",
+   "expected_grams": 4.3276,
+   "actual_grams": 4.3276,
+   "cash": 890000,
+   "usd": 100
+  },
+  {
+   "op": "ui_handover",
+   "seller": "sellerc",
+   "expected_grams": 3.2011,
+   "actual_grams": 3.2011,
+   "cash": 447500,
+   "usd": 50
+  },
+  {
+   "op": "ui_handover",
+   "seller": "sellerb",
+   "expected_grams": 2,
+   "actual_grams": 2,
+   "cash": 1810000,
+   "usd": 0
+  }
+ ],
+ "reconciliation": [
+  {
+   "item": "sellera customer net (debt - advance)",
+   "expected": 2.538,
+   "actual": 2.538,
+   "ok": true
+  },
+  {
+   "item": "sellera settled to manager (delta)",
+   "expected": 4.3276,
+   "actual": 4.3276,
+   "ok": true
+  },
+  {
+   "item": "sellera owes manager (delta)",
+   "expected": -4.3276,
+   "actual": -4.3276,
+   "ok": true
+  },
+  {
+   "item": "sellera till cash",
+   "expected": 0,
+   "actual": 0,
+   "ok": true
+  },
+  {
+   "item": "sellera till usd",
+   "expected": 0,
+   "actual": 0,
+   "ok": true
+  },
+  {
+   "item": "sellerb customer net (debt - advance)",
+   "expected": 6.2194,
+   "actual": 6.2194,
+   "ok": true
+  },
+  {
+   "item": "sellerb settled to manager (delta)",
+   "expected": 2,
+   "actual": 2,
+   "ok": true
+  },
+  {
+   "item": "sellerb owes manager (delta)",
+   "expected": -2,
+   "actual": -2,
+   "ok": true
+  },
+  {
+   "item": "sellerb till cash",
+   "expected": 0,
+   "actual": 0,
+   "ok": true
+  },
+  {
+   "item": "sellerb till usd",
+   "expected": 0,
+   "actual": 0,
+   "ok": true
+  },
+  {
+   "item": "sellerc customer net (debt - advance)",
+   "expected": 4.223,
+   "actual": 4.223,
+   "ok": true
+  },
+  {
+   "item": "sellerc settled to manager (delta)",
+   "expected": 3.2011,
+   "actual": 3.2011,
+   "ok": true
+  },
+  {
+   "item": "sellerc owes manager (delta)",
+   "expected": -3.2011,
+   "actual": -3.2011,
+   "ok": true
+  },
+  {
+   "item": "sellerc till cash",
+   "expected": 0,
+   "actual": 0,
+   "ok": true
+  },
+  {
+   "item": "sellerc till usd",
+   "expected": 0,
+   "actual": 0,
+   "ok": true
+  },
+  {
+   "item": "manager cash UZS (delta)",
+   "expected": 3147500,
+   "actual": 3147500,
+   "ok": true
+  },
+  {
+   "item": "manager USD (delta)",
+   "expected": 150,
+   "actual": 150,
+   "ok": true
+  }
+ ]
+}

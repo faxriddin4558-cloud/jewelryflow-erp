@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 import { tashkentBusinessDate } from "@/lib/business-date";
+import { isSellerRole, ownRatesFromRpc, pickPaymentRates } from "@/lib/sales-payment-rates";
 
 function parseErrorMessage(err: unknown, fallback: string = "Xatolik yuz berdi"): string {
   if (!err) return fallback;
@@ -216,6 +217,8 @@ export function CustomerLedgerAndSheetsSection() {
   const [payUsdRate, setPayUsdRate] = useState("");
   const [isManualUsdRate, setIsManualUsdRate] = useState(false);
   const [cbuUsdRate, setCbuUsdRate] = useState<number | null>(null);
+  // F-UI-1: a seller pays at his own stored rates (the server applies them); shown read-only
+  const [payRatesLocked, setPayRatesLocked] = useState(false);
   const [payScrapPurity, setPayScrapPurity] = useState("585");
   const [payNotes, setPayNotes] = useState("");
 
@@ -483,6 +486,38 @@ export function CustomerLedgerAndSheetsSection() {
     }
   };
 
+  // Opens the payment dialog. Seller: his own stored LOM/USD rates (rpc_get_seller_rates), independent of the CBU
+  // service. Director/manager: official 585 rate and the CBU USD rate as before. The server still checks the rates.
+  const openPaymentModal = (c: CustomerRow) => {
+    const seller = isSellerRole(currentRole);
+    setTargetCustomer(c);
+    setPayScrapWeight("");
+    setPayScrapPurity("585");
+    setPayCashAmount("");
+    setPayUsdAmount("");
+    setPayNotes("");
+    setPayRate("");
+    setPayUsdRate("");
+    setIsManualUsdRate(false);
+    setPayRatesLocked(seller);
+    setPaymentModalOpen(true);
+    void (async () => {
+      const [officialRes, ownRes, cbuRate] = await Promise.all([
+        supabase.from("daily_gold_rates").select("rate_per_gram").eq("proba", 585)
+          .order("rate_date", { ascending: false }).order("created_at", { ascending: false }).limit(1),
+        seller ? supabase.rpc("rpc_get_seller_rates") : Promise.resolve({ data: null, error: null }),
+        seller ? Promise.resolve(null) : fetch("/api/sales/currency/cbu").then((res) => res.json())
+          .then((json) => (json.success && json.data?.rate ? Number(json.data.rate) : null)).catch(() => null),
+      ]);
+      if (cbuRate) setCbuUsdRate(cbuRate);
+      const official = officialRes.data && officialRes.data[0]?.rate_per_gram ? Number(officialRes.data[0].rate_per_gram) : null;
+      const prefill = pickPaymentRates({ role: currentRole, ownRates: seller && !ownRes.error ? ownRatesFromRpc(ownRes.data) : null, officialRate: official, cbuUsdRate: cbuRate });
+      setPayRate(prefill.lom);
+      setPayUsdRate(prefill.usd);
+      setPayRatesLocked(prefill.locked);
+    })();
+  };
+
   // Payment Handler
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -506,7 +541,9 @@ export function CustomerLedgerAndSheetsSection() {
       }
 
       if (usd > 0 && (!usdRate || usdRate <= 0)) {
-        throw new Error("USD to'lovi uchun USD kursi (UZS/$) kiritilishi shart! Iltimos, kursni kiriting.");
+        throw new Error(payRatesLocked
+          ? "Dollar qabul qilish uchun avval \"Kassam\" bo'limida o'z USD kursingizni belgilang."
+          : "USD to'lovi uchun USD kursi (UZS/$) kiritilishi shart! Iltimos, kursni kiriting.");
       }
 
       const { data, error } = await supabase.rpc("rpc_record_client_settlement", {
@@ -1128,26 +1165,7 @@ export function CustomerLedgerAndSheetsSection() {
                   <button
                     type="button"
                     onClick={() => {
-                      setTargetCustomer(c);
-                      setPayScrapWeight("");
-                      setPayScrapPurity("585");
-                      setPayCashAmount("");
-                      setPayUsdAmount("");
-                      setPayNotes("");
-                      setPaymentModalOpen(true);
-                      supabase.from("daily_gold_rates").select("rate_per_gram").eq("proba", 585).order("rate_date", { ascending: false }).order("created_at", { ascending: false }).limit(1)
-                        .then(({ data }) => {
-                          if (data && data[0]?.rate_per_gram) setPayRate(String(data[0].rate_per_gram));
-                        });
-                      fetch("/api/sales/currency/cbu")
-                        .then(res => res.json())
-                        .then(json => {
-                          if (json.success && json.data?.rate) {
-                            setCbuUsdRate(json.data.rate);
-                            setPayUsdRate(String(json.data.rate));
-                          }
-                        })
-                        .catch(() => {});
+                      openPaymentModal(c);
                     }}
                     className="px-2 py-2 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-xl text-[11px] font-bold transition flex items-center justify-center"
                   >
@@ -1257,26 +1275,7 @@ export function CustomerLedgerAndSheetsSection() {
                         <button
                           type="button"
                           onClick={() => {
-                            setTargetCustomer(c);
-                            setPayScrapWeight("");
-                            setPayScrapPurity("585");
-                            setPayCashAmount("");
-                            setPayUsdAmount("");
-                            setPayNotes("");
-                            setPaymentModalOpen(true);
-                            supabase.from("daily_gold_rates").select("rate_per_gram").eq("proba", 585).order("rate_date", { ascending: false }).order("created_at", { ascending: false }).limit(1)
-                              .then(({ data }) => {
-                                if (data && data[0]?.rate_per_gram) setPayRate(String(data[0].rate_per_gram));
-                              });
-                            fetch("/api/sales/currency/cbu")
-                              .then(res => res.json())
-                              .then(json => {
-                                if (json.success && json.data?.rate) {
-                                  setCbuUsdRate(json.data.rate);
-                                  setPayUsdRate(String(json.data.rate));
-                                }
-                              })
-                              .catch(() => {});
+                            openPaymentModal(c);
                           }}
                           className="px-2.5 py-1 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-lg text-[11px] font-bold transition"
                         >
@@ -1751,7 +1750,7 @@ export function CustomerLedgerAndSheetsSection() {
                     <label className="font-bold text-emerald-300 block mb-1">To&apos;langan Naqd Pul (UZS)</label>
                     <input
                       type="number"
-                      step="1000"
+                      step="1"
                       min="0"
                       value={payCashAmount}
                       onChange={(e) => setPayCashAmount(e.target.value)}
@@ -1783,16 +1782,21 @@ export function CustomerLedgerAndSheetsSection() {
                       type="number"
                       value={payRate}
                       onChange={(e) => setPayRate(e.target.value)}
+                      readOnly={payRatesLocked}
+                      data-testid="pay-lom-rate"
                       placeholder="Masalan: 950000"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
+                      className={`w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono ${payRatesLocked ? "opacity-80 cursor-not-allowed" : ""}`}
                     />
+                    {payRatesLocked && (
+                      <div className="text-[10px] text-cyan-400 mt-1">Sizning saqlangan kursingiz (Kassam)</div>
+                    )}
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <label className="font-bold text-slate-300">
-                        USD Kursi {isManualUsdRate ? <span className="text-[10px] text-amber-400 font-normal">(Qo&apos;lda)</span> : <span className="text-[10px] text-cyan-400 font-normal">(MB)</span>} {usd > 0 ? <span className="text-blue-400">*</span> : ""}
+                        USD Kursi {payRatesLocked ? <span className="text-[10px] text-cyan-400 font-normal">(o&apos;zingizniki)</span> : isManualUsdRate ? <span className="text-[10px] text-amber-400 font-normal">(Qo&apos;lda)</span> : <span className="text-[10px] text-cyan-400 font-normal">(MB)</span>} {usd > 0 ? <span className="text-blue-400">*</span> : ""}
                       </label>
-                      {cbuUsdRate && (
+                      {cbuUsdRate && !payRatesLocked && (
                         <button
                           type="button"
                           onClick={() => {
@@ -1812,6 +1816,8 @@ export function CustomerLedgerAndSheetsSection() {
                         setPayUsdRate(e.target.value);
                         setIsManualUsdRate(true);
                       }}
+                      readOnly={payRatesLocked}
+                      data-testid="pay-usd-rate"
                       placeholder="Masalan: 12800"
                       className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
                     />
