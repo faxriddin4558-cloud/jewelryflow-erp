@@ -5,7 +5,7 @@ const dns = require('dns');
 async function main() {
   console.log('==============================================================================');
   console.log('JEWELRYFLOW SALES — PHASE 1: REAL SUPABASE PRE-FLIGHT AUDIT');
-  console.log('Target Ref: vrozlilcaxinavzxueif (goldia-sales-production)');
+  console.log('Target Ref: vrozlllcaxinavzxueif (goldia-sales-production)');
   console.log('==============================================================================\n');
 
   const results = {
@@ -26,9 +26,9 @@ async function main() {
   console.log(`[1] Git Branch HEAD: ${gitHead.slice(0, 7)} (${gitHead})`);
   results.gitHead = gitHead.slice(0, 7);
 
-  // 2. DNS Check for vrozlilcaxinavzxueif.supabase.co
+  // 2. DNS Check for vrozlllcaxinavzxueif.supabase.co
   console.log('\n[2] DNS & Network Reachability Check:');
-  const targetHost = 'vrozlilcaxinavzxueif.supabase.co';
+  const targetHost = 'vrozlllcaxinavzxueif.supabase.co';
   try {
     const addresses = await dns.promises.resolve4(targetHost);
     console.log(`  ✅ DNS Resolved: ${targetHost} ->`, addresses);

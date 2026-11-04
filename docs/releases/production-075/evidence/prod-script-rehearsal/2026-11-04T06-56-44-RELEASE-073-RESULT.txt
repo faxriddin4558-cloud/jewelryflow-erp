@@ -1,0 +1,20 @@
+started: 2026-11-04T06:56:48.163Z
+[1/4] backup folder /opt/goldia-audit/prodrehearsal/goldia-prod-2026-11-04T06-56-44: {"backup":true,"migration064":true,"preflight":true,"accounting":true,"compat":true,"ready":true,"target":"073","backupDir":"/opt/goldia-audit/prodrehearsal/goldia-prod-2026-11-04T06-56-44"}
+[2/4] production gates (read only)
+  072=t 073=f
+  D1_customer_cache_vs_documents|0|0|OK
+  D2_reversed_sales_after_payment|0|0|INFO
+  D3_possible_duplicate_receipts|0|0|OK
+  D4_sellers_sold_more_than_consigned|0|0|OK
+  D5_whole_consignment_sale_after_weight_sale|0|0|OK
+  D6_physical_conservation_gap|0|0.0000|OK
+  D7_factory_obligation_vs_documents|0|0.0000|OK
+  D8_stored_manager_stock_vs_canonical|0|0.0000|INFO
+  D9_business_expenses_added_back_to_profit_585g|0|0|INFO
+  D10_currency_rates_table_exists|0|0|INFO
+  D11_organizations|60|0|REVIEW
+  D12_employees_outside_their_org_scope|0|0|OK
+  D13_cross_seller_customer_sales|0|0|OK
+
+STOPPED: historical damage scan has 1 REVIEW line(s) — owner review needed; nothing was changed or repaired. After review, re-run with --acknowledge-findings (070 prevents new damage; it does not rewrite old records).
+Production database was not changed by this step.

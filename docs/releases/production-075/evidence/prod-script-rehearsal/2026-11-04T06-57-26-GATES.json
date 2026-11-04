@@ -1,0 +1,10 @@
+{
+  "backup": true,
+  "migration064": true,
+  "preflight": true,
+  "accounting": true,
+  "compat": true,
+  "ready": true,
+  "target": "075",
+  "backupDir": "/opt/goldia-audit/prodrehearsal/goldia-prod-2026-11-04T06-57-26"
+}

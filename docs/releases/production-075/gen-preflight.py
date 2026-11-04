@@ -54,6 +54,7 @@ gates(ord, name, result, detail) as (
   union all select 11, 'server_version', case when current_setting('server_version_num')::int / 10000 = 17 then 'PASS' else 'WARN' end, current_setting('server_version')
   union all select 12, 'session_read_only', case when current_setting('transaction_read_only') = 'on' then 'PASS' else 'STOP' end, 'transaction_read_only=' || current_setting('transaction_read_only')
   union all select 13, 'organizations', 'INFO', (select count(*)::text from public.organizations)
+  union all select 14, 'wal_archiving_hint_for_pitr', 'INFO', 'archive_mode=' || current_setting('archive_mode') || ' wal_level=' || current_setting('wal_level') || ' (PITR itself is confirmed in the Supabase dashboard)'
   -- 2. migration history
   union all select 20, 'history_072_recorded', case when exists (select 1 from hist where version = '20260101000072') then 'PASS' else 'STOP' end, 'latest=' || coalesce((select max(version) from hist), '-')
   union all select 21, 'history_nothing_after_072', case when not exists (select 1 from hist where version > '20260101000072') then 'PASS' else 'STOP' end,

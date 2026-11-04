@@ -10,7 +10,8 @@
  * 3. Read-only gates on production: NNN-1 recorded, NNN absent. For 070 also the historical damage scan
  *    (supabase/release/070_damage_scan_readonly.sql, aggregates only): any REVIEW line stops the release
  *    unless the owner has reviewed it and re-runs with --acknowledge-findings. Nothing is repaired.
- * 4. Migration NNN and its schema_migrations row in ONE transaction (lock_timeout 10 s).
+ * 4. The owner types the production ref; then migration NNN and its schema_migrations row in ONE transaction (lock_timeout 10 s).
+ *    Staging / JFS demo / ERP refs are refused before any connection. Local rehearsal: --local-rehearsal --yes with a local --host.
  * 5. Postflight checks; row counts must be unchanged. On failure the rollback command is printed.
  * No business transactions, no deletes, no balance changes. Result: RELEASE-NNN-RESULT.txt in the backup folder.
  * Options: --host --port --user --db --sslmode --pg-bin <dir> --out <dir>
@@ -96,6 +97,9 @@ const POSTFLIGHT_CHECKS = {
   "074": [
     ["all_074_checks", allColumnsTrue(path.join(REPO, "supabase/release/074_postflight_readonly.sql"))],
   ],
+  "075": [
+    ["all_075_checks", allColumnsTrue(path.join(REPO, "supabase/release/075_postflight_readonly.sql"))],
+  ],
   "070": [
     // every column of 070_postflight_readonly.sql must be true
     ["all_070_checks", allColumnsTrue(path.join(REPO, "supabase/release/070_postflight_readonly.sql"))],
@@ -178,6 +182,14 @@ function psql(argList, timeoutMs = 10 * MIN) {
 const ro = (sql) => psql(["-t", "-A", "-F", "|", "-v", "ON_ERROR_STOP=1", "-c", `begin transaction read only; ${sql}; rollback;`]);
 const firstError = (r) => String(r.stderr || "").split(/\r?\n/).find((l) => /ERROR|FATAL|error/.test(l)) || String(r.stderr || "").trim();
 
+function promptVisible(question) {
+  return new Promise((resolve) => {
+    if (!process.stdin.isTTY) stop("run this in an interactive PowerShell window (typed confirmation required)");
+    const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(question, (answer) => { rl.close(); resolve(answer); });
+  });
+}
+
 function promptHidden(question) {
   return new Promise((resolve) => {
     const stdin = process.stdin;
@@ -227,6 +239,13 @@ const BALANCES = `select string_agg(k || '=' || v, ',' order by k) from (
 
 async function main() {
   console.log(`GOLDIA — migration ${TARGET} production release\n`);
+  // Target guard (before any connection): never staging, JFS demo or the manufacturing ERP.
+  const FORBIDDEN_REFS = { vouehtlmsunebracahon: "Goldia STAGING", yvvbdoqncubtwlzskgml: "JewelryFlow SaaS demo", hbbuskyifxkowlozsaym: "manufacturing ERP" };
+  const joinedTarget = [PROD.host, PROD.user, process.env.PGHOST, process.env.PGUSER, process.env.DATABASE_URL].filter(Boolean).join(" ");
+  for (const [ref, label] of Object.entries(FORBIDDEN_REFS)) if (joinedTarget.includes(ref)) stop(`${label} (${ref}) is never a target of this script`);
+  const LOCAL_TARGET = /^(localhost|127\.0\.0\.1)$/.test(String(PROD.host)) || String(PROD.host).startsWith("/");
+  if (args["local-rehearsal"] && !LOCAL_TARGET) stop("--local-rehearsal only works with a local --host");
+  if (!LOCAL_TARGET && !String(PROD.user).endsWith(".vrozlllcaxinavzxueif")) stop(`unexpected database user ${PROD.user} (production is postgres.vrozlllcaxinavzxueif)`);
   if (!PG_BIN) stop("PostgreSQL 17 tools not found (pass --pg-bin)");
   if (!F.migration) stop(`migration ${TARGET_VERSION} not found — run from the release branch`);
   for (const f of [F.rollback, F.postflight]) if (!fs.existsSync(f)) stop(`missing ${path.relative(REPO, f)}`);
@@ -274,6 +293,11 @@ async function main() {
     if (review.length) out(`  REVIEW lines acknowledged by the owner (--acknowledge-findings): ${review.length}`);
   }
 
+  // 4. Typed confirmation: the owner types the production project ref before anything is written
+  if (!(args["local-rehearsal"] && args.yes)) {
+    const typed = await promptVisible(`Type the production project ref (vrozlllcaxinavzxueif) to apply migration ${TARGET}: `);
+    if (typed.trim() !== "vrozlllcaxinavzxueif") stop("confirmation did not match — nothing was changed");
+  }
   // 4. Atomic migration
   out(`[3/4] migration ${TARGET} (single transaction)`);
   const counts = ro(COUNTS);

@@ -1,0 +1,5 @@
+started: 2026-11-04T06:56:51.620Z
+[1/4] backup folder /opt/goldia-audit/prodrehearsal/goldia-prod-2026-11-04T06-56-48: {"backup":true,"migration064":false,"preflight":false,"accounting":true,"compat":true,"ready":false,"target":"074","backupDir":"/opt/goldia-audit/prodrehearsal/goldia-prod-2026-11-04T06-56-48"}
+
+STOPPED: a backup/preflight/compatibility gate failed (see SUMMARY.txt in that folder)
+Production database was not changed by this step.
