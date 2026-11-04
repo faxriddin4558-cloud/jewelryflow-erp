@@ -229,6 +229,10 @@ export function CustomerLedgerAndSheetsSection() {
   const [salePieceId, setSalePieceId] = useState("");
   // 073: the physical piece a weight sale is cut from (model code + weight cannot identify an individual item)
   const [saleSourcePieceId, setSaleSourcePieceId] = useState("");
+  // 076: one key per opened sale dialog + the sale content -> a retry of the same sale is answered from the server's
+  // idempotency store instead of booking it twice; a changed sale gets a different key.
+  const [saleIdemKey, setSaleIdemKey] = useState("");
+  const newSaleIdemKey = () => `SALE-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const [saleMarkupPct, setSaleMarkupPct] = useState("12.0");
   const [saleNotes, setSaleNotes] = useState("");
 
@@ -249,6 +253,9 @@ export function CustomerLedgerAndSheetsSection() {
   const [legacyAmount, setLegacyAmount] = useState("");
   const [legacyAsOfDate, setLegacyAsOfDate] = useState("");
   const [legacyNotes, setLegacyNotes] = useState("");
+  // 076: one idempotency key per opened legacy-debt dialog, reused on retries (a network retry or a double click can
+  // never add the debt twice); a new key is made only after a successful save or when the dialog is opened again.
+  const [legacyIdemKey, setLegacyIdemKey] = useState("");
   const [legacyCustomerHistory, setLegacyCustomerHistory] = useState<LegacyDebtRow[]>([]);
   const [legacyHistoryLoading, setLegacyHistoryLoading] = useState(false);
 
@@ -608,10 +615,8 @@ export function CustomerLedgerAndSheetsSection() {
         if (!targetCustomer.seller_id) {
           throw new Error("Mijozga sotuvchi biriktirilmagan. Avval mijozni sotuvchiga biriktiring.");
         }
+        // 076: choosing the piece is optional; without it the server takes the grams from the oldest held pieces
         const sellerPieces = availablePieces.filter((p) => String(p.seller_id) === String(targetCustomer.seller_id));
-        if (sellerPieces.length > 0 && !saleSourcePieceId) {
-          throw new Error("Qaysi donadan sotilayotganini tanlang (vazn shu donadan ayriladi).");
-        }
         const sourcePiece = sellerPieces.find((p) => p.id === saleSourcePieceId);
         if (sourcePiece && weight > Number(sourcePiece.weight_grams) + 0.00005) {
           throw new Error(`Tanlangan dona ${formatScreenGrams(sourcePiece.weight_grams)} — sotilayotgan vazndan yengil.`);
@@ -623,7 +628,7 @@ export function CustomerLedgerAndSheetsSection() {
           p_weight_grams: weight,
           p_client_markup_pct: markup,
           p_notes: saleNotes.trim() || "Mijozga vazn bo'yicha nasiya sotuv",
-          p_idempotency_key: `WEIGHT-SALE-${targetCustomer.id}-${Date.now()}`,
+          p_idempotency_key: `${saleIdemKey || newSaleIdemKey()}:W:${targetCustomer.id}:${weight}:${markup}:${saleSourcePieceId || "auto"}`,
           p_piece_ids: saleSourcePieceId ? [saleSourcePieceId] : null,
         });
 
@@ -650,7 +655,7 @@ export function CustomerLedgerAndSheetsSection() {
           p_piece_id: salePieceId,
           p_client_markup_pct: markup,
           p_notes: saleNotes.trim() || "Mijozga nasiya sotuv",
-          p_idempotency_key: `PIECE-SALE-${salePieceId}-${Date.now()}`,
+          p_idempotency_key: `${saleIdemKey || newSaleIdemKey()}:P:${targetCustomer.id}:${salePieceId}:${markup}`,
         });
 
         if (error) throw error;
@@ -667,6 +672,7 @@ export function CustomerLedgerAndSheetsSection() {
       }
 
       setSaleModalOpen(false);
+      setSaleIdemKey("");
       setTargetCustomer(null);
       setSalePieceId("");
       setSaleSourcePieceId("");
@@ -744,8 +750,11 @@ export function CustomerLedgerAndSheetsSection() {
 
   const openLegacyDebtModal = async (cust: CustomerRow) => {
     setTargetCustomer(cust);
-    setLegacyBalanceType(Number(cust.advance_balance_grams || 0) > 0 ? "advance" : "debt");
-    setLegacyCalculationMode("reconciliation");
+    setLegacyIdemKey(`LEGACY-DEBT-${cust.id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    // 076: a seller only ADDS debt to his own customer (advances / reductions are done by the manager)
+    const sellerMode = isSellerRole(currentRole);
+    setLegacyBalanceType(!sellerMode && Number(cust.advance_balance_grams || 0) > 0 ? "advance" : "debt");
+    setLegacyCalculationMode(sellerMode ? "direct" : "reconciliation");
     setLegacyTargetBalance(
       Number(cust.current_debt_grams || 0) > 0
         ? String(cust.current_debt_grams)
@@ -795,7 +804,17 @@ export function CustomerLedgerAndSheetsSection() {
         return;
       }
 
-      const idempotencyKey = `LEGACY-DEBT-${targetCustomer.id}-${Date.now()}`;
+      if (isSellerRole(currentRole)) {
+        const curNetNow = Number(targetCustomer.current_debt_grams || 0) - Number(targetCustomer.advance_balance_grams || 0);
+        const sellerDelta = isReconciliation ? targetVal! - curNetNow : directAmt!;
+        if (legacyBalanceType !== "debt" || sellerDelta <= 0.00005) {
+          setMessage({ type: "error", text: "Sotuvchi faqat qarz qo'sha oladi. Qarzni kamaytirish yoki avans kiritishni menejer bajaradi." });
+          setBusy(false);
+          return;
+        }
+      }
+
+      const idempotencyKey = legacyIdemKey || `LEGACY-DEBT-${targetCustomer.id}-${Date.now()}`;
       const { data, error } = await supabase.rpc("rpc_record_client_legacy_debt", {
         p_customer_id: targetCustomer.id,
         p_balance_type: legacyBalanceType,
@@ -824,6 +843,7 @@ export function CustomerLedgerAndSheetsSection() {
         });
       }
 
+      setLegacyIdemKey("");
       setLegacyDebtModalOpen(false);
       await loadCustomers();
     } catch (err: unknown) {
@@ -1152,6 +1172,7 @@ export function CustomerLedgerAndSheetsSection() {
                       setSaleMarkupPct("12.0");
                       setSaleNotes("");
                       setSellerAvailableStock(null);
+                      setSaleIdemKey(newSaleIdemKey());
                       setSaleModalOpen(true);
                       const sellerId = c.seller_id || currentEmployeeId || sellers[0]?.id;
                       if (sellerId) {
@@ -1262,6 +1283,7 @@ export function CustomerLedgerAndSheetsSection() {
                             setSaleMarkupPct("12.0");
                             setSaleNotes("");
                             setSellerAvailableStock(null);
+                            setSaleIdemKey(newSaleIdemKey());
                             setSaleModalOpen(true);
                             const sellerId = c.seller_id || currentEmployeeId || sellers[0]?.id;
                             if (sellerId) {
@@ -2000,16 +2022,15 @@ export function CustomerLedgerAndSheetsSection() {
                     {availablePieces.some((p) => String(p.seller_id) === String(targetCustomer.seller_id)) && (
                       <div>
                         <label className="font-bold text-amber-300 block mb-1">
-                          Qaysi donadan? (vazn shu donadan ayriladi) *
+                          Qaysi donadan? (ixtiyoriy)
                         </label>
                         <select
-                          required
                           data-testid="weight-sale-source-piece"
                           value={saleSourcePieceId}
                           onChange={(e) => setSaleSourcePieceId(e.target.value)}
                           className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
                         >
-                          <option value="">Donani tanlang...</option>
+                          <option value="">Avtomatik — eng eski donalardan ayriladi</option>
                           {availablePieces
                             .filter((p) => String(p.seller_id) === String(targetCustomer.seller_id))
                             .map((p) => (
@@ -2350,6 +2371,11 @@ export function CustomerLedgerAndSheetsSection() {
                     >
                       <span>🔴</span> Mijoz bizga qarzdor
                     </button>
+                    {isSellerRole(currentRole) ? (
+                      <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950 text-[10px] text-slate-400 flex items-center justify-center text-center" data-testid="legacy-advance-manager-only">
+                        Avans va qarzni kamaytirish — menejer orqali
+                      </div>
+                    ) : (
                     <button
                       type="button"
                       onClick={() => setLegacyBalanceType("advance")}
@@ -2361,6 +2387,7 @@ export function CustomerLedgerAndSheetsSection() {
                     >
                       <span>🔵</span> Biz mijozga qarzdormiz (Avans)
                     </button>
+                    )}
                   </div>
                 </div>
 
@@ -2536,7 +2563,7 @@ export function CustomerLedgerAndSheetsSection() {
                             )}
                           </td>
                           <td className="py-2 px-2.5 text-right font-sans">
-                            {item.status !== "reversed" && (
+                            {item.status !== "reversed" && !isSellerRole(currentRole) && (
                               <button
                                 type="button"
                                 disabled={busy}

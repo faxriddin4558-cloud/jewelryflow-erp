@@ -1,0 +1,298 @@
+[
+  {
+    "id": "LD-01",
+    "title": "seller adds 206.83 g legacy debt to OWN customer (incident case)",
+    "ok": true,
+    "expected": {
+      "ok": true,
+      "debt": 206.83
+    },
+    "actual": {
+      "debt": 206.83,
+      "delta": 206.83
+    }
+  },
+  {
+    "id": "LD-02",
+    "title": "seller's obligation to the manager grows by exactly 206.83 g",
+    "ok": true,
+    "expected": "+206.83",
+    "actual": {
+      "legacy": 206.83,
+      "obligation": 206.82999999999998
+    }
+  },
+  {
+    "id": "LD-03",
+    "title": "stock, vault, factory obligation, cash, sales, receipts unchanged",
+    "ok": true,
+    "expected": {
+      "seller_stock": "8.5000",
+      "vault": "14.5000/35.6400/0.00",
+      "sales": "1",
+      "receipts": "1"
+    },
+    "actual": {
+      "seller_stock": "8.5000",
+      "vault": "14.5000/35.6400/0.00",
+      "sales": "1",
+      "receipts": "1"
+    }
+  },
+  {
+    "id": "LD-04",
+    "title": "retry with the SAME key returns the first result, no second row",
+    "ok": true,
+    "expected": "e77f9c05-174a-4715-a165-ecc4f84fd8ad",
+    "actual": "e77f9c05-174a-4715-a165-ecc4f84fd8ad"
+  },
+  {
+    "id": "LD-05",
+    "title": "same addition with a NEW key within 10 min (double click / old frontend) is refused",
+    "ok": true,
+    "expected": "refused, debt 206.83",
+    "actual": "Takroriy so'rov: shu mijozga xuddi shu eski qarz (206.8300 g) 10 daqiqa ichida kiritilgan."
+  },
+  {
+    "id": "LD-06",
+    "title": "6 parallel identical additions (different keys) -> exactly one booked",
+    "ok": true,
+    "expected": 1,
+    "actual": {
+      "ok": 1,
+      "debt": 12.5
+    }
+  },
+  {
+    "id": "LD-07",
+    "title": "6 parallel requests with the SAME key -> one row, all answer the same id",
+    "ok": true,
+    "expected": 15.5,
+    "actual": {
+      "ok": 6,
+      "ids": 1,
+      "debt": 15.5
+    }
+  },
+  {
+    "id": "LD-08",
+    "title": "seller cannot touch another seller's customer",
+    "ok": true,
+    "expected": "42501",
+    "actual": "42501 Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan (eski qarzni faqat "
+  },
+  {
+    "id": "LD-09",
+    "title": "seller cannot book on an unassigned customer",
+    "ok": true,
+    "expected": "42501",
+    "actual": "42501"
+  },
+  {
+    "id": "LD-10",
+    "title": "seller cannot touch another organization",
+    "ok": true,
+    "expected": "refused",
+    "actual": "Mijoz topilmadi: c806b0ee-431e-4792-bb68-c33af815919e"
+  },
+  {
+    "id": "LD-11",
+    "title": "seller cannot enter an advance",
+    "ok": true,
+    "expected": "42501",
+    "actual": "42501"
+  },
+  {
+    "id": "LD-12",
+    "title": "seller cannot reconcile DOWN (would lower own obligation)",
+    "ok": true,
+    "expected": "42501",
+    "actual": "42501 Ruxsat etilmadi: Qarzni kamaytirishni faqat menejer yoki direktor bajaradi (hozi"
+  },
+  {
+    "id": "LD-13",
+    "title": "seller may reconcile UP to the notebook balance (250.0001)",
+    "ok": true,
+    "expected": {
+      "debt": 250.0001,
+      "delta": 43.1701
+    },
+    "actual": {
+      "debt": 250.0001,
+      "delta": 43.1701
+    }
+  },
+  {
+    "id": "LD-14",
+    "title": "reconciliation to the same balance again -> no change (natural idempotency)",
+    "ok": true,
+    "expected": true,
+    "actual": true
+  },
+  {
+    "id": "LD-15",
+    "title": "seller cannot book the debt on another seller",
+    "ok": true,
+    "expected": "42501",
+    "actual": "42501"
+  },
+  {
+    "id": "LD-16-zero",
+    "title": "amount 0 refused",
+    "ok": true,
+    "expected": "refused",
+    "actual": "Qarz yoki avans miqdori 0 dan katta bo'lishi shart"
+  },
+  {
+    "id": "LD-16-negative",
+    "title": "amount -5 refused",
+    "ok": true,
+    "expected": "refused",
+    "actual": "Qarz yoki avans miqdori 0 dan katta bo'lishi shart"
+  },
+  {
+    "id": "LD-17",
+    "title": "negative notebook balance is clamped to 0 -> a reduction -> refused for seller",
+    "ok": true,
+    "expected": "refused",
+    "actual": "42501"
+  },
+  {
+    "id": "LD-18",
+    "title": "manager adds legacy debt to any customer of the org (seller S2's)",
+    "ok": true,
+    "expected": 7.25,
+    "actual": 7.25
+  },
+  {
+    "id": "LD-19",
+    "title": "manager may reconcile DOWN (250.0001 -> 200)",
+    "ok": true,
+    "expected": 200,
+    "actual": 200
+  },
+  {
+    "id": "LD-20",
+    "title": "manager may enter an advance",
+    "ok": true,
+    "expected": 4,
+    "actual": 4
+  },
+  {
+    "id": "LD-21",
+    "title": "manager cannot touch another organization's customer",
+    "ok": true,
+    "expected": "refused",
+    "actual": "Mijoz topilmadi: c806b0ee-431e-4792-bb68-c33af8159"
+  },
+  {
+    "id": "LD-22",
+    "title": "director cannot book on another organization's seller (before 076 it overwrote that seller's account)",
+    "ok": true,
+    "expected": "42501, other org untouched",
+    "actual": "42501"
+  },
+  {
+    "id": "LD-23",
+    "title": "user without employee profile refused",
+    "ok": true,
+    "expected": "42501",
+    "actual": "42501"
+  },
+  {
+    "id": "LD-24",
+    "title": "seller cannot reverse a legacy debt",
+    "ok": true,
+    "expected": "42501",
+    "actual": "42501"
+  },
+  {
+    "id": "LD-24b",
+    "title": "reversing an entry that has a newer reconciliation on top is refused (would invent an advance)",
+    "ok": true,
+    "expected": "refused",
+    "actual": "Avval shu mijozning keyingi qayta solishtirish yozuvini bekor qiling ("
+  },
+  {
+    "id": "LD-24c",
+    "title": "after reversing the reconciliations (newest first) the customer is back at 206.83 g",
+    "ok": true,
+    "expected": 206.83,
+    "actual": 206.83
+  },
+  {
+    "id": "LD-25",
+    "title": "manager reverses the 206.83 g entry; customer back to 0 debt, 0 advance",
+    "ok": true,
+    "expected": {
+      "debt": 0,
+      "adv": 0
+    },
+    "actual": {
+      "d": "0.0000",
+      "a": "0.0000"
+    }
+  },
+  {
+    "id": "LD-26",
+    "title": "seller obligation recalculated after the reversal (-206.83 g; before 076 it stayed)",
+    "ok": true,
+    "expected": -206.83,
+    "actual": -206.82999999999998
+  },
+  {
+    "id": "LD-27",
+    "title": "second reversal refused",
+    "ok": true,
+    "expected": "refused",
+    "actual": "Ushbu eski qarz yozuvi allaqachon bekor qilingan"
+  },
+  {
+    "id": "LD-28",
+    "title": "seller legacy obligation = independent sum of active debt entries",
+    "ok": true,
+    "expected": 24.17,
+    "actual": 24.17
+  },
+  {
+    "id": "LD-29",
+    "title": "customer ledger recomputation agrees with the stored balance (15.5 g)",
+    "ok": true,
+    "expected": 15.5,
+    "actual": {
+      "net": 15.5,
+      "stored": 15.5
+    }
+  },
+  {
+    "id": "LD-30",
+    "title": "whole run: stock, vault, factory obligation, sales, receipts of the org unchanged",
+    "ok": true,
+    "expected": {
+      "seller_stock": "8.5000",
+      "vault": "14.5000/35.6400/0.00",
+      "sales": "1",
+      "receipts": "1"
+    },
+    "actual": {
+      "seller_stock": "8.5000",
+      "vault": "14.5000/35.6400/0.00",
+      "sales": "1",
+      "receipts": "1"
+    }
+  },
+  {
+    "id": "LD-31",
+    "title": "seller cannot SELECT another seller's customer legacy rows (RLS)",
+    "ok": true,
+    "expected": 0,
+    "actual": 0
+  },
+  {
+    "id": "LD-32",
+    "title": "direct INSERT into client_legacy_debts by a seller is refused (RPC only)",
+    "ok": true,
+    "expected": "refused",
+    "actual": "new row violates row-level security policy for table \"client"
+  }
+]

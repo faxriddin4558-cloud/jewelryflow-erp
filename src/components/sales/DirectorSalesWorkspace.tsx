@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   supabase,
+  RBAC,
   GoldEngine,
   generateIdempotencyKey,
   type SalesMarkupPresetRow,
@@ -25,6 +26,7 @@ import {
 import { pickHandoverUsdRate, tillValuation, type TillValuation } from "@/lib/sales-payment-rates";
 import { SalesReceiptModal, type ReceiptData } from "./SalesReceiptModal";
 import { ScannerDiagnostics } from "./ScannerDiagnostics";
+import { isDirectorUiRole } from "@/lib/sales-role-access";
 import { BarTenderModelManager } from "./BarTenderModelManager";
 import { ScannerConsignmentSection } from "./ScannerConsignmentSection";
 import { SellerInventoryDashboard } from "./SellerInventoryDashboard";
@@ -500,6 +502,10 @@ export function DirectorSalesWorkspace({
   };
 
   // 2. Dynamic Markup Preset Actions
+  // Director-only server actions (markup presets, product consignment) are offered to directors only.
+  const [canDirect, setCanDirect] = useState(() => isDirectorUiRole(RBAC.getCurrentUser().role));
+  useEffect(() => RBAC.subscribe((u) => setCanDirect(isDirectorUiRole(u.role))), []);
+
   const handleOpenNewPreset = (type: "factory_markup" | "client_markup") => {
     setEditingPreset(null);
     setPresetType(type);
@@ -521,6 +527,11 @@ export function DirectorSalesWorkspace({
   };
 
   const handleSavePreset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canDirect) {
+      notifyError("Bu amalni faqat direktor bajaradi.");
+      return;
+    }
     e.preventDefault();
     const pct = parseFloat(presetPercentage);
     if (isNaN(pct) || pct < 0 || pct > 100) {
@@ -552,6 +563,10 @@ export function DirectorSalesWorkspace({
   };
 
   const handleTogglePresetActive = async (p: SalesMarkupPresetRow) => {
+    if (!canDirect) {
+      notifyError("Bu amalni faqat direktor bajaradi.");
+      return;
+    }
     setBusy(true);
     try {
       const { error } = await supabase.rpc("rpc_manage_sales_markup_preset", {
@@ -786,6 +801,11 @@ export function DirectorSalesWorkspace({
 
   // 3. Issue Consignment Action
   const handleIssueConsignment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canDirect) {
+      notifyError("Bu amalni faqat direktor bajaradi.");
+      return;
+    }
     e.preventDefault();
     if (!consignSellerId || !consignProductId) {
       notifyError("Iltimos, sotuvchi va mahsulotni tanlang!");
@@ -3011,6 +3031,11 @@ export function DirectorSalesWorkspace({
       {/* TAB 2: ISSUE CONSIGNMENT */}
       {activeTab === "consign" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {!canDirect && (
+            <div className="lg:col-span-3 p-3 rounded-2xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-bold" data-testid="consign-director-only">
+              Mahsulot partiyasini bu bo&apos;limda faqat direktor topshiradi. Menejer sotuvchiga oltinni &quot;Scanner 564 Tarqatish&quot; bo&apos;limidan beradi.
+            </div>
+          )}
           <form
             onSubmit={(e) => void handleIssueConsignment(e)}
             className="lg:col-span-1 bg-white text-[#0F172A] p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
@@ -3277,13 +3302,13 @@ export function DirectorSalesWorkspace({
                   <h3 className="font-black text-[#0F172A] text-base">Zavod Ustamalari (Factory Markups)</h3>
                   <div className="text-xs text-[#475569]">Zavoddan sotuvchiga topshirishda qo&apos;llaniladi</div>
                 </div>
-                <button
+                {canDirect && (<button
                   id="addFactoryPresetBtn"
                   onClick={() => handleOpenNewPreset("factory_markup")}
                   className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
                 >
                   + Yangi Zavod Ustamasi
-                </button>
+                </button>)}
               </div>
 
               <div className="space-y-2">
@@ -3311,7 +3336,7 @@ export function DirectorSalesWorkspace({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    {canDirect && (<div className="flex items-center gap-2">
                       <button
                         onClick={() => handleTogglePresetActive(p)}
                         className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition ${
@@ -3328,7 +3353,7 @@ export function DirectorSalesWorkspace({
                       >
                         ✏️
                       </button>
-                    </div>
+                    </div>)}
                   </div>
                 ))}
               </div>
@@ -3341,13 +3366,13 @@ export function DirectorSalesWorkspace({
                   <h3 className="font-black text-[#0F172A] text-base">Mijozga Sotish Ustamalari (Client Markups)</h3>
                   <div className="text-xs text-[#475569]">Sotuvchi mijozga nasiya yozishda faqat bularni tanlay oladi</div>
                 </div>
-                <button
+                {canDirect && (<button
                   id="addClientPresetBtn"
                   onClick={() => handleOpenNewPreset("client_markup")}
                   className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
                 >
                   + Yangi Mijoz Ustamasi
-                </button>
+                </button>)}
               </div>
 
               <div className="space-y-2">
@@ -3375,7 +3400,7 @@ export function DirectorSalesWorkspace({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    {canDirect && (<div className="flex items-center gap-2">
                       <button
                         data-preset-toggle={p.name}
                         onClick={() => handleTogglePresetActive(p)}
@@ -3393,7 +3418,7 @@ export function DirectorSalesWorkspace({
                       >
                         ✏️
                       </button>
-                    </div>
+                    </div>)}
                   </div>
                 ))}
               </div>

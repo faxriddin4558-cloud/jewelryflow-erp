@@ -80,7 +80,7 @@ describe("Goldia 073 — release candidate", () => {
     expect(defaults).toBe(8);
   });
 
-  it("C: weight sales must name the physical piece; only the last selected piece may be cut", async () => {
+  it("C: chosen pieces are checked (076: choosing is optional, without it the oldest pieces are used); only the last piece may be cut", async () => {
     await t.asUser(mgr.userId);
     const r = await t.rpc(`public.rpc_record_factory_receipt(p_product_name := 'P', p_original_physical_g := 20, p_factory_markup_pct := 8)`);
     const c = await t.rpc(`public.rpc_issue_barcode_consignment(p_seller_id := '${seller.employeeId}', p_factory_markup_pct := 8,
@@ -91,7 +91,6 @@ describe("Goldia 073 — release candidate", () => {
     const ws = (w: number, ids: string[] | null) =>
       `SELECT public.rpc_record_weight_sale(p_customer_id := '${cust}', p_weight_grams := ${w}, p_client_markup_pct := 10${
         ids ? `, p_piece_ids := ARRAY[${ids.map((i) => `'${i}'`).join(",")}]::uuid[]` : ""})`;
-    await t.expectError(ws(4, null), "ERR_PIECE_REQUIRED");
     await t.expectError(ws(4, [p8!, p8!]), "ERR_PIECE_DUPLICATE");
     await t.expectError(ws(4, [p3!]), "ERR_PIECES_TOO_LIGHT");
     await t.expectError(ws(4, [p5!, p3!]), "ERR_PIECE_EXTRA");
@@ -107,5 +106,19 @@ describe("Goldia 073 — release candidate", () => {
     expect(await t.scalar(`(SELECT weight_grams FROM public.consignment_pieces WHERE id = '${p5}')`)).toBe(5);
     expect(await t.scalar(`(SELECT count(*) FROM public.consignment_pieces WHERE id = '${p3}' AND status = 'held_by_seller')`)).toBe(1);
     expect(await t.scalar(`(SELECT weight_grams FROM public.consignment_pieces WHERE id = '${p8}')`)).toBe(8);
+    // 076: no piece chosen -> 4 g taken from the held pieces automatically (whole pieces sold, only the last one cut)
+    await t.asUser(seller.userId);
+    const auto = await t.rpc(`public.rpc_record_weight_sale(p_customer_id := '${cust}', p_weight_grams := 4, p_client_markup_pct := 10)`);
+    expect(Number(auto.client_gold_due_grams)).toBe(4.4);
+    await t.asAdmin();
+    const held = `(SELECT coalesce(sum(weight_grams), 0) FROM public.consignment_pieces WHERE id IN ('${p3}', '${p5}', '${p8}') AND status = 'held_by_seller')`;
+    expect(await t.scalar(held)).toBe(12);
+    expect(await t.scalar(`(SELECT coalesce(sum(grams), 0) FROM public.weight_sale_allocations WHERE sale_id = '${auto.sale_id}')`)).toBe(4);
+    expect(await t.scalar(`(SELECT count(*) FROM public.weight_sale_allocations WHERE sale_id = '${auto.sale_id}' AND NOT fully_consumed)`)).toBeLessThanOrEqual(1);
+    await t.asUser(mgr.userId);
+    await t.rpc(`public.rpc_reverse_client_sale(p_sale_id := '${auto.sale_id}', p_reason := 'qaytdi')`);
+    await t.asAdmin();
+    expect(await t.scalar(held)).toBe(16);
+    expect(await t.scalar(`(SELECT count(*) FROM public.consignment_pieces WHERE (id = '${p3}' AND weight_grams = 3) OR (id = '${p5}' AND weight_grams = 5) OR (id = '${p8}' AND weight_grams = 8))`)).toBe(3);
   });
 });

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * GOLDIA SALES — gated STAGING release: migration 075 (074 -> 075) in ONE transaction.
+ * GOLDIA SALES — gated STAGING release: migration 076 (075 -> 076) in ONE transaction.
+ * (2026-11-04: moved from 074 -> 075 to 075 -> 076; the steps are unchanged, the 073/074/075 postflights must stay true.)
  *
  *   node scripts/goldia-staging-release.js            dry run: backup + restore test + all checks on a LOCAL copy;
  *                                                     staging is only READ
@@ -52,8 +53,8 @@ for (let i = 2; i < process.argv.length; i++) {
 
 const STAGING_REF = "vouehtlmsunebracahon";
 const FORBIDDEN_REFS = { vrozlllcaxinavzxueif: "PRODUCTION", yvvbdoqncubtwlzskgml: "JewelryFlow SaaS demo (jfs-demo)" };
-const FROM = "074";
-const TO = "075";
+const FROM = "075";
+const TO = "076";
 const V = (n) => `20260101000${n}`;
 const MIN = 60 * 1000;
 
@@ -237,6 +238,7 @@ const F = {
   expectedTo: path.join(REPO, `supabase/release/staging-073/expected-${TO}-signature.txt`),
   postflight073: path.join(REPO, "supabase/release/073_postflight_readonly.sql"),
   postflight074: path.join(REPO, "supabase/release/074_postflight_readonly.sql"),
+  postflight075: path.join(REPO, "supabase/release/075_postflight_readonly.sql"),
 };
 const migDir = path.join(REPO, "supabase/migrations");
 const CHAIN = [];
@@ -369,7 +371,7 @@ async function main() {
   if (!PG) stop("PostgreSQL 17 tools not found (install PostgreSQL 17 or pass --pg-bin \"C:\\Program Files\\PostgreSQL\\17\\bin\")");
   const toolVer = run("pg_dump", ["--version"]).stdout.trim();
   const toolMajor = parseInt((toolVer.match(/(\d+)\./) || [])[1], 10);
-  for (const m of CHAIN) if (!m.file) stop(`migration ${m.version} not found — run from the 075 release-candidate branch (claude/goldia-sales-staging-audit-qtrq1d)`);
+  for (const m of CHAIN) if (!m.file) stop(`migration ${m.version} not found — run from the 076 release-candidate branch (claude/goldia-sales-staging-audit-qtrq1d)`);
   for (const f of Object.values(F)) if (!fs.existsSync(f)) stop(`missing ${path.relative(REPO, f)}`);
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
@@ -537,10 +539,12 @@ async function main() {
   const pfLocal = psql(localEnv, checks.allColumnsTrue(F.postflight));
   const pf073Local = psql(localEnv, checks.allColumnsTrue(F.postflight073));
   const pf074Local = psql(localEnv, checks.allColumnsTrue(F.postflight074));
+  const pf075Local = psql(localEnv, checks.allColumnsTrue(F.postflight075));
+  if (pf075Local.status !== 0 || pf075Local.stdout.trim() !== "t") stop("075 postflight failed on the local copy");
   if (pfLocal.status !== 0 || pfLocal.stdout.trim() !== "t") stop(`${TO} postflight failed on the local copy`);
   if (pf073Local.status !== 0 || pf073Local.stdout.trim() !== "t") stop("073 postflight failed on the local copy");
   if (pf074Local.status !== 0 || pf074Local.stdout.trim() !== "t") stop("074 postflight failed on the local copy");
-  out(`  073 + 074 postflights: all true; ${TO} postflight: all true`);
+  out(`  073 + 074 + 075 postflights: all true; ${TO} postflight: all true`);
   const readAfter = isolationProbe(localEnv, F.rls, `local-${TO}`);
   const writeAfter = isolationProbe(localEnv, F.rlsWrite, `local-${TO}`);
   if (!readAfter.ok || !writeAfter.ok) stop(`isolation probe failed to run: ${readAfter.ok ? writeAfter.summary : readAfter.summary}`);
@@ -592,8 +596,9 @@ async function main() {
   fs.writeFileSync(path.join(outDir, `postflight-${TO}-staging.txt`), clean(String(pfFile.stdout || "") + String(pfFile.stderr || "")));
   const pf073 = psql(remoteEnv, checks.allColumnsTrue(F.postflight073));
   const pf074 = psql(remoteEnv, checks.allColumnsTrue(F.postflight074));
-  pf.stdout = pf.stdout.trim() === "t" && pf073.stdout.trim() === "t" && pf074.stdout.trim() === "t" ? "t" : "f";
-  out(`  073 + 074 + ${TO} postflight: ${pf.stdout === "t" ? "all true" : "FAIL"}`);
+  const pf075 = psql(remoteEnv, checks.allColumnsTrue(F.postflight075));
+  pf.stdout = pf.stdout.trim() === "t" && pf073.stdout.trim() === "t" && pf074.stdout.trim() === "t" && pf075.stdout.trim() === "t" ? "t" : "f";
+  out(`  073 + 074 + 075 + ${TO} postflight: ${pf.stdout === "t" ? "all true" : "FAIL"}`);
   const sigStg = signatureDiff(q(remoteEnv, SIGNATURE_SQL), F.expectedTo);
   writeParity(`parity-${TO}-staging.txt`, sigStg);
   out(`  schema parity with repository 001..${TO}: missing ${sigStg.missing.length}, different function bodies ${sigStg.bodies.length}, extra ${sigStg.extra.length}`);

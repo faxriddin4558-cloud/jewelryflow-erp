@@ -15,7 +15,9 @@ select
   -- C. explicit pieces for weight sales
   to_regprocedure('public.rpc_record_weight_sale(uuid,uuid,numeric,numeric,text,text,uuid[])') is not null as weight_sale_piece_ids,
   to_regprocedure('public.rpc_record_weight_sale(uuid,uuid,numeric,numeric,text,text)') is null as old_weight_sale_removed,
-  position('ERR_PIECE_REQUIRED' in pg_get_functiondef('public.rpc_record_weight_sale(uuid,uuid,numeric,numeric,text,text,uuid[])'::regprocedure)) > 0 as ambiguous_cut_refused,
+  -- 076 makes the piece choice optional again (business decision); the refusal is expected only before 076
+  (position('ERR_PIECE_REQUIRED' in pg_get_functiondef('public.rpc_record_weight_sale(uuid,uuid,numeric,numeric,text,text,uuid[])'::regprocedure)) > 0
+     or exists (select 1 from supabase_migrations.schema_migrations where version = '20260101000076')) as ambiguous_cut_refused_or_076,
   not has_function_privilege('authenticated', 'public._goldia_consume_selected_pieces(uuid,uuid,uuid[],numeric,uuid)'::regprocedure, 'EXECUTE') as consume_helper_internal,
   -- contracts of 069/070 preserved
   (select count(*) = 0 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.proname like 'rpc\_%'

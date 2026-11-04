@@ -46,7 +46,8 @@ describe("Goldia 069 — anon/role security hotfix", () => {
     await asAnon();
     await t.expectError(`SELECT public.rpc_get_unified_customer_ledger(null, null)`, "permission denied for function");
     await t.expectError(`SELECT public.rpc_record_weight_sale(p_customer_id := '${custA1}', p_weight_grams := 1, p_client_markup_pct := 10)`, "permission denied for function");
-    await t.expectError(`SELECT public.rpc_reverse_financial_transaction('${custA1}'::uuid, 'x', null)`, "permission denied for function");
+    // 076 dropped the ambiguous (uuid, text, text) overload; the remaining (uuid, text) is still closed to anon
+    await t.expectError(`SELECT public.rpc_reverse_financial_transaction('${custA1}'::uuid, 'x')`, "permission denied for function");
     // No anon-executable SECURITY DEFINER rpc_* remains
     const left = await t.scalar(`(SELECT count(*) FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace
       AND p.prosecdef AND p.proname LIKE 'rpc\\_%' AND has_function_privilege('anon', p.oid, 'EXECUTE'))`);

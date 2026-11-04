@@ -5,6 +5,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const SELLER_ROLE_TOKENS = new Set(["seller", "sales", "sotuvchi"]);
 
+// Director-level roles (the server's assert_erp_permission normalizes these to 'admin'). Actions the database allows
+// only to the director (markup presets, accounting baseline / reclassification, product consignment) are shown only
+// to these roles, so a manager never meets a "permission denied" on a visible button.
+const DIRECTOR_ROLE_TOKENS = new Set(["director", "admin", "owner", "direktor", "rahbar"]);
+export function isDirectorUiRole(role?: string | null): boolean {
+  return DIRECTOR_ROLE_TOKENS.has(String(role ?? "").trim().toLowerCase());
+}
+
 export function isSellerUiRole(role?: string | null): boolean {
   return SELLER_ROLE_TOKENS.has(String(role ?? "").trim().toLowerCase());
 }

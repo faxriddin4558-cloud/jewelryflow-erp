@@ -18,7 +18,7 @@ import {
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 import { ProfitAccountingBanner } from "@/components/sales/ProfitAccountingBanner";
 import { SellerDashboard } from "@/components/sales/SellerDashboard";
-import { fetchManagerAvailableStockGrams, isSellerUiRole } from "@/lib/sales-role-access";
+import { fetchManagerAvailableStockGrams, isDirectorUiRole, isSellerUiRole } from "@/lib/sales-role-access";
 import { useSessionUser } from "@/lib/use-session-user";
 
 
@@ -236,7 +236,7 @@ function CompanyDashboardContent() {
 
       {/* Management Accounting Profit & Loss Banner */}
       {!isSeller && (
-        <ProfitAccountingBanner onDataMutated={loadData} canManageAccounting={!isSeller} />
+        <ProfitAccountingBanner onDataMutated={loadData} canManageAccounting={isDirectorUiRole(currentUser.role)} />
       )}
 
       {/* 2. Key Financial Indicators (6 Master Cards) */}
