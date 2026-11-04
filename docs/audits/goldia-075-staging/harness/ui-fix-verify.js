@@ -37,6 +37,12 @@ const go = async (s, u) => { await s.p.goto(BASE + u, { waitUntil: 'networkidle'
   fs.mkdirSync(SHOTS, { recursive: true });
   const C = creds(); const run = Date.now().toString(36);
   const S = { sellera: { markup: 15, lom: 890000, usd: 12500, w: [5.07, 6.13], sale: [6.13, 12] }, sellerb: { markup: 12, lom: 905000, usd: 12650, w: [4.19, 7.21], sale: [7.21, 14] }, sellerc: { markup: 10, lom: 895000, usd: 12550, w: [4.53, 6.57], sale: [6.57, 13] } };
+  // CBU condition during this run (the dialogs must work although the currency service fails)
+  if (TARGET === 'staging' || process.env.GA_SLOW_CBU) {
+    const t0 = Date.now(); let st = 0;
+    if (TARGET === 'staging') { st = Number(require('child_process').execFileSync('curl', ['-s', '-o', '/dev/null', '-m', '40', '-w', '%{http_code}', BASE + '/api/sales/currency/cbu']).toString().trim()); } else st = 503;
+    T('CBU-state', 'currency (CBU) service fails during the run (503), so the checks run under the F-UI condition', st === 503, 503, { status: st, seconds: ((Date.now() - t0) / 1000).toFixed(1) });
+  }
   // ---------- setup with real JWTs ----------
   const stock0 = (await sel(`manager_vault_account?organization_id=eq.${ORG}&select=s:manager_physical_stock_g,o:current_factory_obligation_g`))[0] || { s: 0, o: 0 };
   const ph0 = {}; for (const t of Object.keys(S)) ph0[t] = Number(((await sel(`seller_gold_accounts?seller_id=eq.${C[t].id}&select=ph:current_physical_stock_g`))[0] || { ph: 0 }).ph);
@@ -106,6 +112,19 @@ const go = async (s, u) => { await s.p.goto(BASE + u, { waitUntil: 'networkidle'
   const mRo = await m.p.locator('[data-testid="pay-lom-rate"]').evaluate((e) => e.readOnly);
   T('MGR-prefill', 'manager payment dialog: official 585 rate 900000 shown within 2.5 s (not delayed by CBU), editable', Number(mLom) === 900000 && !mRo, { lom: 900000, readOnly: false }, { lom: mLom, readOnly: mRo });
   await m.p.getByRole('button', { name: /Bekor Qilish/ }).first().click().catch(() => {});
+  // director payment dialog (desktop): same rule as the manager
+  {
+    const d = await login(br, 'director', { width: 1366, height: 860 });
+    await go(d, '/sales/app/customers');
+    const drow = d.p.locator(`tr:has-text("${S.sellerb.customerName}"), div.rounded-2xl.p-4:has-text("${S.sellerb.customerName}")`).locator('visible=true').first();
+    await drow.locator('button', { hasText: "To'lov" }).locator('visible=true').first().click();
+    await d.p.waitForTimeout(2500);
+    const dLom = await d.p.locator('[data-testid="pay-lom-rate"]').inputValue();
+    const dRo = await d.p.locator('[data-testid="pay-lom-rate"]').evaluate((e) => e.readOnly);
+    await d.p.screenshot({ path: `${SHOTS}/DIR-payment-dialog.png` });
+    T('DIR-prefill', 'director payment dialog: official 585 rate 900000 shown within 2.5 s (not delayed by CBU), editable', Number(dLom) === 900000 && !dRo, { lom: 900000, readOnly: false }, { lom: dLom, readOnly: dRo });
+    await d.ctx.close();
+  }
   for (const tag of ['sellera', 'sellerc', 'sellerb']) {
     const sid = C[tag].id;
     const name = (await sel(`employees?id=eq.${sid}&select=full_name,name`))[0];

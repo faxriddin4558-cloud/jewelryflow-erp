@@ -33,3 +33,30 @@ Tuzatilgan frontend hali staging’da emas (deploy egasi tomonidan). Deploy’da
 ## 2-tuzatish: saqlangan kurslar CBU’ni kutmaydi
 To‘lov oynasi (barcha rollar) va kassa qabuli oynasi saqlangan kurslarni darhol to‘ldiradi; CBU faqat keyin, faqat bo‘sh maydon uchun (menejer/direktor USD, yoki sotuvchida saqlangan USD kursi bo‘lmasa).
 Lokal: sekin CBU bilan **16/16**, oddiy **16/16** (`ui-fix-verify-local-slowcbu-fixed.json`, `ui-fix-verify-local.json`); vitest 355/355; sahifalar regressiyasi 36/36.
+
+## Staging, 2-raund (frontend `fc1a1fa`, 2026-11-04 06:23 UTC) — **18/18 PASS, 0 FAIL, 0.0000 g**
+`evidence/ui-fix-verify-staging-fc1a1fa.json`, skrinshotlar `evidence/ui-fix-screens-staging-fc1a1fa/`. CBU shu vaqtda haqiqatan **503 (6.5 s)**.
+
+| Tekshiruv | Natija |
+|---|---|
+| CBU 503 holati (curl bilan o‘lchandi) | PASS |
+| Server `ERR_RATE_MISMATCH` LOM / USD (o‘zgarmagan) | PASS ×2 |
+| F-UI-1: A desktop / B mobil / C desktop — o‘z kursi, read-only; to‘lov oldindan to‘ldirilganidek | PASS ×6 (4.3276 g / 2 g / 3.2011 g) |
+| F-UI-2: 447 500 so‘m | PASS |
+| Menejer va direktor to‘lov oynasi: rasmiy kurs 900 000 2.5 s ichida, tahrirlanadi | PASS ×2 |
+| F-UI-3: kassa qabuli A, C — USD kursi darhol (12 500 / 12 550), majburiy emas, qiymatlangan gramm ko‘rsatiladi | PASS ×2 |
+| Kassa qabuli A, C, B — topshirilgan gramm = to‘lovdagi gramm, kassa 0 | PASS ×3 |
+| Rekonsilyatsiya: mijoz qarzi, sotuvchi topshirgan/qarzi/kassasi/qo‘ldagi oltini, menejer ombori, zavod majburiyati, menejer so‘m/USD — 22 qator | PASS, **0.0000 g** |
+
+Bir urinish bekor qilindi (yashirilmagan): `evidence/ui-fix-verify-staging-fc1a1fa-run1-cbu-check-invalid.json` — 18/18, lekin `CBU-state` Node fetch proxy’siz darhol xato berdi (-1) va skript buni qabul qildi; tekshiruv curl’ga o‘tkazilib, to‘liq qayta bajarildi.
+
+Tranzaksiyalar (staging, sintetik `GOLDIA-AUDIT-075-A`):
+| Amal | Hujjat | ID |
+|---|---|---|
+| To‘lov A (UI, desktop) 890 000 + $100 + 1.5 g @750 | SETTL-5F8962B7 | `d31d16d1-21bb-41f4-88a2-7132b943ab57` |
+| To‘lov B (UI, mobil) 1 810 000 | SETTL-36E1329A | `3be31f26-de96-4db7-9312-05a255c9ad89` |
+| To‘lov C (UI, desktop) 447 500 + $50 + 2 g @585 | SETTL-18EC7053 | `add7f6dd-5c4c-4e24-94cc-0f0da2cf740e` |
+| Kassa qabuli A / C / B (UI, menejer) | STL-MGR-20261104-B523DC / -05F221 / -3B058F | `2c3c207f-4fbb-41cc-99a5-0ad8227eabda` / `fe9dbd38-fa18-461e-b964-a376c8d21a9d` / `13c259df-449a-495b-8604-331e7400348a` |
+| Tayyorlov savdolari (API, haqiqiy JWT) A / B / C | — | `0a3836ec-aff6-4a3a-929f-1035f9fd4feb` / `1dae9346-79f7-43e5-8709-59fb73cc6244` / `04a112ca-1aed-49d1-a6b7-5309b0ce5c1c` |
+
+Vaqtinchalik `audit.fx075.*` loginlari audit oxirida bloklandi.
