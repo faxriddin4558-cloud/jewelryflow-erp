@@ -9,7 +9,7 @@ const fs = require('fs'); const path = require('path');
 const TARGET = process.env.GA_TARGET || 'local';
 const L = TARGET === 'staging' ? require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib') : require('/home/user/jewelryflow-erp/docs/audits/goldia-075-real-auth/harness/lib');
 const V076 = TARGET !== 'staging' || process.env.GA_SCHEMA === '076';
-const OUT = path.join(__dirname, '..', 'evidence', `stress-${TARGET}-${V076 ? '076' : '075'}.json`);
+const OUT = process.env.GA_OUT || path.join(__dirname, '..', 'evidence', `stress-${TARGET}-${V076 ? '076' : '075'}.json`);
 const C = L.creds(); const ORG = L.ORG;
 const SELLERS = ['sellera', 'sellerb', 'sellerc'];
 const U4 = (x) => Math.round(Number(x) * 1e4); const r4 = (x) => Math.round(Number(x) * 1e4) / 1e4; const N = Number;

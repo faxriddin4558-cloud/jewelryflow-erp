@@ -1,0 +1,415 @@
+{
+ "target": "staging",
+ "run": "mw3t2geg",
+ "results": [
+  {
+   "id": "RC-01",
+   "title": "manager records 1 250 000 UZS capital: manager cash +1 250 000 once",
+   "ok": true,
+   "expected": {
+    "dc": 1250000,
+    "du": 0
+   },
+   "actual": {
+    "ok": true,
+    "id": "5ea85d31-edc0-4b2e-a760-4abc4871d8eb",
+    "dc": 1250000,
+    "du": 0,
+    "amount": 1250000
+   },
+   "at": "2026-11-05T17:14:30.888Z"
+  },
+  {
+   "id": "RC-02",
+   "title": "manager reclassifies it to USD: UZS back to the start, USD +100 (1 250 000 / 12 500)",
+   "ok": true,
+   "expected": {
+    "c": 1802658500,
+    "du": 100
+   },
+   "actual": {
+    "ok": true,
+    "c": 1802658500,
+    "du": 100
+   },
+   "at": "2026-11-05T17:14:32.177Z"
+  },
+  {
+   "id": "RC-03",
+   "title": "document follows the money: amount 100 USD on manager_usd, original kept in reclassified_from_*",
+   "ok": true,
+   "expected": {
+    "amount": 100,
+    "cur": "USD",
+    "from": [
+     1250000,
+     "UZS",
+     "manager_uzs"
+    ]
+   },
+   "actual": {
+    "amount": 100,
+    "cur": "USD",
+    "till": "manager_usd",
+    "from": [
+     1250000,
+     "UZS",
+     "manager_uzs"
+    ]
+   },
+   "at": "2026-11-05T17:14:32.177Z"
+  },
+  {
+   "id": "RC-04",
+   "title": "second reclassification refused (also for the director), vault unchanged",
+   "ok": true,
+   "expected": "refused",
+   "actual": {
+    "err": "Bu operatsiya allaqachon qayta tasniflangan (manager_uzs). Kerak bo'lsa avval bekor qiling",
+    "same": true
+   },
+   "at": "2026-11-05T17:14:33.726Z"
+  },
+  {
+   "id": "RC-05",
+   "title": "manager reverses the reclassified capital: manager UZS and USD exactly as before the capital entry",
+   "ok": true,
+   "expected": {
+    "c": 1802658500,
+    "u": 600
+   },
+   "actual": {
+    "ok": true,
+    "v": {
+     "c": 1802658500,
+     "u": 600
+    },
+    "status": "reversed"
+   },
+   "at": "2026-11-05T17:14:34.981Z"
+  },
+  {
+   "id": "RC-06",
+   "title": "second reversal refused, vault unchanged",
+   "ok": true,
+   "expected": "refused",
+   "actual": {
+    "err": "Ushbu operatsiya allaqachon bekor qilingan"
+   },
+   "at": "2026-11-05T17:14:35.509Z"
+  },
+  {
+   "id": "ID-idmgr-00",
+   "title": "idmgr: synthetic production_manager whose employees.id != auth uid",
+   "ok": true,
+   "expected": "id != uid",
+   "actual": {
+    "id": "8eeb9e49-eb84-4dde-b06e-c5f104d6b318",
+    "user_id": "055ef80f-2d74-4beb-a06c-ae3fa269f1d3",
+    "role": "production_manager",
+    "organization_id": "a5d17075-0000-4000-8000-202611030075"
+   },
+   "at": "2026-11-05T17:14:35.748Z"
+  },
+  {
+   "id": "ID-idmgr-01",
+   "title": "idmgr: records capital; recorded_by = employees.id (not the login id)",
+   "ok": true,
+   "expected": {
+    "recorded_by": "8eeb9e49-eb84-4dde-b06e-c5f104d6b318",
+    "dc": 777000
+   },
+   "actual": {
+    "ok": true,
+    "recorded_by": "8eeb9e49-eb84-4dde-b06e-c5f104d6b318",
+    "dc": 777000,
+    "id": "486014ad-1c35-4d57-be52-1a64e031b8d2"
+   },
+   "at": "2026-11-05T17:14:37.224Z"
+  },
+  {
+   "id": "ID-idmgr-02",
+   "title": "idmgr: reverses it (076: FK error) - reversed_by = employees.id, cash back",
+   "ok": true,
+   "expected": {
+    "reversed_by": "8eeb9e49-eb84-4dde-b06e-c5f104d6b318",
+    "c": 1802658500
+   },
+   "actual": {
+    "ok": true,
+    "status": "reversed",
+    "reversed_by": "8eeb9e49-eb84-4dde-b06e-c5f104d6b318",
+    "c": 1802658500
+   },
+   "at": "2026-11-05T17:14:37.977Z"
+  },
+  {
+   "id": "ID-idmgr-03",
+   "title": "idmgr: reclassify UZS->USD and reverse work; vault back to the start",
+   "ok": true,
+   "expected": {
+    "c": 1802658500,
+    "u": 600
+   },
+   "actual": {
+    "v": {
+     "c": 1802658500,
+     "u": 600
+    }
+   },
+   "at": "2026-11-05T17:14:39.035Z"
+  },
+  {
+   "id": "ID-idmgr-04",
+   "title": "idmgr: period report readable",
+   "ok": true,
+   "expected": true,
+   "actual": true,
+   "at": "2026-11-05T17:14:42.173Z"
+  },
+  {
+   "id": "ID-iddir-00",
+   "title": "iddir: synthetic admin whose employees.id != auth uid",
+   "ok": true,
+   "expected": "id != uid",
+   "actual": {
+    "id": "97927b08-8da0-4ed8-8981-4316221c17c2",
+    "user_id": "d53bb23c-5cdc-44d8-8082-d67f7b153d3e",
+    "role": "admin",
+    "organization_id": "a5d17075-0000-4000-8000-202611030075"
+   },
+   "at": "2026-11-05T17:14:42.430Z"
+  },
+  {
+   "id": "ID-iddir-01",
+   "title": "iddir: records capital; recorded_by = employees.id (not the login id)",
+   "ok": true,
+   "expected": {
+    "recorded_by": "97927b08-8da0-4ed8-8981-4316221c17c2",
+    "dc": 777000
+   },
+   "actual": {
+    "ok": true,
+    "recorded_by": "97927b08-8da0-4ed8-8981-4316221c17c2",
+    "dc": 777000,
+    "id": "bfe86ec9-ee11-4c39-a789-78b560139407"
+   },
+   "at": "2026-11-05T17:14:43.875Z"
+  },
+  {
+   "id": "ID-iddir-02",
+   "title": "iddir: reverses it (076: FK error) - reversed_by = employees.id, cash back",
+   "ok": true,
+   "expected": {
+    "reversed_by": "97927b08-8da0-4ed8-8981-4316221c17c2",
+    "c": 1802658500
+   },
+   "actual": {
+    "ok": true,
+    "status": "reversed",
+    "reversed_by": "97927b08-8da0-4ed8-8981-4316221c17c2",
+    "c": 1802658500
+   },
+   "at": "2026-11-05T17:14:44.610Z"
+  },
+  {
+   "id": "ID-iddir-03",
+   "title": "iddir: reclassify UZS->USD and reverse work; vault back to the start",
+   "ok": true,
+   "expected": {
+    "c": 1802658500,
+    "u": 600
+   },
+   "actual": {
+    "v": {
+     "c": 1802658500,
+     "u": 600
+    }
+   },
+   "at": "2026-11-05T17:14:45.643Z"
+  },
+  {
+   "id": "ID-iddir-04",
+   "title": "iddir: period report readable",
+   "ok": true,
+   "expected": true,
+   "actual": true,
+   "at": "2026-11-05T17:14:48.740Z"
+  },
+  {
+   "id": "RB-01",
+   "title": "continuity: closing of 05.10-04.11 = opening of 05.11 for every balance",
+   "ok": true,
+   "expected": 0,
+   "actual": {
+    "keys": 10,
+    "diff": []
+   },
+   "at": "2026-11-05T17:14:58.480Z"
+  },
+  {
+   "id": "RB-02",
+   "title": "opening(05.10..05.11) = opening(05.10..04.11) and closing(05.10..05.11) = closing(05.11)",
+   "ok": true,
+   "expected": 0,
+   "actual": [],
+   "at": "2026-11-05T17:14:58.480Z"
+  },
+  {
+   "id": "RB-03",
+   "title": "additivity: every flow of 05.10..05.11 = flow of 05.10..04.11 + flow of 05.11 (both ends inclusive, no double count)",
+   "ok": true,
+   "expected": 0,
+   "actual": {
+    "kinds": 26,
+    "bad": []
+   },
+   "at": "2026-11-05T17:14:58.481Z"
+  },
+  {
+   "id": "RB-04",
+   "title": "closing on 05.11 (today) = live database balances (customer 585 g / UZS / USD, seller stock, manager cash)",
+   "ok": true,
+   "expected": {
+    "usd": 27632.3,
+    "uzs": 241334664.1,
+    "g": 3583.7629,
+    "stock": 1073.8977,
+    "mgr_uzs": 1802658500,
+    "mgr_usd": 600
+   },
+   "actual": {
+    "usd": 27632.3,
+    "uzs": 241334664.1,
+    "g": 3583.7629,
+    "stock": 1073.8977,
+    "mgr_uzs": 1802658500,
+    "mgr_usd": 600
+   },
+   "at": "2026-11-05T17:14:59.736Z"
+  },
+  {
+   "id": "RB-05",
+   "title": "previous month 05.09-04.10 (before the first document of this org): no flows, opening = closing",
+   "ok": true,
+   "expected": {
+    "flows": 0
+   },
+   "actual": {
+    "flows": [],
+    "firstDoc": "2026-11-03"
+   },
+   "at": "2026-11-05T17:15:05.581Z"
+  },
+  {
+   "id": "RB-06",
+   "title": "next month 06.11-05.12 (future): refused clearly or empty and = today",
+   "ok": true,
+   "expected": "refused or empty",
+   "actual": {
+    "flows": []
+   },
+   "at": "2026-11-05T17:15:05.581Z"
+  },
+  {
+   "id": "RB-07",
+   "title": "every sale: sale_date = Asia/Tashkent date of created_at (UTC 19:00-24:00 belongs to the next day)",
+   "ok": true,
+   "expected": 0,
+   "actual": {
+    "sales": 1122,
+    "utc_after_19h": 0,
+    "bad": []
+   },
+   "at": "2026-11-05T17:15:06.335Z"
+  },
+  {
+   "id": "RB-08",
+   "title": "sales count per business date: report = database (2026-11-03, 2026-11-04, 2026-11-05)",
+   "ok": true,
+   "expected": 0,
+   "actual": [],
+   "at": "2026-11-05T17:15:15.218Z"
+  },
+  {
+   "id": "UI-D-01",
+   "title": "director on a 390 px phone: simple panel, capital entry visible, no horizontal overflow, no API errors",
+   "ok": true,
+   "expected": {
+    "panel": 1,
+    "overflow": 0,
+    "errors": []
+   },
+   "actual": {
+    "panel": 1,
+    "cards": 7,
+    "capitalButtons": 2,
+    "overflow": 0,
+    "errors": []
+   },
+   "at": "2026-11-05T17:15:29.349Z"
+  }
+ ],
+ "ops": [
+  {
+   "op": "capital_in",
+   "by": "manager",
+   "id": "5ea85d31-edc0-4b2e-a760-4abc4871d8eb",
+   "before": {
+    "c": 1802658500,
+    "u": 600
+   },
+   "after": {
+    "c": 1803908500,
+    "u": 600
+   }
+  },
+  {
+   "op": "reclassify",
+   "by": "manager",
+   "id": "5ea85d31-edc0-4b2e-a760-4abc4871d8eb",
+   "before": {
+    "c": 1803908500,
+    "u": 600
+   },
+   "after": {
+    "c": 1802658500,
+    "u": 700
+   },
+   "tx": {
+    "amount_num": 100,
+    "currency": "USD",
+    "till": "manager_usd"
+   }
+  },
+  {
+   "op": "reverse",
+   "by": "manager",
+   "id": "5ea85d31-edc0-4b2e-a760-4abc4871d8eb",
+   "before": {
+    "c": 1802658500,
+    "u": 700
+   },
+   "after": {
+    "c": 1802658500,
+    "u": 600
+   }
+  },
+  {
+   "op": "id_diff_reverse",
+   "who": "idmgr",
+   "emp": "8eeb9e49-eb84-4dde-b06e-c5f104d6b318",
+   "uid": "055ef80f-2d74-4beb-a06c-ae3fa269f1d3",
+   "tx": "486014ad-1c35-4d57-be52-1a64e031b8d2",
+   "ok": true
+  },
+  {
+   "op": "id_diff_reverse",
+   "who": "iddir",
+   "emp": "97927b08-8da0-4ed8-8981-4316221c17c2",
+   "uid": "d53bb23c-5cdc-44d8-8082-d67f7b153d3e",
+   "tx": "bfe86ec9-ee11-4c39-a789-78b560139407",
+   "ok": true
+  }
+ ]
+}

@@ -1,0 +1,9 @@
+host https://jewelryflow-sales-staging.vercel.app | /api/version c1a1d09 c1a1d09f283b81ec9c281c8ade0b52f3bdd0870c staging vouehtlmsunebracahon | js chunks 25
+FOUND   weight sale piece optional (076)
+FOUND   seller legacy note (076)
+FOUND   sale pricing UZS/USD (077)
+FOUND   currency payment modal (077)
+FOUND   simple panel (077)
+FOUND   period report link (077)
+absent  OLD 075 piece required text
+literal "da6e930" occurrences in client JS: 0

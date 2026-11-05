@@ -57,7 +57,9 @@ const P = {
   rpc_update_factory_settings: {},
   // reports
   rpc_get_period_report: { p_from: today, p_to: today },
-  rpc_close_report_period: { p_end: '2000-01-31' },
+  // a future end date passes the permission check and is then refused ("bugundan keyin"): the probe stores nothing.
+  // (The first version used 2000-01-31, which really stored a period in the synthetic orgs - finding F77-11.)
+  rpc_close_report_period: { p_end: '2099-12-31' },
   rpc_get_director_sales_overview: {},
   rpc_get_seller_sales_summary: {},
   rpc_get_accounting_profit_summary: {},

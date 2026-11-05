@@ -3,7 +3,7 @@
 // (directorB / managerB / sellerB1) only. Ground truth: service-role reads. Nothing from before 076 is reused.
 const fs = require('fs'); const path = require('path');
 const L = require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib');
-const OUT = path.join(__dirname, '..', 'evidence', 'staging-076-api.json');
+const OUT = process.env.GA_OUT || path.join(__dirname, '..', 'evidence', 'staging-076-api.json');
 const C = L.creds(); const ORG = L.ORG; const N = Number;
 const U4 = (x) => Math.round(N(x) * 1e4); const r4 = (x) => Math.round(N(x) * 1e4) / 1e4;
 const dh = (n, d) => Math.floor((2 * n + d) / (2 * d)); const dueOf = (w, m) => dh(U4(w) * (100 + m), 100) / 1e4;

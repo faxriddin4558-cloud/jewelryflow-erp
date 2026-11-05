@@ -7,7 +7,7 @@ const TARGET = process.env.GA_TARGET || 'local';
 const L = TARGET === 'staging' ? require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib') : require('/home/user/jewelryflow-erp/docs/audits/goldia-075-real-auth/harness/lib');
 const BASE = TARGET === 'staging' ? 'https://jewelryflow-sales-staging.vercel.app' : 'http://127.0.0.1:3300';
 const API_HOST = TARGET === 'staging' ? 'vouehtlmsunebracahon.supabase.co' : '127.0.0.1:54321';
-const OUT = path.join(__dirname, '..', 'evidence', `${TARGET}-ui-076.json`);
+const OUT = process.env.GA_OUT || path.join(__dirname, '..', 'evidence', `${TARGET}-ui-076.json`);
 const SHOTS = path.join(__dirname, '..', 'evidence', `${TARGET}-ui-076-screens`);
 const R = []; const T = (id, title, ok, exp, act) => { R.push({ id, title, ok: !!ok, expected: exp, actual: act }); console.log(`${ok ? 'PASS' : 'FAIL'} ${id} ${title} | exp=${JSON.stringify(exp)} act=${JSON.stringify(act).slice(0, 220)}`); };
 const N = Number; const r4 = (x) => Math.round(N(x) * 1e4) / 1e4;
