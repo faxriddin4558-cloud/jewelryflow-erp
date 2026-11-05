@@ -1,0 +1,1778 @@
+-- ROLLBACK of 077. Refused while UZS / USD sales or currency payments exist (their currency debts would be lost);
+-- reverse them first. Restores the 076 function bodies and policies, drops the 077 objects. Keeps the history row
+-- (like the other supabase/rollback files; the emergency variant removes it).
+do $guard$
+begin
+  if exists (select 1 from public.jewelry_sales where coalesce(sale_currency, 'XAU585') <> 'XAU585' and status not in ('reversed', 'cancelled'))
+     or exists (select 1 from public.client_currency_settlements where status <> 'reversed')
+     or exists (select 1 from public.client_currency_accounts where debt_amount <> 0 or advance_amount <> 0) then
+    raise exception 'ROLLBACK 077 REFUSED: active UZS / USD sales, payments or currency balances exist';
+  end if;
+end $guard$;
+
+CREATE OR REPLACE FUNCTION public.rpc_archive_customer(p_customer_id uuid, p_archive boolean DEFAULT true)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org uuid := public.current_organization_id();
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array['admin', 'director', 'owner', 'direktor', 'rahbar']);
+
+  update public.customers
+     set is_archived = p_archive,
+         updated_at = now()
+   where id = p_customer_id and organization_id = v_caller_org;
+
+  if not found then
+    raise exception 'Mijoz topilmadi: %', p_customer_id;
+  end if;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'customer_id', p_customer_id,
+    'is_archived', p_archive
+  );
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_confirm_accounting_baseline(p_notes text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text, p_usd_rate numeric DEFAULT NULL::numeric)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_org_id                 uuid := public.current_organization_id();
+  v_caller_emp_id          uuid := public.current_employee_id();
+  v_today                  date := (timezone('Asia/Tashkent', now()))::date;
+  v_rate_585               numeric(18, 2);
+  v_rate_usd               numeric(18, 2);
+  v_mgr_finished_g         numeric(14, 4);
+  v_mgr_scrap_585_eq_g     numeric(14, 4);
+  v_mgr_refined_g          numeric(14, 4);
+  v_mgr_capital_pure_g     numeric(14, 4);
+  v_mgr_purchased_g        numeric(14, 4);
+  v_mgr_cash_uzs           numeric(18, 2);
+  v_mgr_cash_usd           numeric(18, 2);
+  v_seller_finished_g      numeric(14, 4);
+  v_seller_scrap_585_eq_g  numeric(14, 4);
+  v_seller_cash_uzs        numeric(18, 2);
+  v_seller_cash_usd        numeric(18, 2);
+  v_refining_wip_g         numeric(14, 4);
+  v_cash_uzs_total         numeric(18, 2);
+  v_cash_usd_total         numeric(18, 2);
+  v_cash_uzs_585_eq_g      numeric(14, 4);
+  v_cash_usd_585_eq_g      numeric(14, 4);
+  v_customer_debts_g       numeric(14, 4);
+  v_customer_advances_g    numeric(14, 4);
+  v_factory_rcp_g          numeric(14, 4);
+  v_factory_hnd_g          numeric(14, 4);
+  v_net_factory_g          numeric(14, 4);
+  v_factory_obligation_g   numeric(14, 4);
+  v_factory_advance_g      numeric(14, 4);
+  v_total_assets_g         numeric(14, 4);
+  v_total_liabilities_g    numeric(14, 4);
+  v_net_assets_g           numeric(14, 4);
+  v_baseline_no            text;
+  v_baseline_id            uuid;
+  v_snapshot               jsonb;
+  v_payload                jsonb;
+  v_existing               jsonb;
+begin
+  if v_org_id is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar'
+  ]);
+
+  if v_caller_emp_id is null then
+    select id into v_caller_emp_id from public.employees where user_id = auth.uid() and organization_id = v_org_id limit 1;
+  end if;
+
+  select rate_per_gram into v_rate_585
+    from public.daily_gold_rates
+   where organization_id = v_org_id
+     and proba = 585
+     and rate_date = v_today
+     and is_confirmed = true
+   order by created_at desc
+   limit 1;
+
+  if v_rate_585 is null or v_rate_585 <= 0 then
+    raise exception 'ERR_DAILY_RATE_NOT_SET: Boshlang''ich hisobni tasdiqlash uchun bugungi (% sanadagi) tasdiqlangan 585 oltin kursi kiritilishi shart', v_today
+      using errcode = '22023';
+  end if;
+
+  v_payload := jsonb_build_object('action', 'confirm_accounting_baseline', 'org_id', v_org_id);
+  v_existing := public.check_and_lock_idempotency(p_idempotency_key, 'rpc_confirm_accounting_baseline', v_payload);
+  if v_existing is not null then
+    return v_existing;
+  end if;
+
+  perform public._get_or_create_manager_vault(v_org_id);
+  select coalesce(sum(available_physical_g), 0) into v_mgr_finished_g
+  from public.factory_receipts
+  where organization_id = v_org_id and status <> 'reversed';
+
+  select coalesce(manager_scrap_585_eq_g, manager_scrap_grams, 0),
+         coalesce(manager_refined_gold_grams, 0),
+         coalesce(manager_capital_pure_gold_g, 0),
+         coalesce(manager_purchased_gold_grams, 0),
+         coalesce(manager_cash_amount, 0),
+         coalesce(manager_usd_amount, 0)
+    into v_mgr_scrap_585_eq_g, v_mgr_refined_g, v_mgr_capital_pure_g, v_mgr_purchased_g, v_mgr_cash_uzs, v_mgr_cash_usd
+    from public.manager_vault_account
+   where organization_id = v_org_id;
+
+  select coalesce(sum(coalesce(input_585_equiv_grams, input_scrap_grams * (coalesce(input_scrap_proba, 585.0) / 585.0))), 0)
+    into v_refining_wip_g
+    from public.refining_batches
+   where organization_id = v_org_id and status in ('pending', 'in_progress');
+
+  select coalesce(sum(public.get_seller_available_stock_grams(seller_id)), 0),
+         coalesce(sum(coalesce(seller_till_scrap_585_eq_g, seller_till_scrap_grams, 0)), 0),
+         coalesce(sum(seller_till_cash_amount), 0),
+         coalesce(sum(coalesce(seller_till_usd_amount, 0)), 0)
+    into v_seller_finished_g, v_seller_scrap_585_eq_g, v_seller_cash_uzs, v_seller_cash_usd
+    from public.seller_gold_accounts
+   where organization_id = v_org_id;
+
+  v_cash_uzs_total := round(v_mgr_cash_uzs + v_seller_cash_uzs, 2);
+  v_cash_usd_total := round(v_mgr_cash_usd + v_seller_cash_usd, 2);
+
+  if v_cash_usd_total > 0 then
+    if p_usd_rate is not null and p_usd_rate > 0 then
+      v_rate_usd := round(p_usd_rate::numeric, 2);
+    else
+      raise exception 'ERR_USD_RATE_NOT_SET: Kassalarda dollar (USD) mavjud, boshlang''ich hisob uchun tasdiqlangan USD kursi kiritilishi shart'
+        using errcode = '22023';
+    end if;
+  else
+    v_rate_usd := coalesce(p_usd_rate, 1.0);
+  end if;
+
+  select coalesce(sum(current_debt_grams), 0),
+         coalesce(sum(advance_balance_grams), 0)
+    into v_customer_debts_g, v_customer_advances_g
+    from public.client_gold_accounts
+   where organization_id = v_org_id;
+
+  v_cash_uzs_585_eq_g := round((v_cash_uzs_total / v_rate_585)::numeric, 4);
+  if v_cash_usd_total > 0 and v_rate_usd > 0 then
+    v_cash_usd_585_eq_g := round(((v_cash_usd_total * v_rate_usd) / v_rate_585)::numeric, 4);
+  else
+    v_cash_usd_585_eq_g := 0;
+  end if;
+
+  -- Factory net balance: receipts vs handovers
+  select coalesce(sum(factory_obligation_g), 0) into v_factory_rcp_g
+  from public.factory_receipts
+  where organization_id = v_org_id and status <> 'reversed';
+
+  select coalesce(sum(agreed_equivalent_g), 0) into v_factory_hnd_g
+  from public.factory_gold_handovers
+  where organization_id = v_org_id and status <> 'reversed';
+
+  v_net_factory_g := v_factory_rcp_g - v_factory_hnd_g;
+  if v_net_factory_g >= 0 then
+    v_factory_obligation_g := round(v_net_factory_g, 4);
+    v_factory_advance_g := 0;
+  else
+    v_factory_obligation_g := 0;
+    v_factory_advance_g := round(abs(v_net_factory_g), 4);
+  end if;
+
+  -- Total Assets includes factory advance gold as enterprise asset!
+  v_total_assets_g := round(
+    v_mgr_finished_g + v_seller_finished_g +
+    v_mgr_scrap_585_eq_g + v_seller_scrap_585_eq_g +
+    v_mgr_refined_g + v_mgr_capital_pure_g + v_mgr_purchased_g +
+    v_refining_wip_g +
+    v_customer_debts_g +
+    v_cash_uzs_585_eq_g + v_cash_usd_585_eq_g +
+    v_factory_advance_g,
+    4
+  );
+
+  v_total_liabilities_g := round(v_factory_obligation_g + v_customer_advances_g, 4);
+  v_net_assets_g := round(v_total_assets_g - v_total_liabilities_g, 4);
+
+  update public.accounting_baselines
+     set status = 'archived'
+   where organization_id = v_org_id and status = 'active';
+
+  v_baseline_no := 'BASE-' || to_char(v_today, 'YYYYMMDD') || '-' || upper(substr(gen_random_uuid()::text, 1, 6));
+
+  v_snapshot := jsonb_build_object(
+    'gold_rate_585', v_rate_585,
+    'usd_rate', v_rate_usd,
+    'rate_date', v_today,
+    'manager_finished_g', v_mgr_finished_g,
+    'seller_finished_g', v_seller_finished_g,
+    'manager_scrap_585_eq_g', v_mgr_scrap_585_eq_g,
+    'seller_scrap_585_eq_g', v_seller_scrap_585_eq_g,
+    'manager_refined_gold_g', v_mgr_refined_g,
+    'manager_capital_pure_gold_g', v_mgr_capital_pure_g,
+    'manager_purchased_gold_g', v_mgr_purchased_g,
+    'refining_wip_585_g', v_refining_wip_g,
+    'customer_debts_585_g', v_customer_debts_g,
+    'customer_advances_585_g', v_customer_advances_g,
+    'cash_uzs_total', v_cash_uzs_total,
+    'cash_uzs_585_eq_g', v_cash_uzs_585_eq_g,
+    'cash_usd_total', v_cash_usd_total,
+    'cash_usd_585_eq_g', v_cash_usd_585_eq_g,
+    'factory_obligation_585_g', v_factory_obligation_g,
+    'factory_advance_585_g', v_factory_advance_g,
+    'total_assets_585_g', v_total_assets_g,
+    'total_liabilities_585_g', v_total_liabilities_g,
+    'net_assets_585_g', v_net_assets_g
+  );
+
+  insert into public.accounting_baselines (
+    organization_id, baseline_no, baseline_date, confirmed_by, status, notes,
+    gold_rate_585, usd_rate,
+    manager_finished_g, seller_finished_g,
+    manager_scrap_585_eq_g, seller_scrap_585_eq_g,
+    manager_refined_gold_g, manager_purchased_gold_g,
+    customer_debts_585_g, cash_uzs_amount, cash_uzs_585_eq_g,
+    cash_usd_amount, cash_usd_585_eq_g,
+    total_assets_585_g, factory_obligation_585_g, factory_advance_585_g,
+    customer_advances_585_g, total_liabilities_585_g,
+    net_assets_585_g, components_snapshot
+  ) values (
+    v_org_id, v_baseline_no, now(), v_caller_emp_id, 'active', p_notes,
+    v_rate_585, v_rate_usd,
+    v_mgr_finished_g, v_seller_finished_g,
+    v_mgr_scrap_585_eq_g, v_seller_scrap_585_eq_g,
+    v_mgr_refined_g, v_mgr_purchased_g,
+    v_customer_debts_g, v_cash_uzs_total, v_cash_uzs_585_eq_g,
+    v_cash_usd_total, v_cash_usd_585_eq_g,
+    v_total_assets_g, v_factory_obligation_g, v_factory_advance_g,
+    v_customer_advances_g, v_total_liabilities_g,
+    v_net_assets_g, v_snapshot
+  ) returning id into v_baseline_id;
+
+  v_existing := jsonb_build_object(
+    'status', 'ok',
+    'baseline_id', v_baseline_id,
+    'baseline_no', v_baseline_no,
+    'baseline_date', v_today,
+    'gold_rate_585', v_rate_585,
+    'usd_rate', v_rate_usd,
+    'total_assets_585_g', v_total_assets_g,
+    'factory_obligation_585_g', v_factory_obligation_g,
+    'factory_advance_585_g', v_factory_advance_g,
+    'total_liabilities_585_g', v_total_liabilities_g,
+    'net_assets_585_g', v_net_assets_g,
+    'snapshot', v_snapshot
+  );
+
+  perform public.save_idempotency_response(p_idempotency_key, 'rpc_confirm_accounting_baseline', v_existing, v_payload);
+  return v_existing;
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_get_director_sales_overview()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org        uuid := public.current_organization_id();
+  v_total_consign_w   numeric(14, 4);
+  v_total_factory_due numeric(14, 4);
+  v_total_cli_debt    numeric(14, 4);
+  v_total_till_scrap  numeric(14, 4);
+  v_total_till_cash   numeric(18, 2);
+  v_latest_rate       numeric(18, 2);
+  v_rate_date         date;
+  v_sellers_list      jsonb;
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar', 'accountant', 'buxgalter'
+  ]);
+
+  select rate_per_gram, rate_date
+    into v_latest_rate, v_rate_date
+    from public.daily_gold_rates
+   where organization_id = v_caller_org
+   order by rate_date desc, created_at desc
+   limit 1;
+
+  select
+    coalesce(sum(current_factory_obligation_grams), 0),
+    coalesce(sum(total_consigned_gold_grams), 0),
+    coalesce(sum(seller_till_scrap_grams), 0),
+    coalesce(sum(seller_till_cash_amount), 0),
+    coalesce(sum(total_client_debt_grams), 0)
+  into
+    v_total_factory_due,
+    v_total_consign_w,
+    v_total_till_scrap,
+    v_total_till_cash,
+    v_total_cli_debt
+  from public.seller_gold_accounts
+  where organization_id = v_caller_org;
+
+  select jsonb_agg(jsonb_build_object(
+    'seller_id', e.id,
+    'full_name', coalesce(e.full_name, e.first_name || ' ' || e.last_name, e.email),
+    'factory_obligation_grams', coalesce(sga.current_factory_obligation_grams, 0),
+    'seller_till_scrap_grams', coalesce(sga.seller_till_scrap_grams, 0),
+    'seller_till_cash_amount', coalesce(sga.seller_till_cash_amount, 0),
+    'client_debt_grams', coalesce(sga.total_client_debt_grams, 0)
+  ))
+  into v_sellers_list
+  from public.employees e
+  left join public.seller_gold_accounts sga on sga.seller_id = e.id
+  where e.organization_id = v_caller_org
+    and lower(coalesce(e.role_type, e.role::text, '')) in ('sales', 'seller', 'sotuvchi', 'manager', 'production_manager', 'director', 'admin');
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'latest_rate_per_gram', coalesce(v_latest_rate, 0),
+    'rate_date', v_rate_date,
+    'total_factory_obligation_grams', v_total_factory_due,
+    'total_consigned_grams', v_total_consign_w,
+    'total_seller_till_scrap_grams', v_total_till_scrap,
+    'total_seller_till_cash_amount', v_total_till_cash,
+    'total_client_debt_grams', v_total_cli_debt,
+    'sellers', coalesce(v_sellers_list, '[]'::jsonb)
+  );
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_issue_seller_consignment(p_seller_id uuid, p_product_id uuid, p_quantity integer DEFAULT 1, p_factory_markup_pct numeric DEFAULT 0, p_notes text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org    uuid := public.current_organization_id();
+  v_prod          public.products%rowtype;
+  v_seller        public.employees%rowtype;
+  v_qty           integer := coalesce(p_quantity, 1);
+  v_markup_pct    numeric(6, 2) := round(coalesce(p_factory_markup_pct, 0)::numeric, 2);
+  v_base_w        numeric(14, 4);
+  v_factory_due   numeric(14, 4);
+  v_consignment_id uuid;
+  v_consignment_no text;
+  v_cur_stock     integer;
+  v_payload       jsonb;
+  v_existing      jsonb;
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar', 'accountant', 'buxgalter', 'warehouse', 'omborchi'
+  ]);
+
+  if v_qty <= 0 then
+    raise exception 'Consignment quantity must be greater than 0';
+  end if;
+  if v_markup_pct < 0 then
+    raise exception 'Factory markup percentage cannot be negative';
+  end if;
+
+  v_payload := jsonb_build_object(
+    'action', 'issue_consignment',
+    'seller_id', p_seller_id,
+    'product_id', p_product_id,
+    'quantity', v_qty,
+    'factory_markup_pct', v_markup_pct
+  );
+  v_existing := public.check_and_lock_idempotency(p_idempotency_key, 'rpc_issue_seller_consignment', v_payload);
+  if v_existing is not null then
+    return v_existing;
+  end if;
+
+  -- Verify seller
+  select * into v_seller
+    from public.employees
+   where id = p_seller_id
+     and organization_id = v_caller_org
+   limit 1;
+  if not found then
+    raise exception 'Seller (employee %) not found in your organization', p_seller_id;
+  end if;
+
+  -- Lock product and verify stock
+  select * into v_prod
+    from public.products
+   where id = p_product_id
+     and organization_id = v_caller_org
+   for update;
+  if not found then
+    raise exception 'Product (%) not found in finished goods inventory', p_product_id;
+  end if;
+
+  v_cur_stock := coalesce(v_prod.stock, v_prod.quantity, 0);
+  if v_qty > v_cur_stock then
+    raise exception 'Insufficient stock for "%": available=%, requested=%', v_prod.name, v_cur_stock, v_qty;
+  end if;
+
+  -- Total base weight for given quantity
+  v_base_w := round((coalesce(v_prod.weight, 0) * v_qty)::numeric, 4);
+  if v_base_w <= 0 then
+    raise exception 'Product weight must be greater than 0 for gold consignment';
+  end if;
+
+  -- Non-compounding: Factory gold due = base_weight * (1 + factory_markup / 100)
+  v_factory_due := round((v_base_w * (1.0 + v_markup_pct / 100.0))::numeric, 4);
+
+  -- Deduct product stock from factory vitrina
+  update public.products
+     set stock      = v_cur_stock - v_qty,
+         quantity   = v_cur_stock - v_qty,
+         updated_at = now()
+   where id = v_prod.id;
+
+  v_consignment_no := 'CONS-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 8));
+
+  insert into public.seller_consignments (
+    organization_id, consignment_no, seller_id, product_id, product_name,
+    quantity, base_weight_grams, proba, factory_markup_pct,
+    factory_gold_due_grams, factory_settled_gold_grams, factory_remaining_gold_grams,
+    sold_quantity, status, idempotency_key, notes
+  ) values (
+    v_caller_org, v_consignment_no, v_seller.id, v_prod.id, v_prod.name,
+    v_qty, v_base_w, coalesce(v_prod.proba, 585), v_markup_pct,
+    v_factory_due, 0, v_factory_due,
+    0, 'held_by_seller', nullif(btrim(p_idempotency_key), ''), p_notes
+  ) returning id into v_consignment_id;
+
+  -- Update seller factory obligation in seller_gold_accounts
+  insert into public.seller_gold_accounts (
+    seller_id, organization_id, total_consigned_gold_grams, current_factory_obligation_grams, updated_at
+  ) values (
+    v_seller.id, v_caller_org, v_factory_due, v_factory_due, now()
+  )
+  on conflict (seller_id) do update set
+    total_consigned_gold_grams       = round((seller_gold_accounts.total_consigned_gold_grams + v_factory_due)::numeric, 4),
+    current_factory_obligation_grams = round((seller_gold_accounts.current_factory_obligation_grams + v_factory_due)::numeric, 4),
+    updated_at                       = now();
+
+  v_existing := jsonb_build_object(
+    'status', 'ok',
+    'consignment_id', v_consignment_id,
+    'consignment_no', v_consignment_no,
+    'seller_id', v_seller.id,
+    'product_name', v_prod.name,
+    'quantity', v_qty,
+    'base_weight_grams', v_base_w,
+    'proba', coalesce(v_prod.proba, 585),
+    'factory_markup_pct', v_markup_pct,
+    'factory_gold_due_grams', v_factory_due,
+    'remaining_stock', v_cur_stock - v_qty
+  );
+
+  perform public.save_idempotency_response(p_idempotency_key, 'rpc_issue_seller_consignment', v_existing, v_payload);
+  return v_existing;
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_manage_sales_markup_preset(p_preset_id uuid DEFAULT NULL::uuid, p_type text DEFAULT 'client_markup'::text, p_name text DEFAULT ''::text, p_percentage numeric DEFAULT 0, p_is_active boolean DEFAULT true, p_is_default boolean DEFAULT false, p_display_order integer DEFAULT 0)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org   uuid := public.current_organization_id();
+  v_res_id       uuid;
+  v_type         text := lower(btrim(coalesce(p_type, 'client_markup')));
+  v_pct          numeric(6, 2) := round(coalesce(p_percentage, 0)::numeric, 2);
+  v_clean_name   text := btrim(coalesce(p_name, ''));
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array['admin', 'director', 'owner', 'direktor', 'rahbar']);
+
+  if v_type not in ('factory_markup', 'client_markup') then
+    raise exception 'Invalid markup type: must be "factory_markup" or "client_markup"';
+  end if;
+  if v_pct < 0 or v_pct > 100 then
+    raise exception 'Percentage must be between 0 and 100';
+  end if;
+  if v_clean_name = '' then
+    v_clean_name := case when v_type = 'factory_markup' then 'Zavod ' else 'Mijoz ' end || v_pct || '%';
+  end if;
+
+  if p_is_default then
+    -- Reset previous default for this org and type
+    update public.sales_markup_presets
+       set is_default = false
+     where organization_id = v_caller_org
+       and type = v_type;
+  end if;
+
+  if p_preset_id is not null then
+    update public.sales_markup_presets
+       set name          = v_clean_name,
+           percentage    = v_pct,
+           is_active     = coalesce(p_is_active, is_active),
+           is_default    = coalesce(p_is_default, is_default),
+           display_order = coalesce(p_display_order, display_order),
+           updated_at    = now()
+     where id = p_preset_id
+       and organization_id = v_caller_org
+     returning id into v_res_id;
+  else
+    insert into public.sales_markup_presets (
+      organization_id, type, name, percentage, is_active, is_default, display_order
+    ) values (
+      v_caller_org, v_type, v_clean_name, v_pct, coalesce(p_is_active, true), coalesce(p_is_default, false), coalesce(p_display_order, 0)
+    )
+    on conflict (organization_id, type, percentage)
+    do update set
+      name          = excluded.name,
+      is_active     = excluded.is_active,
+      is_default    = excluded.is_default,
+      display_order = excluded.display_order,
+      updated_at    = now()
+    returning id into v_res_id;
+  end if;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'preset_id', v_res_id,
+    'type', v_type,
+    'name', v_clean_name,
+    'percentage', v_pct,
+    'is_active', coalesce(p_is_active, true),
+    'is_default', coalesce(p_is_default, false)
+  );
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_reclassify_capital_transaction(p_transaction_id uuid, p_new_destination text, p_reason text, p_new_proba numeric DEFAULT NULL::numeric, p_seller_id uuid DEFAULT NULL::uuid, p_model_id uuid DEFAULT NULL::uuid, p_product_name text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_org_id          uuid := public.current_organization_id();
+  v_caller_emp_id   uuid := public.current_employee_id();
+  v_tx              public.financial_transactions%rowtype;
+  v_today           date := (timezone('Asia/Tashkent', now()))::date;
+  v_dest            text := lower(btrim(p_new_destination));
+  v_equiv_585       numeric(14, 4);
+  v_fine_g          numeric(14, 4);
+  v_phys_w          numeric(14, 4);
+  v_proba           numeric(6, 2);
+  v_rec_no          text;
+  v_receipt_id      uuid;
+  v_vault           public.manager_vault_account%rowtype;
+begin
+  if v_org_id is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar'
+  ]);
+
+  if v_caller_emp_id is null then
+    select id into v_caller_emp_id from public.employees where user_id = auth.uid() and organization_id = v_org_id limit 1;
+  end if;
+
+  if p_reason is null or length(btrim(p_reason)) < 3 then
+    raise exception 'ERR_REASON_REQUIRED: Qayta tasniflash sababini kiritish shart' using errcode = '22023';
+  end if;
+
+  select * into v_tx
+    from public.financial_transactions
+   where id = p_transaction_id and organization_id = v_org_id
+     for update;
+
+  if not found then
+    raise exception 'Operatsiya topilmadi (%)', p_transaction_id;
+  end if;
+
+  if v_tx.status = 'reversed' then
+    raise exception 'Bekor qilingan operatsiyani qayta tasniflab bo''lmaydi';
+  end if;
+
+  if v_tx.transaction_type not in ('capital_contribution', 'capital_in') then
+    raise exception 'Faqat ta''sischi kapital operatsiyalarini qayta tasniflash mumkin';
+  end if;
+
+  perform public._get_or_create_manager_vault(v_org_id);
+  select * into v_vault from public.manager_vault_account where organization_id = v_org_id for update;
+
+  v_equiv_585 := v_tx.equiv_585_grams;
+
+  -- 1. Reverse old allocation
+  if v_tx.source_till = 'manager_vault_gold' then
+    if v_vault.manager_refined_gold_grams < v_equiv_585 then
+      raise exception 'Seyfda yetarli afinaj oltin mavjud emas qaytarish uchun';
+    end if;
+    update public.manager_vault_account
+       set manager_refined_gold_grams = round(manager_refined_gold_grams - v_equiv_585, 4),
+           manager_refined_gold_fine_grams = round(greatest(0, coalesce(manager_refined_gold_fine_grams, 0) - (v_equiv_585 * 0.585)), 4),
+           updated_at = now()
+     where organization_id = v_org_id;
+
+  elsif v_tx.source_till in ('manager_scrap', 'scrap_gold') then
+    update public.manager_vault_account
+       set manager_scrap_585_eq_g = round(greatest(0, manager_scrap_585_eq_g - v_equiv_585), 4),
+           manager_scrap_grams = round(greatest(0, manager_scrap_grams - v_equiv_585), 4),
+           manager_scrap_physical_g = round(greatest(0, manager_scrap_physical_g - coalesce(v_tx.physical_weight_grams, v_equiv_585)), 4),
+           updated_at = now()
+     where organization_id = v_org_id;
+
+  elsif v_tx.source_till in ('manager_fine_gold', 'fine_gold') then
+    update public.manager_vault_account
+       set manager_capital_pure_gold_g = round(greatest(0, manager_capital_pure_gold_g - v_equiv_585), 4),
+           manager_capital_pure_gold_fine_g = round(greatest(0, coalesce(manager_capital_pure_gold_fine_g, 0) - (v_equiv_585 * 0.585)), 4),
+           updated_at = now()
+     where organization_id = v_org_id;
+
+  elsif v_tx.source_till in ('manager_uzs', 'cash_uzs') then
+    update public.manager_vault_account
+       set manager_cash_amount = round(greatest(0, manager_cash_amount - v_tx.amount_num), 2),
+           updated_at = now()
+     where organization_id = v_org_id;
+
+  elsif v_tx.source_till in ('manager_usd', 'cash_usd') then
+    update public.manager_vault_account
+       set manager_usd_amount = round(greatest(0, coalesce(manager_usd_amount, 0) - v_tx.amount_num), 2),
+           updated_at = now()
+     where organization_id = v_org_id;
+  end if;
+
+  -- 2. Apply new allocation
+  if v_dest in ('manager_scrap', 'scrap_gold') then
+    v_proba := coalesce(p_new_proba, 585.0);
+    v_phys_w := round((v_equiv_585 * (585.0 / v_proba))::numeric, 4);
+
+    update public.manager_vault_account
+       set manager_scrap_physical_g = round(manager_scrap_physical_g + v_phys_w, 4),
+           manager_scrap_585_eq_g = round(manager_scrap_585_eq_g + v_equiv_585, 4),
+           manager_scrap_grams = round(manager_scrap_grams + v_equiv_585, 4),
+           updated_at = now()
+     where organization_id = v_org_id;
+
+  elsif v_dest in ('manager_fine_gold', 'fine_gold') then
+    v_proba := coalesce(p_new_proba, 995.0);
+    v_phys_w := round((v_equiv_585 * (585.0 / v_proba))::numeric, 4);
+    v_fine_g := round((v_phys_w * (v_proba / 1000.0))::numeric, 4);
+
+    update public.manager_vault_account
+       set manager_capital_pure_gold_g = round(manager_capital_pure_gold_g + v_equiv_585, 4),
+           manager_capital_pure_gold_fine_g = round(coalesce(manager_capital_pure_gold_fine_g, 0) + v_fine_g, 4),
+           updated_at = now()
+     where organization_id = v_org_id;
+
+  elsif v_dest in ('manager_finished', 'finished_goods') then
+    v_phys_w := v_equiv_585;
+    v_proba := 585.0;
+    v_rec_no := 'CAP-REC-' || to_char(v_today, 'YYYYMMDD') || '-' || upper(substr(gen_random_uuid()::text, 1, 6));
+
+    insert into public.factory_receipts (
+      organization_id, receipt_no, receipt_date, model_id,
+      product_name, proba, quantity, original_physical_g,
+      factory_markup_pct, factory_obligation_g, transferred_physical_g,
+      available_physical_g, status, notes
+    ) values (
+      v_org_id, v_rec_no, v_today, p_model_id,
+      coalesce(p_product_name, 'Kapital Tayyor Mahsulot'), v_proba,
+      1, v_phys_w,
+      0, 0, 0,
+      v_phys_w, 'in_manager_stock',
+      'Audit tahrirlash: ' || p_reason
+    ) returning id into v_receipt_id;
+
+    -- manager_physical_stock_g is synced automatically by trg_sync_manager_vault_receipts
+    update public.manager_vault_account
+       set manager_finished_capital_g = round(manager_finished_capital_g + v_phys_w, 4),
+           updated_at = now()
+     where organization_id = v_org_id;
+
+  elsif v_dest in ('manager_uzs', 'cash_uzs') then
+    update public.manager_vault_account
+       set manager_cash_amount = round(manager_cash_amount + (v_equiv_585 * v_tx.gold_rate_applied), 2),
+           updated_at = now()
+     where organization_id = v_org_id;
+
+  elsif v_dest in ('manager_usd', 'cash_usd') then
+    if coalesce(v_tx.usd_rate_applied, 0) <= 0 then
+      raise exception 'USD kursi mavjud emas qayta tasniflash uchun';
+    end if;
+    update public.manager_vault_account
+       set manager_usd_amount = round(coalesce(manager_usd_amount, 0) + ((v_equiv_585 * v_tx.gold_rate_applied) / v_tx.usd_rate_applied), 2),
+           updated_at = now()
+     where organization_id = v_org_id;
+
+  else
+    raise exception 'ERR_INVALID_DESTINATION: Noma''lum qayta tasniflash joylashuvi: %', v_dest;
+  end if;
+
+  -- 3. Update transaction record
+  update public.financial_transactions
+     set source_till = v_dest,
+         currency = case
+           when v_dest in ('manager_scrap', 'seller_till_scrap') then 'SCRAP_GOLD'
+           when v_dest in ('manager_fine_gold') then 'FINE_GOLD'
+           when v_dest in ('manager_finished') then 'FINISHED_GOODS'
+           when v_dest in ('manager_uzs', 'seller_till_uzs') then 'UZS'
+           when v_dest in ('manager_usd', 'seller_till_usd') then 'USD'
+           else currency
+         end,
+         gold_proba = coalesce(p_new_proba, gold_proba),
+         reclassification_reason = p_reason,
+         notes = coalesce(notes, '') || ' [Audit Reclassified to ' || v_dest || ': ' || p_reason || ']',
+         updated_at = now()
+   where id = p_transaction_id;
+
+  -- 4. Audit Log
+  if to_regclass('public.audit_logs') is not null then
+    insert into public.audit_logs (
+      organization_id, table_name, record_id, action,
+      actor_id, old_data, new_data, reason
+    ) values (
+      v_org_id, 'financial_transactions', p_transaction_id::text, 'RECLASSIFY_CAPITAL',
+      auth.uid(),
+      jsonb_build_object('old_source_till', v_tx.source_till, 'equiv_585_g', v_tx.equiv_585_grams),
+      jsonb_build_object('new_source_till', v_dest, 'reason', p_reason, 'equiv_585_g', v_equiv_585),
+      p_reason
+    );
+  end if;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'transaction_id', p_transaction_id,
+    'old_source_till', v_tx.source_till,
+    'new_source_till', v_dest,
+    'equiv_585_grams', v_equiv_585,
+    'reason', p_reason
+  );
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_reverse_customer_settlement(p_settlement_id uuid, p_reversal_reason text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org     uuid := public.current_organization_id();
+  v_caller_role    text := public.current_employee_role_text();
+  v_caller_emp_id  uuid := public.current_employee_id();
+  v_settle         public.gold_settlements%rowtype;
+  v_seller_acc     public.seller_gold_accounts%rowtype;
+  v_client_acc     public.client_gold_accounts%rowtype;
+  v_clean_reason   text := nullif(btrim(p_reversal_reason), '');
+  v_cash_uzs       numeric(18, 2);
+  v_cash_usd       numeric(18, 2);
+  v_scrap_phys     numeric(14, 4);
+  v_scrap_585      numeric(14, 4);
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar',
+    'accountant', 'buxgalter'
+  ]);
+
+  if v_clean_reason is null then
+    raise exception 'Mijoz to''lovini bekor qilish sababi (audit uchun) kiritilishi shart';
+  end if;
+
+  select * into v_settle
+    from public.gold_settlements
+   where id = p_settlement_id
+     and organization_id = v_caller_org
+     and direction = 'client_to_seller'
+   for update;
+
+  if not found then
+    raise exception 'Mijoz to''lovi topilmadi (id: %)', p_settlement_id;
+  end if;
+
+  if v_settle.status in ('reversed', 'cancelled') then
+    raise exception 'Ushbu to''lov allaqachon bekor qilingan (status: %)', v_settle.status;
+  end if;
+
+  v_cash_uzs   := coalesce(v_settle.cash_paid_amount, 0);
+  v_cash_usd   := coalesce(v_settle.usd_paid_amount, 0);
+  v_scrap_phys := coalesce(v_settle.physical_scrap_grams, v_settle.scrap_weight_grams, 0);
+  v_scrap_585  := coalesce(v_settle.scrap_585_equiv_grams, v_settle.scrap_weight_grams, 0);
+
+  -- Deduct from seller till
+  if v_settle.seller_id is not null then
+    select * into v_seller_acc
+      from public.seller_gold_accounts
+     where seller_id = v_settle.seller_id and organization_id = v_caller_org
+     for update;
+
+    update public.seller_gold_accounts
+       set seller_till_scrap_grams       = round(greatest(0, seller_till_scrap_grams - coalesce(v_settle.scrap_weight_grams, 0))::numeric, 4),
+           seller_till_scrap_physical_g  = round(greatest(0, coalesce(seller_till_scrap_physical_g, 0) - v_scrap_phys)::numeric, 4),
+           seller_till_scrap_585_eq_g    = round(greatest(0, coalesce(seller_till_scrap_585_eq_g, 0) - v_scrap_585)::numeric, 4),
+           seller_till_cash_amount       = round(greatest(0, seller_till_cash_amount - v_cash_uzs)::numeric, 2),
+           seller_till_usd_amount        = round(greatest(0, coalesce(seller_till_usd_amount, 0) - v_cash_usd)::numeric, 2),
+           updated_at                    = now()
+     where seller_id = v_settle.seller_id;
+  end if;
+
+  -- Restore customer debt in client_gold_accounts
+  select * into v_client_acc
+    from public.client_gold_accounts
+   where customer_id = v_settle.customer_id
+     and organization_id = v_caller_org
+   for update;
+
+  if found then
+    update public.client_gold_accounts
+       set current_debt_grams    = round((current_debt_grams + v_settle.applied_to_debt_grams)::numeric, 4),
+           advance_balance_grams = round(greatest(0, advance_balance_grams - v_settle.excess_gold_grams)::numeric, 4),
+           total_settled_grams   = round(greatest(0, total_settled_grams - v_settle.total_settled_grams)::numeric, 4),
+           total_scrap_paid_grams= round(greatest(0, total_scrap_paid_grams - coalesce(v_settle.scrap_weight_grams, 0))::numeric, 4),
+           total_cash_paid_amount= round(greatest(0, total_cash_paid_amount - v_cash_uzs)::numeric, 2),
+           total_cash_equiv_grams= round(greatest(0, total_cash_equiv_grams - coalesce(v_settle.cash_equivalent_grams, 0) - coalesce(v_settle.usd_equivalent_grams, 0))::numeric, 4),
+           total_usd_paid_amount = round(greatest(0, coalesce(total_usd_paid_amount, 0) - v_cash_usd)::numeric, 2),
+           total_usd_equiv_grams = round(greatest(0, coalesce(total_usd_equiv_grams, 0) - coalesce(v_settle.usd_equivalent_grams, 0))::numeric, 4),
+           updated_at            = now()
+     where customer_id = v_settle.customer_id;
+  end if;
+
+  update public.customers
+     set advance_balance_gold_grams = round(greatest(0, coalesce(advance_balance_gold_grams, 0) - v_settle.excess_gold_grams)::numeric, 4)
+   where id = v_settle.customer_id;
+
+  if v_settle.sale_id is not null then
+    update public.jewelry_sales
+       set settled_gold_grams   = round(greatest(0, settled_gold_grams - v_settle.applied_to_debt_grams)::numeric, 4),
+           remaining_gold_grams = round((remaining_gold_grams + v_settle.applied_to_debt_grams)::numeric, 4),
+           status = 'open_debt',
+           updated_at = now()
+     where id = v_settle.sale_id and organization_id = v_caller_org;
+  end if;
+
+  update public.gold_settlements
+     set status = 'reversed',
+         reversed_at = now(),
+         reversed_by = v_caller_emp_id,
+         reversal_reason = v_clean_reason,
+         updated_at = now()
+   where id = v_settle.id;
+
+  if v_settle.seller_id is not null then
+    perform public.recalc_seller_gold_account(v_settle.seller_id, v_caller_org);
+  end if;
+
+  insert into public.audit_logs (
+    organization_id, table_name, record_id, action, actor_id,
+    old_data, new_data, reason
+  ) values (
+    v_caller_org, 'gold_settlements', v_settle.id::text,
+    'REVERSE_CLIENT_SETTLEMENT', auth.uid(),
+    jsonb_build_object(
+      'settlement_no', v_settle.settlement_no,
+      'total_settled_grams', v_settle.total_settled_grams,
+      'physical_scrap_grams', v_scrap_phys,
+      'cash_paid_amount', v_cash_uzs,
+      'usd_paid_amount', v_cash_usd
+    ),
+    jsonb_build_object('status', 'reversed'),
+    v_clean_reason
+  );
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'settlement_id', v_settle.id,
+    'settlement_no', v_settle.settlement_no,
+    'restored_customer_debt_g', v_settle.applied_to_debt_grams
+  );
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_transfer_to_seller(p_seller_id uuid, p_original_physical_g numeric, p_seller_markup_pct numeric DEFAULT 12.0, p_factory_markup_pct numeric DEFAULT 8.0, p_product_name text DEFAULT 'Zargarlik buyumi'::text, p_quantity integer DEFAULT 1, p_factory_receipt_id uuid DEFAULT NULL::uuid, p_product_id uuid DEFAULT NULL::uuid, p_notes text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_org_id          uuid := public.current_organization_id();
+  v_seller_role     text;
+  v_phys_g          numeric(14, 4);
+  v_s_pct           numeric(6, 2);
+  v_f_pct           numeric(6, 2);
+  v_s_due_g         numeric(14, 4);
+  v_f_due_g         numeric(14, 4);
+  v_spread_g        numeric(14, 4);
+  v_consign_no      text;
+  v_consign_id      uuid;
+  v_receipt_rec     record;
+  v_seller_account  public.seller_gold_accounts;
+  v_existing        jsonb;
+begin
+  if v_org_id is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array['admin', 'director', 'owner', 'direktor', 'rahbar', 'accountant', 'buxgalter', 'inventory_manager']);
+
+  -- Verify seller is not director/admin
+  select lower(coalesce(role::text, '')) into v_seller_role
+  from public.employees
+  where id = p_seller_id and organization_id = v_org_id;
+
+  if v_seller_role is null then
+    raise exception 'Seller not found or does not belong to active organization';
+  end if;
+
+  if v_seller_role in ('admin', 'director', 'owner', 'direktor', 'rahbar') then
+    raise exception 'Invalid recipient: Cannot consign products to director or admin. Select an active sales seller.';
+  end if;
+
+  if p_idempotency_key is not null then
+    select jsonb_build_object(
+      'status', 'ok',
+      'idempotent_replay', true,
+      'consignment_id', id,
+      'consignment_no', consignment_no,
+      'seller_obligation_g', seller_obligation_g
+    ) into v_existing
+    from public.seller_consignments
+    where idempotency_key = p_idempotency_key;
+
+    if v_existing is not null then
+      return v_existing;
+    end if;
+  end if;
+
+  v_phys_g := round(coalesce(p_original_physical_g, 0)::numeric, 4);
+  v_s_pct := round(greatest(0, coalesce(p_seller_markup_pct, 12.0))::numeric, 2);
+  v_f_pct := round(greatest(0, coalesce(p_factory_markup_pct, 8.0))::numeric, 2);
+
+  if v_phys_g <= 0 then
+    raise exception 'Invalid physical weight: must be greater than 0';
+  end if;
+
+  -- Non-compounding rule: Both markups calculate from original physical weight
+  v_s_due_g := round(v_phys_g * (1.0 + (v_s_pct / 100.0)), 4);
+  v_f_due_g := round(v_phys_g * (1.0 + (v_f_pct / 100.0)), 4);
+  v_spread_g := round(v_s_due_g - v_f_due_g, 4);
+
+  -- Deduct physical stock from factory_receipt if supplied or available
+  if p_factory_receipt_id is not null then
+    select * into v_receipt_rec
+    from public.factory_receipts
+    where id = p_factory_receipt_id and organization_id = v_org_id for update;
+
+    if not found then
+      raise exception 'Factory receipt not found';
+    end if;
+
+    if v_receipt_rec.available_physical_g < v_phys_g then
+      raise exception 'Insufficient manager stock in factory receipt: available %g, requested %g',
+        v_receipt_rec.available_physical_g, v_phys_g;
+    end if;
+
+    update public.factory_receipts
+    set available_physical_g = round(available_physical_g - v_phys_g, 4),
+        transferred_physical_g = round(transferred_physical_g + v_phys_g, 4),
+        status = case
+          when round(available_physical_g - v_phys_g, 4) <= 0.0001 then 'fully_transferred'
+          else 'partially_transferred'
+        end,
+        updated_at = now()
+    where id = p_factory_receipt_id;
+  end if;
+
+  v_consign_no := 'CNS-' || to_char(public._goldia_business_date(), 'YYYYMMDD') || '-' || upper(substr(gen_random_uuid()::text, 1, 6));
+
+  insert into public.seller_consignments (
+    organization_id,
+    consignment_no,
+    seller_id,
+    factory_receipt_id,
+    product_id,
+    product_name,
+    quantity,
+    base_weight_grams,
+    proba,
+    factory_markup_pct,
+    factory_gold_due_grams,
+    factory_settled_gold_grams,
+    factory_remaining_gold_grams,
+    seller_markup_pct,
+    seller_obligation_g,
+    sold_quantity,
+    status,
+    notes,
+    idempotency_key
+  ) values (
+    v_org_id,
+    v_consign_no,
+    p_seller_id,
+    p_factory_receipt_id,
+    p_product_id,
+    coalesce(nullif(btrim(p_product_name), ''), 'Zargarlik buyumi'),
+    greatest(1, coalesce(p_quantity, 1)),
+    v_phys_g,
+    585,
+    v_f_pct,
+    v_f_due_g,
+    0,
+    v_f_due_g,
+    v_s_pct,
+    v_s_due_g,
+    0,
+    'held_by_seller',
+    p_notes,
+    p_idempotency_key
+  ) returning id into v_consign_id;
+
+  -- Read seller account updated automatically by fn_sync_seller_gold_account trigger
+  select * into v_seller_account
+  from public.seller_gold_accounts
+  where seller_id = p_seller_id;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'consignment_id', v_consign_id,
+    'consignment_no', v_consign_no,
+    'base_weight_grams', v_phys_g,
+    'seller_markup_pct', v_s_pct,
+    'seller_obligation_g', v_s_due_g,
+    'factory_markup_pct', v_f_pct,
+    'factory_gold_due_grams', v_f_due_g,
+    'markup_spread_grams', v_spread_g,
+    'seller_owes_manager_g', v_seller_account.seller_owes_manager_g,
+    'bozor_qarzi_signed_g', v_seller_account.bozor_qarzi_signed_g
+  );
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_get_seller_sales_summary(p_seller_id uuid DEFAULT NULL::uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org     uuid := public.current_organization_id();
+  v_caller_role    text := public.current_employee_role_text();
+  v_seller_uuid    uuid := p_seller_id;
+  v_caller_emp_id  uuid;
+  v_seller_acc     public.seller_gold_accounts%rowtype;
+  v_active_consign integer;
+  v_active_sales   integer;
+  v_client_count   integer;
+  v_total_cli_debt numeric(14, 4);
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  select id into v_caller_emp_id
+    from public.employees
+   where (user_id = auth.uid() or id = auth.uid())
+     and organization_id = v_caller_org
+   limit 1;
+
+  if v_seller_uuid is null or v_caller_role not in ('admin', 'director', 'owner', 'direktor', 'rahbar') then
+    v_seller_uuid := v_caller_emp_id;
+  end if;
+
+  select * into v_seller_acc
+    from public.seller_gold_accounts
+   where seller_id = v_seller_uuid
+     and organization_id = v_caller_org;
+
+  select count(*) into v_active_consign
+    from public.seller_consignments
+   where seller_id = v_seller_uuid
+     and organization_id = v_caller_org
+     and status = 'held_by_seller';
+
+  select count(*) into v_active_sales
+    from public.jewelry_sales
+   where seller_id = v_seller_uuid
+     and organization_id = v_caller_org
+     and status in ('open_debt', 'partially_paid');
+
+  select count(*), coalesce(sum(current_debt_grams), 0)
+    into v_client_count, v_total_cli_debt
+    from public.client_gold_accounts
+   where seller_id = v_seller_uuid
+     and organization_id = v_caller_org;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'seller_id', v_seller_uuid,
+    'current_factory_obligation_grams', coalesce(v_seller_acc.current_factory_obligation_grams, 0),
+    'seller_till_scrap_grams', coalesce(v_seller_acc.seller_till_scrap_grams, 0),
+    'seller_till_cash_amount', coalesce(v_seller_acc.seller_till_cash_amount, 0),
+    'total_client_debt_grams', coalesce(v_total_cli_debt, 0),
+    'active_consignments_count', coalesce(v_active_consign, 0),
+    'active_sales_count', coalesce(v_active_sales, 0),
+    'assigned_clients_count', coalesce(v_client_count, 0)
+  );
+end;
+$function$;
+
+drop policy if exists "admin manage employees" on public.employees;
+create policy "admin manage employees" on public.employees for ALL to authenticated
+  using (((organization_id = current_organization_id()) AND (current_employee_role_text() = ANY (ARRAY['admin'::text, 'director'::text, 'owner'::text, 'direktor'::text, 'rahbar'::text]))))
+  with check (((organization_id = current_organization_id()) AND (current_employee_role_text() = ANY (ARRAY['admin'::text, 'director'::text, 'owner'::text, 'direktor'::text, 'rahbar'::text]))));
+
+drop policy if exists "factory_settings_director_manage" on public.organization_factory_settings;
+create policy "factory_settings_director_manage" on public.organization_factory_settings for ALL to authenticated
+  using (((organization_id = current_organization_id()) AND (current_employee_role_text() = ANY (ARRAY['admin'::text, 'director'::text, 'owner'::text, 'direktor'::text, 'rahbar'::text]))))
+  with check (((organization_id = current_organization_id()) AND (current_employee_role_text() = ANY (ARRAY['admin'::text, 'director'::text, 'owner'::text, 'direktor'::text, 'rahbar'::text]))));
+
+drop policy if exists "organizations_director_manage" on public.organizations;
+create policy "organizations_director_manage" on public.organizations for ALL to authenticated
+  using (((id = current_organization_id()) AND (current_employee_role_text() = ANY (ARRAY['admin'::text, 'director'::text, 'owner'::text, 'direktor'::text, 'rahbar'::text]))))
+  with check (((id = current_organization_id()) AND (current_employee_role_text() = ANY (ARRAY['admin'::text, 'director'::text, 'owner'::text, 'direktor'::text, 'rahbar'::text]))));
+
+drop policy if exists "sales_markup_presets_admin_manage" on public.sales_markup_presets;
+create policy "sales_markup_presets_admin_manage" on public.sales_markup_presets for ALL to authenticated
+  using (((organization_id = current_organization_id()) AND (current_employee_role_text() = ANY (ARRAY['admin'::text, 'director'::text, 'owner'::text, 'direktor'::text, 'rahbar'::text]))))
+  with check (((organization_id = current_organization_id()) AND (current_employee_role_text() = ANY (ARRAY['admin'::text, 'director'::text, 'owner'::text, 'direktor'::text, 'rahbar'::text]))));
+
+CREATE OR REPLACE FUNCTION public.trg_goldia_sale_markup_snapshot()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_pct numeric(6, 2);
+begin
+  if new.assigned_seller_markup_pct is null and new.consignment_id is not null then
+    select seller_markup_pct into v_pct from public.seller_consignments where id = new.consignment_id;
+    if v_pct is not null then
+      new.assigned_seller_markup_pct := v_pct;
+      new.markup_snapshot_source := 'sale_time';
+    end if;
+  end if;
+  if new.assigned_seller_markup_pct is not null and new.client_markup_pct is not null then
+    new.markup_difference_g := round(coalesce(new.base_weight_grams, 0)
+      * (new.client_markup_pct - new.assigned_seller_markup_pct) / 100.0, 4);
+  end if;
+  return new;
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_reverse_client_sale(p_sale_id uuid, p_reason text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_caller_org       uuid := public.current_organization_id();
+  v_caller_role      text := public.current_employee_role_text();
+  v_caller_emp_id    uuid := public.current_employee_id();
+  v_clean_reason     text := NULLIF(btrim(p_reason), '');
+  v_sale             public.jewelry_sales%rowtype;
+  v_cust_acc         public.client_gold_accounts%rowtype;
+  v_seller_acc       public.seller_gold_accounts%rowtype;
+  v_net_sale_debt    numeric(14, 4);
+  v_new_cust_debt    numeric(14, 4);
+  v_new_cust_adv     numeric(14, 4);
+  v_new_seller_debt  numeric(14, 4);
+  v_piece            public.consignment_pieces%rowtype;
+  v_consign          public.seller_consignments%rowtype;
+  v_payload          jsonb;
+  v_existing         jsonb;
+BEGIN
+  IF v_caller_org IS NULL THEN
+    RAISE EXCEPTION 'Permission denied: User must belong to an active organization' USING errcode = '42501';
+  END IF;
+
+  PERFORM public.assert_erp_permission(ARRAY[
+    'admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'boshqaruvchi', 'sales', 'seller', 'sotuvchi'
+  ]);
+
+  IF v_clean_reason IS NULL THEN
+    RAISE EXCEPTION 'Savdoni bekor qilish sababi kiritilishi shart';
+  END IF;
+
+  v_payload := jsonb_build_object(
+    'action', 'reverse_client_sale',
+    'sale_id', p_sale_id,
+    'reason', v_clean_reason
+  );
+
+  IF p_idempotency_key IS NOT NULL THEN
+    v_existing := public.check_and_lock_idempotency(p_idempotency_key, 'rpc_reverse_client_sale', v_payload);
+    IF v_existing IS NOT NULL THEN
+      RETURN v_existing;
+    END IF;
+  END IF;
+
+  -- 1. Lock and fetch sale
+  SELECT * INTO v_sale
+    FROM public.jewelry_sales
+   WHERE id = p_sale_id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Savdo hujjati topilmadi (%)', p_sale_id;
+  END IF;
+
+  IF v_sale.status IN ('reversed', 'cancelled') THEN
+    RAISE EXCEPTION 'Ushbu savdo allaqachon bekor qilingan (%s)', v_sale.sale_no;
+  END IF;
+
+  -- Cross-seller sale reversal authorization check
+  IF v_caller_role IN ('seller', 'sotuvchi', 'sales') THEN
+    IF v_sale.seller_id IS DISTINCT FROM v_caller_emp_id THEN
+      RAISE EXCEPTION 'Ruxsat etilmadi: Sotuvchilar faqat o''zi amalga oshirgan savdoni bekor qila oladi' USING errcode = '42501';
+    END IF;
+  END IF;
+
+  -- 2. Lock client_gold_accounts
+  SELECT * INTO v_cust_acc
+    FROM public.client_gold_accounts
+   WHERE customer_id = v_sale.customer_id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  -- 3. Lock seller_gold_accounts
+  SELECT * INTO v_seller_acc
+    FROM public.seller_gold_accounts
+   WHERE seller_id = v_sale.seller_id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  -- Net customer debt that was added by this sale
+  v_net_sale_debt := ROUND((v_sale.client_gold_due_grams - COALESCE(v_sale.settled_gold_grams, 0))::numeric, 4);
+
+  -- Adjust customer debt and restore any applied advance
+  -- 070: payments are applied at customer-account level (sale rows are usually not updated), so the
+  -- reversal must remove the full sale amount from the account's net position. Whatever the customer
+  -- has already paid beyond the remaining debt becomes an advance (credit) instead of disappearing.
+  v_new_cust_debt := ROUND((COALESCE(v_cust_acc.current_debt_grams, 0) - COALESCE(v_cust_acc.advance_balance_grams, 0)
+                            - v_sale.client_gold_due_grams)::numeric, 4);
+  IF v_new_cust_debt >= 0 THEN
+    v_new_cust_adv := 0;
+  ELSE
+    v_new_cust_adv  := ROUND(-v_new_cust_debt, 4);
+    v_new_cust_debt := 0;
+  END IF;
+
+  UPDATE public.client_gold_accounts
+     SET total_purchased_gold_grams = ROUND(GREATEST(0, total_purchased_gold_grams - v_sale.client_gold_due_grams)::numeric, 4),
+         current_debt_grams         = v_new_cust_debt,
+         advance_balance_grams      = v_new_cust_adv,
+         updated_at                 = NOW()
+   WHERE customer_id = v_sale.customer_id;
+
+  -- Adjust seller's total client debt
+  v_new_seller_debt := ROUND(GREATEST(0, COALESCE(v_seller_acc.total_client_debt_grams, 0) - v_net_sale_debt)::numeric, 4);
+  UPDATE public.seller_gold_accounts
+     SET total_client_debt_grams = v_new_seller_debt,
+         updated_at              = NOW()
+   WHERE seller_id = v_sale.seller_id;
+
+  -- Mark sale as reversed
+  UPDATE public.jewelry_sales
+     SET status          = 'reversed',
+         notes           = COALESCE(notes, '') || ' [BEKOR QILINDI: ' || v_clean_reason || ']',
+         updated_at      = NOW()
+   WHERE id = v_sale.id;
+
+  -- 4. If a physical piece or weight stock was sold, restore it onto consignment_pieces
+  -- 068: weight sales recorded with allocations are restored exactly piece by piece
+  IF EXISTS (SELECT 1 FROM public.weight_sale_allocations WHERE sale_id = v_sale.id AND reversed_at IS NULL) THEN
+    PERFORM public._goldia_restore_weight_sale_allocations(v_sale.id);
+  ELSE
+  SELECT * INTO v_piece
+    FROM public.consignment_pieces
+   WHERE sale_id = v_sale.id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  IF FOUND THEN
+    UPDATE public.consignment_pieces
+       SET status = 'held_by_seller',
+           sale_id = NULL,
+           sold_at = NULL,
+           updated_at = NOW()
+     WHERE id = v_piece.id;
+    -- 065: the parent consignment must give back the sold count as well
+    UPDATE public.seller_consignments
+       SET sold_quantity = GREATEST(0, COALESCE(sold_quantity, 1) - 1),
+           status = CASE
+                      WHEN GREATEST(0, COALESCE(sold_quantity, 1) - 1) <= 0 THEN 'held_by_seller'
+                      ELSE 'partially_sold'
+                    END,
+           updated_at = NOW()
+     WHERE id = v_piece.consignment_id;
+  ELSIF v_sale.consignment_id IS NOT NULL THEN
+    -- 065: restore weight onto the exact piece the weight sale reduced, when known
+    SELECT * INTO v_piece
+      FROM public.consignment_pieces
+     WHERE consignment_id = v_sale.consignment_id AND status = 'held_by_seller'
+     ORDER BY (id = v_sale.source_piece_id) DESC, updated_at DESC
+     LIMIT 1
+     FOR UPDATE;
+
+    IF FOUND THEN
+      UPDATE public.consignment_pieces
+         SET weight_grams = ROUND((weight_grams + v_sale.base_weight_grams)::numeric, 4),
+             updated_at = NOW()
+       WHERE id = v_piece.id;
+    ELSE
+      -- All pieces in this consignment were marked sold/unassigned. Re-create / re-open an active held piece with restored weight!
+      INSERT INTO public.consignment_pieces (
+        organization_id, consignment_id, model_code, model_name, category,
+        purity, weight_grams, status, seller_id, notes
+      ) VALUES (
+        v_caller_org, v_sale.consignment_id, COALESCE(v_sale.model_code, 'VAZN'), COALESCE(v_sale.product_name, 'Qaytarilgan VAZN'),
+        COALESCE(v_sale.category, 'Buyum'), COALESCE(v_sale.purity, 585), v_sale.base_weight_grams,
+        'held_by_seller', v_sale.seller_id, 'Restored from reversed sale ' || v_sale.sale_no
+      );
+    END IF;
+
+    SELECT * INTO v_consign
+      FROM public.seller_consignments
+     WHERE id = v_sale.consignment_id
+     FOR UPDATE;
+
+    IF FOUND THEN
+      UPDATE public.seller_consignments
+         SET sold_quantity = GREATEST(0, COALESCE(sold_quantity, 1) - 1),
+             status = CASE
+                        WHEN GREATEST(0, COALESCE(sold_quantity, 1) - 1) <= 0 THEN 'held_by_seller'
+                        ELSE 'partially_sold'
+                      END,
+             updated_at = NOW()
+       WHERE id = v_consign.id;
+    END IF;
+  END IF;
+  END IF;
+
+  -- Recalculate seller gold account physical stock
+  PERFORM public.recalc_seller_gold_account(v_sale.seller_id, v_caller_org);
+
+  -- Audit log
+  INSERT INTO public.audit_logs (
+    organization_id, table_name, record_id, action, actor_id, old_data, new_data, reason
+  ) VALUES (
+    v_caller_org, 'jewelry_sales', v_sale.id::text, 'REVERSE_CLIENT_SALE', auth.uid(),
+    jsonb_build_object(
+      'sale_no', v_sale.sale_no,
+      'base_weight_grams', v_sale.base_weight_grams,
+      'client_gold_due_grams', v_sale.client_gold_due_grams,
+      'customer_id', v_sale.customer_id,
+      'seller_id', v_sale.seller_id
+    ),
+    jsonb_build_object('status', 'reversed'),
+    v_clean_reason
+  );
+
+  v_existing := jsonb_build_object(
+    'status', 'ok',
+    'sale_id', v_sale.id,
+    'sale_no', v_sale.sale_no,
+    'restored_weight_g', v_sale.base_weight_grams,
+    'reversed_debt_g', v_net_sale_debt
+  );
+
+  IF p_idempotency_key IS NOT NULL THEN
+    PERFORM public.save_idempotency_response(p_idempotency_key, 'rpc_reverse_client_sale', v_existing, v_payload);
+  END IF;
+
+  RETURN v_existing;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_reverse_jewelry_sale(p_sale_id uuid, p_reversal_reason text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_caller_org    uuid := public.current_organization_id();
+  v_caller_role   text := public.current_employee_role_text();
+  v_caller_emp_id uuid := public.current_employee_id();
+  v_sale          public.jewelry_sales%rowtype;
+  v_client_acc    public.client_gold_accounts%rowtype;
+  v_reason        text := NULLIF(btrim(p_reversal_reason), '');
+  v_piece         public.consignment_pieces%rowtype;
+  v_consign       public.seller_consignments%rowtype;
+  v_applied_sett  public.gold_settlements%rowtype;
+  v_existing      jsonb;
+BEGIN
+  IF v_caller_org IS NULL THEN
+    RAISE EXCEPTION 'Permission denied: User must belong to an active organization' USING errcode = '42501';
+  END IF;
+
+  PERFORM public.assert_erp_permission(ARRAY[
+    'admin', 'director', 'owner', 'direktor', 'rahbar',
+    'production_manager', 'manager', 'boshqaruvchi',
+    'accountant', 'buxgalter', 'sales', 'seller', 'sotuvchi'
+  ]);
+
+  IF v_reason IS NULL THEN
+    RAISE EXCEPTION 'Savdoni bekor qilish sababi (reversal reason) kiritilishi shart';
+  END IF;
+
+  SELECT * INTO v_sale
+    FROM public.jewelry_sales
+   WHERE id = p_sale_id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Bekor qilinadigan savdo yozuvi topilmadi (%)', p_sale_id;
+  END IF;
+
+  IF v_sale.status IN ('cancelled', 'reversed') THEN
+    RAISE EXCEPTION 'Ushbu savdo allaqachon bekor qilingan (Holat: %)', v_sale.status;
+  END IF;
+
+  -- Cross-seller sale reversal authorization check
+  IF v_caller_role IN ('seller', 'sotuvchi', 'sales') THEN
+    IF v_sale.seller_id IS DISTINCT FROM v_caller_emp_id THEN
+      RAISE EXCEPTION 'Ruxsat etilmadi: Sotuvchilar faqat o''zi amalga oshirgan savdoni bekor qila oladi' USING errcode = '42501';
+    END IF;
+  END IF;
+
+  -- 1. Check if customer made active payments specifically applied to this sale
+  FOR v_applied_sett IN
+    SELECT * FROM public.gold_settlements
+     WHERE sale_id = v_sale.id
+       AND organization_id = v_caller_org
+       AND status NOT IN ('reversed', 'cancelled')
+  LOOP
+    RAISE EXCEPTION 'Savdoni bekor qilib bo''lmaydi: Ushbu savdoga to''lov bog''langan (% — % g). Avval to''lovni bekor qiling.',
+      v_applied_sett.settlement_no, v_applied_sett.applied_to_debt_grams;
+  END LOOP;
+
+  -- 2. Deduct customer debt generated by this sale
+  SELECT * INTO v_client_acc
+    FROM public.client_gold_accounts
+   WHERE customer_id = v_sale.customer_id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  IF FOUND THEN
+    UPDATE public.client_gold_accounts
+       SET current_debt_grams = ROUND(GREATEST(0, current_debt_grams - v_sale.remaining_gold_grams)::numeric, 4),
+           total_purchased_gold_grams = ROUND(GREATEST(0, total_purchased_gold_grams - v_sale.client_gold_due_grams)::numeric, 4),
+           updated_at = NOW()
+     WHERE customer_id = v_client_acc.customer_id;
+  END IF;
+
+  -- 3. If a physical piece or weight stock was sold, restore it
+  -- 068: weight sales recorded with allocations are restored exactly piece by piece
+  IF EXISTS (SELECT 1 FROM public.weight_sale_allocations WHERE sale_id = v_sale.id AND reversed_at IS NULL) THEN
+    PERFORM public._goldia_restore_weight_sale_allocations(v_sale.id);
+  ELSE
+  SELECT * INTO v_piece
+    FROM public.consignment_pieces
+   WHERE sale_id = v_sale.id AND organization_id = v_caller_org
+   FOR UPDATE;
+
+  IF FOUND THEN
+    UPDATE public.consignment_pieces
+       SET status = 'held_by_seller',
+           sale_id = NULL,
+           sold_at = NULL,
+           updated_at = NOW()
+     WHERE id = v_piece.id;
+
+    -- Reopen parent consignment if it was marked fully_sold
+    IF v_piece.consignment_id IS NOT NULL THEN
+      SELECT * INTO v_consign
+        FROM public.seller_consignments
+       WHERE id = v_piece.consignment_id
+       FOR UPDATE;
+
+      IF FOUND THEN
+        UPDATE public.seller_consignments
+           SET sold_quantity = GREATEST(0, COALESCE(sold_quantity, 1) - 1),
+               status = CASE
+                          WHEN GREATEST(0, COALESCE(sold_quantity, 1) - 1) <= 0 THEN 'held_by_seller'
+                          ELSE 'partially_sold'
+                        END,
+               updated_at = NOW()
+         WHERE id = v_consign.id;
+      END IF;
+    END IF;
+  ELSIF v_sale.consignment_id IS NOT NULL THEN
+    -- Weight sale partial deduction: restore weight_grams back on active consignment_piece
+    -- 065: restore weight onto the exact piece the weight sale reduced, when known
+    SELECT * INTO v_piece
+      FROM public.consignment_pieces
+     WHERE consignment_id = v_sale.consignment_id AND status = 'held_by_seller'
+     ORDER BY (id = v_sale.source_piece_id) DESC, updated_at DESC
+     LIMIT 1
+     FOR UPDATE;
+
+    IF FOUND THEN
+      UPDATE public.consignment_pieces
+         SET weight_grams = ROUND((weight_grams + v_sale.base_weight_grams)::numeric, 4),
+             updated_at = NOW()
+       WHERE id = v_piece.id;
+    ELSE
+      -- All pieces in this consignment were marked sold/unassigned. Re-create / re-open an active held piece with restored weight!
+      INSERT INTO public.consignment_pieces (
+        organization_id, consignment_id, model_code, model_name, category,
+        purity, weight_grams, status, seller_id, notes
+      ) VALUES (
+        v_caller_org, v_sale.consignment_id, COALESCE(v_sale.model_code, 'VAZN'), COALESCE(v_sale.product_name, 'Qaytarilgan VAZN'),
+        COALESCE(v_sale.category, 'Buyum'), COALESCE(v_sale.purity, 585), v_sale.base_weight_grams,
+        'held_by_seller', v_sale.seller_id, 'Restored from reversed sale ' || v_sale.sale_no
+      );
+    END IF;
+
+    SELECT * INTO v_consign
+      FROM public.seller_consignments
+     WHERE id = v_sale.consignment_id
+     FOR UPDATE;
+
+    IF FOUND THEN
+      UPDATE public.seller_consignments
+         SET sold_quantity = GREATEST(0, COALESCE(sold_quantity, 1) - 1),
+             status = CASE
+                        WHEN GREATEST(0, COALESCE(sold_quantity, 1) - 1) <= 0 THEN 'held_by_seller'
+                        ELSE 'partially_sold'
+                      END,
+             updated_at = NOW()
+       WHERE id = v_consign.id;
+    END IF;
+  END IF;
+  END IF;
+
+  -- 4. Mark sale as reversed
+  UPDATE public.jewelry_sales
+     SET status = 'reversed',
+         notes = COALESCE(notes, '') || ' [BEKOR QILINDI: ' || v_reason || ' (' || to_char(NOW(), 'YYYY-MM-DD HH24:MI') || ')]',
+         updated_at = NOW()
+   WHERE id = v_sale.id;
+
+  -- 5. Recalculate seller responsibility
+  PERFORM public.recalc_seller_gold_account(v_sale.seller_id, v_caller_org);
+
+  -- 6. Audit log
+  INSERT INTO public.audit_logs (
+    organization_id, table_name, record_id, action, actor_id, new_data
+  ) VALUES (
+    v_caller_org, 'jewelry_sales', v_sale.id::text, 'REVERSE_SALE', auth.uid(),
+    jsonb_build_object(
+      'sale_id', v_sale.id,
+      'sale_no', v_sale.sale_no,
+      'customer_id', v_sale.customer_id,
+      'seller_id', v_sale.seller_id,
+      'reversed_debt_g', v_sale.remaining_gold_grams,
+      'reason', v_reason
+    )
+  );
+
+  RETURN jsonb_build_object(
+    'status', 'ok',
+    'sale_id', v_sale.id,
+    'sale_no', v_sale.sale_no,
+    'reversed_debt_g', v_sale.remaining_gold_grams,
+    'restored_piece_id', v_piece.id,
+    'message', 'Savdo muvaffaqiyatli bekor qilindi'
+  );
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.trg_prevent_financial_transaction_mutation()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+begin
+  if TG_OP = 'DELETE' then
+    raise exception 'ERR_FINANCIAL_TRANSACTION_IMMUTABLE: Tasdiqlangan moliyaviy operatsiya yozuvini o''chirish taqiqlanadi (ID: %)', OLD.id
+      using errcode = '42501';
+  end if;
+
+  if TG_OP = 'UPDATE' then
+    -- Allow transition from 'confirmed' to 'reversed' ONLY, no financial numbers can be altered
+    if OLD.status = 'confirmed' and NEW.status = 'reversed'
+       and NEW.id = OLD.id
+       and NEW.organization_id = OLD.organization_id
+       and NEW.transaction_no = OLD.transaction_no
+       and NEW.transaction_date = OLD.transaction_date
+       and NEW.transaction_type = OLD.transaction_type
+       and NEW.source_till = OLD.source_till
+       and NEW.amount_num = OLD.amount_num
+       and NEW.currency = OLD.currency
+       and NEW.equiv_585_grams = OLD.equiv_585_grams then
+      return NEW;
+    end if;
+
+    -- Allow audited capital reclassification by Director (updating destination till and audit reason while preserving financial balance)
+    if OLD.transaction_type = 'capital_contribution'
+       and NEW.id = OLD.id
+       and NEW.organization_id = OLD.organization_id
+       and NEW.transaction_no = OLD.transaction_no
+       and NEW.transaction_date = OLD.transaction_date
+       and NEW.transaction_type = OLD.transaction_type
+       and NEW.amount_num = OLD.amount_num
+       and NEW.equiv_585_grams = OLD.equiv_585_grams
+       and NEW.reclassification_reason is not null then
+      return NEW;
+    end if;
+
+    raise exception 'ERR_FINANCIAL_TRANSACTION_IMMUTABLE: Tasdiqlangan moliyaviy operatsiya ko''rsatkichlarini o''zgartirish taqiqlanadi (ID: %)', OLD.id
+      using errcode = '42501';
+  end if;
+
+  return NEW;
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_reverse_financial_transaction(p_transaction_id uuid, p_reason text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_org_id uuid := public.current_organization_id();
+  v_tx     public.financial_transactions%rowtype;
+  v_reason text := nullif(btrim(p_reason), '');
+begin
+  if v_org_id is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'boshqaruvchi'
+  ]);
+
+  if v_reason is null then
+    raise exception 'Tranzaksiyani bekor qilish sababi (reason) kiritilishi shart';
+  end if;
+
+  select * into v_tx
+    from public.financial_transactions
+   where id = p_transaction_id and organization_id = v_org_id
+   for update;
+
+  if not found then
+    raise exception 'Bekor qilinadigan operatsiya topilmadi (%)', p_transaction_id;
+  end if;
+
+  if v_tx.status in ('reversed', 'cancelled') then
+    raise exception 'Ushbu operatsiya allaqachon bekor qilingan';
+  end if;
+
+  -- Reverse asset update
+  if v_tx.transaction_type in ('capital_in', 'capital_contribution') then
+    if v_tx.source_till in ('manager_fine_gold', 'manager_capital_pure_gold') or v_tx.currency in ('FINE_GOLD', 'PURE_GOLD') then
+      update public.manager_vault_account
+         set manager_capital_pure_gold_g = round(greatest(0, manager_capital_pure_gold_g - v_tx.equiv_585_grams), 4),
+             manager_capital_pure_gold_fine_g = round(greatest(0, manager_capital_pure_gold_fine_g - coalesce(v_tx.physical_weight_grams, v_tx.amount_num)), 4),
+             updated_at = now()
+       where organization_id = v_org_id;
+
+    elsif v_tx.source_till in ('manager_scrap') then
+      update public.manager_vault_account
+         set manager_scrap_grams = round(greatest(0, manager_scrap_grams - v_tx.equiv_585_grams), 4),
+             updated_at = now()
+       where organization_id = v_org_id;
+
+    elsif v_tx.source_till in ('seller_till_scrap') and v_tx.seller_id is not null then
+      update public.seller_gold_accounts
+         set seller_till_scrap_grams = round(greatest(0, seller_till_scrap_grams - v_tx.equiv_585_grams), 4),
+             updated_at = now()
+       where seller_id = v_tx.seller_id and organization_id = v_org_id;
+
+    elsif v_tx.source_till in ('manager_uzs', 'manager_cash') then
+      update public.manager_vault_account
+         set manager_cash_amount = round(greatest(0, manager_cash_amount - v_tx.amount_num), 2),
+             updated_at = now()
+       where organization_id = v_org_id;
+
+    elsif v_tx.source_till in ('seller_till_uzs') and v_tx.seller_id is not null then
+      update public.seller_gold_accounts
+         set seller_till_cash_amount = round(greatest(0, seller_till_cash_amount - v_tx.amount_num), 2),
+             updated_at = now()
+       where seller_id = v_tx.seller_id and organization_id = v_org_id;
+
+    elsif v_tx.source_till in ('manager_usd') then
+      update public.manager_vault_account
+         set manager_usd_amount = round(greatest(0, manager_usd_amount - v_tx.amount_num), 2),
+             updated_at = now()
+       where organization_id = v_org_id;
+
+    elsif v_tx.source_till in ('seller_till_usd') and v_tx.seller_id is not null then
+      update public.seller_gold_accounts
+         set seller_till_usd_amount = round(greatest(0, seller_till_usd_amount - v_tx.amount_num), 2),
+             updated_at = now()
+       where seller_id = v_tx.seller_id and organization_id = v_org_id;
+    end if;
+
+  elsif v_tx.transaction_type in ('capital_out', 'capital_distribution', 'expense', 'business_expense') then
+    if v_tx.source_till in ('manager_uzs', 'manager_cash') then
+      update public.manager_vault_account
+         set manager_cash_amount = round(manager_cash_amount + v_tx.amount_num, 2),
+             updated_at = now()
+       where organization_id = v_org_id;
+    elsif v_tx.source_till in ('manager_usd') then
+      update public.manager_vault_account
+         set manager_usd_amount = round(manager_usd_amount + v_tx.amount_num, 2),
+             updated_at = now()
+       where organization_id = v_org_id;
+    end if;
+  end if;
+
+  update public.financial_transactions
+     set status = 'reversed',
+         reversed_at = now(),
+         reversed_by = auth.uid(),
+         reversal_reason = v_reason,
+         updated_at = now()
+   where id = v_tx.id;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'transaction_id', v_tx.id,
+    'message', 'Operatsiya bekor qilindi'
+  );
+end;
+$function$;
+
+drop function if exists public.rpc_close_report_period(date, date, text);
+drop function if exists public.rpc_get_period_report(date, date, uuid);
+drop function if exists public._goldia_period_effects(uuid);
+drop function if exists public._goldia_fin_cash_effect(text, text, numeric);
+drop table if exists public.goldia_report_periods;
+drop function if exists public.rpc_reverse_client_currency_settlement(uuid, text, text);
+drop function if exists public.rpc_record_client_currency_settlement(uuid, text, numeric, numeric, numeric, numeric, numeric, numeric, uuid, text, text);
+drop function if exists public.rpc_record_currency_sale(uuid, text, numeric, numeric, uuid[], uuid, text, text);
+drop table if exists public.client_currency_settlements;
+drop table if exists public.client_currency_accounts;
+alter table public.jewelry_sales drop constraint if exists jewelry_sales_client_gold_due_grams_check;
+alter table public.jewelry_sales add constraint jewelry_sales_client_gold_due_grams_check check (client_gold_due_grams > 0) not valid;
+alter table public.jewelry_sales drop constraint if exists jewelry_sales_sale_currency_check;
+alter table public.jewelry_sales drop column if exists sale_lom_rate_snapshot, drop column if exists sale_usd_rate_snapshot,
+  drop column if exists sale_amount, drop column if exists sale_currency;
+-- the reclassified_from_* columns stay (they only add history; dropping them would lose it)

@@ -9,7 +9,9 @@ select
   (select count(*) = 0 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'rpc\_%'
      and p.proname not in ('rpc_execute_sheets_historical_import') and p.prosrc ~* '\mcurrent_date\M'
      and p.prosrc ~* '(jewelry_sales|gold_settlements|daily_gold_rates|refining_batches|factory_gold_handovers|seller_consignments)') as no_utc_current_date_in_sales_rpcs,
-  (select count(*) = 8 from information_schema.columns where table_schema = 'public' and column_default like '%_goldia_business_date()%') as document_defaults,
+  -- 077 adds client_currency_settlements.settlement_date with the same business-date default
+  (select count(*) = 8 + case when exists (select 1 from supabase_migrations.schema_migrations where version = '20260101000077') then 1 else 0 end
+     from information_schema.columns where table_schema = 'public' and column_default like '%_goldia_business_date()%') as document_defaults,
   -- B. reset empties the seller valued till pool
   position('till_valued_cash_uzs = 0' in pg_get_functiondef('public.rpc_execute_full_test_reset(text,text)'::regprocedure)) > 0 as reset_clears_till_pool,
   -- C. explicit pieces for weight sales

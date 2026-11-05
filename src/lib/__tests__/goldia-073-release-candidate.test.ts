@@ -77,7 +77,7 @@ describe("Goldia 073 — release candidate", () => {
     expect(ny.rows[0]!.d).toBe("2026-11-26");
     const defaults = await t.scalar(`(SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public'
       AND column_default LIKE '%_goldia_business_date()%')`);
-    expect(defaults).toBe(8);
+    expect(defaults).toBe(9); // 8 document dates of 073 + client_currency_settlements.settlement_date (077)
   });
 
   it("C: chosen pieces are checked (076: choosing is optional, without it the oldest pieces are used); only the last piece may be cut", async () => {
