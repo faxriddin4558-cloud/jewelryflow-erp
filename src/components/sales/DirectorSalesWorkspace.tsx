@@ -26,7 +26,7 @@ import {
 import { pickHandoverUsdRate, tillValuation, type TillValuation } from "@/lib/sales-payment-rates";
 import { SalesReceiptModal, type ReceiptData } from "./SalesReceiptModal";
 import { ScannerDiagnostics } from "./ScannerDiagnostics";
-import { isDirectorUiRole } from "@/lib/sales-role-access";
+import { isManagementUiRole } from "@/lib/sales-role-access";
 import { BarTenderModelManager } from "./BarTenderModelManager";
 import { ScannerConsignmentSection } from "./ScannerConsignmentSection";
 import { SellerInventoryDashboard } from "./SellerInventoryDashboard";
@@ -502,9 +502,9 @@ export function DirectorSalesWorkspace({
   };
 
   // 2. Dynamic Markup Preset Actions
-  // Director-only server actions (markup presets, product consignment) are offered to directors only.
-  const [canDirect, setCanDirect] = useState(() => isDirectorUiRole(RBAC.getCurrentUser().role));
-  useEffect(() => RBAC.subscribe((u) => setCanDirect(isDirectorUiRole(u.role))), []);
+  // 077: director and manager have the same rights (markup presets, product consignment ...); sellers do not.
+  const [canDirect, setCanDirect] = useState(() => isManagementUiRole(RBAC.getCurrentUser().role));
+  useEffect(() => RBAC.subscribe((u) => setCanDirect(isManagementUiRole(u.role))), []);
 
   const handleOpenNewPreset = (type: "factory_markup" | "client_markup") => {
     setEditingPreset(null);
@@ -529,7 +529,7 @@ export function DirectorSalesWorkspace({
   const handleSavePreset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canDirect) {
-      notifyError("Bu amalni faqat direktor bajaradi.");
+      notifyError("Bu amalni faqat direktor yoki menejer bajaradi.");
       return;
     }
     e.preventDefault();
@@ -564,7 +564,7 @@ export function DirectorSalesWorkspace({
 
   const handleTogglePresetActive = async (p: SalesMarkupPresetRow) => {
     if (!canDirect) {
-      notifyError("Bu amalni faqat direktor bajaradi.");
+      notifyError("Bu amalni faqat direktor yoki menejer bajaradi.");
       return;
     }
     setBusy(true);
@@ -803,7 +803,7 @@ export function DirectorSalesWorkspace({
   const handleIssueConsignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canDirect) {
-      notifyError("Bu amalni faqat direktor bajaradi.");
+      notifyError("Bu amalni faqat direktor yoki menejer bajaradi.");
       return;
     }
     e.preventDefault();
@@ -3033,7 +3033,7 @@ export function DirectorSalesWorkspace({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {!canDirect && (
             <div className="lg:col-span-3 p-3 rounded-2xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-bold" data-testid="consign-director-only">
-              Mahsulot partiyasini bu bo&apos;limda faqat direktor topshiradi. Menejer sotuvchiga oltinni &quot;Scanner 564 Tarqatish&quot; bo&apos;limidan beradi.
+              Mahsulot partiyasini faqat direktor yoki menejer topshiradi.
             </div>
           )}
           <form

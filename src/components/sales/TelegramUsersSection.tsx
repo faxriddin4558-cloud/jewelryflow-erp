@@ -46,7 +46,8 @@ export function TelegramUsersSection() {
     void checkRole();
   }, []);
 
-  const isDirector = currentUserRole === "admin" || currentUserRole === "director";
+  // 077: director and production manager have the same rights in Goldia Sales
+  const isDirector = ["admin", "director", "production_manager", "manager", "boshqaruvchi"].includes(currentUserRole);
 
   const loadData = useCallback(async () => {
     setLoading(true);

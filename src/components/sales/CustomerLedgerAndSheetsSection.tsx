@@ -5,6 +5,7 @@ import { supabase } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 import { tashkentBusinessDate } from "@/lib/business-date";
 import { isSellerRole, ownRatesFromRpc, pickPaymentRates } from "@/lib/sales-payment-rates";
+import { CurrencyPaymentModal } from "./CurrencyPaymentModal";
 
 function parseErrorMessage(err: unknown, fallback: string = "Xatolik yuz berdi"): string {
   if (!err) return fallback;
@@ -224,6 +225,11 @@ export function CustomerLedgerAndSheetsSection() {
 
   const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [saleMode, setSaleMode] = useState<"weight" | "piece">("weight");
+  // 077: pricing of the sale - gram + % (585 debt) or an exact UZS / USD price (currency debt)
+  const [saleCurrency, setSaleCurrency] = useState<"XAU585" | "UZS" | "USD">("XAU585");
+  const [saleAmount, setSaleAmount] = useState("");
+  const [currencyTarget, setCurrencyTarget] = useState<CustomerRow | null>(null);
+  const [currencyBalances, setCurrencyBalances] = useState<Record<string, { UZS?: number; USD?: number }>>({});
   const [saleWeightGrams, setSaleWeightGrams] = useState("");
   const [sellerAvailableStock, setSellerAvailableStock] = useState<number | null>(null);
   const [salePieceId, setSalePieceId] = useState("");
@@ -588,6 +594,71 @@ export function CustomerLedgerAndSheetsSection() {
       await loadCustomers();
     } catch (err: unknown) {
       setMessage({ type: "error", text: `To'lovni saqlashda xatolik: ${parseErrorMessage(err, "To'lovni saqlab bo'lmadi")}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 077: UZS / USD debts of "aniq narx" sales (table exists from migration 077; before it nothing is shown)
+  useEffect(() => {
+    void (async () => {
+      const { data, error } = await supabase.from("client_currency_accounts").select("customer_id, currency, debt_amount, advance_amount");
+      if (error) return;
+      const m: Record<string, { UZS?: number; USD?: number }> = {};
+      for (const r of (data ?? []) as { customer_id: string; currency: "UZS" | "USD"; debt_amount: number; advance_amount: number }[]) {
+        m[r.customer_id] = { ...(m[r.customer_id] || {}), [r.currency]: Number(r.debt_amount) - Number(r.advance_amount) };
+      }
+      setCurrencyBalances(m);
+    })();
+  }, [customers]);
+
+  const currencyLine = (id: string) => {
+    const b = currencyBalances[id];
+    if (!b || (!b.UZS && !b.USD)) return null;
+    return (
+      <span className="block text-[10px] font-mono text-emerald-300" data-testid="customer-currency-debt">
+        {b.UZS ? `${b.UZS.toLocaleString("ru-RU")} so'm ` : ""}{b.USD ? `$${b.USD.toLocaleString("ru-RU")}` : ""}
+      </span>
+    );
+  };
+
+  // 077: sale at an exact UZS / USD price - the physical grams leave the seller stock, the debt stays in the currency
+  const handleRecordCurrencySale = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetCustomer) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const weight = parseFloat(saleWeightGrams);
+      const amount = parseFloat(saleAmount);
+      if (isNaN(weight) || weight <= 0) throw new Error("Iltimos, sotilayotgan mahsulot vaznini (gramm) to'g'ri kiriting!");
+      if (isNaN(amount) || amount <= 0) throw new Error(`Iltimos, ${saleCurrency} narxini kiriting!`);
+      if (!targetCustomer.seller_id) throw new Error("Mijozga sotuvchi biriktirilmagan. Avval mijozni sotuvchiga biriktiring.");
+      const { data, error } = await supabase.rpc("rpc_record_currency_sale", {
+        p_customer_id: targetCustomer.id,
+        p_currency: saleCurrency,
+        p_amount: amount,
+        p_weight_grams: weight,
+        p_piece_ids: saleSourcePieceId ? [saleSourcePieceId] : null,
+        p_seller_id: targetCustomer.seller_id,
+        p_notes: saleNotes.trim() || null,
+        p_idempotency_key: `${saleIdemKey || newSaleIdemKey()}:${saleCurrency}:${targetCustomer.id}:${weight}:${amount}:${saleSourcePieceId || "auto"}`,
+      });
+      if (error) throw error;
+      setMessage({
+        type: "success",
+        text: `Savdo rasmiylashtirildi (${targetCustomer.contact_name}): ${formatScreenGrams(Number(data.weight_grams), 2)} = ${Number(data.sale_amount).toLocaleString("ru-RU")} ${saleCurrency}. Mijoz qarzi: ${Number(data.remaining_debt).toLocaleString("ru-RU")} ${saleCurrency}. Sotuvchi ombor qoldig'i: ${formatScreenGrams(Number(data.remaining_physical_stock_g), 2)}.`,
+      });
+      setSaleModalOpen(false);
+      setSaleIdemKey("");
+      setTargetCustomer(null);
+      setSaleSourcePieceId("");
+      setSaleWeightGrams("");
+      setSaleAmount("");
+      setSaleNotes("");
+      await loadCustomers();
+    } catch (err: unknown) {
+      setMessage({ type: "error", text: `Savdoni rasmiylashtirishda xatolik: ${parseErrorMessage(err, "Savdoni saqlab bo'lmadi")}` });
     } finally {
       setBusy(false);
     }
@@ -1166,6 +1237,8 @@ export function CustomerLedgerAndSheetsSection() {
                     onClick={() => {
                       setTargetCustomer(c);
                       setSaleMode("weight");
+                      setSaleCurrency("XAU585");
+                      setSaleAmount("");
                       setSaleWeightGrams("");
                       setSalePieceId("");
                       setSaleSourcePieceId("");
@@ -1200,6 +1273,14 @@ export function CustomerLedgerAndSheetsSection() {
                     💰 To&apos;lov
                   </button>
                 </div>
+                <button
+                  type="button"
+                  data-testid="open-currency-payment"
+                  onClick={() => setCurrencyTarget(c)}
+                  className="w-full mt-1.5 px-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-emerald-900 rounded-xl text-[11px] font-bold transition"
+                >
+                  💵 Valyuta qarzi / to&apos;lov{currencyLine(c.id)}
+                </button>
               </div>
             ))}
             {filteredCustomers.length === 0 && (
@@ -1277,6 +1358,8 @@ export function CustomerLedgerAndSheetsSection() {
                           onClick={() => {
                             setTargetCustomer(c);
                             setSaleMode("weight");
+                      setSaleCurrency("XAU585");
+                      setSaleAmount("");
                             setSaleWeightGrams("");
                             setSalePieceId("");
                             setSaleSourcePieceId("");
@@ -1309,6 +1392,14 @@ export function CustomerLedgerAndSheetsSection() {
                           className="px-2.5 py-1 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-lg text-[11px] font-bold transition"
                         >
                           To&apos;lov Qabul
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="open-currency-payment"
+                          onClick={() => setCurrencyTarget(c)}
+                          className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-emerald-900 rounded-lg text-[11px] font-bold transition"
+                        >
+                          💵 Valyuta{currencyLine(c.id)}
                         </button>
                       </div>
                     </td>
@@ -1931,6 +2022,19 @@ export function CustomerLedgerAndSheetsSection() {
         );
       })()}
 
+      {currencyTarget && (
+        <CurrencyPaymentModal
+          customer={currencyTarget}
+          currentRole={currentRole}
+          onClose={() => setCurrencyTarget(null)}
+          onDone={(text) => {
+            setCurrencyTarget(null);
+            setMessage({ type: "success", text });
+            void loadCustomers();
+          }}
+        />
+      )}
+
       {/* MODAL 3: RECORD SALE (NASIYA SAVDO) */}
       {saleModalOpen && targetCustomer && (() => {
         const saleWeight = parseFloat(saleWeightGrams) || 0;
@@ -1943,7 +2047,7 @@ export function CustomerLedgerAndSheetsSection() {
         return (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
             <form
-              onSubmit={handleRecordSale}
+              onSubmit={saleCurrency === "XAU585" ? handleRecordSale : handleRecordCurrencySale}
               className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <h3 className="text-lg font-black text-cyan-400 flex items-center gap-2">
@@ -1959,7 +2063,26 @@ export function CustomerLedgerAndSheetsSection() {
                 </div>
               </div>
 
+              {/* 077: pricing - gram + % (585 debt) or exact UZS / USD price (currency debt) */}
+              <div className="grid grid-cols-3 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-xs font-bold" data-testid="sale-pricing">
+                {([["XAU585", "Gramm + %"], ["UZS", "Aniq UZS"], ["USD", "Aniq USD"]] as const).map(([cur, label]) => (
+                  <button
+                    key={cur}
+                    type="button"
+                    data-testid={`sale-pricing-${cur}`}
+                    onClick={() => {
+                      setSaleCurrency(cur);
+                      if (cur !== "XAU585") setSaleMode("weight");
+                    }}
+                    className={`py-2 rounded-xl transition ${saleCurrency === cur ? "bg-emerald-600 text-white shadow-md" : "text-slate-400 hover:text-white"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               {/* Mode Selector */}
+              {saleCurrency === "XAU585" && (
               <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-xs font-bold">
                 <button
                   type="button"
@@ -1984,6 +2107,7 @@ export function CustomerLedgerAndSheetsSection() {
                   🏷️ Mahsulot Kodi Bo&apos;yicha
                 </button>
               </div>
+              )}
 
               <div className="space-y-3 text-xs">
                 {saleMode === "weight" ? (
@@ -2065,6 +2189,24 @@ export function CustomerLedgerAndSheetsSection() {
                   </div>
                 )}
 
+                {saleCurrency !== "XAU585" ? (
+                  <div>
+                    <label className="font-bold text-emerald-300 block mb-1">Savdo narxi ({saleCurrency}) *</label>
+                    <input
+                      type="number"
+                      data-testid="sale-amount"
+                      step={saleCurrency === "USD" ? "0.01" : "1"}
+                      min="0"
+                      value={saleAmount}
+                      onChange={(e) => setSaleAmount(e.target.value)}
+                      placeholder={saleCurrency === "USD" ? "Masalan: 2000" : "Masalan: 25000000"}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Mijoz qarzi {saleCurrency}da yuritiladi (585 gramm qarziga qo&apos;shilmaydi). Ombordan {saleWeightGrams || "0"} g fizik oltin chiqadi; sotuvchining menejer oldidagi gramm majburiyati o&apos;zgarmaydi.
+                    </span>
+                  </div>
+                ) : (
                 <div>
                   <label className="font-bold text-cyan-300 block mb-1">Mijoz Ustama Foizi (%)</label>
                   <input
@@ -2079,9 +2221,10 @@ export function CustomerLedgerAndSheetsSection() {
                     Standart: 12.0% yoki 15.0%. Asl bazaviy vazndan mustaqil hisoblanadi.
                   </span>
                 </div>
+                )}
 
                 {/* Live Preview Card */}
-                {saleMode === "weight" && saleWeight > 0 && (
+                {saleCurrency === "XAU585" && saleMode === "weight" && saleWeight > 0 && (
                   <div className={`p-3.5 rounded-2xl border space-y-1.5 ${
                     isStockExceeded
                       ? "bg-rose-950/60 border-rose-800 text-rose-200"

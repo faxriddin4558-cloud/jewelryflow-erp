@@ -13,6 +13,15 @@ export function isDirectorUiRole(role?: string | null): boolean {
   return DIRECTOR_ROLE_TOKENS.has(String(role ?? "").trim().toLowerCase());
 }
 
+// 077 (business decision 2026-11-05): director and production manager have the SAME rights in Goldia Sales.
+const MANAGEMENT_ROLE_TOKENS = new Set([
+  "director", "admin", "owner", "direktor", "rahbar",
+  "production manager", "production_manager", "manager", "boshqaruvchi",
+]);
+export function isManagementUiRole(role?: string | null): boolean {
+  return MANAGEMENT_ROLE_TOKENS.has(String(role ?? "").trim().toLowerCase());
+}
+
 export function isSellerUiRole(role?: string | null): boolean {
   return SELLER_ROLE_TOKENS.has(String(role ?? "").trim().toLowerCase());
 }

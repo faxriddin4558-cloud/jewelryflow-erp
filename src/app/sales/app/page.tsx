@@ -18,7 +18,8 @@ import {
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 import { ProfitAccountingBanner } from "@/components/sales/ProfitAccountingBanner";
 import { SellerDashboard } from "@/components/sales/SellerDashboard";
-import { fetchManagerAvailableStockGrams, isDirectorUiRole, isSellerUiRole } from "@/lib/sales-role-access";
+import { fetchManagerAvailableStockGrams, isManagementUiRole, isSellerUiRole } from "@/lib/sales-role-access";
+import { ManagerSimplePanel } from "@/components/sales/ManagerSimplePanel";
 import { useSessionUser } from "@/lib/use-session-user";
 
 
@@ -234,11 +235,19 @@ function CompanyDashboardContent() {
         </button>
       </div>
 
-      {/* Management Accounting Profit & Loss Banner */}
+      {/* 077: simple main screen (key balances + main actions); the detailed reconciliation is under "Batafsil" */}
+      {!isSeller && <ManagerSimplePanel />}
+
+      {/* Management Accounting Profit & Loss Banner (capital in / out, expenses, reclassification, baseline) */}
       {!isSeller && (
-        <ProfitAccountingBanner onDataMutated={loadData} canManageAccounting={isDirectorUiRole(currentUser.role)} />
+        <ProfitAccountingBanner onDataMutated={loadData} canManageAccounting={isManagementUiRole(currentUser.role)} />
       )}
 
+      <details className="group rounded-3xl border border-slate-800 bg-slate-950/40 p-3" data-testid="dashboard-details">
+        <summary className="cursor-pointer select-none text-sm font-bold text-slate-300 px-2 py-1">
+          Batafsil: rekonsilyatsiya, texnik ko&apos;rsatkichlar va sotuvchilar jadvali
+        </summary>
+        <div className="space-y-6 mt-4">
       {/* 2. Key Financial Indicators (6 Master Cards) */}
       {loading ? (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 animate-pulse">
@@ -666,6 +675,8 @@ function CompanyDashboardContent() {
           </table>
         </div>
       </div>
+        </div>
+      </details>
     </div>
   );
 }

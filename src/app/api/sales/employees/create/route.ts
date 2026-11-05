@@ -75,11 +75,14 @@ export async function POST(req: NextRequest) {
     }
 
     const callerRole = String(callerEmp.role || "").toLowerCase();
-    const isDirector = callerRole === "admin" || callerRole === "director" || callerEmp.role_type === "director";
+    // 077 (business decision): director and production manager have the same rights in Goldia Sales
+    const roleType = String(callerEmp.role_type || "").toLowerCase();
+    const isDirector = ["admin", "director", "production_manager", "manager", "boshqaruvchi"].includes(callerRole)
+      || ["director", "production manager", "production_manager", "manager"].includes(roleType);
 
     if (!isDirector) {
       return NextResponse.json(
-        { success: false, error: "Xavfsizlik: Faqat korxona Rahbari (Direktor) yangi xodim qo'sha oladi!" },
+        { success: false, error: "Xavfsizlik: Faqat direktor yoki menejer yangi xodim qo'sha oladi!" },
         { status: 403 }
       );
     }

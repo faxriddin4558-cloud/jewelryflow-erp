@@ -60,6 +60,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
   {
     title: "TAHLIL & TIZIM",
     items: [
+      { name: "Davriy Hisobot", href: "/sales/app/period-report", icon: "🗓️", roles: ["Director", "Production Manager", "manager"] },
       { name: "Moliyaviy Hisobotlar", href: "/sales/app/reports", icon: "📑", roles: ["Director", "Production Manager", "manager", "Accountant"] },
       { name: "BarTender & Modellar", href: "/sales/app/models", icon: "🏷️", roles: ["Director", "Production Manager", "manager"] },
       { name: "Xodimlar & Telegram", href: "/sales/app/users", icon: "👤", roles: ["Director", "Production Manager", "manager"] },

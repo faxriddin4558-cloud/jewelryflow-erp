@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { createGoldiaDb } from "./helpers/goldia-pglite";
 
 // Migration 077: director = manager, UZS / USD price sales, period report without any zero-reset.
+type Rep = { flows: Record<string, Record<string, number>>; closing: Record<string, number>; opening: Record<string, number>; undocumented_opening: Record<string, unknown> };
+
 describe("Goldia 077 — manager parity, currency sales, period report", () => {
   let t: Awaited<ReturnType<typeof createGoldiaDb>>;
   const org = "00000000-0000-0000-0000-00000000a077";
@@ -170,11 +172,11 @@ describe("Goldia 077 — manager parity, currency sales, period report", () => {
     await t.asUser(seller.userId);
     await t.expectError(`SELECT public.rpc_get_period_report(${today} - 30, ${today})`, "faqat direktor va menejer");
     await t.asUser(mgr.userId);
-    const rep = await t.rpc(`public.rpc_get_period_report(${today} - 30, ${today})`);
-    expect(rep.flows.sale_usd.count).toBe(1);
-    expect(Number(rep.flows.sale_usd.amount)).toBe(2000);
-    expect(Number(rep.flows.sale_usd.physical_g)).toBe(20);
-    expect(Number(rep.flows.consignment.physical_g)).toBe(30);
+    const rep = (await t.rpc(`public.rpc_get_period_report(${today} - 30, ${today})`)) as unknown as Rep;
+    expect(rep.flows.sale_usd!.count).toBe(1);
+    expect(Number(rep.flows.sale_usd!.amount)).toBe(2000);
+    expect(Number(rep.flows.sale_usd!.physical_g)).toBe(20);
+    expect(Number(rep.flows.consignment!.physical_g)).toBe(30);
     // every balance of this fully documented organization is explained by documents
     for (const v of Object.entries(rep.undocumented_opening)) if (v[0] !== "first_document_date") expect([v[0], Number(v[1])]).toEqual([v[0], 0]);
     // closing = live
@@ -184,7 +186,7 @@ describe("Goldia 077 — manager parity, currency sales, period report", () => {
     expect(Number(rep.closing.manager_cash_uzs)).toBe(await n(`(SELECT manager_cash_amount FROM public.manager_vault_account WHERE organization_id = '${org}')`));
     // before any document everything was 0
     await t.asUser(mgr.userId);
-    const past = await t.rpc(`public.rpc_get_period_report(${today} - 400, ${today} - 300)`);
+    const past = (await t.rpc(`public.rpc_get_period_report(${today} - 400, ${today} - 300)`)) as unknown as Rep;
     for (const v of Object.values(past.closing)) expect(Number(v)).toBe(0);
     // close the period: no balance changes, re-close is idempotent, next period starts the day after
     await t.asAdmin();
@@ -201,7 +203,7 @@ describe("Goldia 077 — manager parity, currency sales, period report", () => {
     expect(c2.already_closed).toBe(true);
     expect(c1.next_period_start).toBeTruthy();
     expect(await snap()).toBe(s0);
-    const next = await t.rpc(`public.rpc_get_period_report(${today}, ${today})`);
+    const next = (await t.rpc(`public.rpc_get_period_report(${today}, ${today})`)) as unknown as Rep;
     expect(Number(next.opening.customer_debt_net_usd)).toBe(Number(rep.closing.customer_debt_net_usd) - Number(next.flows.reversal_sale?.customer_usd_change ?? 0) - Number(next.flows.sale_usd?.customer_usd_change ?? 0) - Number(next.flows.payment_usd?.customer_usd_change ?? 0) - Number(next.flows.reversal_payment_usd?.customer_usd_change ?? 0));
   });
 });
