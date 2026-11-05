@@ -20,6 +20,8 @@ ui_read_rpcs(name) as (values
   ('rpc_get_customer_monthly_report'), ('rpc_get_daily_sales_ledger'), ('rpc_get_manager_available_stock_grams'),
   ('rpc_get_seller_markup_difference_report'), ('rpc_get_seller_rates'), ('rpc_get_seller_reconciliation_statement')
 ),
+-- 077 read RPCs (only checked when they exist)
+ui_read_rpcs_077(name) as (values ('rpc_get_period_report'), ('_goldia_period_effects')),
 ui_rpc_facts as (
   select u.name,
          count(p.oid) as overloads,
@@ -29,7 +31,7 @@ ui_rpc_facts as (
    group by u.name
 ),
 g(gate, state, detail) as (
-  select 'history_latest_075_or_076', case when latest in ('20260101000075', '20260101000076') then 'PASS' else 'FAIL' end, 'latest=' || coalesce(latest, '-') || ' count=' || n from hist
+  select 'history_latest_075_to_077', case when latest in ('20260101000075', '20260101000076', '20260101000077') then 'PASS' else 'FAIL' end, 'latest=' || coalesce(latest, '-') || ' count=' || n from hist
   union all
   select 'history_073_074_075', case when new_n = 3 then 'PASS' else 'FAIL' end, 'present=' || new_n || '/3' from hist
   union all
@@ -42,6 +44,10 @@ g(gate, state, detail) as (
          case when count(*) = 0 then 'PASS' else 'FAIL' end,
          'definer_rpcs_executable_by_anon=' || count(*) || coalesce(' ' || string_agg(p.proname, ',' order by p.proname), '')
     from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.proname like 'rpc\_%' and has_function_privilege('anon', p.oid, 'EXECUTE')
+  union all
+  select 'ui_read_rpcs_077_do_not_write', case when count(*) filter (where regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '\m(insert\s+into|update\s+[a-z_."]+\s+set|delete\s+from|truncate)\M') = 0 then 'PASS' else 'FAIL' end,
+         'present=' || count(*) || ' with_dml=' || count(*) filter (where regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '\m(insert\s+into|update\s+[a-z_."]+\s+set|delete\s+from|truncate)\M')
+    from ui_read_rpcs_077 u join pg_proc p on p.proname = u.name and p.pronamespace = 'public'::regnamespace
   union all
   select 'ui_read_rpcs_exist', case when count(*) filter (where overloads = 0) = 0 then 'PASS' else 'FAIL' end,
          'missing=' || count(*) filter (where overloads = 0) || coalesce(' ' || string_agg(name, ',' order by name) filter (where overloads = 0), '')

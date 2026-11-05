@@ -27,7 +27,7 @@ cp "$OUT/b.orig" "$B"; c=$(run -BaselineBefore "$OUT/nope.txt"); t T5_missing_Ba
 $P -c "create policy zz_leak on public.customers for select to authenticated using (true)"; c=$(run); t T6_rls_leak_FAIL 1 $c 'LEAK\|read\|customers'; $P -c "drop policy zz_leak on public.customers"
 $P -c "alter table public.customers disable trigger trg_goldia_guard_customer_code"; c=$(run); t T7_postflight_false_column_FAIL 1 $c 'false: code_guard_trigger'; $P -c "alter table public.customers enable trigger trg_goldia_guard_customer_code"
 $P -c "alter table public.jewelry_models disable row level security"; c=$(run); t T8_table_without_rls_FAIL 1 $c 'false: rls_enabled'; $P -c "alter table public.jewelry_models enable row level security"
-$P -c "update supabase_migrations.schema_migrations set version='20260101000099' where version='20260101000075'"; c=$(run); t T9_history_not_075_FAIL 1 $c 'expects migration history at 20260101000075'; $P -c "update supabase_migrations.schema_migrations set version='20260101000075' where version='20260101000099'"
+$P -c "update supabase_migrations.schema_migrations set version='20260101000099' where version='20260101000075'"; c=$(run); t T9_history_not_075_FAIL 1 $c 'expects migration history at 075, 076 or 077'; $P -c "update supabase_migrations.schema_migrations set version='20260101000075' where version='20260101000099'"
 c=$(run); t T10_restored_PASS 0 $c 'RESULT: PASS'
 # after 076: the 075 baseline is the "before" file, the 076 postflight runs as well
 B75="$OUT/runs/readonly-production-post-20261103-000000/01_baseline.txt"; mkdir -p "$(dirname "$B75")"

@@ -188,14 +188,21 @@ Write-Host ("  " + $idLine)
 Add-Content -Path $script:SummaryFile -Value $idLine -Encoding ASCII
 if ($pp[1] -ne "on") { Finish "FAIL" "the explicit read-only transaction is not read-only (transaction_read_only=" + $pp[1] + ")" }
 if ($pp[3] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
-if ($Target -eq "production-prelaunch" -and $pp[4] -ne "20260101000075") { Finish "FAIL" ("production-prelaunch expects migration history at 20260101000075, found " + $pp[4]) }
-if ($Target -eq "production-post" -and @("20260101000075", "20260101000076") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 20260101000075 or 20260101000076, found " + $pp[4]) }
-if ($Target -eq "production-post" -and $pp[4] -eq "20260101000076") {
-  # after 076 its postflight runs too (073/074/075 must stay true)
-  $pf76 = @{ Name = "076_postflight"; File = "supabase/release/076_postflight_readonly.sql"; Kind = "postflight" }
-  $pf76.Path = Join-Path $repo $pf76.File
-  if (-not (Test-Path -LiteralPath $pf76.Path)) { Finish "FAIL" "missing supabase/release/076_postflight_readonly.sql - run from the release branch checkout" }
-  $checks = @($checks[0], $checks[1], $checks[2], $pf76) + @($checks[3..($checks.Count - 1)])
+if ($Target -eq "production-prelaunch" -and @("20260101000075", "20260101000076") -notcontains $pp[4]) { Finish "FAIL" ("production-prelaunch expects migration history at 20260101000075 (before 076) or 20260101000076 (before 077), found " + $pp[4]) }
+if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000076") {
+  # before 077: the 077 pre-release check and the 076 function-body parity
+  $c5 = @{ Name = "05_prelaunch_077"; File = "docs/releases/production-075/05_prelaunch_077_readonly.sql"; Kind = "pre" }
+  $p6 = @{ Name = "function_body_parity_076"; File = "supabase/release/function_body_parity_076_readonly.sql"; Kind = "parity" }
+  foreach ($x in @($c5, $p6)) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
+  $checks = @($c5, $p6)
+}
+if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075, 076 or 077, found " + $pp[4]) }
+if ($Target -eq "production-post" -and $pp[4] -ne "20260101000075") {
+  # after 076 / 077 their postflights run too (073/074/075 must stay true)
+  $extra = @(@{ Name = "076_postflight"; File = "supabase/release/076_postflight_readonly.sql"; Kind = "postflight" })
+  if ($pp[4] -eq "20260101000077") { $extra += @{ Name = "077_postflight"; File = "supabase/release/077_postflight_readonly.sql"; Kind = "postflight" } }
+  foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
+  $checks = @($checks[0], $checks[1], $checks[2]) + $extra + @($checks[3..($checks.Count - 1)])
 }
 
 # ---------------------------------------------------------------- pre-release baseline (production-post)
@@ -301,6 +308,7 @@ foreach ($c in $checks) {
             if ($bv -ceq $nv) { continue }
             $d = $k + ": before=" + $bv + " now=" + $nv
             if ($expected -contains $k) { [void]$info.Add("expected   " + $d) }
+            elseif ($k.StartsWith("rows ") -and $bv -eq "<missing>" -and $nv -eq "0") { [void]$info.Add("new table  " + $d) }
             elseif ($nonBusiness -contains $k) { [void]$info.Add("non-business " + $d) }
             else { [void]$biz.Add($d) }
           }
@@ -348,7 +356,7 @@ foreach ($c in $checks) {
       }
     }
     "pre" {
-      $res = @($lines | Where-Object { $_ -match '^RESULT\|prelaunch_076\|' })
+      $res = @($lines | Where-Object { $_ -match '^RESULT\|prelaunch_07[67]\|' })
       foreach ($g in @($lines | Where-Object { $_ -match '^PRE\|' })) {
         $gc = "Gray"; if ($g -match '\|STOP\|') { $gc = "Red" } elseif ($g -match '\|WARN\|') { $gc = "Yellow" } elseif ($g -match '\|OK\|') { $gc = "Green" }
         Write-Host ("    " + $g) -ForegroundColor $gc

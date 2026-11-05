@@ -1,0 +1,1715 @@
+C accounting_baselines.baseline_date timestamp with time zone NOT NULL
+C accounting_baselines.baseline_no text NOT NULL
+C accounting_baselines.cash_usd_585_eq_g numeric(14,4) NOT NULL
+C accounting_baselines.cash_usd_amount numeric(18,2) NOT NULL
+C accounting_baselines.cash_uzs_585_eq_g numeric(14,4) NOT NULL
+C accounting_baselines.cash_uzs_amount numeric(18,2) NOT NULL
+C accounting_baselines.components_snapshot jsonb NOT NULL
+C accounting_baselines.confirmed_by uuid
+C accounting_baselines.created_at timestamp with time zone NOT NULL
+C accounting_baselines.customer_advances_585_g numeric(14,4) NOT NULL
+C accounting_baselines.customer_debts_585_g numeric(14,4) NOT NULL
+C accounting_baselines.factory_advance_585_g numeric(14,4) NOT NULL
+C accounting_baselines.factory_obligation_585_g numeric(14,4) NOT NULL
+C accounting_baselines.gold_rate_585 numeric(18,2) NOT NULL
+C accounting_baselines.id uuid NOT NULL
+C accounting_baselines.manager_finished_g numeric(14,4) NOT NULL
+C accounting_baselines.manager_purchased_gold_g numeric(14,4) NOT NULL
+C accounting_baselines.manager_refined_gold_g numeric(14,4) NOT NULL
+C accounting_baselines.manager_scrap_585_eq_g numeric(14,4) NOT NULL
+C accounting_baselines.net_assets_585_g numeric(14,4) NOT NULL
+C accounting_baselines.notes text
+C accounting_baselines.organization_id uuid NOT NULL
+C accounting_baselines.seller_finished_g numeric(14,4) NOT NULL
+C accounting_baselines.seller_scrap_585_eq_g numeric(14,4) NOT NULL
+C accounting_baselines.status text NOT NULL
+C accounting_baselines.total_assets_585_g numeric(14,4) NOT NULL
+C accounting_baselines.total_liabilities_585_g numeric(14,4) NOT NULL
+C accounting_baselines.usd_rate numeric(18,2) NOT NULL
+C affinaj_records.actual_fine numeric(18,6) NOT NULL
+C affinaj_records.created_at timestamp with time zone NOT NULL
+C affinaj_records.estimated_proba numeric(6,2) NOT NULL
+C affinaj_records.expected_fine numeric(18,6) NOT NULL
+C affinaj_records.id uuid NOT NULL
+C affinaj_records.idempotency_key text
+C affinaj_records.master_name text
+C affinaj_records.output_proba numeric(6,2) NOT NULL
+C affinaj_records.output_weight numeric(14,4) NOT NULL
+C affinaj_records.performed_by uuid
+C affinaj_records.refining_loss numeric(14,4) NOT NULL
+C affinaj_records.scrap_item_id uuid
+C affinaj_records.scrap_weight numeric(14,4) NOT NULL
+C affinaj_records.target_gold_item_id uuid
+C audit_log.action text NOT NULL
+C audit_log.changed_at timestamp with time zone NOT NULL
+C audit_log.changed_by uuid
+C audit_log.id uuid NOT NULL
+C audit_log.new_data jsonb
+C audit_log.old_data jsonb
+C audit_log.record_id uuid NOT NULL
+C audit_log.table_name text NOT NULL
+C audit_logs.action text NOT NULL
+C audit_logs.actor_id uuid
+C audit_logs.actor_name text
+C audit_logs.actor_role text
+C audit_logs.created_at timestamp with time zone NOT NULL
+C audit_logs.id uuid NOT NULL
+C audit_logs.new_data jsonb
+C audit_logs.old_data jsonb
+C audit_logs.organization_id uuid
+C audit_logs.reason text
+C audit_logs.record_id text
+C audit_logs.table_name text NOT NULL
+C batch_gold_summary.batch_id uuid
+C batch_gold_summary.batch_number text
+C batch_gold_summary.issued_grams numeric
+C batch_gold_summary.melting_loss_grams numeric
+C batch_gold_summary.net_consumed_grams numeric
+C batch_gold_summary.returned_grams numeric
+C batch_gold_summary.scrap_recovered_grams numeric
+C batch_images.batch_id uuid NOT NULL
+C batch_images.caption text
+C batch_images.created_at timestamp with time zone NOT NULL
+C batch_images.id uuid NOT NULL
+C batch_images.stage_id uuid
+C batch_images.storage_path text NOT NULL
+C batch_images.uploaded_by uuid
+C batch_models.batch_id uuid NOT NULL
+C batch_models.created_at timestamp with time zone NOT NULL
+C batch_models.id uuid NOT NULL
+C batch_models.model_id uuid NOT NULL
+C batch_models.notes text
+C batch_models.order_item_id uuid
+C batch_models.quantity integer NOT NULL
+C batch_models.weight_grams numeric(10,3)
+C batch_operations.assigned_employee_id uuid
+C batch_operations.attempt_number integer NOT NULL
+C batch_operations.batch_id uuid NOT NULL
+C batch_operations.created_at timestamp with time zone NOT NULL
+C batch_operations.delay_reason_category delay_reason_category
+C batch_operations.delay_reason_notes text
+C batch_operations.delayed_minutes integer
+C batch_operations.department_id uuid NOT NULL
+C batch_operations.duration_seconds integer
+C batch_operations.finished_at timestamp with time zone
+C batch_operations.id uuid NOT NULL
+C batch_operations.input_weight_grams numeric(10,3)
+C batch_operations.notes text
+C batch_operations.output_weight_grams numeric(10,3)
+C batch_operations.performed_by_employee_id uuid
+C batch_operations.queued_at timestamp with time zone NOT NULL
+C batch_operations.stage_id uuid NOT NULL
+C batch_operations.started_at timestamp with time zone
+C batch_operations.status operation_status NOT NULL
+C batch_operations.updated_at timestamp with time zone NOT NULL
+C batch_stage_wip.assigned_employee_id text
+C batch_stage_wip.assigned_worker text
+C batch_stage_wip.available_qty integer NOT NULL
+C batch_stage_wip.batch_id text
+C batch_stage_wip.batch_no text NOT NULL
+C batch_stage_wip.completed_qty integer NOT NULL
+C batch_stage_wip.created_at timestamp with time zone NOT NULL
+C batch_stage_wip.department text NOT NULL
+C batch_stage_wip.id uuid NOT NULL
+C batch_stage_wip.input_weight numeric(14,4) NOT NULL
+C batch_stage_wip.loss_weight numeric(14,4) NOT NULL
+C batch_stage_wip.organization_id uuid
+C batch_stage_wip.output_weight numeric(14,4) NOT NULL
+C batch_stage_wip.queue_status text NOT NULL
+C batch_stage_wip.rework_qty integer NOT NULL
+C batch_stage_wip.stage_name text NOT NULL
+C batch_stage_wip.stage_order integer NOT NULL
+C batch_stage_wip.updated_at timestamp with time zone NOT NULL
+C batch_status_history.batch_id uuid NOT NULL
+C batch_status_history.changed_by uuid
+C batch_status_history.created_at timestamp with time zone NOT NULL
+C batch_status_history.id uuid NOT NULL
+C batch_status_history.new_priority text
+C batch_status_history.new_status text NOT NULL
+C batch_status_history.previous_priority text
+C batch_status_history.previous_status text
+C batch_status_history.reason text
+C batches.actual_gram numeric(14,4)
+C batches.actual_qty integer
+C batches.assigned_employee_id uuid
+C batches.batch_no text
+C batches.batch_number text
+C batches.client_name text
+C batches.completed_at timestamp with time zone
+C batches.created_at timestamp with time zone NOT NULL
+C batches.created_by uuid
+C batches.credited_finished_qty integer NOT NULL
+C batches.current_department_id uuid
+C batches.current_stage_id uuid
+C batches.current_step text
+C batches.deadline date
+C batches.due_date date
+C batches.finished_qty integer
+C batches.good_output_gram numeric(14,4)
+C batches.id uuid NOT NULL
+C batches.issued_gold_gram numeric(14,4)
+C batches.loss_gram numeric(14,4)
+C batches.master_name text
+C batches.notes text
+C batches.number text
+C batches.order_id uuid
+C batches.organization_id uuid
+C batches.parent_batch_no text
+C batches.planned_gram numeric(14,4)
+C batches.planned_qty integer
+C batches.priority text NOT NULL
+C batches.priority_label text
+C batches.proba numeric(6,2)
+C batches.product text
+C batches.product_id text
+C batches.product_name text
+C batches.rework_gram numeric(14,4)
+C batches.scrap_gram numeric(14,4)
+C batches.sprue_gram numeric(14,4)
+C batches.started_at timestamp with time zone
+C batches.status text NOT NULL
+C batches.status_label text
+C batches.updated_at timestamp with time zone NOT NULL
+C batches.wip_gram numeric(14,4)
+C bom_items.bom_version integer NOT NULL
+C bom_items.component_name text NOT NULL
+C bom_items.created_at timestamp with time zone NOT NULL
+C bom_items.id uuid NOT NULL
+C bom_items.material_category text NOT NULL
+C bom_items.proba numeric(6,2) NOT NULL
+C bom_items.product_id uuid
+C bom_items.product_name text NOT NULL
+C bom_items.weight_per_set numeric(14,4) NOT NULL
+C client_currency_accounts.advance_amount numeric(18,2) NOT NULL
+C client_currency_accounts.currency text NOT NULL
+C client_currency_accounts.customer_id uuid NOT NULL
+C client_currency_accounts.debt_amount numeric(18,2) NOT NULL
+C client_currency_accounts.organization_id uuid NOT NULL
+C client_currency_accounts.seller_id uuid
+C client_currency_accounts.total_paid_amount numeric(18,2) NOT NULL
+C client_currency_accounts.total_sold_amount numeric(18,2) NOT NULL
+C client_currency_accounts.updated_at timestamp with time zone NOT NULL
+C client_currency_settlements.applied_to_debt numeric(18,2) NOT NULL
+C client_currency_settlements.cash_uzs numeric(18,2) NOT NULL
+C client_currency_settlements.created_at timestamp with time zone NOT NULL
+C client_currency_settlements.credited_amount numeric(18,2) NOT NULL
+C client_currency_settlements.customer_id uuid NOT NULL
+C client_currency_settlements.debt_currency text NOT NULL
+C client_currency_settlements.id uuid NOT NULL
+C client_currency_settlements.idempotency_key text
+C client_currency_settlements.notes text
+C client_currency_settlements.organization_id uuid NOT NULL
+C client_currency_settlements.rate_lom_uzs numeric(18,2)
+C client_currency_settlements.rate_usd_uzs numeric(18,2)
+C client_currency_settlements.recorded_by uuid
+C client_currency_settlements.reversal_reason text
+C client_currency_settlements.reversed_at timestamp with time zone
+C client_currency_settlements.reversed_by uuid
+C client_currency_settlements.scrap_585_g numeric(14,4) NOT NULL
+C client_currency_settlements.scrap_physical_g numeric(14,4) NOT NULL
+C client_currency_settlements.scrap_proba numeric(6,2)
+C client_currency_settlements.seller_id uuid NOT NULL
+C client_currency_settlements.settlement_date date NOT NULL
+C client_currency_settlements.settlement_no text NOT NULL
+C client_currency_settlements.status text NOT NULL
+C client_currency_settlements.to_advance numeric(18,2) NOT NULL
+C client_currency_settlements.usd_amount numeric(18,2) NOT NULL
+C client_gold_accounts.advance_balance_grams numeric(14,4) NOT NULL
+C client_gold_accounts.current_debt_grams numeric(14,4) NOT NULL
+C client_gold_accounts.customer_id uuid NOT NULL
+C client_gold_accounts.organization_id uuid NOT NULL
+C client_gold_accounts.seller_id uuid
+C client_gold_accounts.total_cash_equiv_grams numeric(14,4) NOT NULL
+C client_gold_accounts.total_cash_paid_amount numeric(18,2) NOT NULL
+C client_gold_accounts.total_purchased_gold_grams numeric(14,4) NOT NULL
+C client_gold_accounts.total_scrap_paid_grams numeric(14,4) NOT NULL
+C client_gold_accounts.total_settled_grams numeric(14,4) NOT NULL
+C client_gold_accounts.total_usd_equiv_grams numeric(14,4)
+C client_gold_accounts.total_usd_paid_amount numeric(18,2)
+C client_gold_accounts.updated_at timestamp with time zone NOT NULL
+C client_legacy_debts.amount_585_g numeric(14,4) NOT NULL
+C client_legacy_debts.as_of_date date NOT NULL
+C client_legacy_debts.balance_type text NOT NULL
+C client_legacy_debts.created_at timestamp with time zone NOT NULL
+C client_legacy_debts.created_by uuid
+C client_legacy_debts.customer_id uuid NOT NULL
+C client_legacy_debts.delta_585_g numeric(14,4) NOT NULL
+C client_legacy_debts.entry_type text NOT NULL
+C client_legacy_debts.id uuid NOT NULL
+C client_legacy_debts.idempotency_key text
+C client_legacy_debts.new_advance_585_g numeric(14,4) NOT NULL
+C client_legacy_debts.new_debt_585_g numeric(14,4) NOT NULL
+C client_legacy_debts.notes text
+C client_legacy_debts.organization_id uuid NOT NULL
+C client_legacy_debts.previous_advance_585_g numeric(14,4) NOT NULL
+C client_legacy_debts.previous_debt_585_g numeric(14,4) NOT NULL
+C client_legacy_debts.reversal_reason text
+C client_legacy_debts.reversed_at timestamp with time zone
+C client_legacy_debts.reversed_by uuid
+C client_legacy_debts.seller_id uuid
+C client_legacy_debts.status text NOT NULL
+C client_legacy_debts.updated_at timestamp with time zone NOT NULL
+C company_rate_differences.accounting_value_585_g numeric(18,6) NOT NULL
+C company_rate_differences.avg_conversion_rate numeric(18,2)
+C company_rate_differences.cash_spent_uzs numeric(18,2) NOT NULL
+C company_rate_differences.created_at timestamp with time zone NOT NULL
+C company_rate_differences.created_by uuid
+C company_rate_differences.difference_585_g numeric(18,6) NOT NULL
+C company_rate_differences.entry_type text NOT NULL
+C company_rate_differences.id uuid NOT NULL
+C company_rate_differences.organization_id uuid NOT NULL
+C company_rate_differences.physical_grams numeric(14,4) NOT NULL
+C company_rate_differences.proba numeric(6,2)
+C company_rate_differences.purchase_id uuid NOT NULL
+C company_rate_differences.purchase_rate_per_gram numeric(18,2)
+C company_rate_differences.purchased_585_g numeric(18,6) NOT NULL
+C company_rate_differences.reversal_of_id uuid
+C company_rate_differences.unvalued_cost_uzs numeric(18,2) NOT NULL
+C company_rate_differences.usd_rate numeric(14,2)
+C company_rate_differences.usd_spent numeric(18,2) NOT NULL
+C company_rate_differences.valued_cash_585_g numeric(18,6) NOT NULL
+C company_rate_differences.valued_cash_uzs numeric(18,2) NOT NULL
+C company_rate_differences.valued_purchased_585_g numeric(18,6) NOT NULL
+C company_rate_differences.valued_usd numeric(18,2) NOT NULL
+C company_rate_differences.valued_usd_585_g numeric(18,6) NOT NULL
+C consignment_pieces.category text
+C consignment_pieces.consignment_id uuid NOT NULL
+C consignment_pieces.created_at timestamp with time zone NOT NULL
+C consignment_pieces.id uuid NOT NULL
+C consignment_pieces.model_code text NOT NULL
+C consignment_pieces.model_id uuid
+C consignment_pieces.model_name text NOT NULL
+C consignment_pieces.notes text
+C consignment_pieces.organization_id uuid NOT NULL
+C consignment_pieces.proba numeric(6,2)
+C consignment_pieces.purity numeric(6,2) NOT NULL
+C consignment_pieces.raw_barcode text
+C consignment_pieces.returned_to_manager_at timestamp with time zone
+C consignment_pieces.sale_id uuid
+C consignment_pieces.seller_id uuid NOT NULL
+C consignment_pieces.seller_markup_pct numeric(6,2)
+C consignment_pieces.seller_obligation_grams numeric(14,4)
+C consignment_pieces.sold_at timestamp with time zone
+C consignment_pieces.status text NOT NULL
+C consignment_pieces.updated_at timestamp with time zone NOT NULL
+C consignment_pieces.weight_grams numeric(14,4) NOT NULL
+C consumption.batch_id text
+C consumption.batch_no text NOT NULL
+C consumption.created_at timestamp with time zone NOT NULL
+C consumption.department text NOT NULL
+C consumption.given_weight numeric(14,4) NOT NULL
+C consumption.id uuid NOT NULL
+C consumption.idempotency_key text
+C consumption.loss_weight numeric(14,4) NOT NULL
+C consumption.master_employee_id text
+C consumption.master_name text
+C consumption.proba numeric(6,2) NOT NULL
+C consumption.returned_weight numeric(14,4) NOT NULL
+C consumption.scrap_gram numeric(14,4) NOT NULL
+C consumption.sent_to_refinery boolean NOT NULL
+C consumption.sprue_gram numeric(14,4) NOT NULL
+C consumption.stage_order integer
+C consumption.updated_at timestamp with time zone NOT NULL
+C customers.advance_balance_gold_grams numeric(14,4) NOT NULL
+C customers.billing_address text
+C customers.company_name text
+C customers.contact_name text NOT NULL
+C customers.created_at timestamp with time zone NOT NULL
+C customers.created_by uuid
+C customers.customer_code text NOT NULL
+C customers.email text
+C customers.id uuid NOT NULL
+C customers.is_active boolean NOT NULL
+C customers.is_archived boolean NOT NULL
+C customers.notes text
+C customers.organization_id uuid
+C customers.phone text
+C customers.seller_id uuid
+C customers.shipping_address text
+C customers.tax_id text
+C customers.updated_at timestamp with time zone NOT NULL
+C daily_gold_rates.created_at timestamp with time zone NOT NULL
+C daily_gold_rates.currency text NOT NULL
+C daily_gold_rates.id uuid NOT NULL
+C daily_gold_rates.is_confirmed boolean NOT NULL
+C daily_gold_rates.notes text
+C daily_gold_rates.organization_id uuid NOT NULL
+C daily_gold_rates.proba numeric(6,2) NOT NULL
+C daily_gold_rates.purity numeric(6,2)
+C daily_gold_rates.rate_date date NOT NULL
+C daily_gold_rates.rate_per_gram numeric(18,2) NOT NULL
+C daily_gold_rates.set_by uuid
+C daily_gold_rates.updated_at timestamp with time zone NOT NULL
+C debt_repayments.amount numeric(18,2) NOT NULL
+C debt_repayments.client_name text NOT NULL
+C debt_repayments.created_at timestamp with time zone NOT NULL
+C debt_repayments.id uuid NOT NULL
+C debt_repayments.idempotency_key text
+C debt_repayments.note text
+C debt_repayments.order_id text
+C debt_repayments.organization_id uuid
+C debt_repayments.payment_type text NOT NULL
+C debt_repayments.previous_debt numeric(18,2) NOT NULL
+C debt_repayments.recorded_by uuid
+C debt_repayments.remaining_debt numeric(18,2) NOT NULL
+C debt_repayments.sale_id text
+C department_board.assigned_employee_id uuid
+C department_board.assigned_employee_name text
+C department_board.batch_id uuid
+C department_board.batch_number text
+C department_board.batch_priority text
+C department_board.delay_reason_category delay_reason_category
+C department_board.delayed_minutes integer
+C department_board.department_code text
+C department_board.department_id uuid
+C department_board.department_name text
+C department_board.operation_id uuid
+C department_board.operation_status operation_status
+C department_board.queued_at timestamp with time zone
+C department_board.stage_id uuid
+C department_board.stage_name text
+C department_board.started_at timestamp with time zone
+C departments.code text NOT NULL
+C departments.created_at timestamp with time zone NOT NULL
+C departments.description text
+C departments.id uuid NOT NULL
+C departments.is_active boolean NOT NULL
+C departments.name text NOT NULL
+C departments.updated_at timestamp with time zone NOT NULL
+C employees.balance numeric(18,2) NOT NULL
+C employees.created_at timestamp with time zone NOT NULL
+C employees.department text
+C employees.email text
+C employees.employee_code text
+C employees.employment_status employment_status NOT NULL
+C employees.full_name text
+C employees.gram_rate numeric(18,2)
+C employees.hired_at date
+C employees.id uuid NOT NULL
+C employees.is_active boolean NOT NULL
+C employees.name text
+C employees.notes text
+C employees.organization_id uuid
+C employees.phone text
+C employees.photo_url text
+C employees.position text
+C employees.primary_department_id uuid
+C employees.rate numeric(18,2) NOT NULL
+C employees.role app_role NOT NULL
+C employees.role_type text
+C employees.salary_type text
+C employees.status text
+C employees.telegram_link_code text
+C employees.telegram_link_expires_at timestamp with time zone
+C employees.telegram_linked_at timestamp with time zone
+C employees.telegram_user_id text
+C employees.telegram_username text
+C employees.updated_at timestamp with time zone NOT NULL
+C employees.user_id uuid
+C factory_dashboard_summary.active_orders bigint
+C factory_dashboard_summary.batches_completed_today bigint
+C factory_dashboard_summary.batches_delayed bigint
+C factory_dashboard_summary.batches_in_progress bigint
+C factory_dashboard_summary.batches_on_hold bigint
+C factory_dashboard_summary.batches_pending bigint
+C factory_dashboard_summary.gold_on_hand_grams numeric
+C factory_dashboard_summary.qc_failures_today bigint
+C factory_gold_handovers.agreed_equivalent_g numeric(14,4) NOT NULL
+C factory_gold_handovers.capital_tx_id uuid
+C factory_gold_handovers.created_at timestamp with time zone NOT NULL
+C factory_gold_handovers.factory_accepted boolean NOT NULL
+C factory_gold_handovers.factory_recipient text NOT NULL
+C factory_gold_handovers.handover_date date NOT NULL
+C factory_gold_handovers.handover_no text NOT NULL
+C factory_gold_handovers.id uuid NOT NULL
+C factory_gold_handovers.idempotency_key text
+C factory_gold_handovers.notes text
+C factory_gold_handovers.organization_id uuid NOT NULL
+C factory_gold_handovers.physical_weight_g numeric(14,4) NOT NULL
+C factory_gold_handovers.proba numeric(6,2) NOT NULL
+C factory_gold_handovers.purchase_id uuid
+C factory_gold_handovers.recorded_by uuid
+C factory_gold_handovers.refining_batch_id uuid
+C factory_gold_handovers.reversal_reason text
+C factory_gold_handovers.reversed_at timestamp with time zone
+C factory_gold_handovers.reversed_by uuid
+C factory_gold_handovers.source_purchase_id uuid
+C factory_gold_handovers.source_type text NOT NULL
+C factory_gold_handovers.status text NOT NULL
+C factory_gold_handovers.updated_at timestamp with time zone
+C factory_receipts.available_physical_g numeric(14,4) NOT NULL
+C factory_receipts.created_at timestamp with time zone NOT NULL
+C factory_receipts.factory_markup_pct numeric(6,2) NOT NULL
+C factory_receipts.factory_obligation_g numeric(14,4) NOT NULL
+C factory_receipts.id uuid NOT NULL
+C factory_receipts.idempotency_key text
+C factory_receipts.model_id uuid
+C factory_receipts.notes text
+C factory_receipts.organization_id uuid NOT NULL
+C factory_receipts.original_physical_g numeric(14,4) NOT NULL
+C factory_receipts.proba numeric(6,2) NOT NULL
+C factory_receipts.product_id uuid
+C factory_receipts.product_name text NOT NULL
+C factory_receipts.quantity integer NOT NULL
+C factory_receipts.receipt_date date NOT NULL
+C factory_receipts.receipt_no text NOT NULL
+C factory_receipts.reversal_reason text
+C factory_receipts.reversed_at timestamp with time zone
+C factory_receipts.reversed_by uuid
+C factory_receipts.status text NOT NULL
+C factory_receipts.transferred_physical_g numeric(14,4) NOT NULL
+C factory_receipts.updated_at timestamp with time zone NOT NULL
+C financial_transactions.amount_num numeric(18,4) NOT NULL
+C financial_transactions.category text
+C financial_transactions.created_at timestamp with time zone NOT NULL
+C financial_transactions.currency text NOT NULL
+C financial_transactions.equiv_585_grams numeric(14,4) NOT NULL
+C financial_transactions.gold_proba numeric(6,2)
+C financial_transactions.gold_rate_applied numeric(18,2)
+C financial_transactions.id uuid NOT NULL
+C financial_transactions.idempotency_key text
+C financial_transactions.notes text
+C financial_transactions.organization_id uuid NOT NULL
+C financial_transactions.physical_weight_grams numeric(14,4)
+C financial_transactions.reclassification_reason text
+C financial_transactions.reclassified_at timestamp with time zone
+C financial_transactions.reclassified_from_amount numeric(18,2)
+C financial_transactions.reclassified_from_currency text
+C financial_transactions.reclassified_from_id uuid
+C financial_transactions.reclassified_from_till text
+C financial_transactions.recorded_by uuid
+C financial_transactions.reversal_reason text
+C financial_transactions.reversed_at timestamp with time zone
+C financial_transactions.reversed_by uuid
+C financial_transactions.seller_id uuid
+C financial_transactions.source_till text NOT NULL
+C financial_transactions.status text NOT NULL
+C financial_transactions.transaction_date date NOT NULL
+C financial_transactions.transaction_no text NOT NULL
+C financial_transactions.transaction_type text NOT NULL
+C financial_transactions.updated_at timestamp with time zone
+C financial_transactions.usd_rate_applied numeric(18,2)
+C gold_lots.cost_per_gram numeric(14,4)
+C gold_lots.created_at timestamp with time zone NOT NULL
+C gold_lots.id uuid NOT NULL
+C gold_lots.lot_number text NOT NULL
+C gold_lots.notes text
+C gold_lots.purity gold_purity NOT NULL
+C gold_lots.received_at timestamp with time zone NOT NULL
+C gold_lots.received_by uuid
+C gold_lots.received_weight_grams numeric(12,3) NOT NULL
+C gold_lots.remaining_weight_grams numeric(12,3) NOT NULL
+C gold_lots.source text NOT NULL
+C gold_lots.updated_at timestamp with time zone NOT NULL
+C gold_purchases.cash_spent_uzs numeric(18,2)
+C gold_purchases.created_at timestamp with time zone NOT NULL
+C gold_purchases.currency text NOT NULL
+C gold_purchases.equiv_585_grams numeric(14,4) NOT NULL
+C gold_purchases.gold_weight_grams numeric(14,4) NOT NULL
+C gold_purchases.id uuid NOT NULL
+C gold_purchases.idempotency_key text
+C gold_purchases.notes text
+C gold_purchases.organization_id uuid NOT NULL
+C gold_purchases.payment_method text NOT NULL
+C gold_purchases.proba numeric(6,2) NOT NULL
+C gold_purchases.purchase_date date NOT NULL
+C gold_purchases.purchase_no text NOT NULL
+C gold_purchases.rate_per_gram numeric(18,2) NOT NULL
+C gold_purchases.recorded_by uuid
+C gold_purchases.reversal_reason text
+C gold_purchases.reversed_at timestamp with time zone
+C gold_purchases.reversed_by uuid
+C gold_purchases.status text NOT NULL
+C gold_purchases.supplier_name text NOT NULL
+C gold_purchases.total_cost_uzs numeric(18,2)
+C gold_purchases.usd_rate numeric(14,2)
+C gold_purchases.usd_spent numeric(18,2)
+C gold_settlements.applied_to_debt_grams numeric(14,4) NOT NULL
+C gold_settlements.applied_usd_rate numeric(18,2)
+C gold_settlements.cash_equivalent_grams numeric(14,4) NOT NULL
+C gold_settlements.cash_paid_amount numeric(18,2) NOT NULL
+C gold_settlements.consignment_id uuid
+C gold_settlements.created_at timestamp with time zone NOT NULL
+C gold_settlements.currency text NOT NULL
+C gold_settlements.customer_id uuid
+C gold_settlements.daily_rate_id uuid
+C gold_settlements.direction text NOT NULL
+C gold_settlements.excess_gold_grams numeric(14,4) NOT NULL
+C gold_settlements.fine_gold_grams numeric(14,4)
+C gold_settlements.gold_rate_applied numeric(18,2) NOT NULL
+C gold_settlements.id uuid NOT NULL
+C gold_settlements.idempotency_key text
+C gold_settlements.notes text
+C gold_settlements.organization_id uuid NOT NULL
+C gold_settlements.physical_scrap_grams numeric(14,4)
+C gold_settlements.previous_debt_grams numeric(14,4) NOT NULL
+C gold_settlements.recorded_by uuid
+C gold_settlements.remaining_debt_grams numeric(14,4) NOT NULL
+C gold_settlements.reversal_of_id uuid
+C gold_settlements.reversal_reason text
+C gold_settlements.reversed_at timestamp with time zone
+C gold_settlements.reversed_by uuid
+C gold_settlements.sale_id uuid
+C gold_settlements.scrap_585_equiv_grams numeric(14,4)
+C gold_settlements.scrap_proba numeric(6,2)
+C gold_settlements.scrap_weight_grams numeric(14,4) NOT NULL
+C gold_settlements.seller_id uuid NOT NULL
+C gold_settlements.settlement_date date NOT NULL
+C gold_settlements.settlement_no text NOT NULL
+C gold_settlements.status text NOT NULL
+C gold_settlements.till_pool_cash_585_g numeric(18,6) NOT NULL
+C gold_settlements.till_pool_cash_uzs numeric(18,2) NOT NULL
+C gold_settlements.till_pool_usd numeric(18,2) NOT NULL
+C gold_settlements.till_pool_usd_585_g numeric(18,6) NOT NULL
+C gold_settlements.total_settled_grams numeric(14,4) NOT NULL
+C gold_settlements.usd_equivalent_grams numeric(14,4)
+C gold_settlements.usd_paid_amount numeric(18,2)
+C gold_transactions.batch_id uuid
+C gold_transactions.batch_no text
+C gold_transactions.batch_operation_id uuid
+C gold_transactions.created_at timestamp with time zone NOT NULL
+C gold_transactions.description text
+C gold_transactions.from_location text
+C gold_transactions.gross_weight numeric(14,4)
+C gold_transactions.id uuid NOT NULL
+C gold_transactions.idempotency_key text
+C gold_transactions.lot_id uuid
+C gold_transactions.material_name text
+C gold_transactions.organization_id uuid
+C gold_transactions.performed_by uuid
+C gold_transactions.proba numeric(6,2)
+C gold_transactions.pure_gold numeric(18,6)
+C gold_transactions.reference_note text
+C gold_transactions.to_location text
+C gold_transactions.transaction_type text
+C gold_transactions.type gold_transaction_type
+C gold_transactions.weight_grams numeric(12,3)
+C goldia_report_periods.closed_at timestamp with time zone NOT NULL
+C goldia_report_periods.closed_by uuid
+C goldia_report_periods.id uuid NOT NULL
+C goldia_report_periods.notes text
+C goldia_report_periods.organization_id uuid NOT NULL
+C goldia_report_periods.period_end date NOT NULL
+C goldia_report_periods.period_start date NOT NULL
+C goldia_report_periods.report jsonb NOT NULL
+C idempotency_keys.actor_id uuid
+C idempotency_keys.created_at timestamp with time zone NOT NULL
+C idempotency_keys.idempotency_key text NOT NULL
+C idempotency_keys.operation_name text NOT NULL
+C idempotency_keys.response_data jsonb NOT NULL
+C inventory_categories.created_at timestamp with time zone NOT NULL
+C inventory_categories.id uuid NOT NULL
+C inventory_categories.name text NOT NULL
+C inventory_categories.parent_id uuid
+C inventory_items.category text
+C inventory_items.category_id uuid
+C inventory_items.created_at timestamp with time zone NOT NULL
+C inventory_items.id uuid NOT NULL
+C inventory_items.is_active boolean NOT NULL
+C inventory_items.location text
+C inventory_items.material_code text
+C inventory_items.name text NOT NULL
+C inventory_items.notes text
+C inventory_items.on_hand numeric(14,4)
+C inventory_items.organization_id uuid
+C inventory_items.proba numeric(6,2)
+C inventory_items.quantity_on_hand numeric(14,3) NOT NULL
+C inventory_items.reorder_threshold numeric(14,3)
+C inventory_items.reserved numeric(14,4)
+C inventory_items.sku text
+C inventory_items.supplier_name text
+C inventory_items.unit inventory_unit
+C inventory_items.unit_cost numeric(14,4)
+C inventory_items.updated_at timestamp with time zone NOT NULL
+C inventory_reservations.batch_no text
+C inventory_reservations.consumed_grams numeric(14,4) NOT NULL
+C inventory_reservations.created_at timestamp with time zone NOT NULL
+C inventory_reservations.created_by uuid
+C inventory_reservations.id uuid NOT NULL
+C inventory_reservations.idempotency_key text
+C inventory_reservations.inventory_item_id uuid NOT NULL
+C inventory_reservations.order_id text
+C inventory_reservations.order_no text
+C inventory_reservations.released_grams numeric(14,4) NOT NULL
+C inventory_reservations.reserved_grams numeric(14,4) NOT NULL
+C inventory_reservations.status text NOT NULL
+C inventory_reservations.updated_at timestamp with time zone NOT NULL
+C inventory_transactions.batch_id uuid
+C inventory_transactions.created_at timestamp with time zone NOT NULL
+C inventory_transactions.id uuid NOT NULL
+C inventory_transactions.item_id uuid NOT NULL
+C inventory_transactions.performed_by uuid
+C inventory_transactions.quantity numeric(14,3) NOT NULL
+C inventory_transactions.reference_note text
+C inventory_transactions.type inventory_transaction_type NOT NULL
+C inventory_transactions.unit_cost numeric(14,4)
+C jewelry_model_images.caption text
+C jewelry_model_images.created_at timestamp with time zone NOT NULL
+C jewelry_model_images.id uuid NOT NULL
+C jewelry_model_images.model_id uuid NOT NULL
+C jewelry_model_images.sort_order integer NOT NULL
+C jewelry_model_images.storage_path text NOT NULL
+C jewelry_models.category text
+C jewelry_models.created_at timestamp with time zone NOT NULL
+C jewelry_models.created_by uuid
+C jewelry_models.decorations text
+C jewelry_models.gold_purity text
+C jewelry_models.id uuid NOT NULL
+C jewelry_models.is_active boolean NOT NULL
+C jewelry_models.locks_count integer NOT NULL
+C jewelry_models.loops_count integer NOT NULL
+C jewelry_models.model_code text NOT NULL
+C jewelry_models.name text NOT NULL
+C jewelry_models.notes text
+C jewelry_models.organization_id uuid
+C jewelry_models.primary_image_url text
+C jewelry_models.proba integer NOT NULL
+C jewelry_models.reference_weight_grams numeric(10,3)
+C jewelry_models.ring_size text
+C jewelry_models.updated_at timestamp with time zone NOT NULL
+C jewelry_sales.assigned_seller_markup_pct numeric(6,2)
+C jewelry_sales.base_weight_grams numeric(14,4) NOT NULL
+C jewelry_sales.category text
+C jewelry_sales.client_gold_due_grams numeric(14,4) NOT NULL
+C jewelry_sales.client_markup_pct numeric(6,2) NOT NULL
+C jewelry_sales.consignment_id uuid
+C jewelry_sales.created_at timestamp with time zone NOT NULL
+C jewelry_sales.customer_id uuid NOT NULL
+C jewelry_sales.factory_gold_due_grams numeric(14,4) NOT NULL
+C jewelry_sales.factory_markup_pct numeric(6,2) NOT NULL
+C jewelry_sales.id uuid NOT NULL
+C jewelry_sales.idempotency_key text
+C jewelry_sales.markup_difference_g numeric(14,4)
+C jewelry_sales.markup_snapshot_source text
+C jewelry_sales.markup_spread_grams numeric(14,4)
+C jewelry_sales.model_code text
+C jewelry_sales.model_id uuid
+C jewelry_sales.model_name text
+C jewelry_sales.notes text
+C jewelry_sales.organization_id uuid NOT NULL
+C jewelry_sales.proba numeric(6,2) NOT NULL
+C jewelry_sales.product_id uuid
+C jewelry_sales.product_name text
+C jewelry_sales.purity numeric(6,2)
+C jewelry_sales.quantity integer NOT NULL
+C jewelry_sales.remaining_gold_grams numeric(14,4) NOT NULL
+C jewelry_sales.sale_amount numeric(18,2)
+C jewelry_sales.sale_currency text NOT NULL
+C jewelry_sales.sale_date date NOT NULL
+C jewelry_sales.sale_lom_rate_snapshot numeric(18,2)
+C jewelry_sales.sale_no text NOT NULL
+C jewelry_sales.sale_type text
+C jewelry_sales.sale_usd_rate_snapshot numeric(18,2)
+C jewelry_sales.seller_id uuid NOT NULL
+C jewelry_sales.seller_profit_spread_grams numeric(14,4)
+C jewelry_sales.settled_gold_grams numeric(14,4) NOT NULL
+C jewelry_sales.source_piece_id uuid
+C jewelry_sales.status text NOT NULL
+C jewelry_sales.updated_at timestamp with time zone NOT NULL
+C machines.created_at timestamp with time zone NOT NULL
+C machines.current_batch text
+C machines.daily_capacity integer NOT NULL
+C machines.department text NOT NULL
+C machines.id uuid NOT NULL
+C machines.name text NOT NULL
+C machines.organization_id uuid
+C machines.status text NOT NULL
+C machines.updated_at timestamp with time zone NOT NULL
+C manager_vault_account.current_factory_advance_g numeric(14,4) NOT NULL
+C manager_vault_account.current_factory_obligation_g numeric(14,4) NOT NULL
+C manager_vault_account.manager_capital_pure_gold_fine_g numeric(14,4) NOT NULL
+C manager_vault_account.manager_capital_pure_gold_g numeric(14,4) NOT NULL
+C manager_vault_account.manager_cash_amount numeric(18,2) NOT NULL
+C manager_vault_account.manager_finished_capital_g numeric(14,4) NOT NULL
+C manager_vault_account.manager_physical_stock_g numeric(14,4) NOT NULL
+C manager_vault_account.manager_purchased_gold_grams numeric(14,4) NOT NULL
+C manager_vault_account.manager_refined_gold_fine_grams numeric(14,4) NOT NULL
+C manager_vault_account.manager_refined_gold_grams numeric(14,4) NOT NULL
+C manager_vault_account.manager_scrap_585_eq_g numeric(14,4) NOT NULL
+C manager_vault_account.manager_scrap_grams numeric(14,4) NOT NULL
+C manager_vault_account.manager_scrap_physical_g numeric(14,4) NOT NULL
+C manager_vault_account.manager_usd_amount numeric(18,2) NOT NULL
+C manager_vault_account.organization_id uuid NOT NULL
+C manager_vault_account.total_factory_handed_over_g numeric(14,4) NOT NULL
+C manager_vault_account.total_factory_obligation_g numeric(14,4) NOT NULL
+C manager_vault_account.total_factory_received_g numeric(14,4) NOT NULL
+C manager_vault_account.updated_at timestamp with time zone NOT NULL
+C manager_vault_account.valued_cash_585_g numeric(18,6) NOT NULL
+C manager_vault_account.valued_cash_uzs numeric(18,2) NOT NULL
+C manager_vault_account.valued_usd numeric(18,2) NOT NULL
+C manager_vault_account.valued_usd_585_g numeric(18,6) NOT NULL
+C order_items.created_at timestamp with time zone NOT NULL
+C order_items.id uuid NOT NULL
+C order_items.model_id uuid NOT NULL
+C order_items.order_id uuid NOT NULL
+C order_items.quantity integer NOT NULL
+C order_items.ring_size text
+C order_items.unit_notes text
+C orders.advance numeric(18,2)
+C orders.batch_created boolean NOT NULL
+C orders.client_name text
+C orders.created_at timestamp with time zone NOT NULL
+C orders.created_by uuid
+C orders.customer_id uuid
+C orders.customer_name text
+C orders.deadline date
+C orders.debt_amount numeric(18,2)
+C orders.details text
+C orders.due_date date
+C orders.id uuid NOT NULL
+C orders.notes text
+C orders.order_date date NOT NULL
+C orders.order_no text
+C orders.order_number text
+C orders.organization_id uuid
+C orders.paid_amount numeric(18,2)
+C orders.phone text
+C orders.priority order_priority NOT NULL
+C orders.priority_label text
+C orders.proba numeric(6,2)
+C orders.product_model text
+C orders.qty integer
+C orders.reserved_gold_gram numeric(14,4) NOT NULL
+C orders.reserved_item_id uuid
+C orders.status order_status NOT NULL
+C orders.status_label text
+C orders.total_price numeric(18,2)
+C orders.updated_at timestamp with time zone NOT NULL
+C orders.weight_gram numeric(14,4)
+C organization_factory_settings.casting_machines_count integer NOT NULL
+C organization_factory_settings.created_at timestamp with time zone NOT NULL
+C organization_factory_settings.disabled_department_slugs text[] NOT NULL
+C organization_factory_settings.disabled_stage_codes text[] NOT NULL
+C organization_factory_settings.disabled_stage_orders integer[] NOT NULL
+C organization_factory_settings.handover_tolerance_gram numeric(6,4) NOT NULL
+C organization_factory_settings.id uuid NOT NULL
+C organization_factory_settings.laser_machines_count integer NOT NULL
+C organization_factory_settings.max_models_per_batch integer NOT NULL
+C organization_factory_settings.organization_id uuid NOT NULL
+C organization_factory_settings.sets_per_model integer NOT NULL
+C organization_factory_settings.updated_at timestamp with time zone NOT NULL
+C organization_factory_settings.workers_count integer NOT NULL
+C organizations.code text NOT NULL
+C organizations.created_at timestamp with time zone NOT NULL
+C organizations.id uuid NOT NULL
+C organizations.name text NOT NULL
+C organizations.status text NOT NULL
+C organizations.updated_at timestamp with time zone NOT NULL
+C production_stages.created_at timestamp with time zone NOT NULL
+C production_stages.department text NOT NULL
+C production_stages.id uuid NOT NULL
+C production_stages.name text NOT NULL
+C production_stages.stage_order integer NOT NULL
+C products.bom_details text
+C products.bom_version integer NOT NULL
+C products.category text NOT NULL
+C products.created_at timestamp with time zone NOT NULL
+C products.id uuid NOT NULL
+C products.image_url text
+C products.name text NOT NULL
+C products.organization_id uuid
+C products.proba numeric(6,2) NOT NULL
+C products.quantity integer NOT NULL
+C products.stock integer NOT NULL
+C products.stone_weight numeric(14,4) NOT NULL
+C products.title text
+C products.updated_at timestamp with time zone NOT NULL
+C products.weight numeric(14,4) NOT NULL
+C qc_checklist_items.checklist_id uuid NOT NULL
+C qc_checklist_items.id uuid NOT NULL
+C qc_checklist_items.is_required boolean NOT NULL
+C qc_checklist_items.label text NOT NULL
+C qc_checklist_items.sort_order integer NOT NULL
+C qc_checklists.created_at timestamp with time zone NOT NULL
+C qc_checklists.description text
+C qc_checklists.id uuid NOT NULL
+C qc_checklists.is_active boolean NOT NULL
+C qc_checklists.name text NOT NULL
+C qc_checklists.stage_id uuid
+C qc_inspection_results.checklist_item_id uuid NOT NULL
+C qc_inspection_results.comment text
+C qc_inspection_results.id uuid NOT NULL
+C qc_inspection_results.inspection_id uuid NOT NULL
+C qc_inspection_results.passed boolean NOT NULL
+C qc_inspections.batch_id uuid NOT NULL
+C qc_inspections.batch_operation_id uuid
+C qc_inspections.checklist_id uuid
+C qc_inspections.created_at timestamp with time zone NOT NULL
+C qc_inspections.defect_notes text
+C qc_inspections.id uuid NOT NULL
+C qc_inspections.inspected_at timestamp with time zone NOT NULL
+C qc_inspections.inspector_id uuid NOT NULL
+C qc_inspections.result qc_result NOT NULL
+C quality_control.batch_id text
+C quality_control.batch_no text NOT NULL
+C quality_control.checked_qty integer NOT NULL
+C quality_control.created_at timestamp with time zone NOT NULL
+C quality_control.defect_code text
+C quality_control.id uuid NOT NULL
+C quality_control.inspector_name text
+C quality_control.notes text
+C quality_control.operation_name text NOT NULL
+C quality_control.organization_id uuid
+C quality_control.passed_qty integer NOT NULL
+C quality_control.reason text
+C quality_control.resolution_notes text
+C quality_control.resolved_at timestamp with time zone
+C quality_control.resolved_by text
+C quality_control.rework_notes text
+C quality_control.rework_qty integer NOT NULL
+C quality_control.rework_stage_order integer
+C quality_control.status text
+C quality_control.updated_at timestamp with time zone
+C refining_batches.batch_date date NOT NULL
+C refining_batches.batch_no text NOT NULL
+C refining_batches.created_at timestamp with time zone NOT NULL
+C refining_batches.id uuid NOT NULL
+C refining_batches.idempotency_key text
+C refining_batches.input_585_equiv_grams numeric(14,4)
+C refining_batches.input_scrap_grams numeric(14,4) NOT NULL
+C refining_batches.input_scrap_proba numeric(6,2)
+C refining_batches.loss_pct numeric(6,3) NOT NULL
+C refining_batches.melted_weight_grams numeric(14,4) NOT NULL
+C refining_batches.notes text
+C refining_batches.operator_id uuid
+C refining_batches.organization_id uuid NOT NULL
+C refining_batches.output_585_equiv_grams numeric(14,4) NOT NULL
+C refining_batches.output_fine_grams numeric(14,4) NOT NULL
+C refining_batches.output_fine_proba numeric(6,2) NOT NULL
+C refining_batches.reversal_reason text
+C refining_batches.reversed_at timestamp with time zone
+C refining_batches.reversed_by uuid
+C refining_batches.status text NOT NULL
+C refining_batches.total_loss_grams numeric(14,4) NOT NULL
+C refining_batches.updated_at timestamp with time zone
+C salary_ledger.amount numeric(18,2) NOT NULL
+C salary_ledger.batch_id text
+C salary_ledger.batch_no text NOT NULL
+C salary_ledger.created_at timestamp with time zone NOT NULL
+C salary_ledger.employee_id text
+C salary_ledger.handover_id text
+C salary_ledger.id uuid NOT NULL
+C salary_ledger.idempotency_key text
+C salary_ledger.note text
+C salary_ledger.organization_id uuid
+C salary_ledger.original_ledger_id text
+C salary_ledger.payment_status text NOT NULL
+C salary_ledger.rate numeric(18,2) NOT NULL
+C salary_ledger.stage_name text NOT NULL
+C salary_ledger.stage_order integer
+C salary_ledger.tx_type text NOT NULL
+C salary_ledger.weight_done numeric(14,4) NOT NULL
+C salary_ledger.worker_name text NOT NULL
+C sales.client_name text NOT NULL
+C sales.created_at timestamp with time zone NOT NULL
+C sales.debt_amount numeric(18,2) NOT NULL
+C sales.id uuid NOT NULL
+C sales.idempotency_key text
+C sales.order_id text
+C sales.organization_id uuid
+C sales.parent_sale_id text
+C sales.payment_type text NOT NULL
+C sales.proba numeric(6,2) NOT NULL
+C sales.product_id text
+C sales.product_name text NOT NULL
+C sales.quantity integer NOT NULL
+C sales.sale_total_amount numeric(18,2) NOT NULL
+C sales.total_amount numeric(18,2) NOT NULL
+C sales.tx_type text NOT NULL
+C sales.updated_at timestamp with time zone NOT NULL
+C sales.weight numeric(14,4) NOT NULL
+C sales_login_audit_logs.created_at timestamp with time zone NOT NULL
+C sales_login_audit_logs.email text
+C sales_login_audit_logs.employee_id uuid
+C sales_login_audit_logs.failure_reason text
+C sales_login_audit_logs.id uuid NOT NULL
+C sales_login_audit_logs.ip_address text
+C sales_login_audit_logs.login_method text NOT NULL
+C sales_login_audit_logs.organization_id uuid
+C sales_login_audit_logs.role text NOT NULL
+C sales_login_audit_logs.status text NOT NULL
+C sales_login_audit_logs.telegram_user_id text
+C sales_login_audit_logs.user_agent text
+C sales_login_audit_logs.user_id uuid
+C sales_markup_presets.created_at timestamp with time zone NOT NULL
+C sales_markup_presets.display_order integer NOT NULL
+C sales_markup_presets.id uuid NOT NULL
+C sales_markup_presets.is_active boolean NOT NULL
+C sales_markup_presets.is_default boolean NOT NULL
+C sales_markup_presets.name text NOT NULL
+C sales_markup_presets.organization_id uuid NOT NULL
+C sales_markup_presets.percentage numeric(6,2) NOT NULL
+C sales_markup_presets.type text NOT NULL
+C sales_markup_presets.updated_at timestamp with time zone NOT NULL
+C seller_consignments.base_weight_grams numeric(14,4) NOT NULL
+C seller_consignments.cancellation_reason text
+C seller_consignments.cancelled_at timestamp with time zone
+C seller_consignments.cancelled_by uuid
+C seller_consignments.consignment_no text NOT NULL
+C seller_consignments.created_at timestamp with time zone NOT NULL
+C seller_consignments.factory_gold_due_grams numeric(14,4) NOT NULL
+C seller_consignments.factory_markup_pct numeric(6,2) NOT NULL
+C seller_consignments.factory_receipt_id uuid
+C seller_consignments.factory_remaining_gold_grams numeric(14,4) NOT NULL
+C seller_consignments.factory_settled_gold_grams numeric(14,4) NOT NULL
+C seller_consignments.id uuid NOT NULL
+C seller_consignments.idempotency_key text
+C seller_consignments.issued_at timestamp with time zone NOT NULL
+C seller_consignments.model_id uuid
+C seller_consignments.notes text
+C seller_consignments.organization_id uuid NOT NULL
+C seller_consignments.original_base_weight_grams numeric(14,4) NOT NULL
+C seller_consignments.original_quantity integer NOT NULL
+C seller_consignments.original_seller_obligation_g numeric(14,4) NOT NULL
+C seller_consignments.pieces jsonb
+C seller_consignments.proba numeric(6,2) NOT NULL
+C seller_consignments.product_id uuid
+C seller_consignments.product_name text NOT NULL
+C seller_consignments.quantity integer NOT NULL
+C seller_consignments.returned_quantity integer NOT NULL
+C seller_consignments.returned_seller_obligation_g numeric(14,4) NOT NULL
+C seller_consignments.returned_to_factory_gold_grams numeric(14,4)
+C seller_consignments.returned_to_factory_quantity integer
+C seller_consignments.returned_weight_grams numeric(14,4) NOT NULL
+C seller_consignments.seller_id uuid NOT NULL
+C seller_consignments.seller_markup_pct numeric(6,2)
+C seller_consignments.seller_obligation_g numeric(14,4)
+C seller_consignments.sold_quantity integer NOT NULL
+C seller_consignments.status text NOT NULL
+C seller_consignments.updated_at timestamp with time zone NOT NULL
+C seller_gold_accounts.bozor_qarzi_signed_g numeric(14,4) NOT NULL
+C seller_gold_accounts.current_factory_obligation_grams numeric(14,4) NOT NULL
+C seller_gold_accounts.current_physical_stock_g numeric(14,4) NOT NULL
+C seller_gold_accounts.manager_owes_seller_g numeric(14,4) NOT NULL
+C seller_gold_accounts.organization_id uuid NOT NULL
+C seller_gold_accounts.seller_id uuid NOT NULL
+C seller_gold_accounts.seller_legacy_debt_obligation_g numeric(14,4) NOT NULL
+C seller_gold_accounts.seller_owes_manager_g numeric(14,4) NOT NULL
+C seller_gold_accounts.seller_till_cash_amount numeric(18,2) NOT NULL
+C seller_gold_accounts.seller_till_scrap_585_eq_g numeric(14,4) NOT NULL
+C seller_gold_accounts.seller_till_scrap_grams numeric(14,4) NOT NULL
+C seller_gold_accounts.seller_till_scrap_physical_g numeric(14,4) NOT NULL
+C seller_gold_accounts.seller_till_usd_amount numeric(18,2) NOT NULL
+C seller_gold_accounts.till_valued_cash_585_g numeric(18,6) NOT NULL
+C seller_gold_accounts.till_valued_cash_uzs numeric(18,2) NOT NULL
+C seller_gold_accounts.till_valued_usd numeric(18,2) NOT NULL
+C seller_gold_accounts.till_valued_usd_585_g numeric(18,6) NOT NULL
+C seller_gold_accounts.total_client_debt_grams numeric(14,4) NOT NULL
+C seller_gold_accounts.total_consigned_gold_grams numeric(14,4) NOT NULL
+C seller_gold_accounts.total_factory_settled_gold_grams numeric(14,4) NOT NULL
+C seller_gold_accounts.total_seller_obligation_g numeric(14,4) NOT NULL
+C seller_gold_accounts.total_settled_to_manager_g numeric(14,4) NOT NULL
+C seller_gold_accounts.total_transferred_physical_g numeric(14,4) NOT NULL
+C seller_gold_accounts.updated_at timestamp with time zone NOT NULL
+C seller_rate_history.changed_at timestamp with time zone NOT NULL
+C seller_rate_history.changed_by uuid
+C seller_rate_history.id uuid NOT NULL
+C seller_rate_history.new_lom_rate_uzs numeric(18,2)
+C seller_rate_history.new_usd_rate_uzs numeric(18,2)
+C seller_rate_history.old_lom_rate_uzs numeric(18,2)
+C seller_rate_history.old_usd_rate_uzs numeric(18,2)
+C seller_rate_history.organization_id uuid NOT NULL
+C seller_rate_history.reason text
+C seller_rate_history.seller_id uuid NOT NULL
+C seller_rate_limits.lom_max_uzs numeric(18,2) NOT NULL
+C seller_rate_limits.lom_min_uzs numeric(18,2) NOT NULL
+C seller_rate_limits.max_lom_deviation_pct numeric(6,2)
+C seller_rate_limits.organization_id uuid NOT NULL
+C seller_rate_limits.updated_at timestamp with time zone NOT NULL
+C seller_rate_limits.updated_by uuid
+C seller_rate_limits.usd_max_uzs numeric(18,2) NOT NULL
+C seller_rate_limits.usd_min_uzs numeric(18,2) NOT NULL
+C seller_rates.lom_rate_uzs numeric(18,2)
+C seller_rates.organization_id uuid NOT NULL
+C seller_rates.seller_id uuid NOT NULL
+C seller_rates.updated_at timestamp with time zone NOT NULL
+C seller_rates.updated_by uuid
+C seller_rates.usd_rate_uzs numeric(18,2)
+C sheets_import_batches.batch_no text NOT NULL
+C sheets_import_batches.created_at timestamp with time zone NOT NULL
+C sheets_import_batches.id uuid NOT NULL
+C sheets_import_batches.imported_by uuid
+C sheets_import_batches.is_opening_balance boolean NOT NULL
+C sheets_import_batches.notes text
+C sheets_import_batches.organization_id uuid
+C sheets_import_batches.raw_data_json jsonb
+C sheets_import_batches.sheet_name text NOT NULL
+C sheets_import_batches.skipped_rows integer NOT NULL
+C sheets_import_batches.status text NOT NULL
+C sheets_import_batches.total_cash_amount numeric(18,2) NOT NULL
+C sheets_import_batches.total_rows integer NOT NULL
+C sheets_import_batches.total_weight_g numeric(18,4) NOT NULL
+C sheets_import_batches.valid_rows integer NOT NULL
+C stage_duration_stats.avg_duration_seconds numeric
+C stage_duration_stats.completed_count bigint
+C stage_duration_stats.default_sla_minutes integer
+C stage_duration_stats.delayed_count bigint
+C stage_duration_stats.median_duration_seconds double precision
+C stage_duration_stats.sequence_order integer
+C stage_duration_stats.stage_id uuid
+C stage_duration_stats.stage_name text
+C stage_loss_configs.department text NOT NULL
+C stage_loss_configs.max_loss_gram numeric(14,4) NOT NULL
+C stage_loss_configs.max_loss_pct numeric(6,3) NOT NULL
+C stage_loss_configs.organization_id uuid
+C stage_loss_configs.stage_name text NOT NULL
+C stage_loss_configs.stage_order integer NOT NULL
+C stage_loss_configs.updated_at timestamp with time zone NOT NULL
+C staging_backup_snapshots.affected_tables text[]
+C staging_backup_snapshots.created_at timestamp with time zone NOT NULL
+C staging_backup_snapshots.created_by uuid
+C staging_backup_snapshots.gold_impact_g numeric(14,4) NOT NULL
+C staging_backup_snapshots.id uuid NOT NULL
+C staging_backup_snapshots.organization_id uuid NOT NULL
+C staging_backup_snapshots.preview_token text
+C staging_backup_snapshots.record_count integer NOT NULL
+C staging_backup_snapshots.snapshot_data jsonb NOT NULL
+C staging_backup_snapshots.snapshot_type text NOT NULL
+C system_settings.key text NOT NULL
+C system_settings.updated_at timestamp with time zone NOT NULL
+C system_settings.value text NOT NULL
+C two_party_handovers.batch_id text NOT NULL
+C two_party_handovers.batch_no text NOT NULL
+C two_party_handovers.created_at timestamp with time zone NOT NULL
+C two_party_handovers.dispatched_at timestamp with time zone NOT NULL
+C two_party_handovers.dispatched_qty integer NOT NULL
+C two_party_handovers.dispatched_weight_gram numeric(14,4) NOT NULL
+C two_party_handovers.flag_reason text
+C two_party_handovers.from_department text NOT NULL
+C two_party_handovers.from_stage_name text NOT NULL
+C two_party_handovers.from_stage_order integer NOT NULL
+C two_party_handovers.id text NOT NULL
+C two_party_handovers.is_scale_stable boolean
+C two_party_handovers.measurement_mode text NOT NULL
+C two_party_handovers.organization_id uuid
+C two_party_handovers.received_measurement_mode text NOT NULL
+C two_party_handovers.received_qty integer
+C two_party_handovers.received_scale_model text
+C two_party_handovers.received_scale_stable boolean
+C two_party_handovers.received_weight_gram numeric(14,4)
+C two_party_handovers.receiver_worker_id text
+C two_party_handovers.receiver_worker_name text
+C two_party_handovers.resolved_at timestamp with time zone
+C two_party_handovers.scale_model text
+C two_party_handovers.scale_raw_reading text
+C two_party_handovers.sender_worker_id text NOT NULL
+C two_party_handovers.sender_worker_name text NOT NULL
+C two_party_handovers.status text NOT NULL
+C two_party_handovers.supervisor_override_id text
+C two_party_handovers.supervisor_override_reason text
+C two_party_handovers.to_department text NOT NULL
+C two_party_handovers.to_stage_name text NOT NULL
+C two_party_handovers.to_stage_order integer NOT NULL
+C two_party_handovers.tolerance_gram numeric(6,4) NOT NULL
+C two_party_handovers.weight_discrepancy_gram numeric(14,4)
+C view_seller_piece_inventory.available_grams numeric
+C view_seller_piece_inventory.available_qty bigint
+C view_seller_piece_inventory.category text
+C view_seller_piece_inventory.model_code text
+C view_seller_piece_inventory.model_name text
+C view_seller_piece_inventory.organization_id uuid
+C view_seller_piece_inventory.returned_grams numeric
+C view_seller_piece_inventory.returned_qty bigint
+C view_seller_piece_inventory.seller_full_name text
+C view_seller_piece_inventory.seller_id uuid
+C view_seller_piece_inventory.seller_name text
+C view_seller_piece_inventory.sold_grams numeric
+C view_seller_piece_inventory.sold_qty bigint
+C view_seller_piece_inventory.total_consigned_grams numeric
+C view_seller_piece_inventory.total_consigned_qty bigint
+C weight_sale_allocations.consignment_id uuid
+C weight_sale_allocations.created_at timestamp with time zone NOT NULL
+C weight_sale_allocations.fully_consumed boolean NOT NULL
+C weight_sale_allocations.grams numeric(14,4) NOT NULL
+C weight_sale_allocations.id uuid NOT NULL
+C weight_sale_allocations.organization_id uuid NOT NULL
+C weight_sale_allocations.piece_id uuid NOT NULL
+C weight_sale_allocations.piece_weight_before numeric(14,4) NOT NULL
+C weight_sale_allocations.reversed_at timestamp with time zone
+C weight_sale_allocations.sale_id uuid NOT NULL
+C weight_sale_allocations.source text NOT NULL
+C workflow_stages.code text NOT NULL
+C workflow_stages.created_at timestamp with time zone NOT NULL
+C workflow_stages.default_sla_minutes integer
+C workflow_stages.department_id uuid NOT NULL
+C workflow_stages.id uuid NOT NULL
+C workflow_stages.is_active boolean NOT NULL
+C workflow_stages.is_terminal boolean NOT NULL
+C workflow_stages.name text NOT NULL
+C workflow_stages.sequence_order integer NOT NULL
+C workflow_stages.updated_at timestamp with time zone NOT NULL
+F _get_or_create_manager_vault(uuid) -> manager_vault_account SECDEF
+F _goldia_assert_seller_rate(text,numeric,numeric,boolean) -> void
+F _goldia_backfill_markup_difference() -> integer SECDEF
+F _goldia_business_date(timestamp with time zone) -> date
+F _goldia_can_manage_models() -> boolean SECDEF
+F _goldia_consume_selected_pieces(uuid,uuid,uuid[],numeric,uuid) -> numeric SECDEF
+F _goldia_consume_weight_sale_pieces(uuid,uuid,uuid,numeric,uuid,text) -> numeric SECDEF
+F _goldia_fin_cash_effect(text,text,numeric) -> TABLE(till_uzs numeric, till_usd numeric, mgr_uzs numeric, mgr_usd numeric)
+F _goldia_guard_customer_code() -> trigger
+F _goldia_is_management_role(text) -> boolean
+F _goldia_is_seller_role(text) -> boolean
+F _goldia_official_585_rate(uuid) -> numeric SECDEF
+F _goldia_period_effects(uuid) -> TABLE(kind text, d date, seller_id uuid, cnt integer, cust_g numeric, cur_uzs numeric, cur_usd numeric, stock_g numeric, till_uzs numeric, till_usd numeric, till_scrap_g numeric, mgr_uzs numeric, mgr_usd numeric, factory_g numeric, phys_g numeric, due_g numeric, amount numeric, extra numeric) SECDEF
+F _goldia_repair_factory_counters() -> jsonb SECDEF
+F _goldia_repair_weight_sale_pieces() -> jsonb SECDEF
+F _goldia_restore_weight_sale_allocations(uuid) -> integer SECDEF
+F _goldia_seller_rate_limits(uuid) -> seller_rate_limits SECDEF
+F _goldia_validate_rate_value(numeric,numeric,numeric,text) -> numeric
+F _sync_seller_consignments_original_fields() -> trigger
+F apply_gold_transaction() -> trigger SECDEF
+F apply_inventory_transaction() -> trigger SECDEF
+F assert_erp_permission(text[]) -> void SECDEF
+F calc_fine_gold_exact(numeric,numeric) -> numeric
+F calculate_melting_loss(numeric,numeric) -> numeric
+F check_and_lock_idempotency(text,text,jsonb) -> jsonb SECDEF
+F complete_batch_on_terminal_stage() -> trigger SECDEF
+F current_employee_id() -> uuid SECDEF
+F current_employee_id_text() -> text SECDEF
+F current_employee_name() -> text SECDEF
+F current_employee_role() -> app_role SECDEF
+F current_employee_role_text() -> text SECDEF
+F current_organization_id() -> uuid SECDEF
+F enforce_audit_logs_actor() -> trigger SECDEF
+F fn_guard_customer_deletion() -> trigger SECDEF
+F fn_sync_manager_vault_account() -> trigger SECDEF
+F fn_sync_seller_gold_account() -> trigger SECDEF
+F get_manager_available_stock_grams(uuid) -> numeric SECDEF
+F get_seller_available_stock_grams(uuid) -> numeric SECDEF
+F handle_new_auth_user() -> trigger SECDEF
+F handle_qc_failure() -> trigger SECDEF
+F is_admin_or_manager() -> boolean SECDEF
+F log_batch_status_change() -> trigger SECDEF
+F normalize_erp_role_token(text) -> text
+F prevent_employee_privilege_escalation() -> trigger SECDEF
+F prevent_ledger_delete_or_tamper() -> trigger SECDEF
+F recalc_seller_gold_account(uuid,uuid) -> void SECDEF
+F record_audit_event() -> trigger SECDEF
+F rpc_accept_stage_handover(text,text,text,integer,numeric,text,text,text,boolean,text) -> jsonb SECDEF
+F rpc_adjust_piecework_salary(text,numeric,text,text,text) -> jsonb SECDEF
+F rpc_archive_customer(uuid,boolean) -> jsonb SECDEF
+F rpc_assign_machine_station(text,text,text) -> jsonb SECDEF
+F rpc_calculate_piecework_salary(text,text,text,text,text,integer,numeric,integer,numeric,text) -> jsonb SECDEF
+F rpc_close_report_period(date,date,text) -> jsonb SECDEF
+F rpc_complete_qc_rework(text,text,text,integer,integer,integer,text,text,text) -> jsonb SECDEF
+F rpc_confirm_accounting_baseline(text,text,numeric) -> jsonb SECDEF
+F rpc_create_batch_with_gold_issue(text,text,text,text,numeric,integer,numeric,numeric,text,date,text) -> jsonb SECDEF
+F rpc_create_customer_with_code(text,text,text,uuid,text) -> jsonb SECDEF
+F rpc_create_jewelry_model(text,text,text,numeric,text,text,uuid,text) -> jsonb SECDEF
+F rpc_create_jewelry_sale(uuid,numeric,numeric,text,text) -> jsonb SECDEF
+F rpc_create_order_with_advance(text,text,text,text,text,numeric,integer,numeric,numeric,numeric,date,text,text,text) -> jsonb SECDEF
+F rpc_create_product_with_bom(text,text,numeric,integer,numeric,numeric,numeric,numeric,numeric,numeric,text,text,jsonb,text) -> jsonb SECDEF
+F rpc_diagnose_piece_inventory_conflicts() -> jsonb SECDEF
+F rpc_dispatch_stage_handover(text,text,integer,text,text,integer,text,text,text,text,integer,numeric,text,text,numeric,text,text,boolean,text,text) -> jsonb SECDEF
+F rpc_execute_affinaj_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text) -> jsonb SECDEF
+F rpc_execute_alloy_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text,numeric,text,numeric,text) -> jsonb SECDEF
+F rpc_execute_full_test_reset(text,text) -> jsonb SECDEF
+F rpc_execute_selective_test_cleanup(uuid[],text,text) -> jsonb SECDEF
+F rpc_execute_sheets_historical_import(text,text,jsonb,boolean,text) -> jsonb SECDEF
+F rpc_execute_staging_test_cleanup(text,text) -> jsonb SECDEF
+F rpc_generate_telegram_link_code(uuid) -> jsonb SECDEF
+F rpc_get_accounting_profit_summary(date,date,numeric,numeric,uuid) -> jsonb SECDEF
+F rpc_get_active_sales_markups(text) -> jsonb SECDEF
+F rpc_get_company_rate_difference_report(date,date) -> jsonb SECDEF
+F rpc_get_customer_monthly_report(uuid,integer,integer) -> jsonb SECDEF
+F rpc_get_daily_sales_ledger(uuid,date,date) -> TABLE(tx_id uuid, tx_type text, tx_date date, customer_id uuid, customer_code text, customer_name text, seller_id uuid, seller_name text, model_name text, model_code text, item_id uuid, sold_weight_g numeric, markup_pct numeric, obligation_g numeric, scrap_received_g numeric, cash_received_uzs numeric, rate_per_gram numeric, cash_equiv_g numeric, usd_received numeric, usd_rate numeric, usd_equiv_g numeric, total_payment_g numeric, closing_debt_g numeric, notes text, status text) SECDEF
+F rpc_get_director_sales_overview() -> jsonb SECDEF
+F rpc_get_factory_settings(uuid) -> jsonb SECDEF
+F rpc_get_financial_reconciliation_summary() -> jsonb SECDEF
+F rpc_get_manager_available_stock_grams() -> numeric SECDEF
+F rpc_get_period_report(date,date,uuid) -> jsonb SECDEF
+F rpc_get_piece_sales_reconciliation_report() -> jsonb SECDEF
+F rpc_get_seller_available_pieces(uuid) -> jsonb SECDEF
+F rpc_get_seller_markup_difference_report(uuid,date,date) -> jsonb SECDEF
+F rpc_get_seller_rates(uuid) -> jsonb SECDEF
+F rpc_get_seller_reconciliation_statement(uuid) -> jsonb SECDEF
+F rpc_get_seller_sales_summary(uuid) -> jsonb SECDEF
+F rpc_get_three_tier_ledger_summary() -> jsonb SECDEF
+F rpc_get_unified_customer_ledger(uuid,uuid) -> jsonb SECDEF
+F rpc_inventory_transaction(text,text,numeric,numeric,numeric,text,text,text,text,text,text) -> jsonb SECDEF
+F rpc_issue_barcode_consignment(uuid,numeric,jsonb,text,text,uuid,numeric) -> jsonb SECDEF
+F rpc_issue_seller_consignment(uuid,uuid,integer,numeric,text,text) -> jsonb SECDEF
+F rpc_launch_order_production_chain(text,text,text,text,text,text,numeric,integer,numeric,numeric,text,date,text) -> jsonb SECDEF
+F rpc_manage_sales_markup_preset(uuid,text,text,numeric,boolean,boolean,integer) -> jsonb SECDEF
+F rpc_move_partial_wip(text,integer,integer,text,text,integer,numeric,numeric,integer,numeric,numeric,numeric,text,text,text,boolean,text) -> jsonb SECDEF
+F rpc_override_stage_handover(text,text,text,text,text) -> jsonb SECDEF
+F rpc_preview_full_test_reset() -> jsonb SECDEF
+F rpc_preview_selective_test_cleanup(uuid[]) -> jsonb SECDEF
+F rpc_preview_staging_test_cleanup(text) -> jsonb SECDEF
+F rpc_reclassify_capital_transaction(uuid,text,text,numeric,uuid,uuid,text) -> jsonb SECDEF
+F rpc_record_barcode_piece_sale(uuid,uuid,uuid,uuid,numeric,numeric,text,text) -> jsonb SECDEF
+F rpc_record_client_currency_settlement(uuid,text,numeric,numeric,numeric,numeric,numeric,numeric,uuid,text,text) -> jsonb SECDEF
+F rpc_record_client_jewelry_sale(uuid,uuid,numeric,text,text) -> jsonb SECDEF
+F rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid) -> jsonb SECDEF
+F rpc_record_client_settlement(uuid,uuid,numeric,numeric,numeric,numeric,date,text,text,uuid,numeric,numeric) -> jsonb SECDEF
+F rpc_record_currency_sale(uuid,text,numeric,numeric,uuid[],uuid,text,text) -> jsonb SECDEF
+F rpc_record_debt_repayment(text,text,numeric,numeric,text,text,text) -> jsonb SECDEF
+F rpc_record_factory_gold_handover(text,numeric,numeric,numeric,text,text,text,numeric,uuid,uuid,uuid) -> jsonb SECDEF
+F rpc_record_factory_receipt(text,integer,numeric,numeric,numeric,uuid,uuid,text,text) -> jsonb SECDEF
+F rpc_record_financial_transaction(text,text,numeric,text,text,text,numeric,numeric,text,numeric,numeric,numeric,uuid,uuid,text,integer) -> jsonb SECDEF
+F rpc_record_gold_purchase(text,numeric,numeric,numeric,numeric,text,text,text,numeric,numeric) -> jsonb SECDEF
+F rpc_record_login_audit(uuid,text,text,text,text,text,text,text,text,text) -> uuid SECDEF
+F rpc_record_manager_seller_settlement(uuid,numeric,numeric,numeric,text,numeric,text,text) -> jsonb SECDEF
+F rpc_record_qc_inspection(text,text,text,integer,integer,integer,integer,text,integer,text,text,text) -> jsonb SECDEF
+F rpc_record_refining_batch(numeric,numeric,numeric,numeric,uuid,text,text,numeric) -> jsonb SECDEF
+F rpc_record_refining_batch(numeric,numeric,numeric,numeric,uuid,text,text,numeric,numeric) -> jsonb SECDEF
+F rpc_record_salary_transaction(text,text,text,text,text,numeric,numeric,numeric,text,text) -> jsonb SECDEF
+F rpc_record_sale_with_stock_deduction(text,text,text,integer,numeric,numeric,text,numeric,numeric,text,text) -> jsonb SECDEF
+F rpc_record_seller_to_factory_settlement(uuid,numeric,numeric,numeric,date,text,text) -> jsonb SECDEF
+F rpc_record_seller_to_manager_settlement(uuid,numeric,numeric,numeric,text,text,numeric,numeric,numeric) -> jsonb SECDEF
+F rpc_record_stage_consumption(text,text,text,numeric,numeric,numeric,numeric,numeric,text,boolean,text) -> jsonb SECDEF
+F rpc_record_weight_sale(uuid,uuid,numeric,numeric,text,text,uuid[]) -> jsonb SECDEF
+F rpc_register_or_get_customer(text,text,text,uuid) -> jsonb SECDEF
+F rpc_reinspect_qc(text,boolean,text,text) -> jsonb SECDEF
+F rpc_release_machine_station(text) -> jsonb SECDEF
+F rpc_return_piece_to_factory(uuid,text,text) -> jsonb SECDEF
+F rpc_return_piece_to_manager(uuid,text,text) -> jsonb SECDEF
+F rpc_return_sprue_to_scrap_inventory(text,text,text,numeric,numeric,numeric,text) -> jsonb SECDEF
+F rpc_reverse_barcode_consignment(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_barcode_piece_sale(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_client_currency_settlement(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_client_legacy_debt(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_client_sale(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_client_settlement(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_customer_settlement(uuid,text) -> jsonb SECDEF
+F rpc_reverse_factory_gold_handover(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_factory_receipt(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_financial_transaction(uuid,text) -> jsonb SECDEF
+F rpc_reverse_gold_purchase(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_jewelry_sale(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_refining_batch(uuid,text,text) -> jsonb SECDEF
+F rpc_reverse_seller_to_manager_settlement(uuid,text,text) -> jsonb SECDEF
+F rpc_set_daily_gold_rate(numeric,numeric,date,text,text,text,numeric) -> jsonb SECDEF
+F rpc_set_my_seller_rates(numeric,numeric,text) -> jsonb SECDEF
+F rpc_set_seller_rate_limits(numeric,numeric,numeric,numeric,numeric) -> jsonb SECDEF
+F rpc_split_batch(text,integer,text,integer,text) -> jsonb SECDEF
+F rpc_transfer_to_seller(uuid,numeric,numeric,numeric,text,integer,uuid,uuid,text,text) -> jsonb SECDEF
+F rpc_unlink_telegram(uuid) -> boolean SECDEF
+F rpc_update_factory_settings(text[],integer[],text[],integer,integer,integer,integer,integer,numeric) -> jsonb SECDEF
+F rpc_update_jewelry_model_photo(uuid,text) -> jsonb SECDEF
+F rpc_verify_and_link_telegram(text,text,text) -> jsonb SECDEF
+F save_idempotency_response(text,text,jsonb,jsonb) -> void SECDEF
+F sync_batch_current_stage() -> trigger SECDEF
+F trg_goldia_cap_valued_pool() -> trigger
+F trg_goldia_piece_markup_snapshot() -> trigger SECDEF
+F trg_goldia_rate_difference_from_purchase() -> trigger SECDEF
+F trg_goldia_sale_markup_snapshot() -> trigger
+F trg_goldia_seller_till_pool() -> trigger SECDEF
+F trg_goldia_valued_cash_from_settlement() -> trigger SECDEF
+F trg_prevent_accounting_baseline_mutation() -> trigger SECDEF
+F trg_prevent_financial_transaction_mutation() -> trigger SECDEF
+F trg_sync_consignment_pieces_purity_proba() -> trigger SECDEF
+F trg_sync_daily_gold_rates_purity_proba() -> trigger SECDEF
+F try_cast_uuid(text) -> uuid
+H _get_or_create_manager_vault(uuid) 99447dad52646ff3b6b4a3dba48c20e6
+H _goldia_assert_seller_rate(text,numeric,numeric,boolean) bba4eeca6ccccaa525b7a27bd976dfb2
+H _goldia_backfill_markup_difference() 51e1f220814d8c3c010ec30ee56cadb6
+H _goldia_business_date(timestamp with time zone) 84eaea327fa462e695c8f8cac2ae9921
+H _goldia_can_manage_models() cafe6f52dc190a5e8c58f96c320aa633
+H _goldia_consume_selected_pieces(uuid,uuid,uuid[],numeric,uuid) 630a95f5fa597f03ce027b6ca822c6c6
+H _goldia_consume_weight_sale_pieces(uuid,uuid,uuid,numeric,uuid,text) 92ad02b30df09040758262f307baa703
+H _goldia_fin_cash_effect(text,text,numeric) 26f573f4955ecdf9dd63be4dacd24c38
+H _goldia_guard_customer_code() bfb3283e9fb88a12cacc9801c602eba0
+H _goldia_is_management_role(text) 12fbd34b5798c3db68e5e1990e0729da
+H _goldia_is_seller_role(text) 923302d2ee0274bcc90f6a8edd9fa61d
+H _goldia_official_585_rate(uuid) 37eab6d6d9ebdfe10e2ec2ac3e299e63
+H _goldia_period_effects(uuid) c0c72084298a79f808284575c0863312
+H _goldia_repair_factory_counters() c0fec62e909d3e1b1327c7f4055e3880
+H _goldia_repair_weight_sale_pieces() a7777a9cd2cff91ce96e419498ffc10a
+H _goldia_restore_weight_sale_allocations(uuid) de64227120cd7b495bd6c6394da9777e
+H _goldia_seller_rate_limits(uuid) 8c86be60e0b781b4718a5d613bf1cba6
+H _goldia_validate_rate_value(numeric,numeric,numeric,text) 63aea494f42c2d580a85155da88d9d10
+H _sync_seller_consignments_original_fields() 1dce083ad63dcb381815c23ed4a0139e
+H apply_gold_transaction() a83b8a752ac178979ec416206c3c2091
+H apply_inventory_transaction() 465d85d138231a83ff3e26dc82ebb5a1
+H assert_erp_permission(text[]) cf105509f0b894939aa8b38445fd7f39
+H calc_fine_gold_exact(numeric,numeric) 9fead1ba7a606c043663a5edc4e1cbc3
+H calculate_melting_loss(numeric,numeric) 24c6448b4fa993f4b33266c851384956
+H check_and_lock_idempotency(text,text,jsonb) 483ae10637d2a8614f802f5306bc4583
+H complete_batch_on_terminal_stage() 6f15b0e1beb9c13b2f8857808971820c
+H current_employee_id() 1fb34d7327364e6e8422247b2947a39e
+H current_employee_id_text() ca36c795de2861c0f7c8033e74b903e7
+H current_employee_name() eb8f9cbf7ca6ae316bdd2a5c525f5d13
+H current_employee_role() b91ab35a4a5aa308f7f78ff7cd8ff82c
+H current_employee_role_text() 065984e309ebde8bdb9d4513d1d18c31
+H current_organization_id() 3fe041f95a56b750ccf9d32071dc66e5
+H enforce_audit_logs_actor() 24786896d638b3e996e8225c0dc6decc
+H fn_guard_customer_deletion() 3be67cff41913ec4bb47cfc33fff6435
+H fn_sync_manager_vault_account() 7eddff66397121eb6159f72ff684adb7
+H fn_sync_seller_gold_account() defbe9a6722ac3ce9f06c710773763f9
+H get_manager_available_stock_grams(uuid) e25a13e1c67f619d9442495ff1df64f5
+H get_seller_available_stock_grams(uuid) 30c7c12b2102303723fa6d40f0b9e1c6
+H handle_new_auth_user() 0473df6fe68b5481a134e563328ff429
+H handle_qc_failure() 9c5573032ca7b41b17b03f7829b75b0c
+H is_admin_or_manager() a5f5e10eb86352f9f62dcd83e62db400
+H log_batch_status_change() 1f1aea29fd4580143d8e3c0f35b9768f
+H normalize_erp_role_token(text) 7c31dc6bcbd34effd55033d6b0b9630a
+H prevent_employee_privilege_escalation() bad5a9c11ba583ceb3b7c5c5a9631621
+H prevent_ledger_delete_or_tamper() e6ac04ef043719f52e4c7f0f7fb21a4a
+H recalc_seller_gold_account(uuid,uuid) f1e1646685a842dcb556249368337052
+H record_audit_event() abf1a1899676f5aa89386c8ae60dbe73
+H rpc_accept_stage_handover(text,text,text,integer,numeric,text,text,text,boolean,text) 343971f24784e4b24eb2b733b15517c9
+H rpc_adjust_piecework_salary(text,numeric,text,text,text) 423eff0e8c47e2f5625160f8613fe352
+H rpc_archive_customer(uuid,boolean) fe44205ee2d6d53dc6a311159ec606c6
+H rpc_assign_machine_station(text,text,text) b03747072d5c00376233a0083b6bc13e
+H rpc_calculate_piecework_salary(text,text,text,text,text,integer,numeric,integer,numeric,text) 6b7d70e1df4623d6cc86fb908094ecfe
+H rpc_close_report_period(date,date,text) cad2426632ccfb31526ee8931f0dfd06
+H rpc_complete_qc_rework(text,text,text,integer,integer,integer,text,text,text) 39469b66b2063ab33e9603a89e4a900c
+H rpc_confirm_accounting_baseline(text,text,numeric) 4f644d1213da7e99444cce60c284a009
+H rpc_create_batch_with_gold_issue(text,text,text,text,numeric,integer,numeric,numeric,text,date,text) 62da66cfec34bddbb06495b8e59880a4
+H rpc_create_customer_with_code(text,text,text,uuid,text) 502adfd3e57ccfe82d241ca0fcb12016
+H rpc_create_jewelry_model(text,text,text,numeric,text,text,uuid,text) 96cc71ec56c1117e97fd33225cea4d0d
+H rpc_create_jewelry_sale(uuid,numeric,numeric,text,text) d3b9845e543ae778c70e537bab6bd54c
+H rpc_create_order_with_advance(text,text,text,text,text,numeric,integer,numeric,numeric,numeric,date,text,text,text) 37b7075aa8132676d1e31d9715eb0262
+H rpc_create_product_with_bom(text,text,numeric,integer,numeric,numeric,numeric,numeric,numeric,numeric,text,text,jsonb,text) f99fbe8bb7b2a9405b32944fd47c7ba6
+H rpc_diagnose_piece_inventory_conflicts() 2fa214b8b8e62675ad4d1ac86ff5e37f
+H rpc_dispatch_stage_handover(text,text,integer,text,text,integer,text,text,text,text,integer,numeric,text,text,numeric,text,text,boolean,text,text) b91faa44a5c21383a93a7058086292cb
+H rpc_execute_affinaj_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text) 4d859c624ae436b2e79c743c51449706
+H rpc_execute_alloy_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text,numeric,text,numeric,text) e45b94b30ebdaa9a9a560b706725290e
+H rpc_execute_full_test_reset(text,text) 73e5e57c029ee31350d70053005fc366
+H rpc_execute_selective_test_cleanup(uuid[],text,text) 2ea00d514179828f439976b6962f1809
+H rpc_execute_sheets_historical_import(text,text,jsonb,boolean,text) 99dda86d7291b8ece36077ae2fa900f1
+H rpc_execute_staging_test_cleanup(text,text) b3aa0c85f05a886fdb5b363c35f02b47
+H rpc_generate_telegram_link_code(uuid) 3a2db19d603ea0b0da430fc85cbe442e
+H rpc_get_accounting_profit_summary(date,date,numeric,numeric,uuid) 7672a3c570862819da3fc8aee4c9da46
+H rpc_get_active_sales_markups(text) 3510221858105b9bc34ea514573b61f2
+H rpc_get_company_rate_difference_report(date,date) 6c95f967c9b091d27c4e19a70a4c0b04
+H rpc_get_customer_monthly_report(uuid,integer,integer) a9d203e176709746016286b7ebf45112
+H rpc_get_daily_sales_ledger(uuid,date,date) 1ab29de033d14147a447c90e5c73615d
+H rpc_get_director_sales_overview() f437c49f079f835db2f1f6d92392bfe6
+H rpc_get_factory_settings(uuid) 7c6467c5ef50cd6fe7525d7cabfc9229
+H rpc_get_financial_reconciliation_summary() 49bd6154b37dbbcec3c16947698ae52a
+H rpc_get_manager_available_stock_grams() ff122356f224410c2356e5d6890ea1da
+H rpc_get_period_report(date,date,uuid) f2cb507c7d935d337346712ecb10e9a8
+H rpc_get_piece_sales_reconciliation_report() a74a307ca47780c57366567151d049bc
+H rpc_get_seller_available_pieces(uuid) ba75a1144d275bed3d0f94500affe969
+H rpc_get_seller_markup_difference_report(uuid,date,date) 00fc37e547dcc9ffab343238450ad834
+H rpc_get_seller_rates(uuid) 36bc6e699280c84f41ec3e1cb34271eb
+H rpc_get_seller_reconciliation_statement(uuid) 78fb4bd616075f48763b85f5f9d082b9
+H rpc_get_seller_sales_summary(uuid) da622815a347e1a0f686c6927214175b
+H rpc_get_three_tier_ledger_summary() f1487c1f18c028a25e1be36301b9bcf9
+H rpc_get_unified_customer_ledger(uuid,uuid) 45c43cf219c6c8d2f0bb3563d0ed9724
+H rpc_inventory_transaction(text,text,numeric,numeric,numeric,text,text,text,text,text,text) b9415590f8c4d0fcaffbc96b6f3d4480
+H rpc_issue_barcode_consignment(uuid,numeric,jsonb,text,text,uuid,numeric) 7b3891273325cc2168467db8141690f5
+H rpc_issue_seller_consignment(uuid,uuid,integer,numeric,text,text) a326b71cfd8b1d72d787a023d9d4af33
+H rpc_launch_order_production_chain(text,text,text,text,text,text,numeric,integer,numeric,numeric,text,date,text) c2cb90dd4e771182e732907ea5cc39da
+H rpc_manage_sales_markup_preset(uuid,text,text,numeric,boolean,boolean,integer) f4076eaed4b574174f7b9795bc2cdcd3
+H rpc_move_partial_wip(text,integer,integer,text,text,integer,numeric,numeric,integer,numeric,numeric,numeric,text,text,text,boolean,text) 54910470eea1c5debea9488842cc4ca1
+H rpc_override_stage_handover(text,text,text,text,text) 5665825118a9937289be435caa37b150
+H rpc_preview_full_test_reset() 8e0a0dc89fbb9800b0ab88d488b573c2
+H rpc_preview_selective_test_cleanup(uuid[]) 36e87150081088723fbbc7e3d08706a8
+H rpc_preview_staging_test_cleanup(text) d2ce985e32df4a6d86ecc4b0b2daa99e
+H rpc_reclassify_capital_transaction(uuid,text,text,numeric,uuid,uuid,text) 186caaec5296d0fcf53ac85c5bf79473
+H rpc_record_barcode_piece_sale(uuid,uuid,uuid,uuid,numeric,numeric,text,text) b12ab02e9ef4e28ec09fd5bcadbc5fd3
+H rpc_record_client_currency_settlement(uuid,text,numeric,numeric,numeric,numeric,numeric,numeric,uuid,text,text) 5baa5a2ee4d8eaeaa4f79bd5a730f5cb
+H rpc_record_client_jewelry_sale(uuid,uuid,numeric,text,text) d1099c96e1f4ecf38c290e149ac2e65a
+H rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid) 4e84b407a2f306ec4d23044516174b23
+H rpc_record_client_settlement(uuid,uuid,numeric,numeric,numeric,numeric,date,text,text,uuid,numeric,numeric) 5ad7e8cdb45fde478fe8ba7e352faa6a
+H rpc_record_currency_sale(uuid,text,numeric,numeric,uuid[],uuid,text,text) 301110337a837f479f971cf8556039c3
+H rpc_record_debt_repayment(text,text,numeric,numeric,text,text,text) 35f1ad62ce0facf9a9ec60bb634eb885
+H rpc_record_factory_gold_handover(text,numeric,numeric,numeric,text,text,text,numeric,uuid,uuid,uuid) cb04e8118886000aaa4e10808285dc6f
+H rpc_record_factory_receipt(text,integer,numeric,numeric,numeric,uuid,uuid,text,text) 5be1e182b0b67aa2da0f618a4e1ea811
+H rpc_record_financial_transaction(text,text,numeric,text,text,text,numeric,numeric,text,numeric,numeric,numeric,uuid,uuid,text,integer) 3b23a8da1d4337f31400875e9ae9b2d2
+H rpc_record_gold_purchase(text,numeric,numeric,numeric,numeric,text,text,text,numeric,numeric) 3ea99578b17b14ad1e631e6f957cf234
+H rpc_record_login_audit(uuid,text,text,text,text,text,text,text,text,text) 863dd7b3bd42b9d360af4877c31b02a0
+H rpc_record_manager_seller_settlement(uuid,numeric,numeric,numeric,text,numeric,text,text) 9a48393315f87fe89e0a38325aecb948
+H rpc_record_qc_inspection(text,text,text,integer,integer,integer,integer,text,integer,text,text,text) 22cd8475c3d7e21eb2b0f21800cb36e5
+H rpc_record_refining_batch(numeric,numeric,numeric,numeric,uuid,text,text,numeric) 4ccafaf971acaa2c90d4eb532838de02
+H rpc_record_refining_batch(numeric,numeric,numeric,numeric,uuid,text,text,numeric,numeric) 399500f0d2eed7622a4e669bd9b8660b
+H rpc_record_salary_transaction(text,text,text,text,text,numeric,numeric,numeric,text,text) 21fe9bea8b857694ecf95666022425fa
+H rpc_record_sale_with_stock_deduction(text,text,text,integer,numeric,numeric,text,numeric,numeric,text,text) d5c1c21f49d21624dfceb249e942db83
+H rpc_record_seller_to_factory_settlement(uuid,numeric,numeric,numeric,date,text,text) 8e69b6b6ee748cb27bfe5c15b86c9bdc
+H rpc_record_seller_to_manager_settlement(uuid,numeric,numeric,numeric,text,text,numeric,numeric,numeric) 1e276bd4f73a0a448816b32775a86213
+H rpc_record_stage_consumption(text,text,text,numeric,numeric,numeric,numeric,numeric,text,boolean,text) e4bf102131838641ac4cf5c001321f3a
+H rpc_record_weight_sale(uuid,uuid,numeric,numeric,text,text,uuid[]) f511699348d59084fdb96c644e1e200a
+H rpc_register_or_get_customer(text,text,text,uuid) 2d9221b8c47e697ef85a41f0871cf758
+H rpc_reinspect_qc(text,boolean,text,text) b992e7f8b16f365935447a461b71043b
+H rpc_release_machine_station(text) 09aeeae6eec4f30d3085856f56c27693
+H rpc_return_piece_to_factory(uuid,text,text) 41b5eaf6e136dafb28ab7364192c0bba
+H rpc_return_piece_to_manager(uuid,text,text) 54c9e102831ccead16be149fb84df8a7
+H rpc_return_sprue_to_scrap_inventory(text,text,text,numeric,numeric,numeric,text) 9c486fcb348fb141fa620bd932a10e34
+H rpc_reverse_barcode_consignment(uuid,text,text) 3befbc83a3bb17a0c23f2afc190617d9
+H rpc_reverse_barcode_piece_sale(uuid,text,text) bf70d1dddaf4c0af82aa1ae152c5aa19
+H rpc_reverse_client_currency_settlement(uuid,text,text) 231f693a98e0528d4e0ca609da83608d
+H rpc_reverse_client_legacy_debt(uuid,text,text) ed6067f6577ea237fd487f596fc70e7b
+H rpc_reverse_client_sale(uuid,text,text) 9404b2c4eb9cffd53018df14b63c0136
+H rpc_reverse_client_settlement(uuid,text,text) c29fa9d8d239b1511df03ebccf81bf4c
+H rpc_reverse_customer_settlement(uuid,text) d65e69e9330e540becbdca3077f42147
+H rpc_reverse_factory_gold_handover(uuid,text,text) 250a292ea4a5a4f14dff53eeaa8a5385
+H rpc_reverse_factory_receipt(uuid,text,text) d55272d285451cf29798b8f82ff242fa
+H rpc_reverse_financial_transaction(uuid,text) bd0af0a9621e7ca99ee62dd95b1a725a
+H rpc_reverse_gold_purchase(uuid,text,text) 856b2cb63f057008859fe100db013696
+H rpc_reverse_jewelry_sale(uuid,text,text) df74f51915c62e75369b58b2fbde46f5
+H rpc_reverse_refining_batch(uuid,text,text) ff5b2fd72d827104df23f5ec9c740aa8
+H rpc_reverse_seller_to_manager_settlement(uuid,text,text) c302e7312e6e38050d0e332b718229aa
+H rpc_set_daily_gold_rate(numeric,numeric,date,text,text,text,numeric) 24a4f67c49af00b8e47dabec7d5d5d2d
+H rpc_set_my_seller_rates(numeric,numeric,text) 4770b2d22915c7bf1454ea0ee22e06bb
+H rpc_set_seller_rate_limits(numeric,numeric,numeric,numeric,numeric) 04bd25a8b672b307040a3d29f47a89f5
+H rpc_split_batch(text,integer,text,integer,text) faba501e21159aa8e02b0ebedc1f8601
+H rpc_transfer_to_seller(uuid,numeric,numeric,numeric,text,integer,uuid,uuid,text,text) d216912e15d53d7a5c305ddc0af9cdbd
+H rpc_unlink_telegram(uuid) 186e4a0d87a7b8318d073fd3e9930898
+H rpc_update_factory_settings(text[],integer[],text[],integer,integer,integer,integer,integer,numeric) 7912a77a7d525a52667751207a300c33
+H rpc_update_jewelry_model_photo(uuid,text) 84fc454c6f443b4ef05a53add61135be
+H rpc_verify_and_link_telegram(text,text,text) c17beb0a293471dce38664c317f2b72b
+H save_idempotency_response(text,text,jsonb,jsonb) 47e4087fde37b68ad32712c397f12514
+H sync_batch_current_stage() 05c9f71cd0dbffe7c42e27f2385515a4
+H trg_goldia_cap_valued_pool() 202a22f5569139fd9b201df295199fdc
+H trg_goldia_piece_markup_snapshot() aec273f1480c26ad0aa9d028da1456a2
+H trg_goldia_rate_difference_from_purchase() 5ac952026f54362e26e92db0a205f445
+H trg_goldia_sale_markup_snapshot() 69b1975a96d01cc4a36844c319a024dc
+H trg_goldia_seller_till_pool() 1365271246c78cb725aa022e716c2270
+H trg_goldia_valued_cash_from_settlement() 5345f1506d765238112e752318373274
+H trg_prevent_accounting_baseline_mutation() 7665acf7920370da4613ee3918445721
+H trg_prevent_financial_transaction_mutation() f3d2d6a9ef92dc279b18dd14e416f58d
+H trg_sync_consignment_pieces_purity_proba() 635f884450bc45832667370c74553494
+H trg_sync_daily_gold_rates_purity_proba() e2a7c55328567d0ae2ce69e45e76699f
+H try_cast_uuid(text) 453163e6350f8dca091779a7838c9f62
+P accounting_baselines accounting_baselines_director_select SELECT
+P affinaj_records affinaj_records_admin_insert INSERT
+P affinaj_records affinaj_records_select_authorized SELECT
+P audit_log Only admins and managers can read audit log SELECT
+P audit_logs Authenticated users can append audit logs INSERT
+P audit_logs Only admins and managers can read audit logs SELECT
+P batch_images authenticated insert batch_images INSERT
+P batch_images authenticated read batch_images SELECT
+P batch_models authenticated read batch_models SELECT
+P batch_models managers write batch_models ALL
+P batch_operations Authorized manufacturing roles can insert batch operations INSERT
+P batch_operations Authorized manufacturing roles can update batch operations UPDATE
+P batch_operations authenticated read batch_operations SELECT
+P batch_stage_wip batch_stage_wip_tenant_manage ALL
+P batch_stage_wip batch_stage_wip_tenant_select SELECT
+P batch_status_history authenticated read batch_status_history SELECT
+P batches batches_tenant_manage ALL
+P batches batches_tenant_select SELECT
+P bom_items Authenticated users can read bom items SELECT
+P bom_items bom_items_admin_manage ALL
+P client_currency_accounts client_currency_accounts_select SELECT
+P client_currency_settlements client_currency_settlements_select SELECT
+P client_gold_accounts client_gold_accounts_select_policy SELECT
+P client_legacy_debts client_legacy_debts_select_policy SELECT
+P company_rate_differences company_rate_differences_select SELECT
+P consignment_pieces consignment_pieces_select_policy SELECT
+P consumption Authenticated users can read consumption SELECT
+P consumption consumption_admin_insert INSERT
+P customers customers_tenant_manage ALL
+P customers customers_tenant_select SELECT
+P daily_gold_rates daily_gold_rates_select_tenant SELECT
+P debt_repayments Sales and managers can read debt repayments SELECT
+P debt_repayments debt_repayments_tenant_manage ALL
+P debt_repayments debt_repayments_tenant_select SELECT
+P departments admin write departments ALL
+P departments authenticated read departments SELECT
+P employees Employees can update own safe profile fields UPDATE
+P employees admin manage employees ALL
+P employees employees_select_own_or_authorized SELECT
+P factory_gold_handovers factory_gold_handovers_select_policy SELECT
+P factory_receipts factory_receipts_select_policy SELECT
+P financial_transactions financial_transactions_director_select SELECT
+P gold_lots gold_lots_admin_manage ALL
+P gold_lots gold_lots_select_authorized SELECT
+P gold_purchases gold_purchases_select_policy SELECT
+P gold_settlements gold_settlements_select_policy SELECT
+P gold_transactions gold_transactions_tenant_admin_insert INSERT
+P gold_transactions gold_transactions_tenant_select SELECT
+P goldia_report_periods goldia_report_periods_select SELECT
+P idempotency_keys Authenticated users can read own idempotency keys SELECT
+P inventory_categories authenticated read inventory_categories SELECT
+P inventory_categories inventory write inventory_categories ALL
+P inventory_items inventory_items_tenant_admin_manage ALL
+P inventory_items inventory_items_tenant_insert_card INSERT
+P inventory_items inventory_items_tenant_select SELECT
+P inventory_reservations inventory_reservations_admin_manage ALL
+P inventory_reservations inventory_reservations_select_authorized SELECT
+P inventory_transactions inventory_transactions_admin_insert INSERT
+P inventory_transactions inventory_transactions_select_authorized SELECT
+P jewelry_model_images authenticated read jewelry_model_images SELECT
+P jewelry_model_images managers write jewelry_model_images ALL
+P jewelry_models jewelry_models_tenant_delete DELETE
+P jewelry_models jewelry_models_tenant_insert INSERT
+P jewelry_models jewelry_models_tenant_select SELECT
+P jewelry_models jewelry_models_tenant_update UPDATE
+P jewelry_sales jewelry_sales_select_policy SELECT
+P machines machines_tenant_manage ALL
+P machines machines_tenant_select SELECT
+P manager_vault_account manager_vault_account_select_policy SELECT
+P order_items authenticated read order_items SELECT
+P order_items sales write order_items ALL
+P orders orders_tenant_delete DELETE
+P orders orders_tenant_insert INSERT
+P orders orders_tenant_select SELECT
+P orders orders_tenant_update UPDATE
+P organization_factory_settings factory_settings_director_manage ALL
+P organization_factory_settings factory_settings_tenant_select SELECT
+P organizations organizations_director_manage ALL
+P organizations organizations_tenant_select SELECT
+P production_stages Admins and managers can manage production stages ALL
+P production_stages Authenticated users can read production stages SELECT
+P products products_tenant_manage ALL
+P products products_tenant_select SELECT
+P qc_checklist_items admin write qc_checklist_items ALL
+P qc_checklist_items authenticated read qc_checklist_items SELECT
+P qc_checklists admin write qc_checklists ALL
+P qc_checklists authenticated read qc_checklists SELECT
+P qc_inspection_results QC and managers can insert inspection results INSERT
+P qc_inspection_results authenticated read qc_inspection_results SELECT
+P qc_inspections QC and managers can insert inspections INSERT
+P qc_inspections QC and managers can update inspections UPDATE
+P qc_inspections authenticated read qc_inspections SELECT
+P quality_control Authenticated users can read quality control SELECT
+P quality_control QC and managers can insert quality control INSERT
+P quality_control quality_control_tenant_insert INSERT
+P quality_control quality_control_tenant_select SELECT
+P quality_control quality_control_tenant_update UPDATE
+P refining_batches refining_batches_select_policy SELECT
+P salary_ledger salary_ledger_tenant_admin_insert INSERT
+P salary_ledger salary_ledger_tenant_select SELECT
+P sales sales_tenant_manage ALL
+P sales sales_tenant_select SELECT
+P sales_login_audit_logs sales_login_audit_logs_org_policy ALL
+P sales_markup_presets sales_markup_presets_admin_manage ALL
+P sales_markup_presets sales_markup_presets_select SELECT
+P seller_consignments seller_consignments_select_policy SELECT
+P seller_gold_accounts seller_gold_accounts_select_policy SELECT
+P seller_rate_history seller_rate_history_select SELECT
+P seller_rate_limits seller_rate_limits_select SELECT
+P seller_rates seller_rates_select SELECT
+P sheets_import_batches sheets_import_batches_org_policy ALL
+P stage_loss_configs stage_loss_configs_tenant_delete DELETE
+P stage_loss_configs stage_loss_configs_tenant_insert INSERT
+P stage_loss_configs stage_loss_configs_tenant_select SELECT
+P stage_loss_configs stage_loss_configs_tenant_update UPDATE
+P staging_backup_snapshots staging_backup_snapshots_director_policy ALL
+P system_settings Admins and managers can manage system settings ALL
+P system_settings Authenticated users can read system settings SELECT
+P two_party_handovers two_party_handovers_tenant_manage ALL
+P two_party_handovers two_party_handovers_tenant_select SELECT
+P weight_sale_allocations weight_sale_allocations_select SELECT
+P workflow_stages admin write workflow_stages ALL
+P workflow_stages authenticated read workflow_stages SELECT
+R accounting_baselines
+R affinaj_records
+R audit_log
+R audit_logs
+R batch_images
+R batch_models
+R batch_operations
+R batch_stage_wip
+R batch_status_history
+R batches
+R bom_items
+R client_currency_accounts
+R client_currency_settlements
+R client_gold_accounts
+R client_legacy_debts
+R company_rate_differences
+R consignment_pieces
+R consumption
+R customers
+R daily_gold_rates
+R debt_repayments
+R departments
+R employees
+R factory_gold_handovers
+R factory_receipts
+R financial_transactions
+R gold_lots
+R gold_purchases
+R gold_settlements
+R gold_transactions
+R goldia_report_periods
+R idempotency_keys
+R inventory_categories
+R inventory_items
+R inventory_reservations
+R inventory_transactions
+R jewelry_model_images
+R jewelry_models
+R jewelry_sales
+R machines
+R manager_vault_account
+R order_items
+R orders
+R organization_factory_settings
+R organizations
+R production_stages
+R products
+R qc_checklist_items
+R qc_checklists
+R qc_inspection_results
+R qc_inspections
+R quality_control
+R refining_batches
+R salary_ledger
+R sales
+R sales_login_audit_logs
+R sales_markup_presets
+R seller_consignments
+R seller_gold_accounts
+R seller_rate_history
+R seller_rate_limits
+R seller_rates
+R sheets_import_batches
+R stage_loss_configs
+R staging_backup_snapshots
+R system_settings
+R two_party_handovers
+R weight_sale_allocations
+R workflow_stages
+T accounting_baselines trg_accounting_baselines_immutable
+T affinaj_records audit_affinaj_records
+T affinaj_records trg_immutable_affinaj_records
+T audit_log trg_immutable_audit_log
+T audit_logs trg_enforce_audit_logs_actor
+T audit_logs trg_immutable_audit_logs
+T batch_operations set_batch_operations_updated_at
+T batch_operations trg_complete_batch_on_terminal_stage
+T batch_operations trg_sync_batch_current_stage
+T batches audit_batches
+T batches set_batches_updated_at
+T batches trg_log_batch_status_change
+T client_legacy_debts trg_sync_seller_gold_account_legacy_debt
+T consignment_pieces trg_goldia_piece_markup_snapshot
+T consignment_pieces trg_sync_consignment_pieces_purity
+T consignment_pieces trg_sync_manager_vault_pieces
+T consumption audit_consumption
+T customers set_customers_updated_at
+T customers trg_goldia_guard_customer_code
+T customers trg_guard_customer_deletion
+T daily_gold_rates trg_sync_daily_gold_rates_purity
+T debt_repayments audit_debt_repayments
+T debt_repayments trg_immutable_debt_repayments
+T departments set_departments_updated_at
+T employees audit_employees
+T employees set_employees_updated_at
+T employees trg_prevent_employee_privilege_escalation
+T factory_gold_handovers trg_sync_manager_vault_handovers
+T factory_receipts trg_sync_manager_vault_receipts
+T financial_transactions trg_financial_transactions_immutable
+T gold_lots audit_gold_lots
+T gold_lots set_gold_lots_updated_at
+T gold_purchases trg_goldia_rate_difference_from_purchase
+T gold_settlements trg_goldia_seller_till_pool
+T gold_settlements trg_goldia_valued_cash_from_settlement
+T gold_settlements trg_sync_seller_gold_account_settle
+T gold_transactions audit_gold_transactions
+T gold_transactions trg_apply_gold_transaction
+T gold_transactions trg_immutable_gold_transactions
+T inventory_items audit_inventory_items
+T inventory_items set_inventory_items_updated_at
+T inventory_transactions audit_inventory_transactions
+T inventory_transactions trg_apply_inventory_transaction
+T inventory_transactions trg_immutable_inventory_transactions
+T jewelry_models set_jewelry_models_updated_at
+T jewelry_sales trg_goldia_sale_markup_snapshot
+T jewelry_sales trg_sync_seller_gold_account_sales
+T manager_vault_account trg_goldia_cap_valued_pool
+T orders audit_orders
+T orders set_orders_updated_at
+T qc_inspections trg_handle_qc_failure
+T salary_ledger audit_salary_ledger
+T salary_ledger trg_immutable_salary_ledger
+T sales audit_sales
+T seller_consignments trg_sync_seller_consignments_original_fields
+T seller_consignments trg_sync_seller_gold_account_consign
+T workflow_stages set_workflow_stages_updated_at
