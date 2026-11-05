@@ -66,6 +66,18 @@ Skript (`deploy-staging-frontend.ps1`):
   `/api/version` → `full_commit=<RC>`, `supabase_ref=vouehtlmsunebracahon`, `env=staging`.
 - Preview env o‘zgartirilmaydi (deploy to‘g‘ridan-to‘g‘ri Production’ga).
 
+**2026-11-05 yangilanish (078 deploy blocker):**
+- Standart rejim endi Vercel env’ni **o‘zgartirmaydi**: Production env `%TEMP%` ga o‘qiladi, tekshiriladi (URL / APP_ENV / STAGING_MODE = staging,
+  o‘qiladigan kalitlar `ref=vouehtlmsunebracahon`, production / JFS / ERP qiymati yo‘q) va darhol o‘chiriladi; release SHA build’ga
+  `--build-env NEXT_PUBLIC_GIT_COMMIT_SHA=<sha>` orqali beriladi. Kalitlarni almashtirish faqat aniq `-ReplaceEnv` bilan (eski xatti-harakat).
+- `.gitignore`: production skriptidagi kabi — shu ishga tushirishda Vercel CLI qo‘shgan `.vercel` / `.env*.local` / `.env*` qatorlari
+  bayt-bayt tiklanadi; oldingi to‘xtagan ishga tushirishdan qolgan shunday qatorlar (faqat `.gitignore` o‘zgargan bo‘lsa) `git checkout -- .gitignore`
+  bilan tiklanadi; boshqa har qanday o‘zgarish — STOP, tegilmaydi. Test: `harness/test-staging-deploy-gitignore.ps1` (10/10).
+- Deploy’dan oldin staging DB’da `-RequireMigration` (standart 078) funksiyasi borligi faqat o‘qish bilan tekshiriladi (anon bajara olmaydi).
+- `vercel deploy` tarmoq xatosi (`fetch failed`, ECONNRESET, ETIMEDOUT, UND_ERR) bo‘lsa ko‘pi bilan 2 marta qayta uriniladi: IPv4-first, keyin
+  bitta `.tgz` arxiv yuklash. `-Diagnose` — faqat o‘qish: Node/proxy/DNS, Node fetch bilan api.vercel.com (kichik GET va 8 MB POST,
+  token yuborilmaydi; default va IPv4-first), xato sababi kodi (`cause`) chiqariladi.
+
 Tekshirildi: PowerShell 7 parser (0 xato) va kalit tekshiruvi birlik testlari (staging anon/service — o‘tadi; production, JFS, boshqa project,
 anon o‘rnida service, bo‘sh, noto‘g‘ri format — STOP). Vercel’ga qarshi bu sessiyada ishga tushirilmagan (ruxsat yo‘q).
 
