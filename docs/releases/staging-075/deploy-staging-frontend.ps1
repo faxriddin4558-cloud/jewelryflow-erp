@@ -178,7 +178,7 @@ $values = [ordered]@{
   "NEXT_PUBLIC_SUPABASE_URL"      = $StagingUrl
   "NEXT_PUBLIC_APP_ENV"           = "staging"
   "NEXT_PUBLIC_STAGING_MODE"      = "true"
-  "NEXT_PUBLIC_GIT_COMMIT_SHA"    = $head      # replaces the stale hand-written da6e930
+  "NEXT_PUBLIC_GIT_COMMIT_SHA"    = $head      # release SHA; next.config.mjs bakes it into the build (wins over git / fallbacks)
   "NEXT_PUBLIC_SUPABASE_ANON_KEY" = $anon
   "SUPABASE_SERVICE_ROLE_KEY"     = $service
 }
@@ -209,7 +209,8 @@ for ($i = 0; $i -lt 12 -and -not $ok; $i++) {
   Start-Sleep -Seconds 10
   try {
     $v = Invoke-RestMethod -Uri "https://$ProjectName.vercel.app/api/version" -UseBasicParsing -TimeoutSec 30
-    $ok = ($v.full_commit -eq $head -and $v.supabase_ref -eq $StagingRef -and $v.env -eq "staging")
+    # the SHA must be the release candidate baked into THIS build (sha_source "build"), not a fallback
+    $ok = ($v.full_commit -eq $head -and $v.supabase_ref -eq $StagingRef -and $v.env -eq "staging" -and $v.sha_source -eq "build")
   } catch { $v = $null }
 }
 if ($v) { $v | Format-List | Out-String | Write-Host }
