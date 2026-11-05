@@ -10,6 +10,8 @@ Each gate shows what 077 does today (the safe default) and what is NOT done unti
 | D-C3 | Profit, rate difference, stone / brilliant value, company share of a UZS / USD sale | NOT computed; the period report says so | no profit figure, no allocation |
 | D-C4 | Overpayment of a currency debt | advance in the same currency (used first by the next sale in that currency) | not moved to the 585 gram debt |
 | D-C5 | Does a currency sale change the seller's 585 obligation? | no — it stays grams × (1 + seller %) until handovers close it | — |
+| D-A1 (078) | May a customer who is archived ("o'chirilgan") still receive a new sale? | hidden from the UI lists / sale picker; the server does not refuse it | no server-side refusal |
+| D-A2 (078) | May a seller take an unassigned customer for himself (direct write, since 038)? | allowed (unchanged); archiving an unassigned customer is management-only | not restricted |
 
 Example (owner's): manager gives 20 g at 10 % → seller owes 22 g (585). Seller sells for $2 000 → stock −20 g, customer owes
 $2 000, seller still owes 22 g. Customer pays $2 000 → seller till +$2 000. Manager takes the till at, e.g., 12 500 UZS/USD
