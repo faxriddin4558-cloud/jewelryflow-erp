@@ -117,6 +117,16 @@ export default function PeriodReportPage() {
     else setMsg({ ok: true, text: data?.already_closed ? "Bu davr avval yopilgan." : `Davr ${data.period_start} — ${data.period_end} saqlandi. Keyingi davr ${data.next_period_start} dan boshlanadi. Qoldiqlar o'zgarmadi.` });
   };
 
+  // 078 (F77-11): only the latest stored period can be reopened (a mistaken end date otherwise blocks every later close)
+  const reopenLatest = async (id: string, label: string) => {
+    if (!window.confirm(`Oxirgi saqlangan davr (${label}) qayta ochiladi: faqat uning hisobot nusxasi o'chiriladi. Qarzlar, ombor, kassa va tranzaksiyalar O'ZGARMAYDI. Davom etasizmi?`)) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("rpc_reopen_report_period", { p_period_id: id, p_reason: null });
+    setBusy(false);
+    await load();
+    setMsg(error ? { ok: false, text: parseErrorMessage(error) } : { ok: true, text: `Davr ${label} qayta ochildi. Qoldiqlar o'zgarmadi.` });
+  };
+
   const openStored = async (id: string) => {
     const { data, error } = await supabase.from("goldia_report_periods").select("report").eq("id", id).maybeSingle();
     if (error || !data) setMsg({ ok: false, text: error ? parseErrorMessage(error) : "Topilmadi" });
@@ -238,10 +248,15 @@ export default function PeriodReportPage() {
         <p className="text-[11px] text-slate-400">&quot;Yangi davrni boshlash&quot; faqat tanlangan tugash sanasigacha bo&apos;lgan davrni yopib, hisobot nusxasini saqlaydi. Mijoz qarzi, sotuvchi majburiyati, oltin va kassa NOLGA TUSHIRILMAYDI, hech qanday tranzaksiya o&apos;chirilmaydi.</p>
         <button data-testid="report-close-period" type="button" disabled={busy || !rep} onClick={() => void closePeriod()} className="px-3 py-2 rounded-xl bg-slate-800 border border-amber-600 text-amber-300 text-xs font-bold disabled:opacity-50">Yangi davrni boshlash ({to} gacha yopish)</button>
         <ul className="text-xs space-y-1" data-testid="report-periods">
-          {periods.map((p) => (
-            <li key={p.id} className="flex items-center justify-between border-t border-slate-800 pt-1">
+          {periods.map((p, i) => (
+            <li key={p.id} className="flex items-center justify-between border-t border-slate-800 pt-1 gap-2">
               <span className="font-mono">{p.period_start} — {p.period_end}</span>
-              <button type="button" onClick={() => void openStored(p.id)} className="text-amber-300 font-bold">Ko&apos;rish</button>
+              <span className="flex items-center gap-3">
+                <button type="button" onClick={() => void openStored(p.id)} className="text-amber-300 font-bold">Ko&apos;rish</button>
+                {i === 0 && (
+                  <button type="button" data-testid="report-reopen-latest" disabled={busy} onClick={() => void reopenLatest(p.id, `${p.period_start} — ${p.period_end}`)} className="text-rose-300 font-bold disabled:opacity-50">Qayta ochish</button>
+                )}
+              </span>
             </li>
           ))}
           {periods.length === 0 && <li className="text-slate-500">Hali yopilgan davr yo&apos;q</li>}

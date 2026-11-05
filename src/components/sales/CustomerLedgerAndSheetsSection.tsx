@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 import { tashkentBusinessDate } from "@/lib/business-date";
+import { isManagementUiRole } from "@/lib/sales-role-access";
 import { isSellerRole, ownRatesFromRpc, pickPaymentRates } from "@/lib/sales-payment-rates";
 import { CurrencyPaymentModal } from "./CurrencyPaymentModal";
 
@@ -178,6 +179,10 @@ export function CustomerLedgerAndSheetsSection() {
 
   // Directory Data
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
+  // 078: archived ("o'chirilgan") customers are hidden from the normal list; their debts stay in every report
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(() => new Set());
+  const [showArchived, setShowArchived] = useState(false);
+  const archiveInFlight = useRef<Set<string>>(new Set());
   const [availablePieces, setAvailablePieces] = useState<PieceItem[]>([]);
 
   // Daily Ledger Data
@@ -300,6 +305,8 @@ export function CustomerLedgerAndSheetsSection() {
   const loadCustomers = useCallback(async () => {
     setBusy(true);
     try {
+      const { data: archivedRows } = await supabase.from("customers").select("id").eq("is_archived", true);
+      setArchivedIds(new Set(((archivedRows as { id: string }[] | null) || []).map((r) => r.id)));
       const { data: ledgerData, error: ledgerErr } = await supabase.rpc("rpc_get_unified_customer_ledger");
       if (!ledgerErr && ledgerData?.items) {
         interface UnifiedItem {
@@ -955,7 +962,39 @@ export function CustomerLedgerAndSheetsSection() {
     }
   };
 
+  // 078: seller - only his own assigned customer; director / manager - every customer (the server checks the same)
+  const canArchiveCustomer = (c: CustomerRow) =>
+    isManagementUiRole(currentRole) || (!!currentEmployeeId && c.seller_id === currentEmployeeId);
+
+  const handleArchiveCustomer = async (c: CustomerRow, archive: boolean) => {
+    if (archiveInFlight.current.has(c.id)) return; // double click: one request only
+    const debtText = Number(c.current_debt_grams || 0) > 0 ? ` Ochiq qarz (${formatScreenGrams(c.current_debt_grams)}${currencyLine(c.id)}) saqlanib qoladi va hisobotlarda ko'rinadi.` : "";
+    const question = archive
+      ? `"${c.contact_name}" mijozini o'chirasizmi? Mijoz ro'yxatdan yashiriladi (arxivga o'tadi), savdo, to'lov va qarz tarixi o'chirilmaydi.${debtText}`
+      : `"${c.contact_name}" mijozini arxivdan tiklaysizmi?`;
+    if (!window.confirm(question)) return;
+    archiveInFlight.current.add(c.id);
+    try {
+      const { data, error } = await supabase.rpc("rpc_archive_customer", { p_customer_id: c.id, p_archive: archive });
+      if (error) throw error;
+      const changed = (data as { changed?: boolean } | null)?.changed !== false;
+      setMessage({
+        type: "success",
+        text: archive
+          ? `${c.contact_name} ${changed ? "o'chirildi (arxivga o'tdi)" : "allaqachon arxivda"}. Qarz va tarix saqlandi; "Arxivlangan mijozlar" bo'limida ko'rinadi.`
+          : `${c.contact_name} ${changed ? "arxivdan tiklandi" : "allaqachon faol"}.`,
+      });
+      await loadCustomers();
+    } catch (err: unknown) {
+      setMessage({ type: "error", text: `Mijozni ${archive ? "o'chirishda" : "tiklashda"} xatolik: ${parseErrorMessage(err, "Xatolik yuz berdi")}` });
+    } finally {
+      archiveInFlight.current.delete(c.id);
+    }
+  };
+
+  const archivedCount = customers.filter((c) => archivedIds.has(c.id)).length;
   const filteredCustomers = customers.filter((c) => {
+    if (archivedIds.has(c.id) !== showArchived) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -1167,8 +1206,16 @@ export function CustomerLedgerAndSheetsSection() {
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-white space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
-              Mijozlar Ro&apos;yxati va Nasiya Qoldiqlari ({filteredCustomers.length})
+              {showArchived ? "Arxivlangan mijozlar" : "Mijozlar Ro&apos;yxati va Nasiya Qoldiqlari"} ({filteredCustomers.length})
             </h3>
+            <button
+              type="button"
+              data-testid="toggle-archived"
+              onClick={() => setShowArchived((v) => !v)}
+              className="px-2.5 py-1 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded-lg text-[11px] font-bold transition"
+            >
+              {showArchived ? "← Faol mijozlar" : `🗄️ Arxivlangan mijozlar (${archivedCount})`}
+            </button>
             <span className="text-xs text-slate-400">
               Qarzlar 12-15% mijoz ustamasi bilan 585 sof ekvivalentda
             </span>
@@ -1281,6 +1328,16 @@ export function CustomerLedgerAndSheetsSection() {
                 >
                   💵 Valyuta qarzi / to&apos;lov{currencyLine(c.id)}
                 </button>
+                {canArchiveCustomer(c) && (
+                  <button
+                    type="button"
+                    data-testid={showArchived ? "restore-customer" : "archive-customer"}
+                    onClick={() => void handleArchiveCustomer(c, !showArchived)}
+                    className={`w-full mt-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition border ${showArchived ? "bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-900" : "bg-slate-900 hover:bg-rose-950 text-rose-300 border-rose-900"}`}
+                  >
+                    {showArchived ? "♻️ Tiklash" : "🗑️ Mijozni o'chirish"}
+                  </button>
+                )}
               </div>
             ))}
             {filteredCustomers.length === 0 && (
@@ -1401,6 +1458,16 @@ export function CustomerLedgerAndSheetsSection() {
                         >
                           💵 Valyuta{currencyLine(c.id)}
                         </button>
+                        {canArchiveCustomer(c) && (
+                          <button
+                            type="button"
+                            data-testid={showArchived ? "restore-customer" : "archive-customer"}
+                            onClick={() => void handleArchiveCustomer(c, !showArchived)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition border ${showArchived ? "bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-900" : "bg-slate-900 hover:bg-rose-950 text-rose-300 border-rose-900"}`}
+                          >
+                            {showArchived ? "♻️ Tiklash" : "🗑️ O'chirish"}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

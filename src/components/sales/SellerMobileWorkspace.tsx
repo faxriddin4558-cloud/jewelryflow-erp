@@ -171,8 +171,8 @@ export function SellerMobileWorkspace({
           ? supabase.from("seller_gold_accounts").select("*").eq("seller_id", sellerId).maybeSingle()
           : Promise.resolve({ data: null }),
         sellerId && !isAdminOrDir
-          ? supabase.from("customers").select("id, customer_code, contact_name, phone, company_name, seller_id").or(`seller_id.eq.${sellerId},seller_id.is.null`).order("contact_name", { ascending: true })
-          : supabase.from("customers").select("id, customer_code, contact_name, phone, company_name, seller_id").order("contact_name", { ascending: true }),
+          ? supabase.from("customers").select("id, customer_code, contact_name, phone, company_name, seller_id").eq("is_archived", false).or(`seller_id.eq.${sellerId},seller_id.is.null`).order("contact_name", { ascending: true })
+          : supabase.from("customers").select("id, customer_code, contact_name, phone, company_name, seller_id").eq("is_archived", false).order("contact_name", { ascending: true }),
         sellerId && !isAdminOrDir
           ? supabase.from("client_gold_accounts").select("*, customer:customers(id, contact_name, customer_code, phone)").eq("seller_id", sellerId)
           : supabase.from("client_gold_accounts").select("*, customer:customers(id, contact_name, customer_code, phone)"),
@@ -291,7 +291,7 @@ export function SellerMobileWorkspace({
       notifySuccess(`Yangi mijoz qo'shildi: ${data.contact_name} (${code})`);
 
       // Refresh customers list
-      const { data: newCustList } = await supabase.from("customers").select("id, customer_code, contact_name, phone, company_name").order("contact_name", { ascending: true });
+      const { data: newCustList } = await supabase.from("customers").select("id, customer_code, contact_name, phone, company_name").eq("is_archived", false).order("contact_name", { ascending: true });
       if (newCustList) {
         setCustomers(newCustList as CustomerItem[]);
         // Auto-select for sale or settlement
