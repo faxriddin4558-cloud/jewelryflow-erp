@@ -42,6 +42,7 @@ run the read-only check in §5 (line `PRE|legacy_206_83_rows`). After 076 the se
 | F14 | LOW | Opening *Mijozlar* writes: `rpc_get_unified_customer_ledger` upserts the debt cache (since 069) | documented | production smoke kit G2 |
 | F15 | LOW | Two vitest tests used UTC `CURRENT_DATE` and failed daily 19:00–24:00 UTC (pre-existing, fails on `b4a5ba3` too) | fixed (tests only) | commit after `af04927` |
 | F16 | LOW | `rpc_record_financial_transaction` code accepts `capital_in` but the table constraint rejects it (the UI never sends it) | documented | local probe |
+| F18 | LOW | `rpc_execute_full_test_reset` closes weight sales but leaves their piece allocations open (`reversed_at` null; pieces become `cancelled`) - test-only function, no balance effect (100 rows on staging from the 2026-11-03 reset) | documented | `evidence/staging-076-integrity.json` INT-07b |
 | F17 | INFO | Sellers see the organization's **unassigned** customers (065 rule); after 076 they cannot put legacy debt on them — the manager assigns the customer first or enters it himself | by design | LD-09 |
 
 Not audited in this pass (no new evidence, earlier audits only): Telegram linking, receipt printing, physical scanner,
@@ -116,3 +117,19 @@ Backup: step 5 makes a fresh verified backup before any change.
   (Telegram, printing, scanner hardware, Sheets import) should be watched on day one.
 * Full **GO** is not justified from this session: 076 has not run on real staging or production yet, and the production
   read-only results are not in.
+
+## 7. Re-verification on REAL staging after 076 (2026-11-05) — nothing from before 076 counted
+Staging DB 076 (owner: POSTFLIGHT PASS), frontend `6956236` (`/api/version` full_commit 6956236…, `sha_source=build`).
+The browser bundle contains the 076 UI (4 markers) and not the 075 text (`evidence/staging-076-bundle-check.txt`).
+Real GoTrue logins, PostgREST, Playwright; synthetic organization A + organization B only; users banned again after.
+
+| Run | Result | Evidence |
+|---|---|---|
+| API re-proof of every CRITICAL/HIGH fix: seller + manager legacy debt (206.83 g), own customer only, advance / reconcile-down / other seller refused, retries and 6-way concurrency, org B / worker / no-employee refused, reversal + recalc, gram sale 100 g @ 12 % = 112 g without a product, FIFO across consignments, markups 10–35 % on the base, negative stock / invalid input refused, cross-seller weight AND barcode sale refused, 12 parallel sales, one-key ×8 → one sale, sale reversal, cash reversal (no PGRST203), downward reconciliation of a sales debt, refresh token + logout | **57/57** | `staging-076-api.json` |
+| Browser (desktop + 390 px): seller legacy 206.83 g, double click → 1 row, reconcile-down refused, piece choice optional, 30 g sale without a product, mobile legacy, manager reversal + recalc, manager has no director-only buttons, director has them, cash reversal | **17/17**, no API 4xx/5xx | `staging-ui-076.json`, `staging-ui-076-screens/` |
+| Role matrix 26 write RPCs × 5 roles | legacy debt: manager + seller allowed; seller reversal denied; financial reversal resolved for all roles | `staging-076-role-matrix.json` |
+| Stress + independent model: 210 sales (158 weight without/with pieces, 52 barcode), 210 payments, 104 legacy (26 by sellers, 39 manager, 39 director), 55 reversals, 60 attacks, 30 inventory operations; 26 legacy duplicates with a new key → 0 accepted | **16/16**, model = database **0.0000 g**, 0 failed operations | `stress-staging-076.json` |
+| Whole-organization integrity (9 sellers, 664 pieces, 716 sales, 730 allocations): no negative stock, pieces = grams, legacy obligation model, no double sale, allocations = sold grams, reversals release allocations, no debt+advance | all PASS (+ F18 info) | `staging-076-integrity.json` |
+
+Still open: inventory operations 30 (< 100 requested); the 0-g legacy-obligation clamp edge is proven locally / in vitest, on
+staging only the non-negative case; Telegram, printing, scanner hardware, Sheets import not re-audited; production untouched.

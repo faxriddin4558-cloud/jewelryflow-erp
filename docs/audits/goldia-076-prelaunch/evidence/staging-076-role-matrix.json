@@ -1,0 +1,594 @@
+{
+  "at": "2026-11-05T04:41:13.663Z",
+  "incident": [
+    {
+      "step": "seller creates own customer",
+      "ok": true,
+      "customer_id": "68861c56-f654-4fe9-b2d4-7544b5b16264"
+    },
+    {
+      "step": "sellera enters 206.83 g legacy debt (UI shows the button)",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "step": "manager enters 206.83 g legacy debt (UI shows the button)",
+      "ok": true,
+      "status": 200
+    }
+  ],
+  "matrix": {
+    "rpc_record_client_legacy_debt": {
+      "director": {
+        "c": "PASSES",
+        "e": "Mijoz topilmadi: 00000000-0000-0000-0000-000000000000"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Mijoz topilmadi: 00000000-0000-0000-0000-000000000000"
+      },
+      "sellera": {
+        "c": "PASSES",
+        "e": "Mijoz topilmadi: 00000000-0000-0000-0000-000000000000"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Mijoz topilmadi: 00000000-0000-0000-0000-000000000000"
+      }
+    },
+    "rpc_reverse_client_legacy_debt": {
+      "director": {
+        "c": "PASSES",
+        "e": "Eski qarz yozuvi topilmadi: 00000000-0000-0000-0000-000000000000"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Eski qarz yozuvi topilmadi: 00000000-0000-0000-0000-000000000000"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Eski qarz yozuvi topilmadi: 00000000-0000-0000-0000-000000000000"
+      }
+    },
+    "rpc_record_weight_sale": {
+      "director": {
+        "c": "PASSES",
+        "e": "Mijoz (00000000-0000-0000-0000-000000000000) topilmadi"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Mijoz (00000000-0000-0000-0000-000000000000) topilmadi"
+      },
+      "sellera": {
+        "c": "PASSES",
+        "e": "Mijoz (00000000-0000-0000-0000-000000000000) topilmadi"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, sales, seller,"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Mijoz (00000000-0000-0000-0000-000000000000) topilmadi"
+      }
+    },
+    "rpc_record_barcode_piece_sale": {
+      "director": {
+        "c": "PASSES",
+        "e": "Mijoz topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Mijoz topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "sellera": {
+        "c": "PASSES",
+        "e": "Mijoz topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, sales, seller,"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Mijoz topilmadi (00000000-0000-0000-0000-000000000000)"
+      }
+    },
+    "rpc_record_client_jewelry_sale": {
+      "director": {
+        "c": "PASSES",
+        "e": "Consignment (00000000-0000-0000-0000-000000000000) not found"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Consignment (00000000-0000-0000-0000-000000000000) not found"
+      },
+      "sellera": {
+        "c": "PASSES",
+        "e": "Consignment (00000000-0000-0000-0000-000000000000) not found"
+      },
+      "worker": {
+        "c": "PASSES",
+        "e": "Consignment (00000000-0000-0000-0000-000000000000) not found"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Consignment (00000000-0000-0000-0000-000000000000) not found"
+      }
+    },
+    "rpc_record_client_settlement": {
+      "director": {
+        "c": "PASSES",
+        "e": "To'lov uchun lom vazni, naqd so'm yoki dollar summasi kiritilishi shart"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "To'lov uchun lom vazni, naqd so'm yoki dollar summasi kiritilishi shart"
+      },
+      "sellera": {
+        "c": "PASSES",
+        "e": "To'lov uchun lom vazni, naqd so'm yoki dollar summasi kiritilishi shart"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "To'lov uchun lom vazni, naqd so'm yoki dollar summasi kiritilishi shart"
+      }
+    },
+    "rpc_record_seller_to_manager_settlement": {
+      "director": {
+        "c": "PASSES",
+        "e": "Settlement must include either scrap gold grams, UZS cash, or USD cash"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Settlement must include either scrap gold grams, UZS cash, or USD cash"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Ruxsat etilmadi: Sotuvchi faqat o'z kassasini topshira oladi"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Settlement must include either scrap gold grams, UZS cash, or USD cash"
+      }
+    },
+    "rpc_reverse_client_sale": {
+      "director": {
+        "c": "PASSES",
+        "e": "Savdo hujjati topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Savdo hujjati topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "sellera": {
+        "c": "PASSES",
+        "e": "Savdo hujjati topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Savdo hujjati topilmadi (00000000-0000-0000-0000-000000000000)"
+      }
+    },
+    "rpc_reverse_client_settlement": {
+      "director": {
+        "c": "PASSES",
+        "e": "To'lov yozuvi (00000000-0000-0000-0000-000000000000) topilmadi"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "To'lov yozuvi (00000000-0000-0000-0000-000000000000) topilmadi"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "To'lov yozuvi (00000000-0000-0000-0000-000000000000) topilmadi"
+      }
+    },
+    "rpc_reverse_seller_to_manager_settlement": {
+      "director": {
+        "c": "PASSES",
+        "e": "Tushum kvitansiyasi topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Tushum kvitansiyasi topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Tushum kvitansiyasi topilmadi (00000000-0000-0000-0000-000000000000)"
+      }
+    },
+    "rpc_return_piece_to_manager": {
+      "director": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_return_piece_to_manager(p_piece_id, p_reason) in the schema cache"
+      },
+      "manager": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_return_piece_to_manager(p_piece_id, p_reason) in the schema cache"
+      },
+      "sellera": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_return_piece_to_manager(p_piece_id, p_reason) in the schema cache"
+      },
+      "worker": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_return_piece_to_manager(p_piece_id, p_reason) in the schema cache"
+      },
+      "directorB": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_return_piece_to_manager(p_piece_id, p_reason) in the schema cache"
+      }
+    },
+    "rpc_issue_barcode_consignment": {
+      "director": {
+        "c": "PASSES",
+        "e": "Kamida 1 ta mahsulot dona skaner qilinishi shart"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Kamida 1 ta mahsulot dona skaner qilinishi shart"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, production_man"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, production_man"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Kamida 1 ta mahsulot dona skaner qilinishi shart"
+      }
+    },
+    "rpc_issue_seller_consignment": {
+      "director": {
+        "c": "PASSES",
+        "e": "Consignment quantity must be greater than 0"
+      },
+      "manager": {
+        "c": "DENY",
+        "e": "Permission denied for role \"production_manager\" (required one of: admin, director, owner, direktor, rahbar, ac"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Consignment quantity must be greater than 0"
+      }
+    },
+    "rpc_reverse_barcode_consignment": {
+      "director": {
+        "c": "PASSES",
+        "e": "Konsignatsiya topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Konsignatsiya topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Konsignatsiya topilmadi (00000000-0000-0000-0000-000000000000)"
+      }
+    },
+    "rpc_record_factory_receipt": {
+      "director": {
+        "c": "PASSES",
+        "e": "Zavod kirimi fizik vazni 0 dan katta bo'lishi shart"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Zavod kirimi fizik vazni 0 dan katta bo'lishi shart"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Ruxsat etilmadi: Sotuvchi yoki begona foydalanuvchi zavod tovar kirimini saqlay olmaydi (Rol: seller)"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Ruxsat etilmadi: Sotuvchi yoki begona foydalanuvchi zavod tovar kirimini saqlay olmaydi (Rol: worker)"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Zavod kirimi fizik vazni 0 dan katta bo'lishi shart"
+      }
+    },
+    "rpc_reverse_factory_receipt": {
+      "director": {
+        "c": "PASSES",
+        "e": "Fabrika qabuli topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Fabrika qabuli topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, production_man"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, production_man"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Fabrika qabuli topilmadi (00000000-0000-0000-0000-000000000000)"
+      }
+    },
+    "rpc_record_factory_gold_handover": {
+      "director": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_record_factory_gold_handover(p_gold_weight_g) in the schema cache"
+      },
+      "manager": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_record_factory_gold_handover(p_gold_weight_g) in the schema cache"
+      },
+      "sellera": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_record_factory_gold_handover(p_gold_weight_g) in the schema cache"
+      },
+      "worker": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_record_factory_gold_handover(p_gold_weight_g) in the schema cache"
+      },
+      "directorB": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_record_factory_gold_handover(p_gold_weight_g) in the schema cache"
+      }
+    },
+    "rpc_reverse_factory_gold_handover": {
+      "director": {
+        "c": "PASSES",
+        "e": "Zavodga oltin topshirish hujjati topilmadi: 00000000-0000-0000-0000-000000000000"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Zavodga oltin topshirish hujjati topilmadi: 00000000-0000-0000-0000-000000000000"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, production_man"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, production_man"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Zavodga oltin topshirish hujjati topilmadi: 00000000-0000-0000-0000-000000000000"
+      }
+    },
+    "rpc_record_financial_transaction": {
+      "director": {
+        "c": "PASSES",
+        "e": "Tranzaksiya summasi yoki miqdori 0 dan katta bo'lishi shart"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Tranzaksiya summasi yoki miqdori 0 dan katta bo'lishi shart"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Tranzaksiya summasi yoki miqdori 0 dan katta bo'lishi shart"
+      }
+    },
+    "rpc_reverse_financial_transaction": {
+      "director": {
+        "c": "PASSES",
+        "e": "Bekor qilinadigan operatsiya topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Bekor qilinadigan operatsiya topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Bekor qilinadigan operatsiya topilmadi (00000000-0000-0000-0000-000000000000)"
+      }
+    },
+    "rpc_record_gold_purchase": {
+      "director": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_record_gold_purchase(p_physical_weight_g) in the schema cache"
+      },
+      "manager": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_record_gold_purchase(p_physical_weight_g) in the schema cache"
+      },
+      "sellera": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_record_gold_purchase(p_physical_weight_g) in the schema cache"
+      },
+      "worker": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_record_gold_purchase(p_physical_weight_g) in the schema cache"
+      },
+      "directorB": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_record_gold_purchase(p_physical_weight_g) in the schema cache"
+      }
+    },
+    "rpc_reverse_gold_purchase": {
+      "director": {
+        "c": "PASSES",
+        "e": "Oltin xaridi topilmadi: 00000000-0000-0000-0000-000000000000"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Oltin xaridi topilmadi: 00000000-0000-0000-0000-000000000000"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, production_man"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, production_man"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Oltin xaridi topilmadi: 00000000-0000-0000-0000-000000000000"
+      }
+    },
+    "rpc_record_refining_batch": {
+      "director": {
+        "c": "PASSES",
+        "e": "Invalid refining inputs: input scrap, melted weight and output fine gold must be > 0"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Invalid refining inputs: input scrap, melted weight and output fine gold must be > 0"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Invalid refining inputs: input scrap, melted weight and output fine gold must be > 0"
+      }
+    },
+    "rpc_reverse_refining_batch": {
+      "director": {
+        "c": "PASSES",
+        "e": "Bekor qilinadigan afinaj partiyasi topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "manager": {
+        "c": "PASSES",
+        "e": "Bekor qilinadigan afinaj partiyasi topilmadi (00000000-0000-0000-0000-000000000000)"
+      },
+      "sellera": {
+        "c": "DENY",
+        "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "worker": {
+        "c": "DENY",
+        "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+      },
+      "directorB": {
+        "c": "PASSES",
+        "e": "Bekor qilinadigan afinaj partiyasi topilmadi (00000000-0000-0000-0000-000000000000)"
+      }
+    },
+    "rpc_manage_sales_markup_preset": {
+      "director": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_manage_sales_markup_preset(p_action, p_preset_id) in the schema cache"
+      },
+      "manager": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_manage_sales_markup_preset(p_action, p_preset_id) in the schema cache"
+      },
+      "sellera": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_manage_sales_markup_preset(p_action, p_preset_id) in the schema cache"
+      },
+      "worker": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_manage_sales_markup_preset(p_action, p_preset_id) in the schema cache"
+      },
+      "directorB": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_manage_sales_markup_preset(p_action, p_preset_id) in the schema cache"
+      }
+    },
+    "rpc_reclassify_capital_transaction": {
+      "director": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_reclassify_capital_transaction(p_transaction_id) in the schema cache"
+      },
+      "manager": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_reclassify_capital_transaction(p_transaction_id) in the schema cache"
+      },
+      "sellera": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_reclassify_capital_transaction(p_transaction_id) in the schema cache"
+      },
+      "worker": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_reclassify_capital_transaction(p_transaction_id) in the schema cache"
+      },
+      "directorB": {
+        "c": "MISSING",
+        "e": "Could not find the function public.rpc_reclassify_capital_transaction(p_transaction_id) in the schema cache"
+      }
+    }
+  }
+}

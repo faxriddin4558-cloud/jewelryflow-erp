@@ -2,17 +2,20 @@
 // Every check reported as UI is done by clicking in the browser; the database is read afterwards as ground truth.
 const fs = require('fs'); const path = require('path');
 const { chromium } = require('/home/user/jewelryflow-erp/node_modules/playwright');
-const L = require('/home/user/jewelryflow-erp/docs/audits/goldia-075-real-auth/harness/lib');
-const BASE = 'http://127.0.0.1:3300';
-const OUT = path.join(__dirname, '..', 'evidence', 'local-ui-076.json');
-const SHOTS = path.join(__dirname, '..', 'evidence', 'local-ui-076-screens');
+// GA_TARGET=staging -> the real staging site + staging Supabase (synthetic audit organization only)
+const TARGET = process.env.GA_TARGET || 'local';
+const L = TARGET === 'staging' ? require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib') : require('/home/user/jewelryflow-erp/docs/audits/goldia-075-real-auth/harness/lib');
+const BASE = TARGET === 'staging' ? 'https://jewelryflow-sales-staging.vercel.app' : 'http://127.0.0.1:3300';
+const API_HOST = TARGET === 'staging' ? 'vouehtlmsunebracahon.supabase.co' : '127.0.0.1:54321';
+const OUT = path.join(__dirname, '..', 'evidence', `${TARGET}-ui-076.json`);
+const SHOTS = path.join(__dirname, '..', 'evidence', `${TARGET}-ui-076-screens`);
 const R = []; const T = (id, title, ok, exp, act) => { R.push({ id, title, ok: !!ok, expected: exp, actual: act }); console.log(`${ok ? 'PASS' : 'FAIL'} ${id} ${title} | exp=${JSON.stringify(exp)} act=${JSON.stringify(act).slice(0, 220)}`); };
 const N = Number; const r4 = (x) => Math.round(N(x) * 1e4) / 1e4;
 async function login(br, tag, vp = { width: 1366, height: 860 }) {
   const c = L.creds()[tag];
   const ctx = await br.newContext({ viewport: vp, isMobile: vp.width < 500, hasTouch: vp.width < 500 });
   const p = await ctx.newPage(); const bad = []; const toasts = [];
-  p.on('response', (r) => { if (r.url().includes('127.0.0.1:54321') && r.status() >= 400) bad.push(r.status() + ' ' + r.url().split('54321')[1].split('?')[0]); });
+  p.on('response', (r) => { if (r.url().includes(API_HOST) && r.status() >= 400) bad.push(r.status() + ' ' + r.url().split(API_HOST)[1].split('?')[0]); });
   p.on('dialog', (d) => d.accept(p.__promptAnswer || 'UI test'));
   await p.goto(BASE + '/sales/login', { waitUntil: 'networkidle' });
   await p.fill('input[type="email"]', c.email); await p.fill('input[type="password"]', c.password);
@@ -38,7 +41,7 @@ const sellerAcc = async (sid) => (await L.sel(`seller_gold_accounts?seller_id=eq
   const names = { a: `UI76 Aziza ${run}`, b: `UI76 Bobur ${run}`, m: `UI76 Mobil ${run}` };
   const cust = {};
   for (const k of Object.keys(names)) cust[k] = (await L.rpc('sellera', 'rpc_create_customer_with_code', { p_contact_name: names[k] })).data.customer_id;
-  const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+  const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', proxy: TARGET === 'staging' && process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY } : undefined });
   // ================= seller, desktop: legacy debt 206.83 g (the incident)
   let s = await login(br, 'sellera');
   await go(s, '/sales/app/customers');
@@ -144,7 +147,8 @@ const sellerAcc = async (sid) => (await L.sel(`seller_gold_accounts?seller_id=eq
   const fr = ft.ok ? await L.rpc('manager', 'rpc_reverse_financial_transaction', { p_transaction_id: ft.data.transaction_id || ft.data.id, p_reason: 'UI076' }) : ft;
   T('UI-17', 'manager reverses a cash operation with the UI call {p_transaction_id, p_reason} (075: HTTP 300 PGRST203)', fr.ok, 'ok', fr.ok ? 'ok' : fr.status + ' ' + fr.error);
   await br.close();
-  fs.writeFileSync(OUT, JSON.stringify({ run, results: R }, null, 2));
+  let ver = null; try { ver = JSON.parse(require('child_process').execFileSync('curl', ['-s', '-m', '30', BASE + '/api/version']).toString()); } catch { ver = null; }
+  fs.writeFileSync(OUT, JSON.stringify({ target: TARGET, version: ver, run, results: R }, null, 2));
   console.log(`TOTAL ${R.filter((x) => x.ok).length}/${R.length}`);
   process.exit(R.every((x) => x.ok) ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -1,0 +1,619 @@
+{
+ "target": "staging",
+ "schema": "076",
+ "frontend": "6956236",
+ "run": "mw3204zp",
+ "results": [
+  {
+   "id": "S76-01",
+   "title": "seller enters 206.83 g legacy debt for his own customer (075: permission denied)",
+   "ok": true,
+   "expected": 206.83,
+   "actual": {
+    "d": 206.83,
+    "a": 0
+   },
+   "at": "2026-11-05T04:36:54.821Z"
+  },
+  {
+   "id": "S76-02",
+   "title": "seller legacy obligation +206.83 g; gram stock unchanged",
+   "ok": true,
+   "expected": {
+    "l": 206.83
+   },
+   "actual": {
+    "l": 206.83,
+    "st0": 145.6,
+    "st1": 145.6
+   },
+   "at": "2026-11-05T04:36:55.060Z"
+  },
+  {
+   "id": "S76-03",
+   "title": "vault stock, factory obligation and manager cash untouched by legacy debt",
+   "ok": true,
+   "expected": {
+    "s": 497.3369,
+    "o": 1965.6,
+    "c": 370483500
+   },
+   "actual": {
+    "s": 497.3369,
+    "o": 1965.6,
+    "c": 370483500
+   },
+   "at": "2026-11-05T04:36:55.939Z"
+  },
+  {
+   "id": "S76-04",
+   "title": "retry with the SAME key -> same legacy row, debt stays 206.83",
+   "ok": true,
+   "expected": "585056a0-a535-4624-b20f-4b11f42f7170",
+   "actual": "585056a0-a535-4624-b20f-4b11f42f7170",
+   "at": "2026-11-05T04:36:56.412Z"
+  },
+  {
+   "id": "S76-05",
+   "title": "same addition with a NEW key within 10 min -> refused (double click / retry)",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Takroriy so'rov: shu mijozga xuddi shu eski qarz (206.8300 g) 10 daqiqa ichida k",
+   "at": "2026-11-05T04:36:56.914Z"
+  },
+  {
+   "id": "S76-06",
+   "title": "6 parallel identical additions with different keys -> exactly one",
+   "ok": true,
+   "expected": 1,
+   "actual": {
+    "ok": 1,
+    "debt": 12.5
+   },
+   "at": "2026-11-05T04:36:58.114Z"
+  },
+  {
+   "id": "S76-07",
+   "title": "6 parallel requests with one key -> one row, all answers the same id",
+   "ok": true,
+   "expected": 15.5,
+   "actual": {
+    "ok": 6,
+    "debt": 15.5
+   },
+   "at": "2026-11-05T04:36:59.220Z"
+  },
+  {
+   "id": "S76-08",
+   "title": "seller cannot add legacy debt to another seller's customer",
+   "ok": true,
+   "expected": "42501",
+   "actual": "42501 Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan (eski qarzni faqat ",
+   "at": "2026-11-05T04:37:00.134Z"
+  },
+  {
+   "id": "S76-09",
+   "title": "seller cannot enter an advance",
+   "ok": true,
+   "expected": "42501",
+   "actual": "42501",
+   "at": "2026-11-05T04:37:00.377Z"
+  },
+  {
+   "id": "S76-10",
+   "title": "seller cannot reconcile DOWN (would lower his own obligation)",
+   "ok": true,
+   "expected": "42501",
+   "actual": "Ruxsat etilmadi: Qarzni kamaytirishni faqat menejer yoki direktor bajaradi (hozi",
+   "at": "2026-11-05T04:37:00.862Z"
+  },
+  {
+   "id": "S76-11",
+   "title": "seller may reconcile UP to the notebook (250.0001, delta 43.1701)",
+   "ok": true,
+   "expected": 43.1701,
+   "actual": 43.1701,
+   "at": "2026-11-05T04:37:01.347Z"
+  },
+  {
+   "id": "S76-12",
+   "title": "seller cannot book the debt on another seller",
+   "ok": true,
+   "expected": "42501",
+   "actual": "42501",
+   "at": "2026-11-05T04:37:01.583Z"
+  },
+  {
+   "id": "S76-13",
+   "title": "manager enters legacy debt for seller B's customer (075: permission denied)",
+   "ok": true,
+   "expected": 7.25,
+   "actual": 7.25,
+   "at": "2026-11-05T04:37:02.689Z"
+  },
+  {
+   "id": "S76-14",
+   "title": "manager may enter an advance",
+   "ok": true,
+   "expected": 4,
+   "actual": 4,
+   "at": "2026-11-05T04:37:03.408Z"
+  },
+  {
+   "id": "S76-15-directorB",
+   "title": "directorB (organization B) cannot touch organization A's customer",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Mijoz topilmadi: d4cd8616-e45a-4e42-a10d-df3955d19ee5",
+   "at": "2026-11-05T04:37:04.237Z"
+  },
+  {
+   "id": "S76-15-managerB",
+   "title": "managerB (organization B) cannot touch organization A's customer",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Mijoz topilmadi: d4cd8616-e45a-4e42-a10d-df3955d19ee5",
+   "at": "2026-11-05T04:37:05.080Z"
+  },
+  {
+   "id": "S76-15-sellerB1",
+   "title": "sellerB1 (organization B) cannot touch organization A's customer",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Mijoz topilmadi: d4cd8616-e45a-4e42-a10d-df3955d19ee5",
+   "at": "2026-11-05T04:37:05.926Z"
+  },
+  {
+   "id": "S76-16-worker",
+   "title": "worker cannot enter legacy debt",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Permission denied for role \"worker\" (required one of: admin,",
+   "at": "2026-11-05T04:37:06.540Z"
+  },
+  {
+   "id": "S76-16-noemp",
+   "title": "noemp cannot enter legacy debt",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Permission denied: User must belong to an active organizatio",
+   "at": "2026-11-05T04:37:07.192Z"
+  },
+  {
+   "id": "S76-17",
+   "title": "direct INSERT into client_legacy_debts by a seller refused (RPC only)",
+   "ok": true,
+   "expected": "refused",
+   "actual": "new row violates row-level security policy for table \"client",
+   "at": "2026-11-05T04:37:07.455Z"
+  },
+  {
+   "id": "S76-18",
+   "title": "seller cannot reverse a legacy entry",
+   "ok": true,
+   "expected": "42501",
+   "actual": "42501",
+   "at": "2026-11-05T04:37:07.704Z"
+  },
+  {
+   "id": "S76-19",
+   "title": "reversing an entry under a newer reconciliation is refused (no invented advance)",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Avval shu mijozning keyingi qayta solishtirish yozuvini bekor qiling (",
+   "at": "2026-11-05T04:37:07.944Z"
+  },
+  {
+   "id": "S76-20",
+   "title": "manager reverses the 206.83 g entry: customer back to 0 / 0 (075: permission denied)",
+   "ok": true,
+   "expected": {
+    "d": 0,
+    "a": 0
+   },
+   "actual": {
+    "d": 0,
+    "a": 0
+   },
+   "at": "2026-11-05T04:37:09.876Z"
+  },
+  {
+   "id": "S76-21",
+   "title": "seller obligation recalculated after the reversal (-206.83 g; 075 kept it)",
+   "ok": true,
+   "expected": 206.83,
+   "actual": 206.83,
+   "at": "2026-11-05T04:37:09.876Z"
+  },
+  {
+   "id": "S76-22",
+   "title": "second reversal refused",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Ushbu eski qarz yozuvi allaqachon bekor qilingan",
+   "at": "2026-11-05T04:37:10.119Z"
+  },
+  {
+   "id": "S76-30",
+   "title": "before: seller gram stock = held barcode piece grams",
+   "ok": true,
+   "expected": 354.85,
+   "actual": 354.85,
+   "at": "2026-11-05T04:37:12.596Z"
+  },
+  {
+   "id": "S76-31",
+   "title": "seller sells 100 g @ 12 % WITHOUT choosing a product (075: ERR_PIECE_REQUIRED)",
+   "ok": true,
+   "expected": "ok",
+   "actual": "SALE-W-20261105-763ACD",
+   "at": "2026-11-05T04:37:13.182Z"
+  },
+  {
+   "id": "S76-32",
+   "title": "customer debt = 112 g (12 % on the base 100 g)",
+   "ok": true,
+   "expected": 112,
+   "actual": {
+    "due": 112,
+    "debt": 112
+   },
+   "at": "2026-11-05T04:37:13.654Z"
+  },
+  {
+   "id": "S76-33",
+   "title": "gram stock -100 g and held pieces -100 g (pieces == grams)",
+   "ok": true,
+   "expected": 100,
+   "actual": {
+    "stock": 100,
+    "pieces": 100
+   },
+   "at": "2026-11-05T04:37:14.123Z"
+  },
+  {
+   "id": "S76-34",
+   "title": "allocations: sum 100 g, at most one piece cut",
+   "ok": true,
+   "expected": {
+    "g": 100,
+    "cut": "<=1"
+   },
+   "actual": {
+    "g": 100,
+    "n": 21,
+    "cut": 1
+   },
+   "at": "2026-11-05T04:37:14.353Z"
+  },
+  {
+   "id": "S76-35",
+   "title": "FIFO: older consignments are emptied before a newer one is used",
+   "ok": true,
+   "expected": 0,
+   "actual": {
+    "leftInOlder": 0,
+    "consignmentsUsed": 2
+   },
+   "at": "2026-11-05T04:37:14.591Z"
+  },
+  {
+   "id": "S76-36",
+   "title": "retry with the same key returns the same sale, nothing deducted twice",
+   "ok": true,
+   "expected": "49faf4a9-d7e8-491b-a7b9-4d6ec6ff3a18",
+   "actual": "49faf4a9-d7e8-491b-a7b9-4d6ec6ff3a18",
+   "at": "2026-11-05T04:37:15.064Z"
+  },
+  {
+   "id": "S76-37",
+   "title": "a piece consumed by the gram sale cannot be sold again by barcode",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Bu mahsulot donasi (ST-mw2h459u-sellera-10-12 — 6.7822 g) allaqachon s",
+   "at": "2026-11-05T04:37:15.319Z"
+  },
+  {
+   "id": "S76-38-10",
+   "title": "10 % on 1.37 g = 1.507 g (no markup on markup)",
+   "ok": true,
+   "expected": 1.507,
+   "actual": 1.507,
+   "at": "2026-11-05T04:37:15.850Z"
+  },
+  {
+   "id": "S76-38-12",
+   "title": "12 % on 1.37 g = 1.5344 g (no markup on markup)",
+   "ok": true,
+   "expected": 1.5344,
+   "actual": 1.5344,
+   "at": "2026-11-05T04:37:16.123Z"
+  },
+  {
+   "id": "S76-38-15",
+   "title": "15 % on 1.37 g = 1.5755 g (no markup on markup)",
+   "ok": true,
+   "expected": 1.5755,
+   "actual": 1.5755,
+   "at": "2026-11-05T04:37:16.404Z"
+  },
+  {
+   "id": "S76-38-25",
+   "title": "25 % on 1.37 g = 1.7125 g (no markup on markup)",
+   "ok": true,
+   "expected": 1.7125,
+   "actual": 1.7125,
+   "at": "2026-11-05T04:37:16.692Z"
+  },
+  {
+   "id": "S76-38-30",
+   "title": "30 % on 1.37 g = 1.781 g (no markup on markup)",
+   "ok": true,
+   "expected": 1.781,
+   "actual": 1.781,
+   "at": "2026-11-05T04:37:16.978Z"
+  },
+  {
+   "id": "S76-38-35",
+   "title": "35 % on 1.37 g = 1.8495 g (no markup on markup)",
+   "ok": true,
+   "expected": 1.8495,
+   "actual": 1.8495,
+   "at": "2026-11-05T04:37:17.251Z"
+  },
+  {
+   "id": "S76-39",
+   "title": "customer debt = exact sum of the six sales",
+   "ok": true,
+   "expected": 9.9599,
+   "actual": 9.9599,
+   "at": "2026-11-05T04:37:17.718Z"
+  },
+  {
+   "id": "S76-40",
+   "title": "selling 0.0001 g more than the stock is refused (no negative stock)",
+   "ok": true,
+   "expected": "refused",
+   "actual": "ERR_INSUFFICIENT_SELLER_STOCK: Sotuvchi omborida y",
+   "at": "2026-11-05T04:37:18.199Z"
+  },
+  {
+   "id": "S76-41-zero",
+   "title": "invalid sale (zero) refused",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Sotilayotgan mahsulot vazni 0 dan katta bo'lishi s",
+   "at": "2026-11-05T04:37:18.437Z"
+  },
+  {
+   "id": "S76-41-negative",
+   "title": "invalid sale (negative) refused",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Sotilayotgan mahsulot vazni 0 dan katta bo'lishi s",
+   "at": "2026-11-05T04:37:18.672Z"
+  },
+  {
+   "id": "S76-41-markup101",
+   "title": "invalid sale (markup101) refused",
+   "ok": true,
+   "expected": "refused",
+   "actual": "ERR_MARKUP_OUT_OF_RANGE: Mijoz ustama foizi 0 dan ",
+   "at": "2026-11-05T04:37:18.915Z"
+  },
+  {
+   "id": "S76-41-markupNull",
+   "title": "invalid sale (markupNull) refused",
+   "ok": true,
+   "expected": "refused",
+   "actual": "ERR_MARKUP_REQUIRED: Mijoz ustama foizi aniq ko'rs",
+   "at": "2026-11-05T04:37:19.157Z"
+  },
+  {
+   "id": "S76-42",
+   "title": "seller cannot sell BY WEIGHT to another seller's customer via the API (075 accepted)",
+   "ok": true,
+   "expected": "42501",
+   "actual": "42501 Ruxsat etilmadi: Ushbu mijoz boshqa sotuvchiga biriktirilgan",
+   "at": "2026-11-05T04:37:19.409Z"
+  },
+  {
+   "id": "S76-43",
+   "title": "seller cannot sell a BARCODE piece to another seller's customer via the API (075 accepted)",
+   "ok": true,
+   "expected": "42501",
+   "actual": "42501 Ruxsat etilmadi: Ushbu mijoz boshqa sotuvchiga biriktirilgan",
+   "at": "2026-11-05T04:37:19.891Z"
+  },
+  {
+   "id": "S76-44",
+   "title": "12 parallel 3 g sales: stock decrease = accepted x 3 g, stock >= 0, pieces == grams",
+   "ok": true,
+   "expected": {
+    "dec": 36
+   },
+   "actual": {
+    "ok": 12,
+    "dec": 36,
+    "stock": 210.63,
+    "pieces": 210.63,
+    "debt": 39.6
+   },
+   "at": "2026-11-05T04:37:22.343Z"
+  },
+  {
+   "id": "S76-45",
+   "title": "8 parallel requests with ONE idempotency key -> exactly one sale",
+   "ok": true,
+   "expected": 1,
+   "actual": {
+    "ok": 8,
+    "distinct": 1
+   },
+   "at": "2026-11-05T04:37:23.005Z"
+  },
+  {
+   "id": "S76-46",
+   "title": "manager reverses the 100 g sale: stock +100, pieces +100, debt -112",
+   "ok": true,
+   "expected": {
+    "stock": 100,
+    "pieces": 100,
+    "debt": -112
+   },
+   "actual": {
+    "stock": 100,
+    "pieces": 100
+   },
+   "at": "2026-11-05T04:37:25.164Z"
+  },
+  {
+   "id": "S76-47",
+   "title": "second sale reversal refused",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Ushbu savdo allaqachon bekor qilingan (SALE-W-2026",
+   "at": "2026-11-05T04:37:25.447Z"
+  },
+  {
+   "id": "S76-50",
+   "title": "manager reverses a cash expense with the UI call {p_transaction_id, p_reason} (075: HTTP 300 PGRST203 for every role)",
+   "ok": true,
+   "expected": {
+    "cash": 370488500
+   },
+   "actual": {
+    "cash": 370488500
+   },
+   "at": "2026-11-05T04:37:26.912Z"
+  },
+  {
+   "id": "S76-51",
+   "title": "second cash reversal refused, cash not changed twice",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Ushbu operatsiya allaqachon bekor qilingan",
+   "at": "2026-11-05T04:37:27.375Z"
+  },
+  {
+   "id": "S76-52",
+   "title": "seller cannot reverse a cash operation",
+   "ok": true,
+   "expected": "refused",
+   "actual": "Permission denied for role \"seller\" (required one ",
+   "at": "2026-11-05T04:37:27.616Z"
+  },
+  {
+   "id": "S76-53",
+   "title": "manager reconciles a SALES debt down by 1 g to the notebook (1.2 g) - no constraint error (075 failed)",
+   "ok": true,
+   "expected": 1.2,
+   "actual": {
+    "debt": 1.2,
+    "sellerLegacy": 328.7994
+   },
+   "at": "2026-11-05T04:37:29.879Z"
+  },
+  {
+   "id": "S76-60",
+   "title": "refresh token gives a working new session",
+   "ok": true,
+   "expected": true,
+   "actual": {
+    "refreshed": true,
+    "status": 200
+   },
+   "at": "2026-11-05T04:37:30.747Z"
+  },
+  {
+   "id": "S76-61",
+   "title": "after logout the refresh token no longer works",
+   "ok": true,
+   "expected": "refused",
+   "actual": {
+    "logout": 204,
+    "refreshAfterLogout": 400
+   },
+   "at": "2026-11-05T04:37:31.459Z"
+  }
+ ],
+ "ops": [
+  {
+   "at": "2026-11-05T04:36:50.999Z",
+   "what": "customer",
+   "by": "sellera",
+   "id": "d4cd8616-e45a-4e42-a10d-df3955d19ee5"
+  },
+  {
+   "at": "2026-11-05T04:36:51.280Z",
+   "what": "customer",
+   "by": "sellera",
+   "id": "95028037-55d2-4ee1-8e7b-f59f49d5f95d"
+  },
+  {
+   "at": "2026-11-05T04:36:51.935Z",
+   "what": "customer",
+   "by": "sellerb",
+   "id": "f80bcbc8-edcc-46e2-a8b8-506c8b6e1153"
+  },
+  {
+   "at": "2026-11-05T04:36:52.613Z",
+   "what": "customer",
+   "by": "sellera",
+   "id": "b3ce5b8f-dfa4-42e3-be50-ad40bdd89537"
+  },
+  {
+   "at": "2026-11-05T04:36:53.935Z",
+   "what": "legacy 206.83 seller",
+   "id": "585056a0-a535-4624-b20f-4b11f42f7170"
+  },
+  {
+   "at": "2026-11-05T04:37:11.363Z",
+   "what": "receipt+consignment",
+   "receipt": "092bba2f-bc72-40d3-bb81-1aa6f065d89a",
+   "consignment": "cd1f3821-306b-4715-bdef-904b06cdedb3",
+   "grams": 98.25
+  },
+  {
+   "at": "2026-11-05T04:37:11.881Z",
+   "what": "receipt+consignment",
+   "receipt": "de472924-7342-49a7-a452-3328e5da2685",
+   "consignment": "bb43d668-cef1-40f5-aa0a-46b945c66f2d",
+   "grams": 111
+  },
+  {
+   "at": "2026-11-05T04:37:12.130Z",
+   "what": "customer",
+   "by": "sellera",
+   "id": "0b2488e4-87e7-4f5c-a9ad-4b3bc3e5d77d"
+  },
+  {
+   "at": "2026-11-05T04:37:13.182Z",
+   "what": "weight sale 100 g @12 %",
+   "id": "49faf4a9-d7e8-491b-a7b9-4d6ec6ff3a18"
+  },
+  {
+   "at": "2026-11-05T04:37:15.558Z",
+   "what": "customer",
+   "by": "sellera",
+   "id": "bc6a2d42-3258-48ad-87c5-4bf7bdb0c5fe"
+  },
+  {
+   "at": "2026-11-05T04:37:20.128Z",
+   "what": "customer",
+   "by": "sellera",
+   "id": "17f7f9bd-9174-417e-8809-eb68150916d9"
+  },
+  {
+   "at": "2026-11-05T04:37:28.424Z",
+   "what": "customer",
+   "by": "sellerc",
+   "id": "33554a17-3a2c-406d-b619-38844f47b9ad"
+  },
+  {
+   "at": "2026-11-05T04:37:30.989Z",
+   "what": "reuse of a rotated refresh token",
+   "status": 200
+  }
+ ]
+}
