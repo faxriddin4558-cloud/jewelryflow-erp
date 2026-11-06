@@ -14,6 +14,46 @@ const checks = require("./goldia-release-checks");
 const REPO = path.resolve(__dirname, "..", "..");
 const V = (n) => `20260101000${String(n).padStart(3, "0")}`;
 
+// psql output lines, CR-safe: psql.exe on Windows ends lines with CRLF; a plain split("\n") leaves "\r" on every line
+// except the last, so the SAME data looked different whenever the line order changed (production chain gate,
+// 2026-11-06). Trailing whitespace / CR is removed, empty lines dropped.
+function outputLines(text) {
+  return String(text || "").split(/\r?\n/).map((l) => l.replace(/\s+$/, "")).filter((l) => l.trim() !== "");
+}
+
+// Business fingerprint comparison by VALUE per category ("category|rows|md5"), independent of line order and line
+// endings. Returns every category of the reference whose row count or hash differs, that is missing afterwards, or that
+// is duplicated. Categories that only exist afterwards (tables created by a migration) have no reference row.
+function fingerprintDiff(beforeText, afterText) {
+  const parse = (t) => {
+    const m = new Map(); const dup = [];
+    for (const l of outputLines(t)) {
+      const parts = l.split("|"); const cat = parts[0];
+      if (m.has(cat)) dup.push(cat);
+      m.set(cat, { n: parts[1] === undefined ? "" : parts[1], h: parts[2] === undefined ? "" : parts[2] });
+    }
+    return { m, dup };
+  };
+  const b = parse(beforeText); const a = parse(afterText); const diff = [];
+  if (b.m.size === 0) diff.push({ category: "(no reference fingerprint)", before: null, after: null });
+  for (const cat of [...b.dup, ...a.dup]) diff.push({ category: cat, before: "duplicate category", after: "duplicate category" });
+  for (const [cat, x] of b.m) {
+    const y = a.m.get(cat);
+    if (!y || y.n !== x.n || y.h !== x.h) diff.push({ category: cat, before: x, after: y || null });
+  }
+  return diff;
+}
+
+// SQL text with Windows line endings normalized to LF (and no BOM), so function bodies stored by the chain / a rollback
+// are byte-identical to the repository whatever the checkout (core.autocrlf) of the machine that runs the release.
+function lfText(file) { return fs.readFileSync(file, "utf8").replace(/^﻿/, "").replace(/\r\n/g, "\n"); }
+function lfCopy(file, dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const out = path.join(dir, path.basename(file));
+  fs.writeFileSync(out, lfText(file));
+  return out;
+}
+
 function chainList(from, to) {
   const dir = path.join(REPO, "supabase/migrations");
   const list = [];
@@ -61,7 +101,7 @@ end $guard$;`,
   for (const m of chain) {
     parts.push(`\n-- ===== ${m.version}_${m.name} =====`);
     parts.push(`\\echo [chain] ${m.num} ${m.name}`);
-    parts.push(fs.readFileSync(m.file, "utf8").replace(/^﻿/, ""));
+    parts.push(lfText(m.file));
     parts.push(";");
     parts.push("reset all;\nset lock_timeout = '10s';\nset statement_timeout = '15min';");
     parts.push(`do $hist$ begin
@@ -82,4 +122,4 @@ end $hist$;`);
   return { sql: parts.join("\n") + "\n", chain };
 }
 
-module.exports = { V, chainList, buildChainSql, fingerprintSql, fingerprintGate };
+module.exports = { V, chainList, buildChainSql, fingerprintSql, fingerprintGate, outputLines, fingerprintDiff, lfText, lfCopy };

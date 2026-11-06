@@ -1,0 +1,2 @@
+RESULT|function_parity_080|OK|identical=168 crlf_only=0 different=0 missing=0 extra=0
+identical|168

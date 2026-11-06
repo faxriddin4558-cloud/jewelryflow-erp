@@ -498,15 +498,28 @@ async function mainChain() {
   const countsAfter = ro(COUNTS); const balancesAfter = ro(BALANCES); const fpAfter = ro(chainLib.fingerprintSql());
   const countsSame = countsAfter.stdout.trim() === counts.stdout.trim();
   const balancesSame = balancesAfter.stdout.trim() === balances.stdout.trim();
-  const fpMap = new Map(fpAfter.stdout.trim().split(/\r?\n/).map((l) => [l.split("|")[0], l]));
-  const fpDiff = fpBefore.stdout.trim().split(/\r?\n/).filter((l) => fpMap.get(l.split("|")[0]) !== l);
+  // value per category, CR-safe and independent of line order (scripts/lib/goldia-chain.js fingerprintDiff)
+  const fpDiff = chainLib.fingerprintDiff(fpBefore.stdout, fpAfter.stdout);
+  fs.writeFileSync(path.join(latest, `fingerprint-diff-${CHAIN_TO}-production.json`), JSON.stringify(fpDiff, null, 1));
   out(`  row counts unchanged: ${countsSame ? "yes" : `NO before=${counts.stdout.trim()} after=${countsAfter.stdout.trim()}`}`);
   out(`  balances unchanged: ${balancesSame ? "yes" : `NO after=${balancesAfter.stdout.trim()}`}`);
-  out(`  business fingerprint unchanged (${fpBefore.stdout.trim().split(/\r?\n/).length} categories): ${fpDiff.length ? `NO ${fpDiff.map((l) => l.split("|")[0]).join(", ")}` : "yes"}`);
+  out(`  business fingerprint unchanged (${chainLib.outputLines(fpBefore.stdout).length} categories, value per category): ${fpDiff.length ? `NO ${fpDiff.map((x) => x.category).join(", ")}` : "yes"}`);
+  // all public functions, CR-tolerant: identical / crlf_only / DIFFERENT / MISSING / EXTRA (any real difference fails)
+  let parityOk = true;
+  const parFile = path.join(REPO, `supabase/release/function_body_parity_${CHAIN_TO}_full_readonly.sql`);
+  if (fs.existsSync(parFile)) {
+    const pr = psql(["-t", "-A", "-v", "ON_ERROR_STOP=1", "-f", chainLib.lfCopy(parFile, path.join(latest, "lf-sql"))]);
+    const pl = chainLib.outputLines(pr.stdout);
+    fs.writeFileSync(path.join(latest, `function-parity-${CHAIN_TO}-production.txt`), pl.join(os.EOL) + os.EOL + String(pr.stderr || ""));
+    const res = pl.find((l) => l.startsWith(`RESULT|function_parity_${CHAIN_TO}|`)) || "";
+    parityOk = pr.status === 0 && res.startsWith(`RESULT|function_parity_${CHAIN_TO}|OK|`);
+    out(`  function bodies (all public functions, CR-tolerant): ${res.split("|").slice(2).join(" ") || "no RESULT line"}`);
+    for (const d of pl.filter((l) => /^DETAIL (DIFFERENT|MISSING|EXTRA) /.test(l)).slice(0, 10)) out(`    REAL DIFFERENCE ${d}`);
+  }
   const rlsAfter = kit(KITS[3], "rls-isolation-after");
   const newLeaks = rlsAfter.split(/\r?\n/).map((l) => l.replace(/^.*NOTICE:\s*/, "")).filter((l) => l.startsWith("LEAK|")).map((l) => l.split("|").slice(0, 4).join("|")).filter((k) => !leaksBefore.has(k));
   out(`  RLS isolation after: ${(rlsAfter.match(/RLS_ISOLATION\|[^\r\n]*/) || ["no result line"])[0]}${newLeaks.length ? " NEW LEAKS: " + newLeaks.join(", ") : ""}`);
-  pass = pass && countsSame && balancesSame && !fpDiff.length && !newLeaks.length && /RLS_ISOLATION\|/.test(rlsAfter);
+  pass = pass && countsSame && balancesSame && !fpDiff.length && parityOk && !newLeaks.length && /RLS_ISOLATION\|/.test(rlsAfter);
   if (!pass) stopChain("POSTFLIGHT FAILED — do not deploy the frontend", { committed: true });
   out("  POSTFLIGHT: PASS");
   out(`[5/5] next: production frontend (production-frontend.ps1 -Apply -ReleaseCandidate <sha>), then run-readonly-checks.ps1 -Target production-post, then run-production-smoke.ps1`);

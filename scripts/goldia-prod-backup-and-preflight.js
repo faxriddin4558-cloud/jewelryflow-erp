@@ -674,19 +674,31 @@ async function main() {
       const checksLib = require("./lib/goldia-release-checks");
       const TO = String(args["chain-to"]).padStart(3, "0");
       log(`[8c/9] Chain ${TARGET} -> ${TO} on the restored LOCAL copy with the production chain SQL, emergency rollback to ${PREVIOUS}, re-apply (production untouched)`);
-      const SIG = fs.readFileSync(path.join(REPO, "supabase/release/staging-073/signature.sql"), "utf8").replace(/^\s*--.*$/gm, "").trim().replace(/;\s*$/, "");
+      const SIG = fs.readFileSync(path.join(REPO, "supabase/release/staging-073/signature.sql"), "utf8").replace(/\r\n/g, "\n").replace(/^\s*--.*$/gm, "").trim().replace(/;\s*$/, "");
       const KEPT_BY_ROLLBACK_077 = ["C financial_transactions.reclassified_at timestamp with time zone", "C financial_transactions.reclassified_from_amount numeric(18,2)",
         "C financial_transactions.reclassified_from_currency text", "C financial_transactions.reclassified_from_till text"];
-      const q = (sql) => String(psql(localEnv, sql).stdout || "").trim();
+      // every SQL file of this step runs from an LF copy (a Windows checkout has CRLF files; CR would end up in the
+      // stored function bodies) and every psql output is read CR-safe (psql.exe prints CRLF) - 2026-11-06 gate failure
+      const LFDIR = path.join(outDir, "lf-sql");
+      const q = (sql) => String(psql(localEnv, sql).stdout || "");
+      const lines = (t) => chainLib.outputLines(t);
       const fpNow = () => q(chainLib.fingerprintSql());
-      const fpSame = (ref, now) => { const m = new Map(now.split("\n").map((l) => [l.split("|")[0], l])); return ref.split("\n").every((l) => m.get(l.split("|")[0]) === l); };
-      const latestV = () => q("select max(version) from supabase_migrations.schema_migrations");
+      const latestV = () => lines(q("select max(version) from supabase_migrations.schema_migrations"))[0] || "";
+      const fpCheck = (label, ref) => {
+        const now = fpNow(); const d = chainLib.fingerprintDiff(ref, now);
+        fs.writeFileSync(path.join(outDir, `fingerprint-${label}.txt`), lines(now).join(os.EOL) + os.EOL);
+        fs.writeFileSync(path.join(outDir, `fingerprint-diff-${label}.json`), JSON.stringify(d, null, 1));
+        return d;
+      };
+      const diffText = (d) => (d.length ? d.slice(0, 6).map((x) => `${x.category}: ${x.before ? `${x.before.n}/${x.before.h}` : "-"} -> ${x.after ? `${x.after.n}/${x.after.h}` : "missing"}`).join("; ") + (d.length > 6 ? ` (+${d.length - 6})` : "") : "");
       let ok = m.status === 0 && Number(TO) > Number(TARGET);
-      // step 8 left TARGET applied without its history row: back to an exact PREVIOUS copy first
-      if (ok) ok = psql(localEnv, FILES.rollback065, { file: true, tuples: false, singleTx: true }).status === 0;
-      const sigPrev = ok ? q(SIG) : ""; const fpPrev = ok ? fpNow() : "";
+      // step 8 left TARGET applied without its history row: back to an exact PREVIOUS copy first (LF rollback)
+      if (ok) ok = psql(localEnv, chainLib.lfCopy(FILES.rollback065, LFDIR), { file: true, tuples: false, singleTx: true }).status === 0;
+      const sigPrev = ok ? lines(q(SIG)) : []; const fpPrev = ok ? fpNow() : "";
+      if (ok) fs.writeFileSync(path.join(outDir, "fingerprint-before-chain.txt"), lines(fpPrev).join(os.EOL) + os.EOL);
       note(`chain-to: copy back at ${PREVIOUS} before the chain`, ok && latestV() === chainLib.V(PREVIOUS) ? "yes" : "NO");
-      ok = ok && latestV() === chainLib.V(PREVIOUS);
+      note(`chain-to: business fingerprint before the chain`, `${lines(fpPrev).length} categories (fingerprint-before-chain.txt)`);
+      ok = ok && latestV() === chainLib.V(PREVIOUS) && lines(fpPrev).length > 0;
       let built = null;
       if (ok) { built = chainLib.buildChainSql(PREVIOUS, TO, { label: "restored-copy" }); fs.writeFileSync(path.join(outDir, `chain-${TARGET}-${TO}.sql`), built.sql); }
       const runChain = (tag) => {
@@ -697,30 +709,52 @@ async function main() {
       if (ok) { ok = runChain("apply"); note(`chain-to: ${TARGET}..${TO} in ONE transaction (per-migration postflight + business fingerprint gates)`, ok ? "applied" : `FAILED (local-chain-apply.log)`); }
       if (ok) {
         const vs = []; for (let n = 73; n <= Number(TO); n++) vs.push(String(n).padStart(3, "0"));
-        const bad = vs.filter((v) => q(checksLib.allColumnsTrue(path.join(REPO, `supabase/release/${v}_postflight_readonly.sql`))) !== "t");
+        const bad = vs.filter((v) => lines(q(checksLib.allColumnsTrue(path.join(REPO, `supabase/release/${v}_postflight_readonly.sql`))))[0] !== "t");
         note(`chain-to: postflights 073..${TO} on the copy`, bad.length ? `FAIL ${bad.join(",")}` : "all true");
         const expTo = path.join(REPO, `supabase/release/staging-073/expected-${TO}-signature.txt`);
-        const sNow = q(SIG);
-        const missing = fs.existsSync(expTo) ? fs.readFileSync(expTo, "utf8").trim().split("\n").filter((l) => !sNow.includes(l)) : ["no expected signature file"];
+        const sNow = new Set(lines(q(SIG)));
+        const missing = fs.existsSync(expTo) ? lines(fs.readFileSync(expTo, "utf8")).filter((l) => !sNow.has(l)) : ["no expected signature file"];
         const bodyOnly = missing.filter((l) => l.startsWith("H "));
-        note(`chain-to: schema objects of repository ${TO} missing on the copy`, `${missing.length - bodyOnly.length} (function bodies differing: ${bodyOnly.length}${bodyOnly.length ? " - CRLF / drift, review" : ""})`);
-        note(`chain-to: business fingerprint unchanged by ${TARGET}..${TO}`, fpSame(fpPrev, fpNow()) ? "yes" : "NO");
-        ok = !bad.length && missing.length - bodyOnly.length === 0 && fpSame(fpPrev, fpNow()) && latestV() === chainLib.V(TO);
+        fs.writeFileSync(path.join(outDir, `signature-diff-${TO}.txt`), missing.join(os.EOL) + os.EOL);
+        note(`chain-to: schema objects of repository ${TO} missing on the copy`, `${missing.length - bodyOnly.length} (function bodies with another md5: ${bodyOnly.length} - classified below)`);
+        // every public function classified CR-tolerantly: identical / crlf_only / DIFFERENT / MISSING / EXTRA
+        let parityOk = true;
+        const parFile = path.join(REPO, `supabase/release/function_body_parity_${TO}_full_readonly.sql`);
+        if (fs.existsSync(parFile)) {
+          const pr = psql(localEnv, chainLib.lfCopy(parFile, LFDIR), { file: true });
+          const pl = lines(pr.stdout);
+          fs.writeFileSync(path.join(outDir, `function-parity-${TO}-copy.txt`), pl.join(os.EOL) + os.EOL + String(pr.stderr || ""));
+          const res = pl.find((l) => l.startsWith(`RESULT|function_parity_${TO}|`)) || "";
+          parityOk = pr.status === 0 && res.startsWith(`RESULT|function_parity_${TO}|OK|`);
+          note(`chain-to: function bodies (all public functions, CR-tolerant) on the copy`, `${res.split("|").slice(2).join(" ") || "no RESULT line"} (function-parity-${TO}-copy.txt)`);
+          for (const d of pl.filter((l) => /^DETAIL (DIFFERENT|MISSING|EXTRA) /.test(l)).slice(0, 10)) note("chain-to: REAL function difference", d);
+        } else {
+          note(`chain-to: function bodies on the copy`, `no function_body_parity_${TO}_full_readonly.sql - not classified`);
+        }
+        const d = fpCheck("after-chain", fpPrev);
+        note(`chain-to: business fingerprint unchanged by ${TARGET}..${TO} (value per category, CR-safe)`, d.length ? `NO - ${diffText(d)} (fingerprint-diff-after-chain.json)` : `yes (${lines(fpPrev).length} categories)`);
+        ok = !bad.length && missing.length - bodyOnly.length === 0 && parityOk && !d.length && latestV() === chainLib.V(TO);
       }
       for (let n = Number(TO); ok && n >= Number(TARGET); n--) {
         const v = String(n).padStart(3, "0");
-        const rb2 = psql(localEnv, path.join(REPO, `docs/releases/production-075/emergency/rollback_${v}_with_history.sql`), { file: true, tuples: false, singleTx: true });
+        const rb2 = psql(localEnv, chainLib.lfCopy(path.join(REPO, `docs/releases/production-075/emergency/rollback_${v}_with_history.sql`), LFDIR), { file: true, tuples: false, singleTx: true });
         ok = rb2.status === 0;
-        note(`chain-to: emergency rollback ${v} on the copy`, ok ? "ok" : "FAILED");
+        note(`chain-to: emergency rollback ${v} on the copy`, ok ? "ok" : `FAILED ${String(rb2.stderr || "").split(/\r?\n/).find((l) => /ERROR/.test(l)) || ""}`);
       }
       if (ok) {
-        const sBack = q(SIG); const prevLines = new Set(sigPrev.split("\n")); const backLines = new Set(sBack.split("\n"));
+        const prevLines = new Set(sigPrev); const backLines = new Set(lines(q(SIG)));
         const lost = [...prevLines].filter((l) => !backLines.has(l)); const extra = [...backLines].filter((l) => !prevLines.has(l) && !KEPT_BY_ROLLBACK_077.includes(l));
-        const same = latestV() === chainLib.V(PREVIOUS) && !lost.length && !extra.length && fpSame(fpPrev, fpNow());
-        note(`chain-to: after the emergency rollbacks the copy is ${PREVIOUS} again (schema + business fingerprint; 077 keeps 4 reclassification-history columns on purpose)`, same ? "yes" : `NO lost=${lost.length} extra=${extra.length}`);
+        fs.writeFileSync(path.join(outDir, "signature-diff-after-rollback.txt"), ["LOST", ...lost, "EXTRA", ...extra].join(os.EOL) + os.EOL);
+        const d = fpCheck("after-rollback", fpPrev);
+        const same = latestV() === chainLib.V(PREVIOUS) && !lost.length && !extra.length && !d.length;
+        note(`chain-to: after the emergency rollbacks the copy is ${PREVIOUS} again (schema + business fingerprint; 077 keeps 4 reclassification-history columns on purpose)`, same ? "yes" : `NO lost=${lost.length} extra=${extra.length} fingerprint=${diffText(d) || "same"}`);
         ok = same;
       }
-      if (ok) { ok = runChain("reapply") && latestV() === chainLib.V(TO) && fpSame(fpPrev, fpNow()); note(`chain-to: chain re-applied after the rollback`, ok ? "yes" : "NO (local-chain-reapply.log)"); }
+      if (ok) {
+        const applied = runChain("reapply"); const d = applied ? fpCheck("after-reapply", fpPrev) : [{ category: "(chain failed)" }];
+        ok = applied && latestV() === chainLib.V(TO) && !d.length;
+        note(`chain-to: chain re-applied after the rollback`, ok ? "yes (fingerprint unchanged)" : `NO (local-chain-reapply.log) ${diffText(d)}`);
+      }
       gate.chainTo = !!ok;
       note(`CHAIN ${TARGET}->${TO} + EMERGENCY ROLLBACK TO ${PREVIOUS} + RE-APPLY`, gate.chainTo ? "PASS" : "FAIL");
     }
