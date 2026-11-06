@@ -8,7 +8,7 @@
 //   RC-NEG  no negative stock / till / debt / advance anywhere in the organization
 const fs = require('fs'); const path = require('path');
 const L = require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib');
-const OUT = path.join(__dirname, '..', 'evidence', 'staging-079', 'staging-recon-079.json');
+const OUT = process.env.GA_OUT || path.join(__dirname, '..', 'evidence', 'staging-079', 'staging-recon-079.json');
 const N = Number; const R = [];
 const T = (id, title, ok, exp, act) => { R.push({ id, title, ok: !!ok, expected: exp, actual: act }); console.log(`${ok ? 'PASS' : 'FAIL'} ${id} ${title} | exp=${JSON.stringify(exp)} act=${JSON.stringify(act).slice(0, 300)}`); };
 const all = async (q) => { const out = []; for (let o = 0; ; o += 1000) { const p = await L.sel(`${q}${q.includes('?') ? '&' : '?'}limit=1000&offset=${o}`); out.push(...p); if (p.length < 1000) break; } return out; };

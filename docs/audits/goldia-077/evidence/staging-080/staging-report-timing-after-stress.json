@@ -1,0 +1,42 @@
+{
+ "at": "2026-11-06T09:04:49.365Z",
+ "window": "2026-11-01..today",
+ "runs": [
+  {
+   "who": "director",
+   "ms": 4247,
+   "status": 200,
+   "sale_count": 2202
+  },
+  {
+   "who": "director",
+   "ms": 3623,
+   "status": 200,
+   "sale_count": 2202
+  },
+  {
+   "who": "director",
+   "ms": 3661,
+   "status": 200,
+   "sale_count": 2202
+  },
+  {
+   "who": "manager",
+   "ms": 4555,
+   "status": 200,
+   "sale_count": 2202
+  },
+  {
+   "who": "manager",
+   "ms": 3572,
+   "status": 200,
+   "sale_count": 2202
+  },
+  {
+   "who": "manager",
+   "ms": 3580,
+   "status": 200,
+   "sale_count": 2202
+  }
+ ]
+}

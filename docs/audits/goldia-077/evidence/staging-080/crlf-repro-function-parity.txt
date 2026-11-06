@@ -1,0 +1,11 @@
+Local reproduction of the staging "different function bodies" count (repository 001..080 on PostgreSQL 17, migrations
+after <cutoff> converted to Windows CRLF line endings, as a Windows checkout with core.autocrlf produces;
+docs/releases/staging-075/harness/crlf-repro.sh + expected-080 signature):
+  CRLF after 076 (077..080 from Windows): 26 function bodies differ, 0 other schema differences
+  CRLF after 075: 34   after 074: 37   after 073: 40   after 072: 54   after 062: 93
+  -> staging's 59 lies in this range (mixed history: some releases from Linux / LF, some from Windows / CRLF)
+Classification with supabase/release/function_body_parity_080_full_readonly.sql (168 functions, CR-tolerant):
+  LF reference copy:                     RESULT|function_parity_080|OK|identical=168 crlf_only=0 different=0 missing=0 extra=0
+  CRLF copy (after 072):                 RESULT|function_parity_080|OK|identical=114 crlf_only=54 different=0 missing=0 extra=0
+  same copy + 1 real code change:        RESULT|function_parity_080|REVIEW|identical=114 crlf_only=53 different=1 ...
+                                         DETAIL DIFFERENT _goldia_customer_open_balances(uuid)

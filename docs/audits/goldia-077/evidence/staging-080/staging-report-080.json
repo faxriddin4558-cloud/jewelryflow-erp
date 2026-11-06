@@ -1,0 +1,863 @@
+{
+ "target": "staging",
+ "at": "2026-11-06T09:00:53.551Z",
+ "results": [
+  {
+   "id": "P80-T-director",
+   "title": "director: 01.11-06.11 (HTTP 500 under 077) - 5 runs, all HTTP 200",
+   "ok": true,
+   "expected": {
+    "status": 200,
+    "runs": 5
+   },
+   "actual": {
+    "ms": [
+     5797,
+     3436,
+     3064,
+     3027,
+     3040
+    ],
+    "max_ms": 5797,
+    "errors": []
+   },
+   "at": "2026-11-06T08:58:54.450Z"
+  },
+  {
+   "id": "P80-T-manager",
+   "title": "manager: 01.11-06.11 (HTTP 500 under 077) - 5 runs, all HTTP 200",
+   "ok": true,
+   "expected": {
+    "status": 200,
+    "runs": 5
+   },
+   "actual": {
+    "ms": [
+     3574,
+     3274,
+     3193,
+     3210,
+     3189
+    ],
+    "max_ms": 3574,
+    "errors": []
+   },
+   "at": "2026-11-06T08:59:10.892Z"
+  },
+  {
+   "id": "P80-T-windows",
+   "title": "6 windows x (no seller + 9 sellers) = 60 reports: all HTTP 200",
+   "ok": true,
+   "expected": {
+    "status": 200
+   },
+   "actual": {
+    "reports": 60,
+    "max_ms": 3331,
+    "avg_ms": 636,
+    "errors": 0
+   },
+   "at": "2026-11-06T08:59:49.280Z"
+  },
+  {
+   "id": "P80-SELLER",
+   "title": "seller filter: sales of every seller add up to the unfiltered report",
+   "ok": true,
+   "expected": 2056,
+   "actual": 2056,
+   "at": "2026-11-06T08:59:58.184Z"
+  },
+  {
+   "id": "P80-OLD",
+   "title": "old 077 report (frozen copies, 2 periods) = new 080 report for the same windows: flows, opening, closing, undocumented, rates, per-seller period figures",
+   "ok": true,
+   "expected": "identical",
+   "actual": [
+    {
+     "window": "2026-11-01..2026-11-04",
+     "diff": [],
+     "flow_kinds": 16
+    },
+    {
+     "window": "2026-11-05..2026-11-05",
+     "diff": [],
+     "flow_kinds": 22
+    }
+   ],
+   "at": "2026-11-06T09:00:02.234Z"
+  },
+  {
+   "id": "P80-CUR",
+   "title": "UZS and USD: sales (count, amount), sale reversals (amount), payments (count, credited, advance), payment reversals, closing net debt = raw rows",
+   "ok": true,
+   "expected": "equal",
+   "actual": {
+    "UZS": {
+     "ok": true,
+     "exp": {
+      "sale_count": 212,
+      "sale_amount": 230329300000,
+      "reversed_sales": 16,
+      "payment_count": 317,
+      "credited": 121311584800,
+      "advance": 12198799550,
+      "reversed_payments": 39,
+      "net_debt": 122840189400
+     },
+     "act": {
+      "sale_count": 212,
+      "sale_amount": 230329300000,
+      "reversed_sales": 16,
+      "payment_count": 317,
+      "credited": 121311584800,
+      "advance": 12198799550,
+      "reversed_payments": 39,
+      "net_debt": 122840189400
+     },
+     "reversed_sale_amount": {
+      "raw": 132537000,
+      "report": 132537000
+     }
+    },
+    "USD": {
+     "ok": true,
+     "exp": {
+      "sale_count": 242,
+      "sale_amount": 21357324,
+      "reversed_sales": 24,
+      "payment_count": 310,
+      "credited": 12085321,
+      "advance": 884930,
+      "reversed_payments": 50,
+      "net_debt": 8682088
+     },
+     "act": {
+      "sale_count": 242,
+      "sale_amount": 21357324,
+      "reversed_sales": 24,
+      "payment_count": 310,
+      "credited": 12085321,
+      "advance": 884930,
+      "reversed_payments": 50,
+      "net_debt": 8682088
+     },
+     "reversed_sale_amount": {
+      "raw": 18515.48,
+      "report": 18515.48
+     }
+    }
+   },
+   "at": "2026-11-06T09:00:03.206Z"
+  },
+  {
+   "id": "P80-UI-director-1366",
+   "title": "director 1366 px: 01.11-06.11 report page loads (HTTP 200), USD sales count = server, no API error, no horizontal overflow",
+   "ok": true,
+   "expected": {
+    "status": 200,
+    "usd_count": 242,
+    "overflow": 0
+   },
+   "actual": {
+    "status": 200,
+    "ms": 3839,
+    "shown": "Savdo: aniq USD narxda\t242\t648,8218 g\t0,0000 g\t$213 573,24\t—\t—\t—",
+    "bad": [],
+    "overflow": 0
+   },
+   "at": "2026-11-06T09:00:29.687Z"
+  },
+  {
+   "id": "P80-UI-manager-390",
+   "title": "manager 390 px: 01.11-06.11 report page loads (HTTP 200), USD sales count = server, no API error, no horizontal overflow",
+   "ok": true,
+   "expected": {
+    "status": 200,
+    "usd_count": 242,
+    "overflow": 0
+   },
+   "actual": {
+    "status": 200,
+    "ms": 3898,
+    "shown": "Savdo: aniq USD narxda\t242\t648,8218 g\t0,0000 g\t$213 573,24\t—\t—\t—",
+    "bad": [],
+    "overflow": 0
+   },
+   "at": "2026-11-06T09:00:53.447Z"
+  }
+ ],
+ "timings": [
+  {
+   "who": "director",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 5797,
+   "status": 200
+  },
+  {
+   "who": "director",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3436,
+   "status": 200
+  },
+  {
+   "who": "director",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3064,
+   "status": 200
+  },
+  {
+   "who": "director",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3027,
+   "status": 200
+  },
+  {
+   "who": "director",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3040,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3574,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3274,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3193,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3210,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3189,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3173,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "16006ada-e274-4a11-bf55-41cc90434240",
+   "ms": 1142,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "3e86e1ef-36ca-4f6c-9e57-61214feab642",
+   "ms": 312,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "466086a5-97d1-48f1-86c9-3b2efecfe2c8",
+   "ms": 1196,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "466db3f0-5af0-4d7a-9ff3-b08fdaf6b9b0",
+   "ms": 492,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "4c8fda3c-6c02-45de-ac53-2ff50a2355d0",
+   "ms": 322,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "9aa06297-7842-457e-b504-62b0cd41cc23",
+   "ms": 484,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "ad71cd7a-23f8-4fe3-9b3b-6781a9524b3e",
+   "ms": 318,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "b6f83454-aed3-4dad-9f07-109f57c7a584",
+   "ms": 642,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+   "ms": 911,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-06",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 1529,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-06",
+   "to": "2026-11-06",
+   "seller": "16006ada-e274-4a11-bf55-41cc90434240",
+   "ms": 726,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-06",
+   "to": "2026-11-06",
+   "seller": "3e86e1ef-36ca-4f6c-9e57-61214feab642",
+   "ms": 307,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-06",
+   "to": "2026-11-06",
+   "seller": "466086a5-97d1-48f1-86c9-3b2efecfe2c8",
+   "ms": 778,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-06",
+   "to": "2026-11-06",
+   "seller": "466db3f0-5af0-4d7a-9ff3-b08fdaf6b9b0",
+   "ms": 314,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-06",
+   "to": "2026-11-06",
+   "seller": "4c8fda3c-6c02-45de-ac53-2ff50a2355d0",
+   "ms": 335,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-06",
+   "to": "2026-11-06",
+   "seller": "9aa06297-7842-457e-b504-62b0cd41cc23",
+   "ms": 324,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-06",
+   "to": "2026-11-06",
+   "seller": "ad71cd7a-23f8-4fe3-9b3b-6781a9524b3e",
+   "ms": 310,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-06",
+   "to": "2026-11-06",
+   "seller": "b6f83454-aed3-4dad-9f07-109f57c7a584",
+   "ms": 306,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-06",
+   "to": "2026-11-06",
+   "seller": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+   "ms": 572,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": null,
+   "ms": 1650,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": "16006ada-e274-4a11-bf55-41cc90434240",
+   "ms": 783,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": "3e86e1ef-36ca-4f6c-9e57-61214feab642",
+   "ms": 303,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": "466086a5-97d1-48f1-86c9-3b2efecfe2c8",
+   "ms": 865,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": "466db3f0-5af0-4d7a-9ff3-b08fdaf6b9b0",
+   "ms": 311,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": "4c8fda3c-6c02-45de-ac53-2ff50a2355d0",
+   "ms": 303,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": "9aa06297-7842-457e-b504-62b0cd41cc23",
+   "ms": 309,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": "ad71cd7a-23f8-4fe3-9b3b-6781a9524b3e",
+   "ms": 334,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": "b6f83454-aed3-4dad-9f07-109f57c7a584",
+   "ms": 328,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+   "ms": 688,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-01",
+   "to": "2026-10-31",
+   "seller": null,
+   "ms": 333,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-01",
+   "to": "2026-10-31",
+   "seller": "16006ada-e274-4a11-bf55-41cc90434240",
+   "ms": 307,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-01",
+   "to": "2026-10-31",
+   "seller": "3e86e1ef-36ca-4f6c-9e57-61214feab642",
+   "ms": 311,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-01",
+   "to": "2026-10-31",
+   "seller": "466086a5-97d1-48f1-86c9-3b2efecfe2c8",
+   "ms": 304,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-01",
+   "to": "2026-10-31",
+   "seller": "466db3f0-5af0-4d7a-9ff3-b08fdaf6b9b0",
+   "ms": 304,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-01",
+   "to": "2026-10-31",
+   "seller": "4c8fda3c-6c02-45de-ac53-2ff50a2355d0",
+   "ms": 312,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-01",
+   "to": "2026-10-31",
+   "seller": "9aa06297-7842-457e-b504-62b0cd41cc23",
+   "ms": 306,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-01",
+   "to": "2026-10-31",
+   "seller": "ad71cd7a-23f8-4fe3-9b3b-6781a9524b3e",
+   "ms": 311,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-01",
+   "to": "2026-10-31",
+   "seller": "b6f83454-aed3-4dad-9f07-109f57c7a584",
+   "ms": 313,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-01",
+   "to": "2026-10-31",
+   "seller": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+   "ms": 307,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-05",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3331,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-05",
+   "to": "2026-11-06",
+   "seller": "16006ada-e274-4a11-bf55-41cc90434240",
+   "ms": 1150,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-05",
+   "to": "2026-11-06",
+   "seller": "3e86e1ef-36ca-4f6c-9e57-61214feab642",
+   "ms": 318,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-05",
+   "to": "2026-11-06",
+   "seller": "466086a5-97d1-48f1-86c9-3b2efecfe2c8",
+   "ms": 1203,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-05",
+   "to": "2026-11-06",
+   "seller": "466db3f0-5af0-4d7a-9ff3-b08fdaf6b9b0",
+   "ms": 491,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-05",
+   "to": "2026-11-06",
+   "seller": "4c8fda3c-6c02-45de-ac53-2ff50a2355d0",
+   "ms": 313,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-05",
+   "to": "2026-11-06",
+   "seller": "9aa06297-7842-457e-b504-62b0cd41cc23",
+   "ms": 480,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-05",
+   "to": "2026-11-06",
+   "seller": "ad71cd7a-23f8-4fe3-9b3b-6781a9524b3e",
+   "ms": 311,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-05",
+   "to": "2026-11-06",
+   "seller": "b6f83454-aed3-4dad-9f07-109f57c7a584",
+   "ms": 473,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-10-05",
+   "to": "2026-11-06",
+   "seller": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+   "ms": 922,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": null,
+   "ms": 1609,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": "16006ada-e274-4a11-bf55-41cc90434240",
+   "ms": 521,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": "3e86e1ef-36ca-4f6c-9e57-61214feab642",
+   "ms": 311,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": "466086a5-97d1-48f1-86c9-3b2efecfe2c8",
+   "ms": 553,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": "466db3f0-5af0-4d7a-9ff3-b08fdaf6b9b0",
+   "ms": 540,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": "4c8fda3c-6c02-45de-ac53-2ff50a2355d0",
+   "ms": 313,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": "9aa06297-7842-457e-b504-62b0cd41cc23",
+   "ms": 511,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": "ad71cd7a-23f8-4fe3-9b3b-6781a9524b3e",
+   "ms": 315,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": "b6f83454-aed3-4dad-9f07-109f57c7a584",
+   "ms": 504,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+   "ms": 496,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": null,
+   "ms": 3223,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "16006ada-e274-4a11-bf55-41cc90434240",
+   "ms": 1178,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "3e86e1ef-36ca-4f6c-9e57-61214feab642",
+   "ms": 307,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "466086a5-97d1-48f1-86c9-3b2efecfe2c8",
+   "ms": 1213,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "466db3f0-5af0-4d7a-9ff3-b08fdaf6b9b0",
+   "ms": 496,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "4c8fda3c-6c02-45de-ac53-2ff50a2355d0",
+   "ms": 315,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "9aa06297-7842-457e-b504-62b0cd41cc23",
+   "ms": 477,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "ad71cd7a-23f8-4fe3-9b3b-6781a9524b3e",
+   "ms": 315,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "b6f83454-aed3-4dad-9f07-109f57c7a584",
+   "ms": 472,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "seller": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+   "ms": 907,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-04",
+   "seller": null,
+   "ms": 1703,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-05",
+   "to": "2026-11-05",
+   "seller": null,
+   "ms": 2107,
+   "status": 200
+  },
+  {
+   "who": "director",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "ui": true,
+   "ms": 3839,
+   "status": 200
+  },
+  {
+   "who": "manager",
+   "from": "2026-11-01",
+   "to": "2026-11-06",
+   "ui": true,
+   "ms": 3898,
+   "status": 200
+  }
+ ]
+}
