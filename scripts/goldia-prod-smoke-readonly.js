@@ -33,6 +33,10 @@ const TARGETS = {
   staging: { base: "https://jewelryflow-sales-staging.vercel.app", ref: "vouehtlmsunebracahon", env: "staging" },
 };
 const FORBIDDEN_REFS = ["yvvbdoqncubtwlzskgml", "hbbuskyifxkowlozsaym", "vrozlilcaxinavzxueif"];
+// e-mails the production login page and middleware refuse before / after Supabase Auth (src/app/sales/login/page.tsx,
+// src/lib/supabase/middleware.ts) - only used to EXPLAIN a failed login, the e-mail itself is never printed
+const DEMO_EMAILS = new Set(["director@goldia.uz", "manager@goldia.uz", "seller@goldia.uz", "dilshod@jewelryflow.uz", "jasur@jewelryflow.uz",
+  "worker@goldia.uz", "accountant@goldia.uz", "xodim@goldia.uz", "jamshid@jewelryflow.uz", "demo.director@goldia.uz", "demo.seller@goldia.uz", "admin@goldia.uz"]);
 const READ_RPCS = new Set([
   "current_employee_id", "current_employee_role_text", "get_manager_available_stock_grams", "get_seller_available_stock_grams",
   "rpc_get_accounting_profit_summary", "rpc_get_active_sales_markups", "rpc_get_company_rate_difference_report",
@@ -154,8 +158,15 @@ function observe(page, S) {
   page.on("pageerror", (e) => S.pageErrors.push({ page: S.page, msg: String(e.message || e).slice(0, 200) }));
   page.on("console", (m) => { if (m.type() === "error") S.consoleErrors.push({ page: S.page, msg: m.text().slice(0, 200) }); });
   page.on("request", (q) => { const h = q.headers(); if (supabaseRef(q.url()) === T.ref && h.authorization && /^Bearer /.test(h.authorization) && h.apikey) { if (h.authorization.slice(7) !== h.apikey) S.token = h.authorization.slice(7); S.apikey = h.apikey; } });
+  page.on("framenavigated", (f) => { if (f === page.mainFrame()) { try { S.nav.push(new URL(f.url()).pathname); } catch { /* ignore */ } } });
   page.on("response", async (r) => {
     const u = r.url(); const ref = supabaseRef(u); const own = u.startsWith(T.base);
+    // Supabase Auth password login: status + error code only (the body is read only when the login FAILED - no token)
+    if (ref && u.split("?")[0].endsWith("/auth/v1/token") && r.request().method() === "POST") {
+      const a = { status: r.status() };
+      if (r.status() >= 400) { try { const b = await r.json(); a.code = String(b.error_code || b.error || b.code || "").slice(0, 60); a.msg = String(b.msg || b.error_description || b.message || "").slice(0, 120); } catch { /* ignore */ } }
+      S.auth.push(a);
+    }
     if (!ref && !own) return;
     const p = u.split("?")[0].replace(/^https:\/\/[^/]+/, "");
     if (r.status() >= 400) S.http.push({ page: S.page, status: r.status(), path: p });
@@ -207,7 +218,7 @@ async function openPage(S, p, label) {
 }
 async function login(br, role, cred, viewport) {
   const ctx = await br.newContext({ viewport, isMobile: viewport.width < 500, hasTouch: viewport.width < 500, locale: "uz-UZ" });
-  const S = { role, ctx, page: "/sales/login", blocked: [], foreign: [], http: [], pageErrors: [], consoleErrors: [], token: null, apikey: null, sellerRates: null };
+  const S = { role, ctx, page: "/sales/login", blocked: [], foreign: [], http: [], pageErrors: [], consoleErrors: [], token: null, apikey: null, sellerRates: null, auth: [], nav: [] };
   await guard(ctx, S);
   S.p = await ctx.newPage(); observe(S.p, S);
   await S.p.goto(T.base + "/sales/login", { waitUntil: "networkidle", timeout: 45000 }).catch(() => {});
@@ -216,6 +227,20 @@ async function login(br, role, cred, viewport) {
   await Promise.all([S.p.waitForURL((u) => !u.pathname.startsWith("/sales/login"), { timeout: 45000 }).catch(() => {}), S.p.click('button[type="submit"]')]);
   await S.p.waitForTimeout(2500);
   S.loggedIn = !new URL(S.p.url()).pathname.startsWith("/sales/login") && !!S.token;
+  if (!S.loggedIn) {
+    // why: Auth answer, the message the login page shows, where the browser went, demo-account block - no secrets
+    const banner = await S.p.locator("text=/⚠️/").first().innerText({ timeout: 2000 }).catch(() => "");
+    const a = S.auth[S.auth.length - 1];
+    const reason = !S.auth.length ? (DEMO_EMAILS.has(String(cred.email).trim().toLowerCase()) || String(cred.email).trim().toLowerCase().startsWith("demo.")
+      ? "the e-mail is a demo account - production refuses it before Supabase Auth" : "no Supabase Auth request was sent (login page did not submit)")
+      : a.status === 200 ? (S.nav.some((x) => x.startsWith("/sales/app")) ? "Auth OK, the app page sent the browser back to the login page (no session on the server)" : "Auth OK, but the page did not leave the login page")
+      : a.status === 429 ? "Supabase Auth rate limit (too many attempts) - wait and retry"
+      : /invalid_credentials|invalid_grant/i.test(`${a.code} ${a.msg}`) ? "Supabase Auth refused e-mail / password (invalid_credentials) - check the typed credentials"
+      : /banned/i.test(`${a.code} ${a.msg}`) ? "the Auth user is banned"
+      : /not.?confirmed/i.test(`${a.code} ${a.msg}`) ? "the Auth user's e-mail is not confirmed"
+      : `Supabase Auth HTTP ${a.status}`;
+    S.loginWhy = { reason, auth: S.auth, page_message: String(banner).replace(/\s+/g, " ").replace(/✕/g, "").trim().slice(0, 160), navigation: S.nav.slice(-6) };
+  }
   return S;
 }
 
@@ -255,7 +280,7 @@ async function login(br, role, cred, viewport) {
   for (const role of roles) {
     const S = await login(br, role, creds[role], { width: 1366, height: 860 });
     sessions[role] = S;
-    check(`L-${role}`, "login", S.loggedIn ? "PASS" : "FAIL", `${role} logs in`, `landed on ${new URL(S.p.url()).pathname}`);
+    check(`L-${role}`, "login", S.loggedIn ? "PASS" : "FAIL", `${role} logs in`, `landed on ${new URL(S.p.url()).pathname}` + (S.loginWhy ? ` | ${S.loginWhy.reason} | auth=${S.loginWhy.auth.map((x) => `${x.status}${x.code ? " " + x.code : ""}`).join(",") || "none"} | page="${S.loginWhy.page_message}" | nav=${S.loginWhy.navigation.join(">")}` : ""));
     if (!S.loggedIn) continue;
     const sub = jwtSub(S.token);
     const me = await apiGet(S, `employees?select=id,organization_id,role,role_type,is_active&user_id=eq.${sub}`);

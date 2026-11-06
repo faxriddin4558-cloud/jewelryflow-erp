@@ -1,0 +1,16 @@
+GOLDIA SALES read-only smoke - target staging https://jewelryflow-sales-staging.vercel.app (Supabase vouehtlmsunebracahon) at 2026-11-06T15:03:05.813Z
+write guard: GET/HEAD/OPTIONS + Auth login + 14 read RPCs allowed; every other request is aborted in the browser
+PASS   V1 /api/version answers | http 200
+PASS   V2 frontend talks to the right Supabase project | supabase_ref=vouehtlmsunebracahon expected=vouehtlmsunebracahon
+PASS   V3 deployed commit | commit=0d3cb62 expected=0d3cb62
+PASS   V4 environment flags | env=staging staging_mode=true
+FAIL   L-manager manager logs in | landed on /sales/login | the Auth user is banned | auth=400 user_banned | page="⚠️ User is banned" | nav=/sales/login>/sales/login
+REVIEW B0 balances | director session not available
+PASS   S-anon anonymous (apikey only) reads no business rows | 7 tables, 0 rows
+INFO   X1 Central Bank (CBU) currency service through /api/sales/currency/cbu | answered on every page
+PASS   G1 no request to another Supabase project | none
+INFO   G2 writes the app tried on login / page view, blocked by the guard (expected) | rpc rpc_record_login_audit x1
+PASS   G3 no other write attempted while only browsing | none
+INFO   C1 browser console errors (mostly the aborted requests) | 2 - see console-errors.json
+
+RESULT: FAIL - 7 PASS, 1 REVIEW, 1 FAIL; nothing was written (guard blocked 1 write request(s)); folder /tmp/claude-0/-home-user-jewelryflow-erp/831fb3b9-adcd-5c4c-b551-ff376e212168/scratchpad/smoke/smoke-staging-20261106-150303
