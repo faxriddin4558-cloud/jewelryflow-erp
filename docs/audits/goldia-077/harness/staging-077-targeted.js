@@ -86,18 +86,21 @@ async function makeIdDiffUser(tag, role, run) {
 
   // ---------------- RB: period report boundaries ----------------
   const rep = async (a, b) => { const r = await L.rpc('manager', 'rpc_get_period_report', { p_from: a, p_to: b }); if (!r.ok) throw new Error(`report ${a}..${b}: ${r.error}`); return r.data; };
-  const main = await rep('2026-10-05', '2026-11-05'); const before = await rep('2026-10-05', '2026-11-04'); const day = await rep('2026-11-05', '2026-11-05');
+  // window 05.10 .. today (the user's 05.10-05.11 example while today was 05.11); the boundary is yesterday / today
+  const shift = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+  const yday = shift(today, -1);
+  const main = await rep('2026-10-05', today); const before = await rep('2026-10-05', yday); const day = await rep(today, today);
   const keys = Object.keys(main.closing).filter((k) => typeof main.closing[k] === 'number' || !isNaN(N(main.closing[k])));
   const cont = keys.filter((k) => Math.abs(N(before.closing[k]) - N(day.opening[k])) > 0.00005);
-  T('RB-01', 'continuity: closing of 05.10-04.11 = opening of 05.11 for every balance', cont.length === 0, 0, { keys: keys.length, diff: cont });
+  T('RB-01', `continuity: closing of 05.10-${yday} = opening of ${today} for every balance`, cont.length === 0, 0, { keys: keys.length, diff: cont });
   const same = keys.filter((k) => Math.abs(N(main.opening[k]) - N(before.opening[k])) > 0.00005 || Math.abs(N(main.closing[k]) - N(day.closing[k])) > 0.00005);
-  T('RB-02', 'opening(05.10..05.11) = opening(05.10..04.11) and closing(05.10..05.11) = closing(05.11)', same.length === 0, 0, same);
+  T('RB-02', `opening(05.10..${today}) = opening(05.10..${yday}) and closing(05.10..${today}) = closing(${today})`, same.length === 0, 0, same);
   const kinds = new Set([...Object.keys(main.flows), ...Object.keys(before.flows), ...Object.keys(day.flows)]); const addBad = [];
   for (const k of kinds) for (const f of new Set([...Object.keys(main.flows[k] || {}), ...Object.keys(before.flows[k] || {}), ...Object.keys(day.flows[k] || {})])) {
     const a = N((main.flows[k] || {})[f] || 0), b = N((before.flows[k] || {})[f] || 0) + N((day.flows[k] || {})[f] || 0);
     if (typeof ((main.flows[k] || {})[f] ?? 0) !== 'object' && Math.abs(a - b) > 0.005) addBad.push([k, f, a, b]);
   }
-  T('RB-03', 'additivity: every flow of 05.10..05.11 = flow of 05.10..04.11 + flow of 05.11 (both ends inclusive, no double count)', addBad.length === 0, 0, { kinds: kinds.size, bad: addBad.slice(0, 5) });
+  T('RB-03', `additivity: every flow of 05.10..${today} = flow of 05.10..${yday} + flow of ${today} (both ends inclusive, no double count)`, addBad.length === 0, 0, { kinds: kinds.size, bad: addBad.slice(0, 5) });
   const liveUsd = r2((await L.sel(`client_currency_accounts?organization_id=eq.${L.ORG}&currency=eq.USD&select=d:debt_amount,a:advance_amount`)).reduce((s, x) => s + N(x.d) - N(x.a), 0));
   const liveUzs = r2((await L.sel(`client_currency_accounts?organization_id=eq.${L.ORG}&currency=eq.UZS&select=d:debt_amount,a:advance_amount`)).reduce((s, x) => s + N(x.d) - N(x.a), 0));
   const liveG = r4((await L.sel(`client_gold_accounts?organization_id=eq.${L.ORG}&select=d:current_debt_grams,a:advance_balance_grams`)).reduce((s, x) => s + N(x.d) - N(x.a), 0));
@@ -105,11 +108,11 @@ async function makeIdDiffUser(tag, role, run) {
   const lv = await vault();
   const liveAct = { usd: r2(main.closing.customer_debt_net_usd), uzs: r2(main.closing.customer_debt_net_uzs), g: r4(main.closing.customer_debt_net_g585), stock: r4(main.closing.seller_stock_physical_g), mgr_uzs: r2(main.closing.manager_cash_uzs), mgr_usd: r2(main.closing.manager_cash_usd) };
   const liveExp = { usd: liveUsd, uzs: liveUzs, g: liveG, stock: liveStock, mgr_uzs: lv.c, mgr_usd: lv.u };
-  T('RB-04', 'closing on 05.11 (today) = live database balances (customer 585 g / UZS / USD, seller stock, manager cash)', JSON.stringify(liveAct) === JSON.stringify(liveExp), liveExp, liveAct);
-  const prev = await rep('2026-09-05', '2026-10-04'); const next = await rep('2026-11-06', '2026-12-05').catch((e) => ({ error: e.message }));
+  T('RB-04', `closing on ${today} (today) = live database balances (customer 585 g / UZS / USD, seller stock, manager cash)`, JSON.stringify(liveAct) === JSON.stringify(liveExp), liveExp, liveAct);
+  const prev = await rep('2026-09-05', '2026-10-04'); const next = await rep(shift(today, 1), shift(today, 30)).catch((e) => ({ error: e.message }));
   const firstDoc = main.undocumented_opening?.first_document_date;
   T('RB-05', 'previous month 05.09-04.10 (before the first document of this org): no flows, opening = closing', Object.keys(prev.flows).length === 0 && keys.every((k) => Math.abs(N(prev.opening[k]) - N(prev.closing[k])) < 0.00005), { flows: 0 }, { flows: Object.keys(prev.flows), firstDoc });
-  T('RB-06', 'next month 06.11-05.12 (future): refused clearly or empty and = today', next.error ? true : Object.keys(next.flows).length === 0, 'refused or empty', next.error ? next.error.slice(0, 120) : { flows: Object.keys(next.flows) });
+  T('RB-06', `next 30 days ${shift(today, 1)}..${shift(today, 30)} (future): refused clearly or empty`, next.error ? true : Object.keys(next.flows).length === 0, 'refused or empty', next.error ? next.error.slice(0, 120) : { flows: Object.keys(next.flows) });
   // sales per Tashkent business date: report count = database count by sale_date, and sale_date = Tashkent date of created_at
   const sales = []; // PostgREST returns at most 1000 rows per request: page through all of them
   for (let off = 0; ; off += 1000) { const pg = await L.sel(`jewelry_sales?organization_id=eq.${L.ORG}&select=id,sale_date,created_at&order=id.asc&limit=1000&offset=${off}`); sales.push(...pg); if (pg.length < 1000) break; }

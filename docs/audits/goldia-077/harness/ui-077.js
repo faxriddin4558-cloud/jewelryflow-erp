@@ -134,7 +134,13 @@ const sacc = async (sid) => (await L.sel(`seller_gold_accounts?seller_id=eq.${si
   await go(s, '/sales/app/period-report');
   await s.p.locator('[data-testid="report-from"]').fill(today);
   await s.p.locator('[data-testid="report-to"]').fill(today);
-  await s.p.locator('[data-testid="report-load"]').click(); await s.p.waitForTimeout(3000);
+  // wait for THIS report's response (a fixed 3 s was too short once staging held more data: the page still showed the
+  // previous first-of-month report when it was read - staging 078 audit, harness timing, not an app defect)
+  await Promise.all([
+    s.p.waitForResponse((r) => r.url().includes('rpc_get_period_report') && (r.request().postData() || '').includes(`"p_from":"${today}"`), { timeout: 60000 }),
+    s.p.locator('[data-testid="report-load"]').click(),
+  ]);
+  await s.p.waitForTimeout(1500);
   const flowUsd = await s.p.locator('[data-testid="flow-sale_usd"]').innerText().catch(() => '');
   const flowUzs = await s.p.locator('[data-testid="flow-sale_uzs"]').innerText().catch(() => '');
   await s.p.screenshot({ path: path.join(SHOTS, '04-manager-period-report.png'), fullPage: true });

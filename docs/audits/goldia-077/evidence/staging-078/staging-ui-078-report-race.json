@@ -1,0 +1,11 @@
+{
+ "target": "staging",
+ "version": null,
+ "requests": [
+  "{\"p_from\":\"2026-11-01\",\"p_to\":\"2026-11-06\",\"p_seller_id\":null}",
+  "{\"p_from\":\"2026-11-06\",\"p_to\":\"2026-11-06\",\"p_seller_id\":null}"
+ ],
+ "shown": "Savdo: aniq USD narxda\t5\t38,0000 g\t0,0000 g\t$5 600,00\t—\t—\t—",
+ "server_today_usd_sales": 5,
+ "ok": true
+}

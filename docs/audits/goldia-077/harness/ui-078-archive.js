@@ -64,7 +64,7 @@ const usd = async (id) => { const a = (await L.sel(`client_currency_accounts?cus
     await row(s, nOwn).locator('[data-testid="archive-customer"]').dblclick(); await s.p.waitForTimeout(3500);
     const a1 = await cust(own); const au1 = await audits(own);
     // the success message also names the customer: count the customer's row (its archive button), not the text
-    const listed = await s.p.locator(`tr:has-text("${nOwn}"), div.rounded-2xl:has-text("${nOwn}")`).locator('[data-testid="archive-customer"]').locator('visible=true').count();
+    const listed = await s.p.locator(`tr:has-text("${nOwn}")`).locator('[data-testid="archive-customer"]').locator('visible=true').count();
     T('U78-02', 'one confirmation, double click -> exactly one archive operation; archived_by = the seller; gone from the normal list', a1.is_archived && a1.archived_by === C.sellera.id && au1 === 1 && listed === 0 && s.dialogs.length >= 1 && /o'chirasizmi/.test(s.dialogs[0]),
       { archived: true, audits: 1, listed: 0 }, { archived: a1.is_archived, by: a1.archived_by === C.sellera.id, audits: au1, listed, dialogs: s.dialogs.length, msg: (s.dialogs[0] || '').slice(0, 120) });
     await s.p.screenshot({ path: path.join(SHOTS, '01-seller-after-archive.png') });
@@ -97,8 +97,8 @@ const usd = async (id) => { const a = (await L.sel(`client_currency_accounts?cus
     await row(s, nOwn).locator('[data-testid="restore-customer"]').click(); await s.p.waitForTimeout(3000);
     const a2 = await cust(own);
     await s.p.locator('[data-testid="toggle-archived"]').first().click(); await s.p.waitForTimeout(1000);
-    const back = await s.p.locator(`tr:has-text("${nOwn}"), div.rounded-2xl:has-text("${nOwn}")`).locator('[data-testid="archive-customer"]').locator('visible=true').count();
-    T('U78-05', 'seller restores his own customer from "Arxivlangan mijozlar"; back in the normal list; debts unchanged', !a2.is_archived && a2.archived_at === null && back >= 1 && g0 === await gold(own), { archived: false, listed: '>=1' }, { archived: a2.is_archived, at: a2.archived_at, listed: back, audits: await audits(own) });
+    const back = await s.p.locator(`tr:has-text("${nOwn}")`).locator('[data-testid="archive-customer"]').locator('visible=true').count();
+    T('U78-05', 'seller restores his own customer from "Arxivlangan mijozlar"; back in the normal list; debts unchanged', !a2.is_archived && a2.archived_at === null && back === 1 && g0 === await gold(own), { archived: false, listed: 1 }, { archived: a2.is_archived, at: a2.archived_at, listed: back, audits: await audits(own) });
     T('U78-06', 'no API 4xx/5xx in the seller UI session', s.bad.length === 0, [], s.bad);
     await s.ctx.close();
 
@@ -122,6 +122,20 @@ const usd = async (id) => { const a = (await L.sel(`client_currency_accounts?cus
     const ov = await ph.p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     await ph.p.screenshot({ path: path.join(SHOTS, '03-seller-390-archive-button.png') });
     T('U78-09', 'seller on a 390 px phone: "Mijozni o\'chirish" in the mobile card, no horizontal overflow', vis === 1 && ov <= 0, { button: 1, overflow: 0 }, { button: vis, overflow: ov });
+    // full mobile flow on a second own customer: archive from the card, open "Arxivlangan mijozlar", restore
+    const nMob = `UI78 Mobil ${run}`;
+    const mob = (await L.rpc('sellera', 'rpc_create_customer_with_code', { p_contact_name: nMob })).data.customer_id;
+    await go(ph, '/sales/app/customers');
+    const card = (name) => ph.p.locator(`div.rounded-2xl:has-text("${name}"):has([data-testid])`).locator('visible=true').last();
+    await card(nMob).locator('[data-testid="archive-customer"]').click(); await ph.p.waitForTimeout(3000);
+    const m1 = await cust(mob);
+    await ph.p.locator('[data-testid="toggle-archived"]').first().click(); await ph.p.waitForTimeout(1000);
+    const restoreBtn = await card(nMob).locator('[data-testid="restore-customer"]').count();
+    await card(nMob).locator('[data-testid="restore-customer"]').click(); await ph.p.waitForTimeout(3000);
+    const m2 = await cust(mob);
+    await ph.p.screenshot({ path: path.join(SHOTS, '04-seller-390-after-restore.png') });
+    T('U78-10', 'seller on a 390 px phone archives a customer from the mobile card and restores it from "Arxivlangan mijozlar"; no API errors',
+      m1.is_archived && restoreBtn >= 1 && !m2.is_archived && (await audits(mob)) === 2 && ph.bad.length === 0, { archived: true, restored: true, audits: 2 }, { a: m1.is_archived, btn: restoreBtn, r: !m2.is_archived, audits: await audits(mob), bad: ph.bad });
     await ph.ctx.close();
   } finally { await br.close(); }
   fs.writeFileSync(path.join(EV, `${TARGET}-ui-078-archive.json`), JSON.stringify({ target: TARGET, run, ids: { own, other, free, foreign }, results: R }, null, 1));
