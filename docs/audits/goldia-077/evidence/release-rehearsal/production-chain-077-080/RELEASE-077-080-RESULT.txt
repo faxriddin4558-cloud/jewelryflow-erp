@@ -1,0 +1,37 @@
+started: 2026-11-06T07:38:30.309Z  mode: CHAIN 076 -> 080 (LOCAL REHEARSAL)
+[1/5] backup folder /opt/goldia-audit/prodchain080/goldia-prod-2026-11-06T07-38-22: {"backup":true,"baseline":true,"recovery":true,"migration064":true,"preflight":true,"accounting":true,"compat":true,"chainTo":true,"ready":true,"target":"077","chainToTarget":"080","chainToPass":true,"backupDir":"/opt/goldia-audit/prodchain080/goldia-prod-2026-11-06T07-38-22"}
+[2/5] production gates (read only)
+  076 recorded=t; chain versions recorded=0; latest=20260101000076
+  RESULT|prelaunch_077|OK
+  RESULT|prelaunch_078_079|OK
+  function-body parity 076: identical|156
+  RLS isolation before: RLS_ISOLATION|PASS|users=200|orgs=60|checks=9226
+[3/5] chain 077..080 (ONE transaction; per-migration postflight + business fingerprint gates)
+  balances before: customer_advance_g=0.0000,customer_debt_g=561.6424,factory_obligation_g=3389.0400,seller_owes_g=1068.7941,seller_stock_g=442.0000,vault_cash_uzs=8100000.00,vault_usd=0.00
+  [chain] 077 goldia_manager_parity_currency_sales_period_report
+  [chain] 077 postflight + business fingerprint: ok
+  [chain] 078 goldia_seller_customer_archive_and_period_reopen
+  [chain] 078 postflight + business fingerprint: ok
+  [chain] 079 goldia_archived_customer_sale_block_and_assignment_guard
+  [chain] 079 postflight + business fingerprint: ok
+  [chain] 080 goldia_period_report_performance
+  [chain] 080 postflight + business fingerprint: ok
+  CHAIN: applied and recorded in one transaction
+[4/5] postflight (read only)
+  history rows 077..080: 4/4
+  073 postflight: all true
+  074 postflight: all true
+  075 postflight: all true
+  076 postflight: all true
+  077 postflight: all true
+  078 postflight: all true
+  079 postflight: all true
+  080 postflight: all true
+  row counts unchanged: yes
+  balances unchanged: yes
+  business fingerprint unchanged (76 categories): yes
+  RLS isolation after: RLS_ISOLATION|PASS|users=200|orgs=60|checks=9829
+  POSTFLIGHT: PASS
+[5/5] next: production frontend (production-frontend.ps1 -Apply -ReleaseCandidate <sha>), then run-readonly-checks.ps1 -Target production-post, then run-production-smoke.ps1
+
+RESULT: CHAIN 077..080 APPLIED, POSTFLIGHT PASS. Report: /opt/goldia-audit/prodchain080/goldia-prod-2026-11-06T07-38-22/RELEASE-077-080-RESULT.txt

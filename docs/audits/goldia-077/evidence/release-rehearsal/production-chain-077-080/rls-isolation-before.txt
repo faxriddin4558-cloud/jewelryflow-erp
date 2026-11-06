@@ -1,0 +1,1 @@
+psql:/home/user/jewelryflow-erp/docs/releases/production-075/03_rls_isolation_readonly.sql:99: NOTICE:  RLS_ISOLATION|PASS|users=200|orgs=60|checks=9226

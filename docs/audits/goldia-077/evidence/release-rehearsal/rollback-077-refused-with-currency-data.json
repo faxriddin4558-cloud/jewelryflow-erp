@@ -1,0 +1,88 @@
+{
+ "port": "55437",
+ "results": [
+  {
+   "id": "G1",
+   "title": "emergency rollbacks (newest first) back to 076: history 076, schema = expected 076 signature (+ only the 4 reclassification-history columns 077 keeps on purpose), business fingerprint unchanged",
+   "ok": false,
+   "actual": {
+    "rollbacks": [
+     "080:ok",
+     "079:ok",
+     "078:ok",
+     "077:psql:/home/user/jewelryflow-erp/docs/releases/production-075/emergency/rollback_077_with_history.sql:32: ERROR:  ROLLBACK 077 REFUSED: active UZS / USD sales, payments or currency balances exist"
+    ],
+    "latest": "20260101000077",
+    "missing": [
+     "F trg_goldia_sale_markup_snapshot() -> trigger SECDEF",
+     "H rpc_archive_customer(uuid,boolean) adb24d82d57bb831e0c945a1e6b31fbc",
+     "H rpc_confirm_accounting_baseline(text,text,numeric) f3dd518ea131973b6e308ba0cc593a24",
+     "H rpc_get_director_sales_overview() 8823691e36b35544663165372e0db037",
+     "H rpc_get_seller_sales_summary(uuid) ae045152ec47d56eaa6f508625a0a0df"
+    ],
+    "kept_columns": 4,
+    "unexpected": [
+     "C client_currency_accounts.advance_amount numeric(18,2) NOT NULL",
+     "C client_currency_accounts.currency text NOT NULL",
+     "C client_currency_accounts.customer_id uuid NOT NULL",
+     "C client_currency_accounts.debt_amount numeric(18,2) NOT NULL",
+     "C client_currency_accounts.organization_id uuid NOT NULL"
+    ],
+    "fingerprint_same": true
+   }
+  },
+  {
+   "id": "G2",
+   "title": "a 0.0001 g balance change inside the chain is stopped by the fingerprint gate; nothing stays applied",
+   "ok": false,
+   "actual": {
+    "error": "psql:/tmp/goldia-chain-Sq1FYm/chain-tamper.sql:11: ERROR:  STOP: a migration after 076 is already recorded",
+    "latest": "20260101000077",
+    "schema_same": true,
+    "data_same": true
+   }
+  },
+  {
+   "id": "G3",
+   "title": "a failing 079 postflight stops the chain; nothing stays applied",
+   "ok": false,
+   "actual": {
+    "error": "psql:/tmp/goldia-chain-Sq1FYm/chain-postflight.sql:11: ERROR:  STOP: a migration after 076 is already recorded",
+    "latest": "20260101000077",
+    "schema_same": true
+   }
+  },
+  {
+   "id": "G4",
+   "title": "clean chain 076 -> 080 in one transaction: applied, 073..080 postflights true, fingerprint identical, schema = expected 080",
+   "ok": false,
+   "actual": {
+    "ok": false,
+    "err": "psql:/tmp/goldia-chain-Sq1FYm/chain-clean.sql:11: ERROR:  STOP: a migration after 076 is already recorded",
+    "latest": "20260101000077",
+    "postflights": false,
+    "data_same": true,
+    "missing": [
+     "C customers.archived_at timestamp with time zone",
+     "C customers.archived_by uuid",
+     "F _goldia_customer_open_balances(uuid) -> jsonb SECDEF",
+     "F _goldia_guard_customer_archive() -> trigger",
+     "F _goldia_guard_customer_assignment() -> trigger"
+    ],
+    "extra": [
+     "H _goldia_period_effects(uuid) c0c72084298a79f808284575c0863312",
+     "H rpc_archive_customer(uuid,boolean) fe44205ee2d6d53dc6a311159ec606c6",
+     "H rpc_get_period_report(date,date,uuid) f2cb507c7d935d337346712ecb10e9a8"
+    ]
+   }
+  },
+  {
+   "id": "G5",
+   "title": "running the chain again on 080 is refused by its guard; nothing changes",
+   "ok": false,
+   "actual": {
+    "error": "psql:/tmp/goldia-chain-Sq1FYm/chain-clean.sql:11: ERROR:  STOP: a migration after 076 is already recorded"
+   }
+  }
+ ]
+}

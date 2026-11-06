@@ -1,0 +1,61 @@
+GOLDIA PRODUCTION BACKUP + PREFLIGHT SUMMARY (no secrets, no customer names)
+generated: 2026-11-06T07:38:30.302Z
+backup folder: /opt/goldia-audit/prodchain080/goldia-prod-2026-11-06T07-38-22
+
+pg tools: /opt/goldia-audit/pg17root/wrap (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
+explicit read-only transaction on production: on
+production server: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2)
+production baseline before dump: 140 lines
+schemas in backup: public, auth, storage, supabase_migrations
+schema backup: ok
+data backup: ok
+roles backup: ok
+production baseline unchanged during dump: yes
+rows changed during backup: none
+extensions not available locally (Supabase platform only): none
+restore errors (Supabase platform objects may account for some): 0
+public functions/policies/views prod vs restored: 156/120/5 vs 156/120/5
+tables compared: 68
+row-count differences prod vs restored: none
+BASELINE (grams, debts, tills, vault, factory, rows, fingerprint) production = restored copy: IDENTICAL
+RECOVERY preflight: n/a for target 077 (the 072 preflight applies to production at 072 only)
+BACKUP: VERIFIED (restored copy matches production row counts)
+migration 076 applied: VERIFIED
+migration 077 already applied: no
+max overloads of touched functions: 1
+064 manager-stock fix present: no
+pieces in returned_to_factory: 0
+demo accounts in production auth: 0
+585 rates available: 52
+PREFLIGHT: PASS
+preflight output: preflight.txt
+investigation output: investigation.txt
+security-advisor output: security-advisor.txt
+finding I2_manager_stock: 52 row(s)
+finding I8_mass_balance: 52 row(s)
+finding I9_status_counts: 4 row(s)
+CRITICAL ACCOUNTING FINDINGS: none
+advisor A1_security_definer_view: 4
+advisor A3_mutable_search_path: 272
+advisor A4_definer_executable_by_anon: 11
+advisor A5_permissive_write_policy: 1
+advisor A6_anon_write_grant: 61
+077 applies on production schema copy: yes
+077 changed row counts: no
+rollback + re-apply on copy: ok
+077 COMPATIBILITY: PASS
+chain-to: copy back at 076 before the chain: yes
+chain-to: 077..080 in ONE transaction (per-migration postflight + business fingerprint gates): applied
+chain-to: postflights 073..080 on the copy: all true
+chain-to: schema objects of repository 080 missing on the copy: 0 (function bodies differing: 0)
+chain-to: business fingerprint unchanged by 077..080: yes
+chain-to: emergency rollback 080 on the copy: ok
+chain-to: emergency rollback 079 on the copy: ok
+chain-to: emergency rollback 078 on the copy: ok
+chain-to: emergency rollback 077 on the copy: ok
+chain-to: after the emergency rollbacks the copy is 076 again (schema + business fingerprint; 077 keeps 4 reclassification-history columns on purpose): yes
+chain-to: chain re-applied after the rollback: yes
+CHAIN 077->080 + EMERGENCY ROLLBACK TO 076 + RE-APPLY: PASS
+GATES: backup=true preflight=true migration076=true compat077=true accounting=true baseline=true recovery=true chainTo=true
+
+RESULT: ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval

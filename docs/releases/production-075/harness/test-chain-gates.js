@@ -15,6 +15,7 @@ const chainLib = require(path.join(REPO, "scripts/lib/goldia-chain.js"));
 const checks = require(path.join(REPO, "scripts/lib/goldia-release-checks.js"));
 const args = {}; for (let i = 2; i < process.argv.length; i++) if (process.argv[i].startsWith("--")) args[process.argv[i].slice(2)] = process.argv[i + 1];
 const PORT = String(args.port || 55437);
+const TO = String(args.to || "079").padStart(3, "0");   // last migration of the chain (079, or 080 with the report fix)
 const OUT = args.out || path.join(REPO, "docs/audits/goldia-077/evidence/release-rehearsal/chain-gates-test.json");
 const TMP = fs.mkdtempSync(path.join(require("os").tmpdir(), "goldia-chain-"));
 const R = [];
@@ -36,16 +37,17 @@ const KEPT_BY_ROLLBACK_077 = ["C financial_transactions.reclassified_at timestam
   "C financial_transactions.reclassified_from_currency text", "C financial_transactions.reclassified_from_till text"];
 const latest = () => psql("select max(version) from supabase_migrations.schema_migrations").out;
 const pfAll = (vs) => vs.every((v) => psql(checks.allColumnsTrue(path.join(REPO, `supabase/release/${v}_postflight_readonly.sql`))).out === "t");
-const writeChain = (name, mutate) => { let { sql } = chainLib.buildChainSql("076", "079", { label: "gate-test" }); if (mutate) sql = mutate(sql); const f = path.join(TMP, name); fs.writeFileSync(f, sql); return f; };
+const PFS = []; for (let n = 73; n <= Number(TO); n++) PFS.push(String(n).padStart(3, "0"));
+const writeChain = (name, mutate) => { let { sql } = chainLib.buildChainSql("076", TO, { label: "gate-test" }); if (mutate) sql = mutate(sql); const f = path.join(TMP, name); fs.writeFileSync(f, sql); return f; };
 
 (async () => {
   // bring the copy to 076 with the emergency rollbacks (newest first)
   const start = latest();
-  if (!/^202601010000(76|77|78|79)$/.test(start)) throw new Error(`unexpected latest ${start}`);
+  if (!/^202601010000(76|77|78|79|80)$/.test(start)) throw new Error(`unexpected latest ${start}`);
   if (start !== "20260101000076") {
     // fingerprint at 079 equals the one at 076 (the chain changes no business data) -> compare after rollback
     const fpTop = fp(); const rb = [];
-    for (const v of ["079", "078", "077"]) {
+    for (const v of ["080", "079", "078", "077"]) {
       if (latest() < chainLib.V(v)) continue;
       const r = psql(path.join(REPO, `docs/releases/production-075/emergency/rollback_${v}_with_history.sql`), { file: true, single: true }); rb.push(`${v}:${r.ok ? "ok" : r.err}`);
     }
@@ -53,7 +55,7 @@ const writeChain = (name, mutate) => { let { sql } = chainLib.buildChainSql("076
     const s = sig();
     const missing = exp076.split("\n").filter((l) => !s.includes(l)); const extra = s.split("\n").filter((l) => !exp076.includes(l));
     const unexpected = extra.filter((l) => !KEPT_BY_ROLLBACK_077.includes(l));
-    T("G1", "emergency rollbacks 079 -> 078 -> 077: history 076, schema = expected 076 signature (+ only the 4 reclassification-history columns 077 keeps on purpose), business fingerprint unchanged",
+    T("G1", "emergency rollbacks (newest first) back to 076: history 076, schema = expected 076 signature (+ only the 4 reclassification-history columns 077 keeps on purpose), business fingerprint unchanged",
       rb.every((x) => x.endsWith(":ok")) && latest() === "20260101000076" && !missing.length && !unexpected.length && fpSame(fp(), fpTop),
       { rollbacks: rb, latest: latest(), missing: missing.slice(0, 5), kept_columns: extra.length - unexpected.length, unexpected: unexpected.slice(0, 5), fingerprint_same: fpSame(fp(), fpTop) });
   }
@@ -73,13 +75,13 @@ const writeChain = (name, mutate) => { let { sql } = chainLib.buildChainSql("076
   // G4 clean chain
   const fClean = writeChain("chain-clean.sql");
   const g4 = psql(fClean, { file: true, single: true });
-  const exp079 = fs.readFileSync(path.join(REPO, "supabase/release/staging-073/expected-079-signature.txt"), "utf8").trim();
+  const exp079 = fs.readFileSync(path.join(REPO, `supabase/release/staging-073/expected-${TO}-signature.txt`), "utf8").trim();
   const s4 = sig(); const miss4 = exp079.split("\n").filter((l) => !s4.includes(l)); const extra4 = s4.split("\n").filter((l) => !exp079.includes(l));
-  T("G4", "clean chain 076 -> 079 in one transaction: applied, 073..079 postflights true, fingerprint identical, schema = expected 079", g4.ok && latest() === "20260101000079" && pfAll(["073", "074", "075", "076", "077", "078", "079"]) && fpSame(fp076, fp()) && !miss4.length && !extra4.length,
-    { ok: g4.ok, err: g4.err, latest: latest(), postflights: pfAll(["073", "074", "075", "076", "077", "078", "079"]), data_same: fpSame(fp076, fp()), missing: miss4.slice(0, 5), extra: extra4.slice(0, 5) });
+  T("G4", `clean chain 076 -> ${TO} in one transaction: applied, 073..${TO} postflights true, fingerprint identical, schema = expected ${TO}`, g4.ok && latest() === chainLib.V(TO) && pfAll(PFS) && fpSame(fp076, fp()) && !miss4.length && !extra4.length,
+    { ok: g4.ok, err: g4.err, latest: latest(), postflights: pfAll(PFS), data_same: fpSame(fp076, fp()), missing: miss4.slice(0, 5), extra: extra4.slice(0, 5) });
   // G5 no double apply
   const g5 = psql(fClean, { file: true, single: true });
-  T("G5", "running the chain again on 079 is refused by its guard; nothing changes", !g5.ok && /migration after 076 is already recorded/.test(g5.err) && latest() === "20260101000079" && fpSame(fp076, fp()), { error: g5.err });
+  T("G5", `running the chain again on ${TO} is refused by its guard; nothing changes`, !g5.ok && /migration after 076 is already recorded/.test(g5.err) && latest() === chainLib.V(TO) && fpSame(fp076, fp()), { error: g5.err });
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify({ port: PORT, results: R }, null, 1));
   console.log(`TOTAL ${R.filter((x) => x.ok).length}/${R.length} -> ${OUT}`);
