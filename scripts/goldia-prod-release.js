@@ -15,6 +15,19 @@
  * 5. Postflight checks; row counts must be unchanged. On failure the rollback command is printed.
  * No business transactions, no deletes, no balance changes. Result: RELEASE-NNN-RESULT.txt in the backup folder.
  * Options: --host --port --user --db --sslmode --pg-bin <dir> --out <dir>
+ *
+ * CHAIN MODE (2026-11-06, 076 -> 077 -> 078 -> 079):  node scripts/goldia-prod-release.js --migration 077 --chain-to 079
+ *   1. fresh backup + restore + the SAME chain SQL on the restored copy + emergency rollback to 076 + re-apply
+ *      (goldia-prod-backup-and-preflight.js --migration 077 --chain-to 079; gate chainTo must PASS);
+ *   2. production read-only gates: 076 recorded, none of 077..079 recorded; prelaunch kits 05 (077) and 06 (078 / 079):
+ *      any STOP stops, any WARN stops unless the owner re-runs with --acknowledge-findings; 076 function-body parity
+ *      (DIFFERENT / MISSING stops); RLS isolation probe (read only) recorded as the "before" state;
+ *   3. typed production ref, then ONE transaction (scripts/lib/goldia-chain.js): after EVERY migration its history row,
+ *      its postflight checks and the business fingerprint (balances, debts, stock, tills, vault, customers, sale /
+ *      payment / cash / legacy history, row counts) are checked inside the transaction - any difference rolls back the
+ *      whole chain, production stays at 076;
+ *   4. postflight (read only): 073..079 postflights, counts + balances + fingerprint unchanged, no new RLS leak.
+ *   Rollback after a committed chain: emergency rollbacks newest first (see the printed hint and the release report).
  */
 "use strict";
 
@@ -32,6 +45,7 @@ for (let i = 2; i < process.argv.length; i++) {
   args[a.slice(2)] = next === undefined || next.startsWith("--") ? true : (i++, next);
 }
 const TARGET = String(args.migration || "073").padStart(3, "0");
+const CHAIN_TO = args["chain-to"] ? String(args["chain-to"]).padStart(3, "0") : null;
 const PREVIOUS = String(Number(TARGET) - 1).padStart(3, "0");
 const TARGET_VERSION = `20260101000${TARGET}`;
 const PREVIOUS_VERSION = `20260101000${PREVIOUS}`;
@@ -357,4 +371,146 @@ async function main() {
   out(`\nRESULT: MIGRATION ${TARGET} APPLIED, POSTFLIGHT PASS — the release PR can be merged. Report: ${resultFile}`);
 }
 
-main().catch((e) => stop(e && e.message ? e.message : String(e)));
+// ------------------------------------------------------------------ CHAIN MODE (--chain-to)
+function stopChain(message, { committed = false } = {}) {
+  out(`\nSTOPPED: ${message}`);
+  if (committed) {
+    out("The chain WAS committed. Data-preserving emergency rollback, newest first, ONE file per transaction, only with the owner's approval:");
+    for (let n = Number(CHAIN_TO); n >= Number(TARGET); n--) {
+      const v = String(n).padStart(3, "0");
+      out(`  psql "<same connection>" -X -v ON_ERROR_STOP=1 --single-transaction -f docs\\releases\\production-075\\emergency\\rollback_${v}_with_history.sql`);
+    }
+    out("  limits: 079 only removes the two guards; 078 keeps archived customers archived (rows and audit kept); 077 is REFUSED while");
+    out("  UZS / USD sales, currency payments or currency balances exist (reverse them first) and keeps the 4 reclassification-history columns.");
+    out("A Vercel (frontend) rollback does NOT change the database.");
+  } else {
+    out("Production database was not changed (the chain runs in one transaction; nothing was committed).");
+  }
+  process.exit(1);
+}
+
+async function mainChain() {
+  const chainLib = require("./lib/goldia-chain");
+  const checksLib = require("./lib/goldia-release-checks");
+  console.log(`GOLDIA — production release chain ${PREVIOUS} -> ${CHAIN_TO}\n`);
+  const FORBIDDEN_REFS = { vouehtlmsunebracahon: "Goldia STAGING", yvvbdoqncubtwlzskgml: "JewelryFlow SaaS demo", hbbuskyifxkowlozsaym: "manufacturing ERP", vrozlilcaxinavzxueif: "typo of the production ref" };
+  const joinedTarget = [PROD.host, PROD.user, process.env.PGHOST, process.env.PGUSER, process.env.DATABASE_URL].filter(Boolean).join(" ");
+  for (const [ref, label] of Object.entries(FORBIDDEN_REFS)) if (joinedTarget.includes(ref)) stopChain(`${label} (${ref}) is never a target of this script`);
+  const LOCAL_TARGET = /^(localhost|127\.0\.0\.1)$/.test(String(PROD.host)) || String(PROD.host).startsWith("/");
+  if (args["local-rehearsal"] && !LOCAL_TARGET) stopChain("--local-rehearsal only works with a local --host");
+  if (!LOCAL_TARGET && !String(PROD.user).endsWith(".vrozlllcaxinavzxueif")) stopChain(`unexpected database user ${PROD.user} (production is postgres.vrozlllcaxinavzxueif)`);
+  if (!PG_BIN) stopChain("PostgreSQL 17 tools not found (pass --pg-bin)");
+  if (!(Number(CHAIN_TO) > Number(TARGET))) stopChain(`--chain-to ${CHAIN_TO} must be after --migration ${TARGET}`);
+  let built;
+  try { built = chainLib.buildChainSql(PREVIOUS, CHAIN_TO, { label: "production" }); } catch (e) { stopChain(`cannot build the chain: ${e.message}`); }
+  for (const m of built.chain) {
+    for (const f of [path.join(REPO, `supabase/rollback/${m.version}_rollback.sql`), path.join(REPO, `supabase/release/${m.num}_postflight_readonly.sql`),
+      path.join(REPO, `docs/releases/production-075/emergency/rollback_${m.num}_with_history.sql`)]) if (!fs.existsSync(f)) stopChain(`missing ${path.relative(REPO, f)}`);
+  }
+  const KITS = ["docs/releases/production-075/05_prelaunch_077_readonly.sql", "docs/releases/production-075/06_prelaunch_078_079_readonly.sql",
+    "supabase/release/function_body_parity_076_readonly.sql", "docs/releases/production-075/03_rls_isolation_readonly.sql"].map((f) => path.join(REPO, f));
+  for (const f of KITS) if (!fs.existsSync(f)) stopChain(`missing ${path.relative(REPO, f)}`);
+
+  password = process.env.PGPASSWORD || await promptHidden(`Supabase DB password for ${PROD.user} (hidden): `);
+
+  console.log(`[1/5] fresh backup, restore test, chain ${TARGET}..${CHAIN_TO} + emergency rollback + re-apply on the restored copy`);
+  const passThrough = [];
+  for (const k of ["host", "port", "user", "db", "sslmode", "pg-bin", "out"]) if (args[k]) passThrough.push(`--${k}`, String(args[k]));
+  const backup = spawnSync(process.execPath, [path.join(__dirname, "goldia-prod-backup-and-preflight.js"), "--fresh", "--migration", TARGET, "--chain-to", CHAIN_TO, ...passThrough], {
+    env: { ...process.env, PGPASSWORD: password }, stdio: "inherit", windowsHide: true,
+  });
+  const outRoot = path.resolve(String(args.out || path.join(os.homedir(), "GoldiaBackups")));
+  const latest = fs.existsSync(outRoot) ? fs.readdirSync(outRoot).filter((d) => d.startsWith("goldia-prod-")).sort().reverse()
+    .map((d) => path.join(outRoot, d)).find((d) => fs.existsSync(path.join(d, "GATES.json"))) : null;
+  if (!latest) stopChain("backup step did not produce GATES.json");
+  resultFile = path.join(latest, `RELEASE-${TARGET}-${CHAIN_TO}-RESULT.txt`);
+  out(`started: ${new Date().toISOString()}  mode: CHAIN ${PREVIOUS} -> ${CHAIN_TO}${args["local-rehearsal"] ? " (LOCAL REHEARSAL)" : ""}`);
+  const gates = JSON.parse(fs.readFileSync(path.join(latest, "GATES.json"), "utf8"));
+  out(`[1/5] backup folder ${latest}: ${JSON.stringify(gates)}`);
+  if (backup.status !== 0 || !gates.ready || gates.target !== TARGET || gates.chainToTarget !== CHAIN_TO || gates.chainToPass !== true) {
+    stopChain("a backup / restore / copy-chain / rollback gate failed (see SUMMARY.txt in that folder)");
+  }
+
+  out("[2/5] production gates (read only)");
+  const versions = built.chain.map((m) => `'${m.version}'`).join(",");
+  const g = ro(`select exists (select 1 from supabase_migrations.schema_migrations where version = '${PREVIOUS_VERSION}'),
+                       (select count(*) from supabase_migrations.schema_migrations where version in (${versions})),
+                       (select max(version) from supabase_migrations.schema_migrations)`);
+  if (g.status !== 0) stopChain(`cannot query production: ${firstError(g)}`);
+  const [hasPrev, nChain, maxV] = g.stdout.trim().split("|");
+  out(`  ${PREVIOUS} recorded=${hasPrev}; chain versions recorded=${nChain}; latest=${maxV}`);
+  if (hasPrev !== "t" || maxV !== PREVIOUS_VERSION) stopChain(`production must be exactly at ${PREVIOUS} (latest ${maxV})`);
+  if (nChain !== "0") stopChain("a chain migration is already recorded");
+  const kit = (file, name) => {
+    const r = psql(["-t", "-A", "-v", "ON_ERROR_STOP=1", "-f", file]);
+    const text = String(r.stdout || "") + String(r.stderr || "");
+    fs.writeFileSync(path.join(latest, `${name}.txt`), text);
+    if (r.status !== 0) stopChain(`${name} failed: ${firstError(r)}`);
+    return text;
+  };
+  for (const [file, name] of [[KITS[0], "prelaunch-077"], [KITS[1], "prelaunch-078-079"]]) {
+    const text = kit(file, name);
+    for (const l of text.split(/\r?\n/).filter((x) => /\|(WARN|STOP)\|/.test(x) || x.startsWith("RESULT|"))) out(`  ${l}`);
+    const res = (text.match(/RESULT\|[^|]+\|(OK|WARN|STOP)/) || [])[1];
+    if (res !== "OK" && res !== "WARN") stopChain(`${name}: ${res || "no RESULT line"}`);
+    if (res === "WARN" && !args["acknowledge-findings"]) stopChain(`${name}: WARN - owner review needed; after review re-run with --acknowledge-findings (nothing was changed)`);
+  }
+  const parity = kit(KITS[2], "function-body-parity-076");
+  const differ = parity.split(/\r?\n/).filter((l) => /^(DIFFERENT|MISSING)\|/.test(l) && !/\|0$/.test(l));
+  out(`  function-body parity 076: ${parity.split(/\r?\n/).filter((l) => /^(identical|crlf_only|DIFFERENT|MISSING)\|/.test(l)).join(" ")}`);
+  if (differ.length) stopChain("production function bodies differ from the repository 076 (see function-body-parity-076.txt)");
+  const rlsBefore = kit(KITS[3], "rls-isolation-before");
+  const leaksBefore = new Set(rlsBefore.split(/\r?\n/).map((l) => l.replace(/^.*NOTICE:\s*/, "")).filter((l) => l.startsWith("LEAK|")).map((l) => l.split("|").slice(0, 4).join("|")));
+  out(`  RLS isolation before: ${(rlsBefore.match(/RLS_ISOLATION\|[^\r\n]*/) || ["no result line"])[0]}`);
+  if (!/RLS_ISOLATION\|/.test(rlsBefore)) stopChain("RLS isolation probe produced no result");
+
+  if (!(args["local-rehearsal"] && args.yes)) {
+    const typed = await promptVisible(`Type the production project ref (vrozlllcaxinavzxueif) to apply ${built.chain.map((m) => m.num).join(" -> ")} in ONE transaction: `);
+    if (typed.trim() !== "vrozlllcaxinavzxueif") stopChain("confirmation did not match — nothing was changed");
+  }
+
+  out(`[3/5] chain ${TARGET}..${CHAIN_TO} (ONE transaction; per-migration postflight + business fingerprint gates)`);
+  const counts = ro(COUNTS); const balances = ro(BALANCES); const fpBefore = ro(chainLib.fingerprintSql());
+  if (counts.status !== 0 || balances.status !== 0 || fpBefore.status !== 0) stopChain("cannot read row counts / balances / fingerprint");
+  out(`  balances before: ${balances.stdout.trim()}`);
+  const chainFile = path.join(latest, `chain-${TARGET}-${CHAIN_TO}-production.sql`);
+  fs.writeFileSync(chainFile, built.sql);
+  const mig = psql(["-v", "ON_ERROR_STOP=1", "--single-transaction", "-f", chainFile], 30 * MIN);
+  fs.writeFileSync(path.join(latest, `chain-${TARGET}-${CHAIN_TO}-production.log`), String(mig.stdout || "") + String(mig.stderr || ""));
+  for (const l of String(mig.stdout || "").split(/\r?\n/).filter((x) => x.startsWith("[chain]"))) out(`  ${l}`);
+  if (mig.status !== 0) stopChain(`chain failed and was rolled back as a whole: ${firstError(mig)}`);
+  out("  CHAIN: applied and recorded in one transaction");
+
+  out("[4/5] postflight (read only)");
+  let pass = true;
+  const rec = ro(`select count(*) from supabase_migrations.schema_migrations where version in (${versions})`);
+  out(`  history rows ${TARGET}..${CHAIN_TO}: ${rec.stdout.trim()}/${built.chain.length}`);
+  pass = pass && rec.stdout.trim() === String(built.chain.length);
+  for (let n = 73; n <= Number(CHAIN_TO); n++) {
+    const v = String(n).padStart(3, "0");
+    const r = ro(checksLib.allColumnsTrue(path.join(REPO, `supabase/release/${v}_postflight_readonly.sql`)));
+    const ok = r.status === 0 && r.stdout.trim() === "t";
+    out(`  ${v} postflight: ${ok ? "all true" : "FAIL"}`);
+    pass = pass && ok;
+  }
+  const pfFile = psql(["-v", "ON_ERROR_STOP=1", "-f", path.join(REPO, `supabase/release/${CHAIN_TO}_postflight_readonly.sql`)]);
+  fs.writeFileSync(path.join(latest, `postflight-${CHAIN_TO}-production.txt`), String(pfFile.stdout || "") + String(pfFile.stderr || ""));
+  const countsAfter = ro(COUNTS); const balancesAfter = ro(BALANCES); const fpAfter = ro(chainLib.fingerprintSql());
+  const countsSame = countsAfter.stdout.trim() === counts.stdout.trim();
+  const balancesSame = balancesAfter.stdout.trim() === balances.stdout.trim();
+  const fpMap = new Map(fpAfter.stdout.trim().split(/\r?\n/).map((l) => [l.split("|")[0], l]));
+  const fpDiff = fpBefore.stdout.trim().split(/\r?\n/).filter((l) => fpMap.get(l.split("|")[0]) !== l);
+  out(`  row counts unchanged: ${countsSame ? "yes" : `NO before=${counts.stdout.trim()} after=${countsAfter.stdout.trim()}`}`);
+  out(`  balances unchanged: ${balancesSame ? "yes" : `NO after=${balancesAfter.stdout.trim()}`}`);
+  out(`  business fingerprint unchanged (${fpBefore.stdout.trim().split(/\r?\n/).length} categories): ${fpDiff.length ? `NO ${fpDiff.map((l) => l.split("|")[0]).join(", ")}` : "yes"}`);
+  const rlsAfter = kit(KITS[3], "rls-isolation-after");
+  const newLeaks = rlsAfter.split(/\r?\n/).map((l) => l.replace(/^.*NOTICE:\s*/, "")).filter((l) => l.startsWith("LEAK|")).map((l) => l.split("|").slice(0, 4).join("|")).filter((k) => !leaksBefore.has(k));
+  out(`  RLS isolation after: ${(rlsAfter.match(/RLS_ISOLATION\|[^\r\n]*/) || ["no result line"])[0]}${newLeaks.length ? " NEW LEAKS: " + newLeaks.join(", ") : ""}`);
+  pass = pass && countsSame && balancesSame && !fpDiff.length && !newLeaks.length && /RLS_ISOLATION\|/.test(rlsAfter);
+  if (!pass) stopChain("POSTFLIGHT FAILED — do not deploy the frontend", { committed: true });
+  out("  POSTFLIGHT: PASS");
+  out(`[5/5] next: production frontend (production-frontend.ps1 -Apply -ReleaseCandidate <sha>), then run-readonly-checks.ps1 -Target production-post, then run-production-smoke.ps1`);
+  out(`\nRESULT: CHAIN ${TARGET}..${CHAIN_TO} APPLIED, POSTFLIGHT PASS. Report: ${resultFile}`);
+}
+
+(CHAIN_TO ? mainChain() : main()).catch((e) => (CHAIN_TO ? stopChain : stop)(e && e.message ? e.message : String(e)));

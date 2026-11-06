@@ -1,0 +1,16 @@
+PRE|active_logins_by_role|INFO|admin=60 production_manager=60 seller=80
+PRE|customers_with_debt_206_83|INFO|customers whose current debt is 206.83 g=0
+PRE|director_only_actions_used_by_director|INFO|accounting baselines=0 markup presets=8
+PRE|failed_logins_last_48h|INFO|failed=0 success=0
+PRE|history_latest|OK|latest=20260101000076
+PRE|legacy_206_83_rows|INFO|rows with 206.83 g (amount or delta)=0 active=0
+PRE|legacy_duplicate_pairs_10min|OK|pairs=0
+PRE|legacy_rows_by_creator_role|INFO|none
+PRE|logins_without_organization|OK|active logins without organization=0
+PRE|logins_with_unusable_role|OK|active logins whose role is not admin / production_manager / seller / accountant / inventory_manager=0
+PRE|management_logins_id_differs_from_login|OK|director / manager logins whose employee id <> login id=0 (at 076 their cash-operation reversal fails: reversed_by FK; fixed in 077)
+PRE|reclassified_capital_operations|INFO|reclassified capital operations=0 of them reversed later=0 (before 077 the document kept the old-currency amount; a reversal used it in the new till - check those vaults)
+PRE|seller_legacy_obligation_drift|OK|sellers whose stored legacy obligation <> active debt entries=0 max_diff_g=0
+PRE|seller_pieces_vs_gram_stock|INFO|sellers whose held piece grams <> gram stock=0
+PRE|seller_stock_negative_hidden|OK|sellers whose consigned minus sold grams is negative (shown as 0)=0 min_g=0
+RESULT|prelaunch_077|OK

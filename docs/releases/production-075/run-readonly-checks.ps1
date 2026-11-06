@@ -190,17 +190,22 @@ if ($pp[1] -ne "on") { Finish "FAIL" "the explicit read-only transaction is not 
 if ($pp[3] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
 if ($Target -eq "production-prelaunch" -and @("20260101000075", "20260101000076") -notcontains $pp[4]) { Finish "FAIL" ("production-prelaunch expects migration history at 20260101000075 (before 076) or 20260101000076 (before 077), found " + $pp[4]) }
 if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000076") {
-  # before 077: the 077 pre-release check and the 076 function-body parity
+  # before the 077 -> 078 -> 079 chain: the 077 and 078 / 079 pre-release checks and the 076 function-body parity
   $c5 = @{ Name = "05_prelaunch_077"; File = "docs/releases/production-075/05_prelaunch_077_readonly.sql"; Kind = "pre" }
+  $c6 = @{ Name = "06_prelaunch_078_079"; File = "docs/releases/production-075/06_prelaunch_078_079_readonly.sql"; Kind = "pre" }
   $p6 = @{ Name = "function_body_parity_076"; File = "supabase/release/function_body_parity_076_readonly.sql"; Kind = "parity" }
-  foreach ($x in @($c5, $p6)) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
-  $checks = @($c5, $p6)
+  # the pre-chain baseline (history 076): production-post compares every business line with it after the chain
+  $b6 = @{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" }
+  foreach ($x in @($c5, $c6, $p6, $b6)) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
+  $checks = @($c5, $c6, $p6, $b6)
 }
-if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075, 076 or 077, found " + $pp[4]) }
+if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077", "20260101000078", "20260101000079") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075 ... 079, found " + $pp[4]) }
 if ($Target -eq "production-post" -and $pp[4] -ne "20260101000075") {
   # after 076 / 077 their postflights run too (073/074/075 must stay true)
   $extra = @(@{ Name = "076_postflight"; File = "supabase/release/076_postflight_readonly.sql"; Kind = "postflight" })
-  if ($pp[4] -eq "20260101000077") { $extra += @{ Name = "077_postflight"; File = "supabase/release/077_postflight_readonly.sql"; Kind = "postflight" } }
+  foreach ($v in @("077", "078", "079")) {
+    if ([string]::CompareOrdinal([string]$pp[4], "20260101000" + $v) -ge 0) { $extra += @{ Name = ($v + "_postflight"); File = ("supabase/release/" + $v + "_postflight_readonly.sql"); Kind = "postflight" } }
+  }
   foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
   $checks = @($checks[0], $checks[1], $checks[2]) + $extra + @($checks[3..($checks.Count - 1)])
 }
@@ -356,7 +361,7 @@ foreach ($c in $checks) {
       }
     }
     "pre" {
-      $res = @($lines | Where-Object { $_ -match '^RESULT\|prelaunch_07[67]\|' })
+      $res = @($lines | Where-Object { $_ -match '^RESULT\|prelaunch_07[6-9](_07[89])?\|' })
       foreach ($g in @($lines | Where-Object { $_ -match '^PRE\|' })) {
         $gc = "Gray"; if ($g -match '\|STOP\|') { $gc = "Red" } elseif ($g -match '\|WARN\|') { $gc = "Yellow" } elseif ($g -match '\|OK\|') { $gc = "Green" }
         Write-Host ("    " + $g) -ForegroundColor $gc

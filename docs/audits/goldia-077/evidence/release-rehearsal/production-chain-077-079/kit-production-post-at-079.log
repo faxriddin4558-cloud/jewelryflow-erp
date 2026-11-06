@@ -1,0 +1,34 @@
+GOLDIA read-only checks - target production-post (vrozlllcaxinavzxueif), host 127.0.0.1
+  identity: transaction_read_only=on (explicit BEGIN TRANSACTION READ ONLY) user=postgres not_jfs=true latest_migration=20260101000079 session_default_read_only=on (informational; the pooler ignores PGOPTIONS)
+  pre-release baseline: /opt/goldia-audit/kits079e2e/runs/readonly-production-prelaunch-20261106-061459/01_baseline.txt
+  073_postflight: PASS - 12 checks true -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/073_postflight.txt
+  074_postflight: PASS - 13 checks true -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/074_postflight.txt
+  075_postflight: PASS - 15 checks true -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/075_postflight.txt
+  076_postflight: PASS - 15 checks true -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/076_postflight.txt
+  077_postflight: PASS - 12 checks true -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/077_postflight.txt
+  078_postflight: PASS - 8 checks true -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/078_postflight.txt
+  079_postflight: PASS - 6 checks true -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/079_postflight.txt
+    POST|active_logins|INFO|active_employees_with_login=200 orgs=60
+    POST|customer_codes_unique_per_org|PASS|duplicate_codes=0
+    POST|customer_ledger_rpc_writes_cache|INFO|yes: opening the customers page upserts client_gold_accounts (pre-release behaviour since 069; blocked by the UI smoke)
+    POST|factory_settings_rows|INFO|orgs_with_employees_without_settings=59
+    POST|history_073_074_075|PASS|present=3/3
+    POST|history_latest_075_to_079|PASS|latest=20260101000079 count=79
+    POST|no_anon_security_definer_rpc|PASS|definer_rpcs_executable_by_anon=0
+    POST|no_negative_client_balances|PASS|client_accounts_lt0=0
+    POST|no_negative_stock|PASS|seller_stock_lt0=0 manager_stock_lt0=0 held_pieces_le0=0
+    POST|rls_on_every_public_table|PASS|tables_without_rls=0
+    POST|ui_read_rpcs_077_do_not_write|PASS|present=2 with_dml=0
+    POST|ui_read_rpcs_do_not_write|PASS|with_dml=0
+    POST|ui_read_rpcs_exist|PASS|missing=0
+  02_post_release: PASS - RESULT|post_release|PASS -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/02_post_release.txt
+  rls_isolation: PASS - RLS_ISOLATION|PASS|users=200|orgs=60|checks=9829 -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/rls_isolation.txt
+    expected   fingerprint business: before=5f830584ab474dd7830a519d6e52c138 now=27ca37012018e50a5a667d10c4557002
+    expected   history count: before=76 now=79
+    expected   history latest: before=20260101000076 now=20260101000079
+    new table  rows client_currency_accounts: before=<missing> now=0
+    new table  rows client_currency_settlements: before=<missing> now=0
+    new table  rows goldia_report_periods: before=<missing> now=0
+  01_baseline: PASS - 143 lines, BASELINE | fingerprint business | 27ca37012018e50a5a667d10c4557002; business lines IDENTICAL to the pre-release baseline (6 expected/non-business differences) -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/baseline-diff.txt -> /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501/01_baseline.txt
+
+RESULT: PASS - all read-only checks passed; files in /opt/goldia-audit/kits079e2e/runs/readonly-production-post-20261106-061501

@@ -1,0 +1,65 @@
+{
+ "port": "55437",
+ "results": [
+  {
+   "id": "G1",
+   "title": "emergency rollbacks 079 -> 078 -> 077: history 076, schema = expected 076 signature (+ only the 4 reclassification-history columns 077 keeps on purpose), business fingerprint unchanged",
+   "ok": true,
+   "actual": {
+    "rollbacks": [
+     "079:ok",
+     "078:ok",
+     "077:ok"
+    ],
+    "latest": "20260101000076",
+    "missing": [],
+    "kept_columns": 4,
+    "unexpected": [],
+    "fingerprint_same": true
+   }
+  },
+  {
+   "id": "G2",
+   "title": "a 0.0001 g balance change inside the chain is stopped by the fingerprint gate; nothing stays applied",
+   "ok": true,
+   "actual": {
+    "error": "psql:/tmp/goldia-chain-rysVsS/chain-tamper.sql:3276: ERROR:  BUSINESS DATA CHANGED after 078: balances client_gold_accounts 52/52 hash",
+    "latest": "20260101000076",
+    "schema_same": true,
+    "data_same": true
+   }
+  },
+  {
+   "id": "G3",
+   "title": "a failing 079 postflight stops the chain; nothing stays applied",
+   "ok": true,
+   "actual": {
+    "error": "psql:/tmp/goldia-chain-rysVsS/chain-postflight.sql:3372: ERROR:  POSTFLIGHT 079 all_079_checks FAILED",
+    "latest": "20260101000076",
+    "schema_same": true
+   }
+  },
+  {
+   "id": "G4",
+   "title": "clean chain 076 -> 079 in one transaction: applied, 073..079 postflights true, fingerprint identical, schema = expected 079",
+   "ok": true,
+   "actual": {
+    "ok": true,
+    "err": "",
+    "latest": "20260101000079",
+    "postflights": true,
+    "data_same": true,
+    "missing": [],
+    "extra": []
+   }
+  },
+  {
+   "id": "G5",
+   "title": "running the chain again on 079 is refused by its guard; nothing changes",
+   "ok": true,
+   "actual": {
+    "error": "psql:/tmp/goldia-chain-rysVsS/chain-clean.sql:11: ERROR:  STOP: a migration after 076 is already recorded"
+   }
+  }
+ ]
+}

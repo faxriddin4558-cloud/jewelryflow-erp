@@ -1,0 +1,13 @@
+[chain] 077 goldia_manager_parity_currency_sales_period_report
+[chain] 077 postflight + business fingerprint: ok
+[chain] 078 goldia_seller_customer_archive_and_period_reopen
+[chain] 078 postflight + business fingerprint: ok
+[chain] 079 goldia_archived_customer_sale_block_and_assignment_guard
+[chain] 079 postflight + business fingerprint: ok
+psql:/opt/goldia-audit/prodchain/goldia-prod-2026-11-06T06-12-41/chain-077-079-production.sql:1330: NOTICE:  constraint "jewelry_sales_sale_currency_check" of relation "jewelry_sales" does not exist, skipping
+psql:/opt/goldia-audit/prodchain/goldia-prod-2026-11-06T06-12-41/chain-077-079-production.sql:1391: NOTICE:  policy "client_currency_accounts_select" for relation "public.client_currency_accounts" does not exist, skipping
+psql:/opt/goldia-audit/prodchain/goldia-prod-2026-11-06T06-12-41/chain-077-079-production.sql:1397: NOTICE:  policy "client_currency_settlements_select" for relation "public.client_currency_settlements" does not exist, skipping
+psql:/opt/goldia-audit/prodchain/goldia-prod-2026-11-06T06-12-41/chain-077-079-production.sql:2652: NOTICE:  policy "goldia_report_periods_select" for relation "public.goldia_report_periods" does not exist, skipping
+psql:/opt/goldia-audit/prodchain/goldia-prod-2026-11-06T06-12-41/chain-077-079-production.sql:3074: NOTICE:  trigger "trg_goldia_guard_customer_archive" for relation "public.customers" does not exist, skipping
+psql:/opt/goldia-audit/prodchain/goldia-prod-2026-11-06T06-12-41/chain-077-079-production.sql:3313: NOTICE:  trigger "trg_goldia_guard_sale_archived_customer" for relation "public.jewelry_sales" does not exist, skipping
+psql:/opt/goldia-audit/prodchain/goldia-prod-2026-11-06T06-12-41/chain-077-079-production.sql:3341: NOTICE:  trigger "trg_goldia_guard_customer_assignment" for relation "public.customers" does not exist, skipping

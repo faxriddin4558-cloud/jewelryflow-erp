@@ -18,7 +18,13 @@
  * --chain applies 073 -> 074 -> 075 on the restored copy (postflights, business fingerprint unchanged) and then the
  * emergency rollbacks back to an exact 072 copy. Exit code 0 only when every gate passes.
  *
- * Options: --host --port --user --db --sslmode --pg-bin <dir> --out <dir> --keep-restore --chain
+ * 2026-11-06 (077 -> 078 -> 079): --migration 077 --chain-to 079 runs, on the restored copy, EXACTLY the single-transaction
+ * chain SQL the production release uses (scripts/lib/goldia-chain.js: per-migration postflights + business fingerprint
+ * gates), checks 073..079 postflights and the expected 079 schema, then the emergency rollbacks 079 -> 078 -> 077 back to
+ * 076 (business fingerprint identical, schema = 076 + the 4 reclassification-history columns 077 keeps on purpose) and a
+ * second chain run (re-apply). Gate "chainTo".
+ *
+ * Options: --host --port --user --db --sslmode --pg-bin <dir> --out <dir> --keep-restore --chain --chain-to <NNN>
  *          --migration <NNN>  migration to verify on the restored copy (default 065); the gates
  *                             then require NNN-1 applied and NNN absent in production
  *          --reuse <backup folder>  reuse that backup (after SHA256 + pg_restore --list checks)
@@ -663,6 +669,61 @@ async function main() {
     note(`${TARGET} changed row counts`, dataChanged.length ? dataChanged.join("; ") : "no");
     note("rollback + re-apply on copy", rb.status === 0 && re.status === 0 ? "ok" : "FAILED");
     note(`${TARGET} COMPATIBILITY`, gate.compat ? "PASS" : "FAIL");
+    if (args["chain-to"]) {
+      const chainLib = require("./lib/goldia-chain");
+      const checksLib = require("./lib/goldia-release-checks");
+      const TO = String(args["chain-to"]).padStart(3, "0");
+      log(`[8c/9] Chain ${TARGET} -> ${TO} on the restored LOCAL copy with the production chain SQL, emergency rollback to ${PREVIOUS}, re-apply (production untouched)`);
+      const SIG = fs.readFileSync(path.join(REPO, "supabase/release/staging-073/signature.sql"), "utf8").replace(/^\s*--.*$/gm, "").trim().replace(/;\s*$/, "");
+      const KEPT_BY_ROLLBACK_077 = ["C financial_transactions.reclassified_at timestamp with time zone", "C financial_transactions.reclassified_from_amount numeric(18,2)",
+        "C financial_transactions.reclassified_from_currency text", "C financial_transactions.reclassified_from_till text"];
+      const q = (sql) => String(psql(localEnv, sql).stdout || "").trim();
+      const fpNow = () => q(chainLib.fingerprintSql());
+      const fpSame = (ref, now) => { const m = new Map(now.split("\n").map((l) => [l.split("|")[0], l])); return ref.split("\n").every((l) => m.get(l.split("|")[0]) === l); };
+      const latestV = () => q("select max(version) from supabase_migrations.schema_migrations");
+      let ok = m.status === 0 && Number(TO) > Number(TARGET);
+      // step 8 left TARGET applied without its history row: back to an exact PREVIOUS copy first
+      if (ok) ok = psql(localEnv, FILES.rollback065, { file: true, tuples: false, singleTx: true }).status === 0;
+      const sigPrev = ok ? q(SIG) : ""; const fpPrev = ok ? fpNow() : "";
+      note(`chain-to: copy back at ${PREVIOUS} before the chain`, ok && latestV() === chainLib.V(PREVIOUS) ? "yes" : "NO");
+      ok = ok && latestV() === chainLib.V(PREVIOUS);
+      let built = null;
+      if (ok) { built = chainLib.buildChainSql(PREVIOUS, TO, { label: "restored-copy" }); fs.writeFileSync(path.join(outDir, `chain-${TARGET}-${TO}.sql`), built.sql); }
+      const runChain = (tag) => {
+        const r = psql(localEnv, path.join(outDir, `chain-${TARGET}-${TO}.sql`), { file: true, tuples: false, singleTx: true, timeoutMs: 30 * MIN });
+        fs.writeFileSync(path.join(outDir, `local-chain-${tag}.log`), String(r.stdout || "") + String(r.stderr || ""));
+        return r.status === 0;
+      };
+      if (ok) { ok = runChain("apply"); note(`chain-to: ${TARGET}..${TO} in ONE transaction (per-migration postflight + business fingerprint gates)`, ok ? "applied" : `FAILED (local-chain-apply.log)`); }
+      if (ok) {
+        const vs = []; for (let n = 73; n <= Number(TO); n++) vs.push(String(n).padStart(3, "0"));
+        const bad = vs.filter((v) => q(checksLib.allColumnsTrue(path.join(REPO, `supabase/release/${v}_postflight_readonly.sql`))) !== "t");
+        note(`chain-to: postflights 073..${TO} on the copy`, bad.length ? `FAIL ${bad.join(",")}` : "all true");
+        const expTo = path.join(REPO, `supabase/release/staging-073/expected-${TO}-signature.txt`);
+        const sNow = q(SIG);
+        const missing = fs.existsSync(expTo) ? fs.readFileSync(expTo, "utf8").trim().split("\n").filter((l) => !sNow.includes(l)) : ["no expected signature file"];
+        const bodyOnly = missing.filter((l) => l.startsWith("H "));
+        note(`chain-to: schema objects of repository ${TO} missing on the copy`, `${missing.length - bodyOnly.length} (function bodies differing: ${bodyOnly.length}${bodyOnly.length ? " - CRLF / drift, review" : ""})`);
+        note(`chain-to: business fingerprint unchanged by ${TARGET}..${TO}`, fpSame(fpPrev, fpNow()) ? "yes" : "NO");
+        ok = !bad.length && missing.length - bodyOnly.length === 0 && fpSame(fpPrev, fpNow()) && latestV() === chainLib.V(TO);
+      }
+      for (let n = Number(TO); ok && n >= Number(TARGET); n--) {
+        const v = String(n).padStart(3, "0");
+        const rb2 = psql(localEnv, path.join(REPO, `docs/releases/production-075/emergency/rollback_${v}_with_history.sql`), { file: true, tuples: false, singleTx: true });
+        ok = rb2.status === 0;
+        note(`chain-to: emergency rollback ${v} on the copy`, ok ? "ok" : "FAILED");
+      }
+      if (ok) {
+        const sBack = q(SIG); const prevLines = new Set(sigPrev.split("\n")); const backLines = new Set(sBack.split("\n"));
+        const lost = [...prevLines].filter((l) => !backLines.has(l)); const extra = [...backLines].filter((l) => !prevLines.has(l) && !KEPT_BY_ROLLBACK_077.includes(l));
+        const same = latestV() === chainLib.V(PREVIOUS) && !lost.length && !extra.length && fpSame(fpPrev, fpNow());
+        note(`chain-to: after the emergency rollbacks the copy is ${PREVIOUS} again (schema + business fingerprint; 077 keeps 4 reclassification-history columns on purpose)`, same ? "yes" : `NO lost=${lost.length} extra=${extra.length}`);
+        ok = same;
+      }
+      if (ok) { ok = runChain("reapply") && latestV() === chainLib.V(TO) && fpSame(fpPrev, fpNow()); note(`chain-to: chain re-applied after the rollback`, ok ? "yes" : "NO (local-chain-reapply.log)"); }
+      gate.chainTo = !!ok;
+      note(`CHAIN ${TARGET}->${TO} + EMERGENCY ROLLBACK TO ${PREVIOUS} + RE-APPLY`, gate.chainTo ? "PASS" : "FAIL");
+    }
     if (args.chain) {
       log("[8b/9] Chain 073 -> 074 -> 075 on the restored LOCAL copy, then emergency rollback to 072 (production untouched)");
       const checks = require("./lib/goldia-release-checks");
@@ -706,17 +767,17 @@ async function main() {
 
   // 9. Decision
   log("[9/9] Decision");
-  const ready = gate.backup && gate.preflight && gate.compat && gate.accounting && gate.baseline && gate.recovery && (!args.chain || gate.chain);
+  const ready = gate.backup && gate.preflight && gate.compat && gate.accounting && gate.baseline && gate.recovery && (!args.chain || gate.chain) && (!args["chain-to"] || gate.chainTo);
   const verdict = ready
     ? "ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval"
     : "NO-GO — see failed gates above";
-  note("GATES", `backup=${!!gate.backup} preflight=${!!gate.preflight} migration${PREVIOUS}=${!!gate.migration064} compat${TARGET}=${!!gate.compat} accounting=${!!gate.accounting} baseline=${!!gate.baseline} recovery=${!!gate.recovery}${args.chain ? ` chain=${!!gate.chain}` : ""}`);
+  note("GATES", `backup=${!!gate.backup} preflight=${!!gate.preflight} migration${PREVIOUS}=${!!gate.migration064} compat${TARGET}=${!!gate.compat} accounting=${!!gate.accounting} baseline=${!!gate.baseline} recovery=${!!gate.recovery}${args.chain ? ` chain=${!!gate.chain}` : ""}${args["chain-to"] ? ` chainTo=${!!gate.chainTo}` : ""}`);
   writeSummary(verdict);
   log(`\nRESULT: ${verdict}`);
   log(`Send this file back for review: ${path.join(outDir, "SUMMARY.txt")}`);
   log("Keep the backup folder private (it contains customer data and login records). Do not commit it.");
   // Machine-readable outcome for scripts/goldia-prod-release.js
-  fs.writeFileSync(path.join(outDir, "GATES.json"), JSON.stringify({ ...gate, ready: !!ready, target: TARGET, backupDir: outDir }, null, 2));
+  fs.writeFileSync(path.join(outDir, "GATES.json"), JSON.stringify({ ...gate, ready: !!ready, target: TARGET, chainToTarget: args["chain-to"] ? String(args["chain-to"]).padStart(3, "0") : null, chainToPass: args["chain-to"] ? !!gate.chainTo : null, backupDir: outDir }, null, 2));
   if (!ready) process.exitCode = 2;
 }
 

@@ -1,0 +1,11 @@
+PRE|archived_customers_now|INFO|archived=0 orgs=0
+PRE|archived_customers_with_open_debt|INFO|archived with 585 debt>0: 0 total_g=0.0000; with advance>0: 0 (kept and collectible after 078 / 079)
+PRE|archived_customers_with_recent_sales|OK|archived customers with a sale in the last 30 days=0 (after 079 they can no longer buy until restored; payments keep working)
+PRE|currency_tables|INFO|absent (077 creates them)
+PRE|customers_archive_column|OK|customers.is_archived present (051)
+PRE|customers_assigned_to_non_seller_or_other_org|OK|customers whose seller is missing / inactive / in another organization=0
+PRE|history_latest|OK|latest=20260101000076 (expected 076 before the chain; 077 / 078 only if a chain step already ran)
+PRE|objects_078_079_absent_or_consistent|OK|reopen_rpc=false sale_guard=false (an object without its history row = drift -> STOP)
+PRE|report_periods_table|INFO|absent (077 creates it)
+PRE|unassigned_customers|INFO|customers without seller=3 (after 079 only director / manager assign them; sellers can still sell to them)
+RESULT|prelaunch_078_079|OK
