@@ -30,9 +30,13 @@ Evidence: `evidence/staging-080/`.
   `gen-function-parity-full.py`) classifies ALL 168 public functions CR-tolerantly: on the CRLF copy `identical=114
   crlf_only=54 different=0`; with one real code change it reports `DIFFERENT _goldia_customer_open_balances(uuid)` —
   so a logical difference cannot hide as formatting.
-* **Owner, read only (staging):**
-  `powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target staging -ExtraCheckFile supabase\release\function_body_parity_080_full_readonly.sql`
-  Expected: `RESULT|function_parity_080|OK|... crlf_only=59 different=0 missing=0 extra=0` (file `extra_check.txt`).
+* **Owner, read only (staging):** the first command given (`-Target staging -ExtraCheckFile ...`) is refused by design
+  (`-ExtraCheckFile` is a test-only switch). Use the dedicated read-only target added for this
+  (`run-readonly-checks.ps1 -Target staging-function-parity-080 -PoolerHost <staging session pooler host>`): same explicit
+  `BEGIN TRANSACTION READ ONLY` wrapper + guard, identity probe, staging ref / host checks, history must be exactly 080;
+  FAIL on any DIFFERENT, MISSING or EXTRA or a count other than 168. Expected:
+  `function_body_parity_080_full: PASS - identical=109 crlf_only=59 different=0 missing=0 extra=0 (repository functions 168/168)`.
+  Behaviour tests: `evidence/staging-080/function-parity-target-tests.txt`.
   Production is at 076 with `function_body_parity_076: identical=156`; a production chain run from Windows will show the
   same `crlf_only` effect for the 077..080 functions — harmless; the chain gates compare data, not body bytes.
 

@@ -1,0 +1,20 @@
+run-readonly-checks.ps1 -Target staging-function-parity-080: behaviour tests on a disposable LOCAL PostgreSQL 17 (-LocalRehearsal), pwsh 7;
+Windows PowerShell 5.1 parse check (file read as Windows-1252, as 5.1 reads a .ps1 without BOM): parse_errors_as_PS51=0; file is pure ASCII.
+T1 LF reference copy (expect PASS, identical=168):
+  exit=0 |   function_body_parity_080_full: PASS - identical=168 crlf_only=0 different=0 missing=0 extra=0 (repository functions 168/168) | RESULT: PASS - all read-only checks passed; files in <out>
+T2 functions of 078 + 079 re-created from CRLF files (expect PASS with crlf_only>0, different=0):
+  exit=0 |   function_body_parity_080_full: PASS - identical=162 crlf_only=6 different=0 missing=0 extra=0 (repository functions 168/168) | RESULT: PASS - all read-only checks passed; files in <out>
+T3 + one real code change (expect FAIL, DETAIL DIFFERENT):
+  exit=1 |   function_body_parity_080_full: FAIL - identical=162 crlf_only=5 different=1 missing=0 extra=0 (repository functions 168/168) | RESULT: FAIL - function_body_parity_080_full: identical=162 crlf_only=5 different=1 missing=0 extra=0 (repository functions 168/168) (remaining checks
+    DETAIL DIFFERENT _goldia_customer_open_balances(uuid)|9
+T4 + one function the repository does not have (expect FAIL, DETAIL EXTRA):
+  exit=1 |   function_body_parity_080_full: FAIL - identical=162 crlf_only=5 different=1 missing=0 extra=1 (repository functions 168/168) | RESULT: FAIL - function_body_parity_080_full: identical=162 crlf_only=5 different=1 missing=0 extra=1 (repository functions 168/168) (remaining checks
+    DETAIL EXTRA zz_goldia_extra_probe()|0
+T5 history at 079 (expect FAIL before any check):
+  exit=1 |  | RESULT: FAIL - staging-function-parity-080 expects migration history at 20260101000080, found 20260101000079
+T6 restored LF copy (expect PASS):
+  exit=0 |   function_body_parity_080_full: PASS - identical=168 crlf_only=0 different=0 missing=0 extra=0 (repository functions 168/168) | RESULT: PASS - all read-only checks passed; files in <out>
+T7 -ExtraCheckFile without -LocalRehearsal stays blocked:
+RESULT: FAIL - test-only switches require -LocalRehearsal
+T8 a production host for the staging parity target is refused before connecting:
+RESULT: FAIL - host contains another project's ref (vrozlllcaxinavzxueif)
