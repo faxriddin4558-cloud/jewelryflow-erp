@@ -1,5 +1,7 @@
 # Goldia Sales — production release 076 → 077 → 078 → 079 (prepared, NOT executed)
 
+> Superseded for the chain end: the release now goes to **080** (`--chain-to 080`, period report fix) - see `PRELAUNCH-076-080.md`.
+
 Branch `claude/goldia-sales-077-parity-period-currency`. Production today: DB **076**, frontend **e717ffc** — untouched
 (no read, no write, no deploy in this preparation). JFS demo and ERP untouched.
 

@@ -140,9 +140,13 @@ const s585 = (w, p) => r4(w * (p / 585));
   const liveUsd = r2((await L.sel(`client_currency_accounts?organization_id=eq.${L.ORG}&currency=eq.USD&select=debt_amount,advance_amount`)).reduce((a, x) => a + N(x.debt_amount) - N(x.advance_amount), 0));
   const liveUzs = r2((await L.sel(`client_currency_accounts?organization_id=eq.${L.ORG}&currency=eq.UZS&select=debt_amount,advance_amount`)).reduce((a, x) => a + N(x.debt_amount) - N(x.advance_amount), 0));
   T('CS-REP-02', 'report closing currency debts = live organization balances', N(rep.data.closing.customer_debt_net_usd) === liveUsd && N(rep.data.closing.customer_debt_net_uzs) === liveUzs, { usd: liveUsd, uzs: liveUzs }, rep.data.closing);
-  const sumF = (fld) => r2(Object.values(f).reduce((a, x) => a + N(x[fld] || 0), 0));
+  // exact sums: grams carry 4 decimals, money 2 - rounding each side to 2 decimals made a gram sum that lands on a .xx5
+  // boundary in floating point fail by 0.01 (staging 079 audit, harness precision, not a report defect)
+  const sumF = (fld) => Object.values(f).reduce((a, x) => a + N(x[fld] || 0), 0);
   const ident = [['customer_debt_net_usd', 'customer_usd_change'], ['customer_debt_net_uzs', 'customer_uzs_change'], ['seller_stock_physical_g', 'seller_stock_change_g'], ['manager_cash_uzs', 'manager_uzs_change'], ['customer_debt_net_g585', 'customer_g585_change']];
-  const idBad = ident.filter(([b, fl]) => Math.abs(r2(N(rep.data.opening[b]) + sumF(fl)) - r2(N(rep.data.closing[b]))) > 0.005);
+  const tol = (b) => (/_g$|_g585$/.test(b) ? 0.00005 : 0.005);
+  const idBad = ident.filter(([b, fl]) => Math.abs(N(rep.data.opening[b]) + sumF(fl) - N(rep.data.closing[b])) > tol(b))
+    .map(([b, fl]) => [b, fl, (N(rep.data.opening[b]) + sumF(fl) - N(rep.data.closing[b])).toFixed(6)]);
   T('CS-REP-03', 'identity: opening + sum of period flows = closing (currency, grams, stock, manager cash)', idBad.length === 0, 0, idBad);
   const und = Object.entries(rep.data.undocumented_opening).filter(([k, v]) => k !== 'first_document_date' && Math.abs(N(v)) > 0.005);
   T('CS-REP-04', 'INFO: balances not explained by documents in this organization (0 for a fully documented ledger)', true, 'info', und);

@@ -1,0 +1,191 @@
+{
+  "target": "staging",
+  "version": {
+    "status": "ok",
+    "commit": "0d3cb62",
+    "full_commit": "0d3cb625e1577320b4c89e2716554ea90e656fcb",
+    "env": "staging",
+    "staging_mode": true,
+    "supabase_ref": "vouehtlmsunebracahon",
+    "sha_source": "build",
+    "vercel_git_commit": null,
+    "timestamp": "2026-11-06T07:16:36.201Z"
+  },
+  "run": "mw4n2rpz",
+  "results": [
+    {
+      "id": "UI-01",
+      "title": "seller legacy dialog: advance option replaced by \"menejer orqali\" note, direct addition preselected",
+      "ok": true,
+      "expected": {
+        "note": true,
+        "advanceButton": 0
+      },
+      "actual": {
+        "note": true,
+        "advanceButton": 0
+      }
+    },
+    {
+      "id": "UI-02",
+      "title": "seller saves 206.83 g legacy debt in the UI (075: permission denied) - success message, no error",
+      "ok": true,
+      "expected": "success",
+      "actual": "Eski qarz/avans muvaffaqiyatli saqlandi! (UI76 Aziza mw4n2rpz): Tuzatish: +206"
+    },
+    {
+      "id": "UI-03",
+      "title": "double click on submit -> exactly one legacy row, customer debt 206.83 g",
+      "ok": true,
+      "expected": {
+        "rows": 1,
+        "debt": 206.83
+      },
+      "actual": {
+        "rows": 1,
+        "debt": 206.83
+      }
+    },
+    {
+      "id": "UI-04",
+      "title": "seller obligation +206.83 g, physical stock unchanged",
+      "ok": true,
+      "expected": {
+        "l": 206.83,
+        "stock": "same"
+      },
+      "actual": {
+        "l": 206.83,
+        "stock0": 1719.004,
+        "stock1": 1719.004
+      }
+    },
+    {
+      "id": "UI-05",
+      "title": "seller sees his legacy history but no reverse button",
+      "ok": true,
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "id": "UI-06",
+      "title": "seller reconciling DOWN (206.83 -> 150) is refused with a clear message, nothing saved",
+      "ok": true,
+      "expected": "refused",
+      "actual": "Sotuvchi faqat qarz qo'sha oladi"
+    },
+    {
+      "id": "UI-07",
+      "title": "weight sale: piece choice shown as OPTIONAL (\"Avtomatik\"), not required",
+      "ok": true,
+      "expected": {
+        "visible": true,
+        "required": false
+      },
+      "actual": {
+        "visible": true,
+        "required": false,
+        "first": "Avtomatik — eng eski donalardan ayriladi"
+      }
+    },
+    {
+      "id": "UI-08",
+      "title": "seller records a 30 g credit sale without a product (075: ERR_PIECE_REQUIRED) -> 33.6 g debt",
+      "ok": true,
+      "expected": 33.6,
+      "actual": {
+        "msg": "Vazn bo'yicha savdo muvaffaqiyatli rasmiylashtirildi! (UI76 Bobur mw4n2rpz): 30",
+        "debt": 33.6
+      }
+    },
+    {
+      "id": "UI-09",
+      "title": "seller stock -30 g and held pieces == gram stock",
+      "ok": true,
+      "expected": {
+        "dec": 30
+      },
+      "actual": {
+        "dec": 30,
+        "held": 1689.004,
+        "stock": 1689.004
+      }
+    },
+    {
+      "id": "UI-10",
+      "title": "no 4xx/5xx from the API during the seller session (except expected)",
+      "ok": true,
+      "expected": [],
+      "actual": []
+    },
+    {
+      "id": "UI-11",
+      "title": "seller on a 390 px phone saves 12.5 g legacy debt; no horizontal overflow",
+      "ok": true,
+      "expected": {
+        "debt": 12.5,
+        "overflow": 0
+      },
+      "actual": {
+        "debt": 12.5,
+        "overflow": 0
+      }
+    },
+    {
+      "id": "UI-12",
+      "title": "manager reverses the seller's 206.83 g entry in the UI (075: permission denied)",
+      "ok": true,
+      "expected": {
+        "status": "reversed",
+        "debt": 0
+      },
+      "actual": {
+        "button": 1,
+        "status": "reversed",
+        "debt": 0,
+        "msg": "muvaffaqiyatli bekor qilindi"
+      }
+    },
+    {
+      "id": "UI-13",
+      "title": "seller obligation recalculated after the reversal (-206.83 g)",
+      "ok": true,
+      "expected": 206.83,
+      "actual": 206.83
+    },
+    {
+      "id": "UI-14",
+      "title": "manager: no markup preset add buttons, no accounting baseline actions (server allows only the director)",
+      "ok": false,
+      "expected": {
+        "presets": 0,
+        "accounting": 0
+      },
+      "actual": {
+        "presets": 2,
+        "accounting": 1
+      }
+    },
+    {
+      "id": "UI-15",
+      "title": "no 4xx/5xx from the API during the manager session",
+      "ok": true,
+      "expected": [],
+      "actual": []
+    },
+    {
+      "id": "UI-16",
+      "title": "director still has the markup preset buttons",
+      "ok": true,
+      "expected": 2,
+      "actual": 2
+    },
+    {
+      "id": "UI-17",
+      "title": "manager reverses a cash operation with the UI call {p_transaction_id, p_reason} (075: HTTP 300 PGRST203)",
+      "ok": true,
+      "expected": "ok",
+      "actual": "ok"
+    }
+  ]
+}

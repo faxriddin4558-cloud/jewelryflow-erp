@@ -1,0 +1,420 @@
+{
+ "target": "staging",
+ "run": "mw4mbafr",
+ "ids": {
+  "A": "a16bc0cc-2361-4217-9cea-aaa3f5e56aee",
+  "F": "d543d68c-0066-4fe2-a1f4-0936815200f3",
+  "F2": "7d52c459-e4d8-4e90-8745-0dd390c820a2"
+ },
+ "results": [
+  {
+   "id": "DA1-01",
+   "title": "archived customer: gram, UZS, USD, barcode-piece sale (seller) and manager / director sales refused with ERR_CUSTOMER_ARCHIVED",
+   "ok": true,
+   "expected": "all refused",
+   "actual": {
+    "gram": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan",
+    "uzs": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan",
+    "usd": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan",
+    "barcode": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan",
+    "manager": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan",
+    "director": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan"
+   },
+   "at": "2026-11-06T06:53:16.742Z"
+  },
+  {
+   "id": "DA1-02",
+   "title": "nothing moved: seller stock, 585 debt, USD debt, number of sales",
+   "ok": true,
+   "expected": {
+    "s0": 1312.268,
+    "g0": 5.5,
+    "u0": 500,
+    "c0": 2
+   },
+   "actual": {
+    "s": 1312.268,
+    "g": 5.5,
+    "u": 500,
+    "c": 2
+   },
+   "at": "2026-11-06T06:53:18.611Z"
+  },
+  {
+   "id": "DA1-07",
+   "title": "other sale paths (consignment client sale, legacy create-sale) create no sale for the archived customer",
+   "ok": true,
+   "expected": "refused, no sale",
+   "actual": {
+    "client_jewelry": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi sa",
+    "create_sale": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi sa"
+   },
+   "at": "2026-11-06T06:53:19.890Z"
+  },
+  {
+   "id": "DA1-08",
+   "title": "8 parallel sales (same key) + retry to the archived customer: all 9 refused (ERR_CUSTOMER_ARCHIVED), nothing created, stock unchanged",
+   "ok": true,
+   "expected": {
+    "refused": 9
+   },
+   "actual": {
+    "refused": 9,
+    "sales": 2
+   },
+   "at": "2026-11-06T06:53:21.802Z"
+  },
+  {
+   "id": "DA1-09",
+   "title": "other organization: sale, payment and restore of the archived customer all refused; customer still archived, debts unchanged",
+   "ok": true,
+   "expected": "refused",
+   "actual": {
+    "sale": "Mijoz (a16bc0cc-2361-4217-9cea-aaa3f5e56aee) topil",
+    "pay": "Mijoz (a16bc0cc-2361-4217-9cea-aaa3f5e56aee) topil",
+    "restore": "Mijoz topilmadi: a16bc0cc-2361-4217-9cea-aaa3f5e56"
+   },
+   "at": "2026-11-06T06:53:23.371Z"
+  },
+  {
+   "id": "DA1-03",
+   "title": "old debt still collectible while archived: 900 000 so'm -> -1 g; $200 -> USD debt 300",
+   "ok": true,
+   "expected": {
+    "g": 4.5,
+    "usd": 300
+   },
+   "actual": {
+    "g": 4.5,
+    "usd": 300,
+    "e": [
+     null,
+     null
+    ]
+   },
+   "at": "2026-11-06T06:53:24.874Z"
+  },
+  {
+   "id": "DA1-04",
+   "title": "manager reverses that payment of the archived customer -> USD debt 500",
+   "ok": true,
+   "expected": 500,
+   "actual": {
+    "ok": true,
+    "usd": 500
+   },
+   "at": "2026-11-06T06:53:25.831Z"
+  },
+  {
+   "id": "DA1-05",
+   "title": "UI: in \"Arxivlangan mijozlar\" the sale button is disabled, the payment button stays enabled; no API errors",
+   "ok": true,
+   "expected": {
+    "saleDisabled": true,
+    "payEnabled": true
+   },
+   "actual": {
+    "disabled": true,
+    "payEnabled": true,
+    "bad": []
+   },
+   "at": "2026-11-06T06:53:42.676Z"
+  },
+  {
+   "id": "DA1-06",
+   "title": "after restore the seller can sell again (1 g gram sale)",
+   "ok": true,
+   "expected": 3,
+   "actual": {
+    "ok": true,
+    "n": 3
+   },
+   "at": "2026-11-06T06:53:43.944Z"
+  },
+  {
+   "id": "DA2-01",
+   "title": "seller cannot claim an unassigned customer, move or unassign his own (direct PATCH refused); owners unchanged",
+   "ok": true,
+   "expected": "refused",
+   "actual": {
+    "claim": "Ruxsat etilmadi: mijozni sotuvchiga faqat direktor yoki menejer birikt",
+    "move": "Ruxsat etilmadi: mijozni sotuvchiga faqat direktor",
+    "unassign": "Ruxsat etilmadi: mijozni sotuvchiga faqat direktor"
+   },
+   "at": "2026-11-06T06:53:45.272Z"
+  },
+  {
+   "id": "DA2-02",
+   "title": "seller can still edit other fields of his own customer (name)",
+   "ok": true,
+   "expected": 1,
+   "actual": 1,
+   "at": "2026-11-06T06:53:45.555Z"
+  },
+  {
+   "id": "DA2-03",
+   "title": "selling to an unassigned customer still works (076 rule) and does not assign it",
+   "ok": true,
+   "expected": {
+    "ok": true,
+    "owner": null
+   },
+   "actual": {
+    "ok": true,
+    "owner": null
+   },
+   "at": "2026-11-06T06:53:46.323Z"
+  },
+  {
+   "id": "DA2-04",
+   "title": "manager and director (equal rights) assign / move a customer",
+   "ok": true,
+   "expected": {
+    "manager": "sellerb",
+    "director": "sellera"
+   },
+   "actual": {
+    "m": true,
+    "d": true,
+    "o1": true,
+    "o2": true
+   },
+   "at": "2026-11-06T06:53:47.297Z"
+  },
+  {
+   "id": "DA2-05",
+   "title": "seller A cannot take seller B's customer (PATCH 0 rows / refused), nor archive it; another organization's seller cannot claim an unassigned customer",
+   "ok": true,
+   "expected": "refused",
+   "actual": {
+    "take": 0,
+    "takeX": 0,
+    "owners": [
+     true,
+     true
+    ]
+   },
+   "at": "2026-11-06T06:53:50.014Z"
+  }
+ ],
+ "ops": [
+  {
+   "at": "2026-11-06T06:53:13.433Z",
+   "kind": "gram sale 5 g",
+   "ok": true,
+   "data": {
+    "status": "ok",
+    "sale_id": "7c0b92a8-7d72-4064-8e6b-c080615d339f",
+    "sale_no": "SALE-W-20261106-790F9E",
+    "seller_id": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+    "customer_id": "a16bc0cc-2361-4217-9cea-aaa3f5e56aee",
+    "weight_grams": 5,
+    "base_weight_grams": 5,
+    "client_markup_pct": 10,
+    "remaining_debt_grams": 5.5,
+    "advance_applied_grams": 0,
+    "client_gold_due_grams": 5.5,
+    "remaining_physical_stock_g": 1314.268
+   }
+  },
+  {
+   "at": "2026-11-06T06:53:13.729Z",
+   "kind": "USD sale $500",
+   "ok": true,
+   "data": {
+    "status": "ok",
+    "sale_id": "e4fe4c57-0a91-4aad-bb87-00d72477a5b1",
+    "sale_no": "SALE-USD-20261106-2C754F",
+    "currency": "USD",
+    "seller_id": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+    "customer_id": "a16bc0cc-2361-4217-9cea-aaa3f5e56aee",
+    "sale_amount": 500,
+    "weight_grams": 2,
+    "remaining_debt": 500,
+    "advance_applied": 0,
+    "remaining_physical_stock_g": 1312.268
+   }
+  },
+  {
+   "at": "2026-11-06T06:53:13.984Z",
+   "kind": "archive",
+   "ok": true,
+   "data": {
+    "status": "ok",
+    "changed": true,
+    "customer_id": "a16bc0cc-2361-4217-9cea-aaa3f5e56aee",
+    "is_archived": true,
+    "open_balances": {
+     "debt_usd": 500,
+     "debt_uzs": 0,
+     "debt_g585": 5.5,
+     "advance_usd": 0,
+     "advance_uzs": 0,
+     "advance_g585": 0
+    }
+   }
+  },
+  {
+   "kind": "sales to archived customer",
+   "results": {
+    "gram": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi savdo qilib bo'lmaydi.",
+    "uzs": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi savdo qilib bo'lmaydi.",
+    "usd": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi savdo qilib bo'lmaydi.",
+    "barcode": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi savdo qilib bo'lmaydi.",
+    "manager": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi savdo qilib bo'lmaydi.",
+    "director": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi savdo qilib bo'lmaydi."
+   }
+  },
+  {
+   "kind": "other sale paths",
+   "results": {
+    "client_jewelry": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi savdo qilib bo'lmaydi. Eski qarz to'lovini qabul qil",
+    "create_sale": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi savdo qilib bo'lmaydi. Eski qarz to'lovini qabul qil"
+   }
+  },
+  {
+   "kind": "cross-tenant",
+   "results": {
+    "sale": "Mijoz (a16bc0cc-2361-4217-9cea-aaa3f5e56aee) topilmadi",
+    "pay": "Mijoz (a16bc0cc-2361-4217-9cea-aaa3f5e56aee) topilmadi",
+    "restore": "Mijoz topilmadi: a16bc0cc-2361-4217-9cea-aaa3f5e56aee"
+   }
+  },
+  {
+   "at": "2026-11-06T06:53:23.648Z",
+   "kind": "gram payment",
+   "ok": true,
+   "data": {
+    "status": "ok",
+    "seller_id": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+    "customer_id": "a16bc0cc-2361-4217-9cea-aaa3f5e56aee",
+    "scrap_proba": 585,
+    "rate_applied": 900000,
+    "settlement_id": "4944f06e-a8ef-4523-b38f-f500fdc8c243",
+    "settlement_no": "SETTL-9579A0BE",
+    "fine_gold_grams": 0,
+    "usd_paid_amount": 0,
+    "cash_paid_amount": 900000,
+    "usd_rate_applied": null,
+    "excess_gold_grams": 0,
+    "scrap_weight_grams": 0,
+    "previous_debt_grams": 5.5,
+    "total_settled_grams": 1,
+    "physical_scrap_grams": 0,
+    "remaining_debt_grams": 4.5,
+    "usd_equivalent_grams": 0,
+    "advance_balance_grams": 0,
+    "applied_to_debt_grams": 1,
+    "cash_equivalent_grams": 1,
+    "scrap_585_equiv_grams": 0,
+    "total_settled_585_grams": 1,
+    "excess_gold_advance_grams": 0
+   }
+  },
+  {
+   "at": "2026-11-06T06:53:23.911Z",
+   "kind": "USD payment",
+   "ok": true,
+   "data": {
+    "status": "ok",
+    "currency": "USD",
+    "new_debt": 300,
+    "to_advance": 0,
+    "new_advance": 0,
+    "scrap_585_g": 0,
+    "rate_lom_uzs": null,
+    "rate_usd_uzs": null,
+    "settlement_id": "a3f7f0ba-0201-4669-b7c1-9df565f41b0a",
+    "settlement_no": "CPAY-USD-20261106-3389A2",
+    "applied_to_debt": 200,
+    "credited_amount": 200
+   }
+  },
+  {
+   "at": "2026-11-06T06:53:25.372Z",
+   "kind": "reverse USD payment",
+   "ok": true,
+   "data": {
+    "status": "ok",
+    "currency": "USD",
+    "new_debt": 500,
+    "new_advance": 0,
+    "settlement_id": "a3f7f0ba-0201-4669-b7c1-9df565f41b0a",
+    "reversed_amount": 200
+   }
+  },
+  {
+   "at": "2026-11-06T06:53:43.168Z",
+   "kind": "restore",
+   "ok": true,
+   "data": {
+    "status": "ok",
+    "changed": true,
+    "customer_id": "a16bc0cc-2361-4217-9cea-aaa3f5e56aee",
+    "is_archived": false,
+    "open_balances": {
+     "debt_usd": 500,
+     "debt_uzs": 0,
+     "debt_g585": 4.5,
+     "advance_usd": 0,
+     "advance_uzs": 0,
+     "advance_g585": 0
+    }
+   }
+  },
+  {
+   "at": "2026-11-06T06:53:43.478Z",
+   "kind": "sale after restore",
+   "ok": true,
+   "data": {
+    "status": "ok",
+    "sale_id": "30ad6236-1e5f-4979-bcdf-f02558aa9557",
+    "sale_no": "SALE-W-20261106-A4241D",
+    "seller_id": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+    "customer_id": "a16bc0cc-2361-4217-9cea-aaa3f5e56aee",
+    "weight_grams": 1,
+    "base_weight_grams": 1,
+    "client_markup_pct": 10,
+    "remaining_debt_grams": 1.1,
+    "advance_applied_grams": 0,
+    "client_gold_due_grams": 1.1,
+    "remaining_physical_stock_g": 1311.268
+   }
+  },
+  {
+   "kind": "assignment attempts",
+   "results": {
+    "claimFree": "Ruxsat etilmadi: mijozni sotuvchiga faqat direktor yoki menejer biriktiradi",
+    "moveOwn": "Ruxsat etilmadi: mijozni sotuvchiga faqat direktor yoki menejer biriktiradi",
+    "unassignOwn": "Ruxsat etilmadi: mijozni sotuvchiga faqat direktor yoki menejer biriktiradi"
+   }
+  },
+  {
+   "at": "2026-11-06T06:53:45.847Z",
+   "kind": "sale to unassigned",
+   "ok": true,
+   "data": {
+    "status": "ok",
+    "sale_id": "dcf8114d-c500-4229-a527-a683f5974492",
+    "sale_no": "SALE-W-20261106-C936FF",
+    "seller_id": "e38a5bc4-15a3-4832-ad6a-fff7aca5e836",
+    "customer_id": "d543d68c-0066-4fe2-a1f4-0936815200f3",
+    "weight_grams": 1,
+    "base_weight_grams": 1,
+    "client_markup_pct": 10,
+    "remaining_debt_grams": 1.1,
+    "advance_applied_grams": 0,
+    "client_gold_due_grams": 1.1,
+    "remaining_physical_stock_g": 1310.268
+   }
+  },
+  {
+   "kind": "takeover attempts",
+   "results": {
+    "sellerA_takes_sellerB": "ok rows=0",
+    "otherOrgSeller_claims_unassigned": "ok rows=0",
+    "sellerA_archives_sellerB": "Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan (faqat o'z mijozingizni o'chira / tiklay olasiz)"
+   }
+  }
+ ]
+}

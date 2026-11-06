@@ -1,0 +1,76 @@
+{
+ "counts": {
+  "sellers": 9,
+  "pieces": 1592,
+  "sales": 1911,
+  "allocations": 2425
+ },
+ "results": [
+  {
+   "id": "INT-01",
+   "t": "every seller of the org (9): consigned - sold never negative",
+   "ok": true,
+   "e": 0,
+   "a": []
+  },
+  {
+   "id": "INT-02",
+   "t": "every seller: held barcode piece grams = gram stock",
+   "ok": true,
+   "e": 0,
+   "a": []
+  },
+  {
+   "id": "INT-03",
+   "t": "every seller: legacy obligation = max(0, active debt deltas)",
+   "ok": true,
+   "e": 0,
+   "a": []
+  },
+  {
+   "id": "INT-04",
+   "t": "no piece is both held and linked to a sale",
+   "ok": true,
+   "e": 0,
+   "a": 0
+  },
+  {
+   "id": "INT-05",
+   "t": "no piece fully consumed by two active sales (no double sale)",
+   "ok": true,
+   "e": 0,
+   "a": 0
+  },
+  {
+   "id": "INT-06",
+   "t": "every active weight sale: allocated piece grams = sold grams",
+   "ok": true,
+   "e": 0,
+   "a": []
+  },
+  {
+   "id": "INT-07",
+   "t": "allocations of normally REVERSED sales are all released (248 allocations)",
+   "ok": true,
+   "e": 0,
+   "a": 0
+  },
+  {
+   "id": "INT-07b",
+   "t": "INFO (LOW finding): allocations left open by the full TEST reset of 2026-11-03 (pieces cancelled, no balance effect)",
+   "ok": true,
+   "e": "info",
+   "a": 100
+  },
+  {
+   "id": "INT-08",
+   "t": "no customer with debt and advance at the same time, none negative",
+   "ok": true,
+   "e": 0,
+   "a": {
+    "both": 0,
+    "neg": 0
+   }
+  }
+ ]
+}

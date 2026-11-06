@@ -146,9 +146,11 @@ const sacc = async (sid) => (await L.sel(`seller_gold_accounts?seller_id=eq.${si
   await s.p.screenshot({ path: path.join(SHOTS, '04-manager-period-report.png'), fullPage: true });
   const api = await L.rpc('manager', 'rpc_get_period_report', { p_from: today, p_to: today });
   const dig = (x) => String(x).replace(/[^0-9]/g, '');
+  // the page shows money with 2 decimals for USD ("$58 012,52") and whole so'm: compare with the exact amount, not a rounded one
+  const amountShown = (text, amount) => { const t = dig(text); return t.includes(dig(N(amount).toFixed(2))) || (Number.isInteger(N(amount)) && t.includes(dig(N(amount)))); };
   const apiUsd = api.ok ? api.data.flows.sale_usd : null; const apiUzs = api.ok ? api.data.flows.sale_uzs : null;
   T('U77-21', 'period report shows UZS and USD sales separately; the page equals the server report (count, amount, physical g)',
-    apiUsd && apiUzs && dig(flowUsd).includes(dig(Math.round(N(apiUsd.amount)))) && dig(flowUzs).includes(dig(Math.round(N(apiUzs.amount))))
+    apiUsd && apiUzs && amountShown(flowUsd, apiUsd.amount) && amountShown(flowUzs, apiUzs.amount)
       && N(apiUsd.amount) >= 2000 && N(apiUzs.amount) >= 3100000 && flowUsd.includes(`\t${apiUsd.count}\t`),
     { usd: apiUsd && apiUsd.amount, uzs: apiUzs && apiUzs.amount }, { flowUsd: flowUsd.slice(0, 90), flowUzs: flowUzs.slice(0, 90) });
   const closeUsd = await s.p.locator('[data-testid="close-customer_debt_net_usd"]').innerText();

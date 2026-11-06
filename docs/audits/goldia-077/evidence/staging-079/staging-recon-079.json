@@ -1,0 +1,76 @@
+{
+ "target": "staging",
+ "at": "2026-11-06T07:44:27.580Z",
+ "results": [
+  {
+   "id": "RC-CUR",
+   "title": "every customer x currency (181): DB net (debt - advance) = active currency sales - applied - advance of active payments",
+   "ok": true,
+   "expected": {
+    "diff": 0,
+    "net_uzs": 1228401894,
+    "net_usd": 86820.88
+   },
+   "actual": {
+    "mismatches": [],
+    "n": 0,
+    "sales": 414,
+    "payments": 538
+   }
+  },
+  {
+   "id": "RC-STK",
+   "title": "every seller (9): physical gram stock = held barcode pieces",
+   "ok": true,
+   "expected": {
+    "diff_g": "0.0000",
+    "total_g": 1958.7208
+   },
+   "actual": {
+    "mismatches": [],
+    "stock_total_g": 1958.7208,
+    "pieces_total_g": 1958.7208
+   }
+  },
+  {
+   "id": "RC-585",
+   "title": "customer 585 net debt = documented history (period report) - BLOCKED: the report timed out (finding F79-1, fixed by 080)",
+   "ok": false,
+   "expected": {
+    "diff_g": "0.0000"
+   },
+   "actual": {
+    "errors": [
+     "500 canceling statement due to statement timeout",
+     "500 canceling statement due to statement timeout",
+     "500 canceling statement due to statement timeout"
+    ]
+   }
+  },
+  {
+   "id": "RC-OBL",
+   "title": "every seller: legacy 585 obligation = max(0, active legacy DEBT deltas; advances are booked on the customer only)",
+   "ok": true,
+   "expected": {
+    "diff_g": "0.0000"
+   },
+   "actual": {
+    "mismatches": [],
+    "rows": 387
+   }
+  },
+  {
+   "id": "RC-NEG",
+   "title": "no negative stock, till, vault, 585 or currency balance; no currency account with debt and advance at once",
+   "ok": true,
+   "expected": "all 0",
+   "actual": {
+    "seller": 0,
+    "customer585": 0,
+    "currency": 0,
+    "vault": 0,
+    "debt_and_advance": 0
+   }
+  }
+ ]
+}

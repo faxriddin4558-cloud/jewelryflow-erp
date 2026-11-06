@@ -50,6 +50,30 @@ const owner = async (c) => (await L.sel(`customers?id=eq.${c}&select=seller_id`)
   const refusedAll = Object.values(attempts).every((r) => !r.ok && /ERR_CUSTOMER_ARCHIVED/.test(r.error || ''));
   T('DA1-01', 'archived customer: gram, UZS, USD, barcode-piece sale (seller) and manager / director sales refused with ERR_CUSTOMER_ARCHIVED', refusedAll, 'all refused', Object.fromEntries(Object.entries(attempts).map(([k, r]) => [k, r.ok ? 'ACCEPTED' : (r.error || '').slice(0, 40)])));
   T('DA1-02', 'nothing moved: seller stock, 585 debt, USD debt, number of sales', (await stock(C.sellera.id)) === s0 && (await gold(A)) === g0 && (await usd(A)) === u0 && (await nSales(A)) === c0, { s0, g0, u0, c0 }, { s: await stock(C.sellera.id), g: await gold(A), u: await usd(A), c: await nSales(A) });
+  // other sale paths: consignment-based client sale and the legacy create-sale RPC (must not create a sale)
+  const cons = (await L.sel(`seller_consignments?seller_id=eq.${C.sellera.id}&status=neq.cancelled&select=id&order=created_at.desc&limit=1`))[0];
+  const other = {
+    client_jewelry: cons ? await L.rpc('sellera', 'rpc_record_client_jewelry_sale', { p_customer_id: A, p_consignment_id: cons.id, p_client_markup_pct: 10, p_idempotency_key: `da79-x7-${run}` }) : { ok: false, error: 'no consignment' },
+    create_sale: await L.rpc('sellera', 'rpc_create_jewelry_sale', { p_customer_id: A, p_weight_grams: 1, p_markup_pct: 10, p_idempotency_key: `da79-x8-${run}` }),
+  };
+  OPS.push({ kind: 'other sale paths', results: Object.fromEntries(Object.entries(other).map(([k, r]) => [k, r.ok ? 'ACCEPTED' : (r.error || '').slice(0, 120)])) });
+  T('DA1-07', 'other sale paths (consignment client sale, legacy create-sale) create no sale for the archived customer', Object.values(other).every((r) => !r.ok) && (await nSales(A)) === c0 && (await stock(C.sellera.id)) === s0,
+    'refused, no sale', Object.fromEntries(Object.entries(other).map(([k, r]) => [k, r.ok ? 'ACCEPTED' : (r.error || '').slice(0, 70)])));
+  // 8 parallel sales with one key + a retry with the same key: all refused, nothing created
+  const par = await Promise.all(Array.from({ length: 8 }, () => L.rpc('sellera', 'rpc_record_weight_sale', { p_customer_id: A, p_weight_grams: 1, p_client_markup_pct: 10, p_idempotency_key: `da79-par-${run}` })));
+  const retry = await L.rpc('sellera', 'rpc_record_weight_sale', { p_customer_id: A, p_weight_grams: 1, p_client_markup_pct: 10, p_idempotency_key: `da79-par-${run}` });
+  T('DA1-08', '8 parallel sales (same key) + retry to the archived customer: all 9 refused (ERR_CUSTOMER_ARCHIVED), nothing created, stock unchanged',
+    [...par, retry].every((r) => !r.ok && /ERR_CUSTOMER_ARCHIVED/.test(r.error || '')) && (await nSales(A)) === c0 && (await stock(C.sellera.id)) === s0, { refused: 9 }, { refused: [...par, retry].filter((r) => !r.ok).length, sales: await nSales(A) });
+  // another organization: cannot sell to / pay for / restore the archived customer of organization A
+  const OB = TARGET === 'staging' ? 'directorB' : 'director56';
+  const xt = {
+    sale: await L.rpc(OB, 'rpc_record_currency_sale', { p_customer_id: A, p_currency: 'USD', p_amount: 10, p_weight_grams: 1, p_idempotency_key: `da79-xt1-${run}` }),
+    pay: await L.rpc(OB, 'rpc_record_client_currency_settlement', { p_customer_id: A, p_currency: 'USD', p_usd_amount: 1, p_usd_rate: 12500, p_idempotency_key: `da79-xt2-${run}` }),
+    restore: await L.rpc(OB, 'rpc_archive_customer', { p_customer_id: A, p_archive: false }),
+  };
+  OPS.push({ kind: 'cross-tenant', results: Object.fromEntries(Object.entries(xt).map(([k, r]) => [k, r.ok ? 'ACCEPTED' : (r.error || '').slice(0, 100)])) });
+  T('DA1-09', 'other organization: sale, payment and restore of the archived customer all refused; customer still archived, debts unchanged',
+    Object.values(xt).every((r) => !r.ok) && (await L.sel(`customers?id=eq.${A}&select=is_archived`))[0].is_archived === true && (await usd(A)) === u0, 'refused', Object.fromEntries(Object.entries(xt).map(([k, r]) => [k, r.ok ? 'ACCEPTED' : (r.error || '').slice(0, 50)])));
   const pg = op('gram payment', await L.rpc('sellera', 'rpc_record_client_settlement', { p_customer_id: A, p_cash_amount: 900000, p_rate_per_gram: 900000 }));
   const pu = op('USD payment', await L.rpc('sellera', 'rpc_record_client_currency_settlement', { p_customer_id: A, p_currency: 'USD', p_usd_amount: 200, p_idempotency_key: `da79-p1-${run}` }));
   T('DA1-03', 'old debt still collectible while archived: 900 000 so\'m -> -1 g; $200 -> USD debt 300', pg.ok && pu.ok && (await gold(A)) === r4(g0 - 1) && (await usd(A)) === 300, { g: r4(g0 - 1), usd: 300 }, { g: await gold(A), usd: await usd(A), e: [pg.error, pu.error] });
@@ -94,6 +118,16 @@ const owner = async (c) => (await L.sel(`customers?id=eq.${c}&select=seller_id`)
   const d1 = await L.uwrite('director', 'PATCH', `customers?id=eq.${F2}`, { seller_id: C.sellera.id }); const o2 = await owner(F2);
   T('DA2-04', 'manager and director (equal rights) assign / move a customer', m1.ok && o1 === C.sellerb.id && d1.ok && o2 === C.sellera.id, { manager: 'sellerb', director: 'sellera' }, { m: m1.ok || m1.error, d: d1.ok || d1.error, o1: o1 === C.sellerb.id, o2: o2 === C.sellera.id });
 
+  // seller A tries to take seller B's customer; a seller of another organization tries to claim an unassigned customer
+  const Bc = (await L.rpc('sellerb', 'rpc_create_customer_with_code', { p_contact_name: `DA79 SellerB ${run}` })).data.customer_id;
+  const SB = TARGET === 'staging' ? 'sellerB1' : 'seller56';
+  const take = await L.uwrite('sellera', 'PATCH', `customers?id=eq.${Bc}`, { seller_id: C.sellera.id });
+  const takeX = await L.uwrite(SB, 'PATCH', `customers?id=eq.${F}`, { seller_id: C[SB].id });
+  const archX = await L.rpc('sellera', 'rpc_archive_customer', { p_customer_id: Bc, p_archive: true });
+  OPS.push({ kind: 'takeover attempts', results: { sellerA_takes_sellerB: take.ok ? `ok rows=${take.data.length}` : take.error, otherOrgSeller_claims_unassigned: takeX.ok ? `ok rows=${takeX.data.length}` : takeX.error, sellerA_archives_sellerB: archX.ok ? 'ACCEPTED' : archX.error } });
+  T('DA2-05', "seller A cannot take seller B's customer (PATCH 0 rows / refused), nor archive it; another organization's seller cannot claim an unassigned customer",
+    (!take.ok || take.data.length === 0) && (!takeX.ok || takeX.data.length === 0) && !archX.ok && (await owner(Bc)) === C.sellerb.id && (await owner(F)) === null, 'refused',
+    { take: take.ok ? take.data.length : (take.error || '').slice(0, 50), takeX: takeX.ok ? takeX.data.length : (takeX.error || '').slice(0, 50), owners: [(await owner(Bc)) === C.sellerb.id, (await owner(F)) === null] });
   fs.writeFileSync(path.join(EV, `${TARGET}-da-079.json`), JSON.stringify({ target: TARGET, run, ids: { A, F, F2 }, results: R, ops: OPS }, null, 1));
   console.log(`TOTAL ${R.filter((x) => x.ok).length}/${R.length}`);
 })().catch((e) => { console.error('FATAL', e); process.exit(1); });
