@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * GOLDIA SALES — gated STAGING release: migration 078 (077 -> 078) in ONE transaction.
- * (2026-11-04: 075 -> 076; 2026-11-05: 076 -> 077, then 077 -> 078. The steps are unchanged; the 073-077 postflights must stay true.)
+ * GOLDIA SALES — gated STAGING release: migration 079 (078 -> 079) in ONE transaction.
+ * (2026-11-04: 075 -> 076; 2026-11-05: 076 -> 077, then 077 -> 078; 2026-11-06: 078 -> 079. The steps are unchanged; the 073-078 postflights must stay true.)
  *
  *   node scripts/goldia-staging-release.js            dry run: backup + restore test + all checks on a LOCAL copy;
  *                                                     staging is only READ
@@ -53,8 +53,8 @@ for (let i = 2; i < process.argv.length; i++) {
 
 const STAGING_REF = "vouehtlmsunebracahon";
 const FORBIDDEN_REFS = { vrozlllcaxinavzxueif: "PRODUCTION", yvvbdoqncubtwlzskgml: "JewelryFlow SaaS demo (jfs-demo)" };
-const FROM = "077";
-const TO = "078";
+const FROM = "078";
+const TO = "079";
 const V = (n) => `20260101000${n}`;
 const MIN = 60 * 1000;
 
@@ -241,6 +241,7 @@ const F = {
   postflight075: path.join(REPO, "supabase/release/075_postflight_readonly.sql"),
   postflight076: path.join(REPO, "supabase/release/076_postflight_readonly.sql"),
   postflight077: path.join(REPO, "supabase/release/077_postflight_readonly.sql"),
+  postflight078: path.join(REPO, "supabase/release/078_postflight_readonly.sql"),
 };
 const migDir = path.join(REPO, "supabase/migrations");
 const CHAIN = [];
@@ -547,10 +548,12 @@ async function main() {
   if (pf076Local.status !== 0 || pf076Local.stdout.trim() !== "t") stop("076 postflight failed on the local copy");
   const pf077Local = psql(localEnv, checks.allColumnsTrue(F.postflight077));
   if (pf077Local.status !== 0 || pf077Local.stdout.trim() !== "t") stop("077 postflight failed on the local copy");
+  const pf078Local = psql(localEnv, checks.allColumnsTrue(F.postflight078));
+  if (pf078Local.status !== 0 || pf078Local.stdout.trim() !== "t") stop("078 postflight failed on the local copy");
   if (pfLocal.status !== 0 || pfLocal.stdout.trim() !== "t") stop(`${TO} postflight failed on the local copy`);
   if (pf073Local.status !== 0 || pf073Local.stdout.trim() !== "t") stop("073 postflight failed on the local copy");
   if (pf074Local.status !== 0 || pf074Local.stdout.trim() !== "t") stop("074 postflight failed on the local copy");
-  out(`  073 + 074 + 075 + 076 + 077 postflights: all true; ${TO} postflight: all true`);
+  out(`  073 + 074 + 075 + 076 + 077 + 078 postflights: all true; ${TO} postflight: all true`);
   const readAfter = isolationProbe(localEnv, F.rls, `local-${TO}`);
   const writeAfter = isolationProbe(localEnv, F.rlsWrite, `local-${TO}`);
   if (!readAfter.ok || !writeAfter.ok) stop(`isolation probe failed to run: ${readAfter.ok ? writeAfter.summary : readAfter.summary}`);
@@ -605,8 +608,9 @@ async function main() {
   const pf075 = psql(remoteEnv, checks.allColumnsTrue(F.postflight075));
   const pf076 = psql(remoteEnv, checks.allColumnsTrue(F.postflight076));
   const pf077 = psql(remoteEnv, checks.allColumnsTrue(F.postflight077));
-  pf.stdout = pf.stdout.trim() === "t" && pf073.stdout.trim() === "t" && pf074.stdout.trim() === "t" && pf075.stdout.trim() === "t" && pf076.stdout.trim() === "t" && pf077.stdout.trim() === "t" ? "t" : "f";
-  out(`  073 + 074 + 075 + 076 + 077 + ${TO} postflight: ${pf.stdout === "t" ? "all true" : "FAIL"}`);
+  const pf078 = psql(remoteEnv, checks.allColumnsTrue(F.postflight078));
+  pf.stdout = pf.stdout.trim() === "t" && pf073.stdout.trim() === "t" && pf074.stdout.trim() === "t" && pf075.stdout.trim() === "t" && pf076.stdout.trim() === "t" && pf077.stdout.trim() === "t" && pf078.stdout.trim() === "t" ? "t" : "f";
+  out(`  073 + 074 + 075 + 076 + 077 + 078 + ${TO} postflight: ${pf.stdout === "t" ? "all true" : "FAIL"}`);
   const sigStg = signatureDiff(q(remoteEnv, SIGNATURE_SQL), F.expectedTo);
   writeParity(`parity-${TO}-staging.txt`, sigStg);
   out(`  schema parity with repository 001..${TO}: missing ${sigStg.missing.length}, different function bodies ${sigStg.bodies.length}, extra ${sigStg.extra.length}`);

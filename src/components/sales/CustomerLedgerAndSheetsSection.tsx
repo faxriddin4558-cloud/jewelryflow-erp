@@ -1306,7 +1306,10 @@ export function CustomerLedgerAndSheetsSection() {
                         })();
                       }
                     }}
-                    className="px-2 py-2 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 rounded-xl text-[11px] font-bold transition flex items-center justify-center"
+                    disabled={showArchived}
+                    title={showArchived ? "Arxivlangan mijozga yangi savdo qilinmaydi (avval tiklang)" : undefined}
+                    data-testid="open-sale"
+                    className="px-2 py-2 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 rounded-xl text-[11px] font-bold transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     + Nasiya
                   </button>
@@ -1437,7 +1440,10 @@ export function CustomerLedgerAndSheetsSection() {
                               })();
                             }
                           }}
-                          className="px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 rounded-lg text-[11px] font-bold transition"
+                          disabled={showArchived}
+                          title={showArchived ? "Arxivlangan mijozga yangi savdo qilinmaydi (avval tiklang)" : undefined}
+                          data-testid="open-sale"
+                          className="px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 rounded-lg text-[11px] font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           + Nasiya Sotuv
                         </button>
