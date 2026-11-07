@@ -56,3 +56,16 @@ Top-50 ro'yxatda raqamli, harfli va aralash niklar navbatma-navbat chiqadi.
 > Haqiqat: 2 va 3 belgili niklarning deyarli hammasi allaqachon band yoki Instagram
 > tomonidan zaxiralangan. Real imkoniyat asosan 4 belgili aralash niklarda
 > (`--lengths 4 --types mixed`).
+
+## GitHub Actions orqali (kompyutersiz)
+
+Workflow: `.github/workflows/ig-username-finder.yml` — faqat qo'lda (`workflow_dispatch`).
+
+1. GitHub → **Actions** → **IG username finder** → **Run workflow**.
+2. `max_checks` (1–5), `lengths`, `types` ni tanlang.
+3. Tugagach: run sahifasidagi **Summary** da jadval, pastda **Artifacts → ig-username-results**
+   (`results.csv`, `top50.csv`, `stop_reason.txt`).
+
+Login/CAPTCHA/rate-limit chiqsa dastur darhol to'xtaydi (chiqish kodi 3) va run ogohlantirish bilan tugaydi.
+Eslatma: GitHub Actions serverlari (datacenter IP) Instagram tomonidan tez-tez login sahifasiga
+yo'naltiriladi — bunda natija `login_talab` bo'ladi, bu kutilgan holat.

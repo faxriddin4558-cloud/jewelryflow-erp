@@ -170,6 +170,7 @@ async function main() {
   if (done.size) console.log(`Avvalgi ${done.size} ta natija yuklandi, ular qayta tekshirilmaydi.`);
 
   let stopReason = null;
+  let protectionStop = false;
   if (opts.dryRun || opts.maxChecks === 0) {
     stopReason = opts.dryRun ? "--dry-run: tarmoq so'rovlari yuborilmadi" : null;
   } else {
@@ -196,6 +197,7 @@ async function main() {
 
         if (STOP_STATUSES.has(r.status)) {
           stopReason = `${r.status}: ${r.note}. Himoya chetlab o'tilmaydi — keyinroq (bir necha soat) qayta ishga tushiring.`;
+          protectionStop = true;
           break;
         }
         results.push(row);
@@ -203,6 +205,7 @@ async function main() {
         writeOutputs(opts, ranked, results);
         if (unknownStreak >= opts.maxUnknownStreak) {
           stopReason = `ketma-ket ${unknownStreak} ta aniqlanmagan javob — ehtimol Instagram cheklov qo'ydi`;
+          protectionStop = true;
           break;
         }
         if (i < queue.length - 1) {
@@ -219,6 +222,9 @@ async function main() {
   const top = writeOutputs(opts, ranked, results);
   printSummary(top, results, stopReason);
   console.log(`Fayllar: ${opts.outDir}/{candidates.csv, results.csv, top50.csv}`);
+  if (stopReason) fs.writeFileSync(path.join(opts.outDir, "stop_reason.txt"), stopReason + "\n");
+  // 3 = Instagram himoyasi (login/CAPTCHA/rate-limit) sababli to'xtatildi.
+  if (protectionStop) process.exitCode = 3;
 }
 
 main().catch((e) => {
