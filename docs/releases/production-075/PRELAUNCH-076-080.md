@@ -27,6 +27,8 @@ node scripts/goldia-staging-release.js
 node scripts/goldia-staging-release.js --apply
 # production - only after step 3 PASS and written approval
 powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\run-readonly-checks.ps1 -Target production-prelaunch
+# 2026-11-09: superseded by the level-detecting release (docs/releases/RELEASE.md):
+#   node scripts/goldia-prod-release.js --auto --expect-level 076    (detects the real level, chains every missing migration)
 node scripts/goldia-prod-backup-and-preflight.js --fresh --migration 077 --chain-to 080
 node scripts/goldia-prod-release.js --migration 077 --chain-to 080
 powershell -NoProfile -ExecutionPolicy Bypass -File docs\releases\production-075\production-frontend.ps1 -Apply -ReleaseCandidate (git rev-parse HEAD)

@@ -208,14 +208,15 @@ if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000080") {
   $checks = @($c7, $p8, $b8)
 }
 if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000076") {
-  # before the 077 -> 078 -> 079 chain: the 077 and 078 / 079 pre-release checks and the 076 function-body parity
+  # before the 077 -> ... -> 081 chain: the 077, 078 / 079 and 081 pre-release checks and the 076 function-body parity
   $c5 = @{ Name = "05_prelaunch_077"; File = "docs/releases/production-075/05_prelaunch_077_readonly.sql"; Kind = "pre" }
   $c6 = @{ Name = "06_prelaunch_078_079"; File = "docs/releases/production-075/06_prelaunch_078_079_readonly.sql"; Kind = "pre" }
+  $c7 = @{ Name = "07_prelaunch_081"; File = "docs/releases/production-075/07_prelaunch_081_readonly.sql"; Kind = "pre" }
   $p6 = @{ Name = "function_body_parity_076"; File = "supabase/release/function_body_parity_076_readonly.sql"; Kind = "parity" }
   # the pre-chain baseline (history 076): production-post compares every business line with it after the chain
   $b6 = @{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" }
-  foreach ($x in @($c5, $c6, $p6, $b6)) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
-  $checks = @($c5, $c6, $p6, $b6)
+  foreach ($x in @($c5, $c6, $c7, $p6, $b6)) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
+  $checks = @($c5, $c6, $c7, $p6, $b6)
 }
 if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077", "20260101000078", "20260101000079", "20260101000080", "20260101000081") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075 ... 081, found " + $pp[4]) }
 if ($Target -eq "production-post" -and $pp[4] -ne "20260101000075") {

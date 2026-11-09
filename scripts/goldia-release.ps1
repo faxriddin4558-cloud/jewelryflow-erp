@@ -15,35 +15,43 @@
   * Every step below is an existing gated script of this repository, run FROM THE WORKTREE (the code of that commit).
     The first step that fails STOPS the release (exit code checked); no step or test is skipped. The scripts keep all
     their own guards (Supabase ref / Vercel project / JFS demo / ERP refusals, typed confirmations, hidden passwords).
-    staging:    1 scripts\goldia-staging-release.js            (dry run: backup, restore copy, chain, rollback, RLS)
-                2 scripts\goldia-staging-release.js --apply    (one transaction + postflight)       [-SkipStagingDatabase]
+    staging:    1 scripts\goldia-staging-release.js            (dry run: reads the REAL staging level, plans level+1 ..
+                  newest; backup, restore copy, chain, emergency rollback, re-apply, RLS)
+                2 scripts\goldia-staging-release.js --apply    (one transaction + postflight; "UP TO DATE" when staging
+                  already has the newest migration)
                 3 docs\releases\staging-075\deploy-staging-frontend.ps1 -ReleaseCandidate <sha>   (Vercel project
                   jewelryflow-sales-staging only; env read-only; /api/version must show the sha, sha_source=build)
                 4 scripts\goldia-prod-smoke-readonly.js --target staging --expect-commit <sha>   (read-only browser smoke)
     production: 0 the commit must be live on staging (/api/version of jewelryflow-sales-staging = <sha>, build) and the
                   owner types "PRODUCTION <sha7>"
                 1 run-readonly-checks.ps1 -Target production-prelaunch        (read only)
-                2 scripts\goldia-prod-release.js --migration <first> --chain-to <last>   (fresh backup, restore copy,
-                  same chain + emergency rollback + re-apply on the copy, read-only gates, typed ref, ONE transaction
-                  with per-migration postflight + business fingerprint, read-only postflight)   [-SkipProductionDatabase]
+                2 scripts\goldia-prod-release.js --auto [--expect-level NNN]   (reads the REAL production level, plans
+                  level+1 .. newest; fresh backup, restore copy, same chain + emergency rollback + re-apply on the copy,
+                  read-only gates, typed ref, ONE transaction with per-migration postflight + business fingerprint,
+                  read-only postflight; "UP TO DATE" when production already has the newest migration)
                 3 docs\releases\production-075\production-frontend.ps1 -Apply -ReleaseCandidate <sha>   (Vercel project
                   goldia-sales-production only; env verified read-only)
                 4 run-readonly-checks.ps1 -Target production-post             (read only)
                 5 docs\releases\production-075\run-production-smoke.ps1 -ExpectCommit <sha7>   (read-only browser smoke)
   * Log of the whole run: %USERPROFILE%\GoldiaBackups\release-<target>-<time>.log (no passwords: they are typed hidden
     into the child scripts and never echoed).
-  -FirstMigration / -LastMigration: default = the newest migration file of the commit (one-migration release). The
-  production release script itself checks that production is exactly at FirstMigration - 1 and stops otherwise.
+  Migration range (2026-11-09): NEVER assumed and not a parameter any more. Both database scripts read the real
+  supabase_migrations history (read only) and apply EVERY missing migration from the recorded level + 1 to the newest
+  file of this commit, in one transaction. They STOP (nothing changed) on a VERSION GAP (an older repository migration
+  not recorded), a recorded version unknown to the commit, a database newer than the commit or a numbering gap.
+  -RepairStagingHistory "057,058": staging only - names EXACTLY the unrecorded versions; the dry run must then prove on
+  the restored copy that schema + every function body (CR-tolerant) equal the repository at the recorded level, and the
+  history rows are written in the same transaction as the chain. Production history is never repaired by a script.
+  -ExpectProductionLevel 076: optional; production STOPs when its real level is different.
+  There is no "skip" switch: when a database already has the newest migration its script reports UP TO DATE.
 #>
 param(
   [Parameter(Mandatory = $true)][ValidateSet("staging", "production")][string]$Target,
   [string]$Branch = "claude/goldia-sales-077-parity-period-currency",
   [string]$ApprovedCommit = "",
   [string]$WorktreeRoot = "",
-  [string]$FirstMigration = "",
-  [string]$LastMigration = "",
-  [switch]$SkipStagingDatabase,
-  [switch]$SkipProductionDatabase
+  [string]$RepairStagingHistory = "",
+  [string]$ExpectProductionLevel = ""
 )
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Continue"
@@ -73,6 +81,9 @@ function Run-Ps1([string]$File, [string[]]$PsArgs, [string]$What, [int[]]$OkCode
 }
 
 # ---------------------------------------------------------------- preconditions
+if ($Target -eq "production" -and $RepairStagingHistory) { Stop-Release "-RepairStagingHistory is a staging-only switch; production history is never repaired by a script" }
+if ($ExpectProductionLevel -and $ExpectProductionLevel -notmatch '^\d{3}$') { Stop-Release "-ExpectProductionLevel must be three digits, e.g. 076" }
+if ($RepairStagingHistory -and $RepairStagingHistory -notmatch '^\d{3}(,\d{3})*$') { Stop-Release "-RepairStagingHistory must be a comma list of three-digit numbers, e.g. 057,058" }
 if ($Target -eq "production" -and -not $ApprovedCommit) { Stop-Release "-ApprovedCommit <sha> is required for production (the owner's written approval names the commit)" }
 $git = Get-Command git -ErrorAction SilentlyContinue; if (-not $git) { Stop-Release "git not found" }
 $node = Get-Command node -ErrorAction SilentlyContinue; if (-not $node) { Stop-Release "Node.js 20+ not found" }
@@ -122,24 +133,20 @@ if ($needCi) {
   if ($LASTEXITCODE -ne 0) { Pop-Location; Stop-Release "npm ci failed" }
   Set-Content -LiteralPath $stamp -Value $lockHash -Encoding ASCII
 }
-# migration range of this commit
+# newest migration of this commit (the database scripts detect the real level and apply everything after it)
 $migs = @(Get-ChildItem -LiteralPath (Join-Path $wt "supabase\migrations") -Filter "20260101000*.sql" | ForEach-Object { $_.Name.Substring(11, 3) } | Sort-Object)
-if (-not $LastMigration) { $LastMigration = $migs[$migs.Count - 1] }
-if (-not $FirstMigration) { $FirstMigration = $LastMigration }
-if (-not ($migs -contains $FirstMigration) -or -not ($migs -contains $LastMigration) -or [int]$FirstMigration -gt [int]$LastMigration) { Pop-Location; Stop-Release ("invalid migration range " + $FirstMigration + ".." + $LastMigration) }
-Write-Host ("  migrations of this release: " + $FirstMigration + ".." + $LastMigration)
+$Newest = $migs[$migs.Count - 1]
+Write-Host ("  newest migration of this commit: " + $Newest + " (the database level is read from the real history at each step)")
 
 if ($Target -eq "staging") {
-  if (-not $SkipStagingDatabase) {
-    Step "1/4 staging database: dry run (backup, restore copy, chain, rollback, RLS - staging only read)"
-    Run-Node @("scripts\goldia-staging-release.js") "staging dry run"
-    Step "2/4 staging database: apply (one transaction) + postflight"
-    Run-Node @("scripts\goldia-staging-release.js", "--apply") "staging apply"
-  } else {
-    Write-Host "  -SkipStagingDatabase: database steps not run (use only when staging is already at this migration level)" -ForegroundColor Yellow
-  }
+  $stgArgs = @()
+  if ($RepairStagingHistory) { $stgArgs = @("--repair-history", $RepairStagingHistory) }
+  Step ("1/4 staging database: dry run (real level detected; every missing migration up to " + $Newest + "; backup, restore copy, chain, rollback, RLS - staging only read)")
+  Run-Node (@("scripts\goldia-staging-release.js") + $stgArgs) "staging dry run"
+  Step "2/4 staging database: apply (one transaction) + postflight"
+  Run-Node (@("scripts\goldia-staging-release.js", "--apply") + $stgArgs) "staging apply"
   Step "3/4 staging frontend (Vercel jewelryflow-sales-staging)"
-  Run-Ps1 (Join-Path $wt "docs\releases\staging-075\deploy-staging-frontend.ps1") @("-ReleaseCandidate", $head) "staging frontend deploy"
+  Run-Ps1 (Join-Path $wt "docs\releases\staging-075\deploy-staging-frontend.ps1") @("-ReleaseCandidate", $head, "-RequireMigration", ("20260101000" + $Newest)) "staging frontend deploy"
   Step "4/4 staging read-only browser smoke"
   & node scripts\goldia-prod-smoke-readonly.js --target staging --expect-commit $sha7 --out $logRoot
   if ($LASTEXITCODE -eq 1) { Stop-Release "staging smoke FAIL" }
@@ -156,17 +163,15 @@ Step "0/5 approval: the commit must be live on staging"
 try { $sv = Invoke-RestMethod -Uri ($StagingUrl + "/api/version") -UseBasicParsing -TimeoutSec 30 } catch { $sv = $null }
 if (-not $sv -or $sv.full_commit -ne $head -or $sv.supabase_ref -ne $StagingRef -or $sv.sha_source -ne "build") { Pop-Location; Stop-Release ("staging does not run " + $head + " (staging /api/version: " + $(if ($sv) { $sv.full_commit } else { "unreachable" }) + ") - release it on staging first") }
 Write-Host ("  staging runs " + $head + " (build)") -ForegroundColor Green
-$typed = Read-Host ("Type PRODUCTION " + $sha7 + " to release migrations " + $FirstMigration + ".." + $LastMigration + " and the frontend to production")
+$typed = Read-Host ("Type PRODUCTION " + $sha7 + " to release every missing migration up to " + $Newest + " (production level is read and shown next) and the frontend to production")
 if ($typed.Trim() -ne ("PRODUCTION " + $sha7)) { Pop-Location; Stop-Release "confirmation did not match" }
 $ro = Join-Path $wt "docs\releases\production-075\run-readonly-checks.ps1"
-if (-not $SkipProductionDatabase) {
-  Step "1/5 production read-only prelaunch checks"
-  Run-Ps1 $ro @("-Target", "production-prelaunch") "production-prelaunch" @(0)
-  Step ("2/5 production database " + $FirstMigration + ".." + $LastMigration + " (backup, copy chain, gates, typed ref, one transaction, postflight)")
-  Run-Node @("scripts\goldia-prod-release.js", "--migration", $FirstMigration, "--chain-to", $LastMigration) "production database release"
-} else {
-  Write-Host "  -SkipProductionDatabase: database steps not run (use only when production is already at this migration level)" -ForegroundColor Yellow
-}
+Step "1/5 production read-only prelaunch checks"
+Run-Ps1 $ro @("-Target", "production-prelaunch") "production-prelaunch" @(0)
+$prodArgs = @("scripts\goldia-prod-release.js", "--auto")
+if ($ExpectProductionLevel) { $prodArgs += @("--expect-level", $ExpectProductionLevel) }
+Step ("2/5 production database: real level detected, every missing migration up to " + $Newest + " (backup, copy chain, gates, typed ref, one transaction, postflight)")
+Run-Node $prodArgs "production database release"
 Step "3/5 production frontend (Vercel goldia-sales-production)"
 Run-Ps1 (Join-Path $wt "docs\releases\production-075\production-frontend.ps1") @("-Apply", "-ReleaseCandidate", $head) "production frontend deploy"
 Step "4/5 production read-only post-release checks"
@@ -175,6 +180,6 @@ Step "5/5 production read-only browser smoke"
 Run-Ps1 (Join-Path $wt "docs\releases\production-075\run-production-smoke.ps1") @("-ExpectCommit", $sha7) "production smoke" @(0)
 Pop-Location
 Write-Host ""
-Write-Host ("RELEASE PRODUCTION " + $sha7 + " DONE (migrations " + $FirstMigration + ".." + $LastMigration + ", frontend, post-checks, smoke PASS). Log: " + $log) -ForegroundColor Green
+Write-Host ("RELEASE PRODUCTION " + $sha7 + " DONE (database at " + $Newest + ", frontend, post-checks, smoke PASS). Log: " + $log) -ForegroundColor Green
 try { Stop-Transcript | Out-Null } catch { }
 exit 0

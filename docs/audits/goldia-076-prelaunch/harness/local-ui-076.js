@@ -128,18 +128,24 @@ const sellerAcc = async (sid) => (await L.sel(`seller_gold_accounts?seller_id=eq
   T('UI-12', 'manager reverses the seller\'s 206.83 g entry in the UI (075: permission denied)', canRev > 0 && legA[0].status === 'reversed' && (await debt(cust.a)) === 0, { status: 'reversed', debt: 0 }, { button: canRev, status: legA[0] && legA[0].status, debt: await debt(cust.a), msg: (txt4.match(/(muvaffaqiyatli bekor qilindi|xatolik[^.]{0,100})/i) || ['-'])[0] });
   const obl2 = await sellerAcc(C.sellera.id);
   T('UI-13', 'seller obligation recalculated after the reversal (-206.83 g)', r4(N(oblBeforeRev.l) - N(obl2.l)) === 206.83, 206.83, r4(N(oblBeforeRev.l) - N(obl2.l)));
-  // manager: director-only actions are not offered
+  // manager: since 077 the manager has the director's rights (D-P parity, only the test reset stays director-only) -
+  // the 076 expectation "no preset / accounting buttons for the manager" is obsolete. UI-14 now requires the manager to see
+  // EXACTLY what the director sees (counted below in the same run), and at least the 2 preset buttons + 1 accounting action.
   await go(s, '/sales/app/settings');
   const addPreset = await s.p.locator('#addFactoryPresetBtn, #addClientPresetBtn').count();
   await go(s, '/sales/app');
   const acctBtns = await s.p.locator('button', { hasText: /Tarkibini ko'rish|Boshlang'ich|Qayta tasnif/ }).count();
-  T('UI-14', 'manager: no markup preset add buttons, no accounting baseline actions (server allows only the director)', addPreset === 0 && acctBtns === 0, { presets: 0, accounting: 0 }, { presets: addPreset, accounting: acctBtns });
   T('UI-15', 'no 4xx/5xx from the API during the manager session', s.bad.length === 0, [], s.bad.slice(0, 5));
   await s.ctx.close();
   // ================= director still sees them
   s = await login(br, 'director');
   await go(s, '/sales/app/settings');
   const addPresetD = await s.p.locator('#addFactoryPresetBtn, #addClientPresetBtn').count();
+  await go(s, '/sales/app');
+  const acctBtnsD = await s.p.locator('button', { hasText: /Tarkibini ko'rish|Boshlang'ich|Qayta tasnif/ }).count();
+  T('UI-14', 'manager sees the same markup preset buttons and accounting actions as the director (077 rule: director = manager)',
+    addPreset === addPresetD && acctBtns === acctBtnsD && addPreset === 2 && acctBtns >= 1,
+    { presets: addPresetD, accounting: acctBtnsD, presets_min: 2, accounting_min: 1 }, { presets: addPreset, accounting: acctBtns });
   T('UI-16', 'director still has the markup preset buttons', addPresetD === 2, 2, addPresetD);
   await s.ctx.close();
   // ================= financial reversal through PostgREST (the exact UI call) as manager

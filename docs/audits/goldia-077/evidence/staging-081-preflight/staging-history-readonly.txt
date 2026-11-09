@@ -1,0 +1,23 @@
+Goldia staging vouehtlmsunebracahon - READ-ONLY inspection 2026-11-09 (plain SELECT statements only; nothing written)
+
+1. supabase_migrations.schema_migrations
+   rows=78  latest=20260101000080
+   055..060 recorded: 20260101000055, 20260101000056, 20260101000059, 20260101000060   -> 057 and 058 NOT recorded
+   after 076: 20260101000077, 20260101000078, 20260101000079, 20260101000080            -> 081 not applied
+   repository: 81 migration files 001..081 (057 goldia_capital_pure_gold_factory_handover, 058 goldia_factory_advance_and_capital_linking)
+
+2. objects of 057 / 058 (present although their history rows are missing)
+   manager_vault_account.current_factory_advance_g      : present (058)
+   accounting_baselines.factory_advance_585_g           : present (058)
+   factory_gold_handovers.capital_tx_id                 : present (058)
+   factory_gold_handovers_source_type_check             : CHECK (source_type = ANY (ARRAY['capital_pure_gold','refined_gold','purchased_gold','scrap_gold'])) (057)
+
+3. public functions: 168; bodies containing CR: 59
+   md5(string_agg(signature || ':' || md5(replace(prosrc, chr(13), '')) order by signature)) = fef5de6696f73310d8c9fc0201b790af
+   = the aggregate of repository 080 (supabase/release/function_body_parity_080_full_readonly.sql) -> every body equals repository 080 up to CR
+
+4. postflights 076, 077, 078, 079, 080 (all columns true): 076=true 077=true 078=true 079=true 080=true
+   076 legacy rule "Avansni faqat menejer yoki direktor kiritadi" still in rpc_record_client_legacy_debt -> 081 not applied
+
+Conclusion: staging level = 080 (not 076). The level-detecting staging release plans 080 -> 081 and STOPs on the 057/058
+history gap until it is run with --repair-history 057,058 (which re-proves item 2/3 on the restored backup copy).

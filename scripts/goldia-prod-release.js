@@ -16,6 +16,12 @@
  * No business transactions, no deletes, no balance changes. Result: RELEASE-NNN-RESULT.txt in the backup folder.
  * Options: --host --port --user --db --sslmode --pg-bin <dir> --out <dir>
  *
+ * AUTO MODE (2026-11-09, recommended):  node scripts/goldia-prod-release.js --auto [--expect-level NNN]
+ *   Reads the REAL production history (read only), plans latest+1 .. newest migration of this checkout and re-runs this
+ *   script in chain mode with exactly that range. STOP (nothing changed) on an empty history, a recorded version unknown
+ *   to this checkout, a production NEWER than the checkout, a repository numbering gap, or a VERSION GAP (an older
+ *   repository migration that is not recorded). Production history is never repaired by a script. --expect-level: the
+ *   level the owner expects (e.g. 076); a different detected level stops.
  * CHAIN MODE (2026-11-06, 076 -> 077 -> 078 -> 079):  node scripts/goldia-prod-release.js --migration 077 --chain-to 079
  *   1. fresh backup + restore + the SAME chain SQL on the restored copy + emergency rollback to 076 + re-apply
  *      (goldia-prod-backup-and-preflight.js --migration 077 --chain-to 079; gate chainTo must PASS);
@@ -35,6 +41,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const levelLib = require("./lib/goldia-level");
 
 const REPO = path.resolve(__dirname, "..");
 const args = {};
@@ -445,6 +452,14 @@ async function mainChain() {
   const [hasPrev, nChain, maxV] = g.stdout.trim().split("|");
   out(`  ${PREVIOUS} recorded=${hasPrev}; chain versions recorded=${nChain}; latest=${maxV}`);
   if (hasPrev !== "t" || maxV !== PREVIOUS_VERSION) stopChain(`production must be exactly at ${PREVIOUS} (latest ${maxV})`);
+  const hAll = ro(levelLib.HISTORY_SQL);
+  if (hAll.status !== 0) stopChain(`cannot read the production history: ${firstError(hAll)}`);
+  const lvp = levelLib.analyze(levelLib.parseHistory(hAll.stdout));
+  out(`  history: level ${lvp.latestNum}, gaps ${lvp.gaps.length ? lvp.gaps.join(",") : "none"}, unknown ${lvp.foreign.length ? lvp.foreign.join(",") : "none"}`);
+  if (!lvp.ok) stopChain(`production history: ${lvp.stops.join("; ")}`);
+  if (lvp.chain.length && lvp.chain[lvp.chain.length - 1].num !== CHAIN_TO) {
+    out(`  NOTE: this checkout has migrations up to ${lvp.newestNum}; this run stops at ${CHAIN_TO} (explicit --chain-to)`);
+  }
   if (nChain !== "0") stopChain("a chain migration is already recorded");
   const kit = (file, name) => {
     const r = psql(["-t", "-A", "-v", "ON_ERROR_STOP=1", "-f", file]);
@@ -533,4 +548,34 @@ async function mainChain() {
   out(`\nRESULT: CHAIN ${TARGET}..${CHAIN_TO} APPLIED, POSTFLIGHT PASS. Report: ${resultFile}`);
 }
 
-(CHAIN_TO ? mainChain() : main()).catch((e) => (CHAIN_TO ? stopChain : stop)(e && e.message ? e.message : String(e)));
+// ------------------------------------------------------------------ AUTO MODE (--auto)
+async function mainAuto() {
+  console.log("GOLDIA — production release, level detected from the REAL production history (read only)\n");
+  if (args.migration || args["chain-to"]) { console.log("STOPPED: --auto detects the range itself; do not combine it with --migration / --chain-to"); process.exit(1); }
+  const FORBIDDEN_REFS = { vouehtlmsunebracahon: "Goldia STAGING", yvvbdoqncubtwlzskgml: "JewelryFlow SaaS demo", hbbuskyifxkowlozsaym: "manufacturing ERP", vrozlilcaxinavzxueif: "typo of the production ref" };
+  const joinedTarget = [PROD.host, PROD.user, process.env.PGHOST, process.env.PGUSER, process.env.DATABASE_URL].filter(Boolean).join(" ");
+  const halt = (m) => { console.log(`\nSTOPPED: ${m}\nProduction database was not changed (only read).`); process.exit(1); };
+  for (const [ref, label] of Object.entries(FORBIDDEN_REFS)) if (joinedTarget.includes(ref)) halt(`${label} (${ref}) is never a target of this script`);
+  const LOCAL_TARGET = /^(localhost|127\.0\.0\.1)$/.test(String(PROD.host)) || String(PROD.host).startsWith("/");
+  if (args["local-rehearsal"] && !LOCAL_TARGET) halt("--local-rehearsal only works with a local --host");
+  if (!LOCAL_TARGET && !String(PROD.user).endsWith(".vrozlllcaxinavzxueif")) halt(`unexpected database user ${PROD.user} (production is postgres.vrozlllcaxinavzxueif)`);
+  if (!PG_BIN) halt("PostgreSQL 17 tools not found (pass --pg-bin)");
+  password = process.env.PGPASSWORD || (LOCAL_TARGET ? "" : await promptHidden(`Supabase DB password for ${PROD.user} (hidden): `));
+  const h = ro(levelLib.HISTORY_SQL);
+  if (h.status !== 0) halt(`cannot read the production history: ${firstError(h)}`);
+  const lv = levelLib.analyze(levelLib.parseHistory(h.stdout));
+  for (const l of lv.report) console.log(`  ${l}`);
+  if (!lv.ok) halt(lv.stops.join("; "));
+  if (args["expect-level"] && String(args["expect-level"]).padStart(3, "0") !== lv.latestNum) halt(`the owner expected production at ${String(args["expect-level"]).padStart(3, "0")}, the real level is ${lv.latestNum}`);
+  if (lv.upToDate) { console.log(`\nRESULT: UP TO DATE — production is already at ${lv.latestNum}, the newest migration of this checkout; nothing to apply (only read).`); process.exit(0); }
+  const first = lv.chain[0].num; const last = lv.chain[lv.chain.length - 1].num;
+  console.log(`  RELEASE PLAN (detected): production ${lv.latestNum} -> ${lv.chain.map((m) => m.num).join(" -> ")}\n`);
+  const passThrough = [];
+  for (const [k, v] of Object.entries(args)) if (!["auto", "expect-level", "migration", "chain-to"].includes(k)) passThrough.push(`--${k}`, ...(v === true ? [] : [String(v)]));
+  const child = spawnSync(process.execPath, [__filename, "--migration", first, "--chain-to", last, ...passThrough], {
+    env: { ...process.env, PGPASSWORD: password }, stdio: "inherit", windowsHide: true,
+  });
+  process.exit(child.status === null ? 1 : child.status);
+}
+
+(args.auto ? mainAuto() : CHAIN_TO ? mainChain() : main()).catch((e) => (CHAIN_TO ? stopChain : stop)(e && e.message ? e.message : String(e)));

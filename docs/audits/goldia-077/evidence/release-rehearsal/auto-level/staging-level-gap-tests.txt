@@ -1,0 +1,25 @@
+== setup: 081 -> 080 (emergency rollback), drop history rows 057 + 058, CR in 3 function bodies (like staging)
+   history: 78 rows, latest 20260101000080; bodies with CR: 3
+G1 gap, no flag                 : STOP: VERSION GAP: repository migrations older than the recorded level 080 are not recorded: 057, 058 RESULT: STOP  | history 78 rows, latest 20260101000080
+       unrecorded repository versions below the level (gaps): 057, 058
+       STOP REASON: VERSION GAP: repository migrations older than the recorded level 080 are not recorded: 057, 058
+G2 --repair-history 057 only    : STOP: --repair-history 057 does not name exactly the unrecorded versions (057,058) RESULT: STOP 
+G3 --repair-history 057,058,059 : STOP: --repair-history 057,058,059 does not name exactly the unrecorded versions (057,058) RESULT: STOP 
+G4 --repair-history abc         : STOP: --repair-history: not a migration number: abc 
+G5 unknown recorded version     : STOP: recorded versions unknown to this checkout: 20251231000001 (wrong branch, or history written outside the repository) RESULT: STOP 
+G6 058 object really missing    : STOP: --repair-history 057,058: the copy does NOT equal repository 001..080 (missing 1, different bodies 0) — the history is not repaired RESULT: STOP  | history 78 rows, latest 20260101000080
+G7 real code change in a body   : STOP: --repair-history 057,058: the copy does NOT equal repository 001..080 (missing 0, different bodies 1) — the history is not repaired RESULT: STOP 
+G8 exact verified repair, dry   : RESULT: DRY RUN PASS. Report: /opt/goldia-audit/level-tests/goldia-staging-2026-11-09T09-38-52/STAGING-081-RESULT.txt  | history 78 rows, latest 20260101000080
+       history repair requested: 057, 058
+       RELEASE PLAN (detected): staging 080 -> 081 + history repair 057, 058
+       CR-tolerant: function bodies different from repository 080: 0 — parity-080-cr-tolerant.txt
+       history repair 057, 058: the copy equals repository 001..080 (missing 0, bodies 0 different) — the objects of 057, 058 are present
+G9 exact verified repair, apply : RESULT: STAGING 080 -> 081 APPLIED, POSTFLIGHT PASS. Next: deploy the release-candidate frontend to staging (docs/releases/staging-075/README.md). Report: /opt/goldia-audit/level-tests/goldia-staging-2026-11-09T09-39-43/STAGING-081-RESULT.txt  | history 81 rows, latest 20260101000081
+       ledger/history rows added: supabase_migrations.schema_migrations: 78 -> 81
+       postflights 073 + 074 + 075 + 076 + 077 + 078 + 079 + 080 + 081: all true
+       re-apply 080 -> 081 on the copy: ok (postflights true, balances unchanged)
+       history rows 081 + repaired 057,058: 3/3
+       history after: level 081, gaps none, unknown none
+       postflights 073 + 074 + 075 + 076 + 077 + 078 + 079 + 080 + 081: all true
+G10 re-run after the release    : RESULT: UP TO DATE (081) — staging was only read. Report: /opt/goldia-audit/level-tests/goldia-staging-2026-11-09T09-40-48/STAGING-081-RESULT.txt 
+G11 repair flag with no gap     : STOP: --repair-history 057,058 given, but there is no gap in the history RESULT: STOP 

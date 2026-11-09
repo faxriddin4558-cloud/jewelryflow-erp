@@ -1,0 +1,19 @@
+GOLDIA SALES — staging release <detected level> -> 081 (DRY RUN: staging is only read)
+
+started: 2026-11-09T09:37:59.725Z  mode: DRY RUN (LOCAL REHEARSAL)
+[1/10] tools: /opt/goldia-audit/pg17root/wrap (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
+  checkout: 81 migration files, newest 081
+[2/10] connection
+  host=127.0.0.1 port=55437 user=postgres
+  server: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2), user postgres
+[3/10] identity and state gates (read only)
+  organizations=60 employees=200 auth.users=200 jewelry_sales=52
+  history: 81 rows, latest 20260101000081 (level 081)
+  repository: 81 migration files, newest 081
+  unrecorded repository versions below the level (gaps): none
+  recorded versions unknown to this checkout: none
+  history repair requested: none
+  migrations to apply: none (up to date)
+  staging is already at the newest migration of this checkout (081); nothing to apply.
+
+RESULT: UP TO DATE (081) — staging was only read. Report: /opt/goldia-audit/rehearsal-auto/goldia-staging-2026-11-09T09-37-59/STAGING-081-RESULT.txt

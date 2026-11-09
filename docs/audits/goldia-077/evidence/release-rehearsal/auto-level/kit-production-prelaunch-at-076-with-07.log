@@ -1,0 +1,40 @@
+GOLDIA read-only checks - target production-prelaunch (vrozlllcaxinavzxueif), host 127.0.0.1
+  identity: transaction_read_only=on (explicit BEGIN TRANSACTION READ ONLY) user=postgres not_jfs=true latest_migration=20260101000076 session_default_read_only=on (informational; the pooler ignores PGOPTIONS)
+    PRE|active_logins_by_role|INFO|admin=60 production_manager=60 seller=80
+    PRE|customers_with_debt_206_83|INFO|customers whose current debt is 206.83 g=0
+    PRE|director_only_actions_used_by_director|INFO|accounting baselines=0 markup presets=8
+    PRE|failed_logins_last_48h|INFO|failed=0 success=0
+    PRE|history_latest|OK|latest=20260101000076
+    PRE|legacy_206_83_rows|INFO|rows with 206.83 g (amount or delta)=0 active=0
+    PRE|legacy_duplicate_pairs_10min|OK|pairs=0
+    PRE|legacy_rows_by_creator_role|INFO|none
+    PRE|logins_without_organization|OK|active logins without organization=0
+    PRE|logins_with_unusable_role|OK|active logins whose role is not admin / production_manager / seller / accountant / inventory_manager=0
+    PRE|management_logins_id_differs_from_login|OK|director / manager logins whose employee id <> login id=0 (at 076 their cash-operation reversal fails: reversed_by FK; fixed in 077)
+    PRE|reclassified_capital_operations|INFO|reclassified capital operations=0 of them reversed later=0 (before 077 the document kept the old-currency amount; a reversal used it in the new till - check those vaults)
+    PRE|seller_legacy_obligation_drift|OK|sellers whose stored legacy obligation <> active debt entries=0 max_diff_g=0
+    PRE|seller_pieces_vs_gram_stock|INFO|sellers whose held piece grams <> gram stock=0
+    PRE|seller_stock_negative_hidden|OK|sellers whose consigned minus sold grams is negative (shown as 0)=0 min_g=0
+  05_prelaunch_077: PASS - RESULT|prelaunch_077|OK -> /opt/goldia-audit/kits-auto/runs/readonly-production-prelaunch-20261109-094343/05_prelaunch_077.txt
+    PRE|archived_customers_now|INFO|archived=0 orgs=0
+    PRE|archived_customers_with_open_debt|INFO|archived with 585 debt>0: 0 total_g=0.0000; with advance>0: 0 (kept and collectible after 078 / 079)
+    PRE|archived_customers_with_recent_sales|OK|archived customers with a sale in the last 30 days=0 (after 079 they can no longer buy until restored; payments keep working)
+    PRE|currency_tables|INFO|absent (077 creates them)
+    PRE|customers_archive_column|OK|customers.is_archived present (051)
+    PRE|customers_assigned_to_non_seller_or_other_org|OK|customers whose seller is missing / inactive / in another organization=0
+    PRE|history_latest|OK|latest=20260101000076 (expected 076 before the chain; 077 / 078 only if a chain step already ran)
+    PRE|objects_078_079_absent_or_consistent|OK|reopen_rpc=false sale_guard=false (an object without its history row = drift -> STOP)
+    PRE|report_periods_table|INFO|absent (077 creates it)
+    PRE|unassigned_customers|INFO|customers without seller=3 (after 079 only director / manager assign them; sellers can still sell to them)
+  06_prelaunch_078_079: PASS - RESULT|prelaunch_078_079|OK -> /opt/goldia-audit/kits-auto/runs/readonly-production-prelaunch-20261109-094343/06_prelaunch_078_079.txt
+    PRE|customers_debt_and_advance_at_once|OK|client accounts with debt > 0 AND advance > 0 = 0
+    PRE|history_latest|OK|latest=20260101000076 (expected 076 .. 080 before 081)
+    PRE|legacy_function_at_076_rules|OK|seller advance refused today (081 not applied yet, no drift)
+    PRE|legacy_obligation_drift|OK|sellers whose legacy obligation <> max(0, active debt deltas) = 0
+    PRE|legacy_rows|INFO|debt=0 advance=0 reversed=0
+    PRE|negative_customer_balances|OK|client accounts with a negative debt or advance = 0
+  07_prelaunch_081: PASS - RESULT|prelaunch_081|OK -> /opt/goldia-audit/kits-auto/runs/readonly-production-prelaunch-20261109-094343/07_prelaunch_081.txt
+  function_body_parity_076: PASS - identical=156 -> /opt/goldia-audit/kits-auto/runs/readonly-production-prelaunch-20261109-094343/function_body_parity_076.txt
+  01_baseline: PASS - 140 lines, BASELINE | fingerprint business | 5f830584ab474dd7830a519d6e52c138 -> /opt/goldia-audit/kits-auto/runs/readonly-production-prelaunch-20261109-094343/01_baseline.txt
+
+RESULT: PASS - all read-only checks passed; files in /opt/goldia-audit/kits-auto/runs/readonly-production-prelaunch-20261109-094343

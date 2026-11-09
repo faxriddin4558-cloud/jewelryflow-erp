@@ -1,0 +1,140 @@
+GOLDIA — production release, level detected from the REAL production history (read only)
+
+  history: 76 rows, latest 20260101000076 (level 076)
+  repository: 81 migration files, newest 081
+  unrecorded repository versions below the level (gaps): none
+  recorded versions unknown to this checkout: none
+  history repair requested: none
+  migrations to apply: 077 -> 078 -> 079 -> 080 -> 081
+  RELEASE PLAN (detected): production 076 -> 077 -> 078 -> 079 -> 080 -> 081
+
+GOLDIA — production release chain 076 -> 081
+
+[1/5] fresh backup, restore test, chain 077..081 + emergency rollback + re-apply on the restored copy
+GOLDIA — production backup, restore test and read-only preflight
+
+[1/9] PostgreSQL tools
+  -> pg tools: /opt/goldia-audit/pgwin (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
+[2/9] Production connection (read-only use)
+  -> explicit read-only transaction on production: on
+  -> production server: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2)
+[3/9] Backups (outside the repository) (9:43:54 AM)
+  -> production baseline before dump: 140 lines
+  pg_dump full backup... (9:43:55 AM)
+  -> schemas in backup: public, auth, storage, supabase_migrations
+  -> schema backup: ok
+  -> data backup: ok
+  -> roles backup: ok
+  -> production baseline unchanged during dump: yes
+  -> rows changed during backup: none
+  354b7618de9269a1233d4a5289b88e30cd6cd36d16dd502c732022fa39f097a0  goldia-data.dump  113322 bytes
+  da9a6d9be1bb2dddb40fac2de5b8502dc3e8bf1a6039ec74e23d3d9530f20b4f  goldia-full.dump  1341119 bytes
+  e58cce09f7e2236ba77fc0b2a916e7171c09ee73bd0d20b46a45ff463dc7f837  goldia-roles.sql  1582 bytes
+  12846db4960995a77c03d08e7449086b4a278f71962db4357dc30dac310dad19  goldia-schema.sql  1090564 bytes
+[4/9] Restore test into a disposable LOCAL PostgreSQL (never production) (9:43:56 AM)
+  initdb (9:43:56 AM)
+  starting local PostgreSQL on port 55432 (9:43:56 AM)
+  local PostgreSQL ready (9:43:56 AM)
+  -> extensions not available locally (Supabase platform only): none
+  pg_restore 1 MB (can take several minutes) (9:43:57 AM)
+  pg_restore finished (9:43:58 AM)
+  -> restore errors (Supabase platform objects may account for some): 0
+  -> public functions/policies/views prod vs restored: 156/120/5 vs 156/120/5
+  -> tables compared: 68
+  -> row-count differences prod vs restored: none
+  -> BASELINE (grams, debts, tills, vault, factory, rows, fingerprint) production = restored copy: IDENTICAL
+  -> RECOVERY preflight: n/a for target 077 (the 072 preflight applies to production at 072 only)
+  -> BACKUP: VERIFIED (restored copy matches production row counts)
+[5/9] Migration 076/077 status + preflight (read only)
+  -> migration 076 applied: VERIFIED
+  -> migration 077 already applied: no
+  -> max overloads of touched functions: 1
+  -> 064 manager-stock fix present: no
+  -> pieces in returned_to_factory: 0
+  -> demo accounts in production auth: 0
+  -> 585 rates available: 52
+  -> PREFLIGHT: PASS
+  -> preflight output: preflight.txt
+  -> investigation output: investigation.txt
+  -> security-advisor output: security-advisor.txt
+[6/9] Accounting consistency findings
+  -> finding I2_manager_stock: 52 row(s)
+  -> finding I8_mass_balance: 52 row(s)
+  -> finding I9_status_counts: 4 row(s)
+  -> CRITICAL ACCOUNTING FINDINGS: none
+[7/9] Security Advisor equivalents
+  -> advisor A1_security_definer_view: 4
+  -> advisor A3_mutable_search_path: 272
+  -> advisor A4_definer_executable_by_anon: 11
+  -> advisor A5_permissive_write_policy: 1
+  -> advisor A6_anon_write_grant: 61
+[8/9] Migration 077 on the restored LOCAL copy (production untouched)
+  -> 077 applies on production schema copy: yes
+  -> 077 changed row counts: no
+  -> rollback + re-apply on copy: ok
+  -> 077 COMPATIBILITY: PASS
+[8c/9] Chain 077 -> 081 on the restored LOCAL copy with the production chain SQL, emergency rollback to 076, re-apply (production untouched)
+  -> chain-to: copy back at 076 before the chain: yes
+  -> chain-to: business fingerprint before the chain: 76 categories (fingerprint-before-chain.txt)
+  -> chain-to: 077..081 in ONE transaction (per-migration postflight + business fingerprint gates): applied
+  -> chain-to: postflights 073..081 on the copy: all true
+  -> chain-to: schema objects of repository 081 missing on the copy: 0 (function bodies with another md5: 0 - classified below)
+  -> chain-to: function bodies (all public functions, CR-tolerant) on the copy: OK identical=168 crlf_only=0 different=0 missing=0 extra=0 (function-parity-081-copy.txt)
+  -> chain-to: business fingerprint unchanged by 077..081 (value per category, CR-safe): yes (76 categories)
+  -> chain-to: emergency rollback 081 on the copy: ok
+  -> chain-to: emergency rollback 080 on the copy: ok
+  -> chain-to: emergency rollback 079 on the copy: ok
+  -> chain-to: emergency rollback 078 on the copy: ok
+  -> chain-to: emergency rollback 077 on the copy: ok
+  -> chain-to: after the emergency rollbacks the copy is 076 again (schema + business fingerprint; 077 keeps 4 reclassification-history columns on purpose): yes
+  -> chain-to: chain re-applied after the rollback: yes (fingerprint unchanged)
+  -> CHAIN 077->081 + EMERGENCY ROLLBACK TO 076 + RE-APPLY: PASS
+[9/9] Decision
+  -> GATES: backup=true preflight=true migration076=true compat077=true accounting=true baseline=true recovery=true chainTo=true
+
+RESULT: ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval
+Send this file back for review: /opt/goldia-audit/prod-auto/goldia-prod-2026-11-09T09-43-54/SUMMARY.txt
+Keep the backup folder private (it contains customer data and login records). Do not commit it.
+started: 2026-11-09T09:44:00.813Z  mode: CHAIN 076 -> 081 (LOCAL REHEARSAL)
+[1/5] backup folder /opt/goldia-audit/prod-auto/goldia-prod-2026-11-09T09-43-54: {"backup":true,"baseline":true,"recovery":true,"migration064":true,"preflight":true,"accounting":true,"compat":true,"chainTo":true,"ready":true,"target":"077","chainToTarget":"081","chainToPass":true,"backupDir":"/opt/goldia-audit/prod-auto/goldia-prod-2026-11-09T09-43-54"}
+[2/5] production gates (read only)
+  076 recorded=t; chain versions recorded=0; latest=20260101000076
+  history: level 076, gaps none, unknown none
+  RESULT|prelaunch_077|OK
+  RESULT|prelaunch_078_079|OK
+  RESULT|prelaunch_081|OK
+  function-body parity 076: identical|156
+  RLS isolation before: RLS_ISOLATION|PASS|users=200|orgs=60|checks=9226
+[3/5] chain 077..081 (ONE transaction; per-migration postflight + business fingerprint gates)
+  balances before: customer_advance_g=0.0000,customer_debt_g=561.6424,factory_obligation_g=3389.0400,seller_owes_g=1068.7941,seller_stock_g=442.0000,vault_cash_uzs=8100000.00,vault_usd=0.00
+  [chain] 077 goldia_manager_parity_currency_sales_period_report
+  [chain] 077 postflight + business fingerprint: ok
+  [chain] 078 goldia_seller_customer_archive_and_period_reopen
+  [chain] 078 postflight + business fingerprint: ok
+  [chain] 079 goldia_archived_customer_sale_block_and_assignment_guard
+  [chain] 079 postflight + business fingerprint: ok
+  [chain] 080 goldia_period_report_performance
+  [chain] 080 postflight + business fingerprint: ok
+  [chain] 081 goldia_seller_legacy_advance
+  [chain] 081 postflight + business fingerprint: ok
+  CHAIN: applied and recorded in one transaction
+[4/5] postflight (read only)
+  history rows 077..081: 5/5
+  073 postflight: all true
+  074 postflight: all true
+  075 postflight: all true
+  076 postflight: all true
+  077 postflight: all true
+  078 postflight: all true
+  079 postflight: all true
+  080 postflight: all true
+  081 postflight: all true
+  row counts unchanged: yes
+  balances unchanged: yes
+  business fingerprint unchanged (76 categories, value per category): yes
+  function bodies (all public functions, CR-tolerant): OK identical=168 crlf_only=0 different=0 missing=0 extra=0
+  RLS isolation after: RLS_ISOLATION|PASS|users=200|orgs=60|checks=9829
+  POSTFLIGHT: PASS
+[5/5] next: production frontend (production-frontend.ps1 -Apply -ReleaseCandidate <sha>), then run-readonly-checks.ps1 -Target production-post, then run-production-smoke.ps1
+
+RESULT: CHAIN 077..081 APPLIED, POSTFLIGHT PASS. Report: /opt/goldia-audit/prod-auto/goldia-prod-2026-11-09T09-43-54/RELEASE-077-081-RESULT.txt

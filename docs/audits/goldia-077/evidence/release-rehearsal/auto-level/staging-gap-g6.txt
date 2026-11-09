@@ -1,0 +1,35 @@
+GOLDIA SALES — staging release <detected level> -> 081 (DRY RUN: staging is only read)
+
+started: 2026-11-09T09:38:44.867Z  mode: DRY RUN (LOCAL REHEARSAL)
+[1/10] tools: /opt/goldia-audit/pg17root/wrap (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
+  checkout: 81 migration files, newest 081
+[2/10] connection
+  host=127.0.0.1 port=55437 user=postgres
+  server: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2), user postgres
+[3/10] identity and state gates (read only)
+  organizations=60 employees=200 auth.users=200 jewelry_sales=52
+  history: 78 rows, latest 20260101000080 (level 080)
+  repository: 81 migration files, newest 081
+  unrecorded repository versions below the level (gaps): 057, 058
+  recorded versions unknown to this checkout: none
+  history repair requested: 057, 058
+  migrations to apply: 081
+  RELEASE PLAN (detected): staging 080 -> 081 + history repair 057, 058
+  chain file: chain-081-081.sql sha256=710b61a75f6737f2 (1 migrations)
+[4/10] fresh backup (outside the repository)
+  schemas: public, auth, storage, supabase_migrations; roles dump: ok
+  c70ed89dd30eb75d2522db4d82c52e8e5cf2ede0e0bf8d669b3abec7940b37e1  staging-full.dump  1434074 bytes
+  266989a89877684e44f65ed1c6c5e843079c3b748fcd4328ea564ae2788496a7  staging-roles.sql  1582 bytes
+  0cd90df95ca902c27ee431b714ebd398667d874e9149181f7f5fbad4bdad820a  staging-schema.sql  1175963 bytes
+[5/10] restore test into a disposable LOCAL PostgreSQL (staging untouched)
+  extensions not available locally (platform only): none
+  restored copy vs staging row counts: identical (71 tables)
+  BACKUP: VERIFIED
+[6/10] schema parity of the restored copy with repository 001..080
+  missing objects: 1; different function bodies: 3; extra objects (kept): 0 — parity-080.txt
+    missing at 080: C accounting_baselines.factory_advance_585_g numeric(14,4) NOT NULL
+  CR-tolerant: function bodies different from repository 080: 0 — parity-080-cr-tolerant.txt
+
+STOP: --repair-history 057,058: the copy does NOT equal repository 001..080 (missing 1, different bodies 0) — the history is not repaired
+Staging database was NOT changed.
+RESULT: STOP

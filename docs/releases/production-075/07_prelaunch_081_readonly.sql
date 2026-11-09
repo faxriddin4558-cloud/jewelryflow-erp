@@ -9,7 +9,9 @@ hist as (select max(version) as latest from supabase_migrations.schema_migration
 fn as (select prosrc from pg_proc where oid = 'public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure),
 leg as (select balance_type, status, created_by from public.client_legacy_debts),
 g(k, st, d) as (
-  select 'history_latest', case when latest = '20260101000080' then 'OK' else 'STOP' end, 'latest=' || coalesce(latest, '-') || ' (expected 080 before 081)' from hist
+  -- 2026-11-09: also valid at the start of a longer chain (076 -> ... -> 081); 081 itself must not be recorded yet
+  select 'history_latest', case when latest in ('20260101000076', '20260101000077', '20260101000078', '20260101000079', '20260101000080') then 'OK' else 'STOP' end,
+         'latest=' || coalesce(latest, '-') || ' (expected 076 .. 080 before 081)' from hist
   union all
   select 'legacy_function_at_076_rules', case when (select position('Avansni faqat menejer yoki direktor kiritadi' in prosrc) > 0 from fn) then 'OK' else 'STOP' end,
          'seller advance refused today (081 not applied yet, no drift)'

@@ -1,0 +1,2 @@
+psql:/opt/goldia-audit/prod-auto/goldia-prod-2026-11-09T09-44-37/chain-081-081.sql:19: ERROR:  STOP: VERSION GAP - repository migrations not recorded: 20260101000058
+CONTEXT:  PL/pgSQL function inline_code_block line 4 at RAISE
