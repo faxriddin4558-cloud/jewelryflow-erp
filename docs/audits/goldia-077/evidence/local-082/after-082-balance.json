@@ -1,0 +1,351 @@
+{
+  "target": "local",
+  "run": "mw9kz7v1",
+  "results": [
+    {
+      "id": "BM-SCN-1",
+      "title": "scenario accounts (585 g) = independent model: A 11 debt, B 5 adv, C 5 adv (overpaid), D 7 debt, E 0, F 0, G 7 adv (advance > debt), H 0",
+      "ok": true,
+      "expected": {
+        "A": {
+          "d": 11,
+          "a": 0
+        },
+        "B": {
+          "d": 0,
+          "a": 5
+        },
+        "C": {
+          "d": 0,
+          "a": 5
+        },
+        "D": {
+          "d": 7,
+          "a": 0
+        },
+        "E": {
+          "d": 0,
+          "a": 0
+        },
+        "F": {
+          "d": 0,
+          "a": 0
+        },
+        "G": {
+          "d": 0,
+          "a": 7
+        },
+        "H": {
+          "d": 0,
+          "a": 0
+        }
+      },
+      "actual": {
+        "A": {
+          "d": 11,
+          "a": 0
+        },
+        "B": {
+          "d": 0,
+          "a": 5
+        },
+        "C": {
+          "d": 0,
+          "a": 5
+        },
+        "D": {
+          "d": 7,
+          "a": 0
+        },
+        "E": {
+          "d": 0,
+          "a": 0
+        },
+        "F": {
+          "d": 0,
+          "a": 0
+        },
+        "G": {
+          "d": 0,
+          "a": 7
+        },
+        "H": {
+          "d": 0,
+          "a": 0
+        }
+      }
+    },
+    {
+      "id": "BM-SCN-2",
+      "title": "seller cannot enter an advance for a customer with open debt (081 rule kept); manager can",
+      "ok": true,
+      "expected": "refused",
+      "actual": "Ruxsat etilmadi: Mijozda ochiq qarz bor (2.0000 g) - avans uni kamaytiradi; buni faqat menejer yoki direktor bajaradi"
+    },
+    {
+      "id": "BM-SCN-3",
+      "title": "USD sale + overpayment: USD advance 50, gram account untouched (units not mixed)",
+      "ok": true,
+      "expected": {
+        "usd": {
+          "d": 0,
+          "a": 50
+        },
+        "g": {
+          "d": 0,
+          "a": 0
+        }
+      },
+      "actual": {
+        "usd": {
+          "d": 0,
+          "a": 50
+        },
+        "g": {
+          "d": 0,
+          "a": 0
+        }
+      }
+    },
+    {
+      "id": "BM-SCN-4",
+      "title": "no account has debt and advance at the same time (585 and currency)",
+      "ok": true,
+      "expected": 0,
+      "actual": "checked"
+    },
+    {
+      "id": "BM-OBL",
+      "title": "seller legacy obligation: sellera +5 (debt rows C 3 + G 2; advances B 5, D 4, G 9 do NOT reduce it), sellerb +0 (F reversed)",
+      "ok": true,
+      "expected": {
+        "sellera": 5,
+        "sellerb": 0
+      },
+      "actual": {
+        "sellera": 5,
+        "sellerb": 0,
+        "before": {
+          "sellera": 15,
+          "sellerb": 0
+        },
+        "after": {
+          "sellera": 20,
+          "sellerb": 0
+        }
+      }
+    },
+    {
+      "id": "BM-UL",
+      "title": "unified ledger: open debt / open advance per scenario customer = account",
+      "ok": true,
+      "expected": 0,
+      "actual": []
+    },
+    {
+      "id": "BM-MR-1",
+      "title": "monthly report 2026-11: scenario customers closing net / debt / advance = model",
+      "ok": true,
+      "expected": {
+        "A": 11,
+        "B": -5,
+        "C": -5,
+        "D": 7,
+        "E": 0,
+        "F": 0,
+        "G": -7,
+        "H": 0
+      },
+      "actual": {
+        "A": {
+          "debt": 11,
+          "adv": 0,
+          "net": 11
+        },
+        "B": {
+          "debt": 0,
+          "adv": 5,
+          "net": -5
+        },
+        "C": {
+          "debt": 0,
+          "adv": 5,
+          "net": -5
+        },
+        "D": {
+          "debt": 7,
+          "adv": 0,
+          "net": 7
+        },
+        "E": null,
+        "F": null,
+        "G": {
+          "debt": 0,
+          "adv": 7,
+          "net": -7
+        },
+        "H": null
+      }
+    },
+    {
+      "id": "BM-MR-2",
+      "title": "monthly report: EVERY customer of the organization: closing net = live account (debt - advance); no customer with a balance missing",
+      "ok": true,
+      "expected": {
+        "wrong": 0,
+        "missing": 0
+      },
+      "actual": {
+        "wrong": 0,
+        "missing": 0,
+        "customers": 20,
+        "first": []
+      }
+    },
+    {
+      "id": "BM-MR-3",
+      "title": "monthly totals: closing debt / advance / net = sums of the rows = live gross debt / gross advance / net; net = debt - advance",
+      "ok": true,
+      "expected": {
+        "debt": 72,
+        "advance": 68,
+        "net": 4
+      },
+      "actual": {
+        "debt": 72,
+        "advance": 68,
+        "net": 4
+      }
+    },
+    {
+      "id": "BM-MR-4",
+      "title": "seller filter: sellera report = sellera's own report; its scenario rows are only sellera customers; A..D,G in sellera, E,F,H in sellerb",
+      "ok": true,
+      "expected": "consistent",
+      "actual": {
+        "a": 4,
+        "own": 4,
+        "b": 0
+      }
+    },
+    {
+      "id": "BM-MR-5",
+      "title": "continuity: closing net 2026-10 = opening net 2026-11 for every customer (no clamping)",
+      "ok": true,
+      "expected": 0,
+      "actual": {
+        "mismatches": 0,
+        "first": []
+      }
+    },
+    {
+      "id": "BM-MR-6",
+      "title": "customers with a net ADVANCE are reported with a negative net and closing_advance_g (not hidden as 0)",
+      "ok": true,
+      "expected": ">0 rows, consistent",
+      "actual": {
+        "rows": 12
+      }
+    },
+    {
+      "id": "BM-PR",
+      "title": "period report closing (UI + CSV): 585 / UZS / USD net = sum(debt - advance) per unit of the database",
+      "ok": true,
+      "expected": {
+        "g585": 4,
+        "usd": -200,
+        "uzs": 0
+      },
+      "actual": {
+        "g585": 4,
+        "usd": -200,
+        "uzs": 0
+      }
+    },
+    {
+      "id": "BM-UI-1",
+      "title": "manager panel 585: net, gross debt, gross advance = database (sum(debt) - sum(advance)); wording matches the sign",
+      "ok": true,
+      "expected": {
+        "net": 4,
+        "debt": 72,
+        "advance": 68
+      },
+      "actual": {
+        "text": "4.00 g 585 Mijozlar bizga qarzdor · qarz 72.00 g − avans 68.00 g",
+        "parsed": [
+          4,
+          585,
+          72,
+          68
+        ]
+      }
+    },
+    {
+      "id": "BM-UI-2",
+      "title": "manager panel USD: own line, net = sum(debt) - sum(advance) in USD (never added to grams)",
+      "ok": true,
+      "expected": -200,
+      "actual": {
+        "text": "−$200 USD Biz mijozlarga qarzdormiz · qarz $0 − avans $200",
+        "parsed": [
+          -200,
+          0,
+          200
+        ]
+      }
+    },
+    {
+      "id": "BM-UI-3",
+      "title": "no API error on the manager main screen",
+      "ok": true,
+      "expected": [],
+      "actual": []
+    },
+    {
+      "id": "BM-UI-4",
+      "title": "director dashboard card: signed net + \"qarz X - avans Y\" = database",
+      "ok": true,
+      "expected": {
+        "net": 4,
+        "debt": 72,
+        "advance": 68
+      },
+      "actual": {
+        "net": "4.00 g",
+        "breakdown": "Mijozlar bizga qarzdor · qarz 72.00 g − avans 68.00 g"
+      }
+    },
+    {
+      "id": "BM-UI-5",
+      "title": "main page card \"Mijozlar Sof Nasiyasi\": signed net = sum(debt) - sum(advance) (was: gross debt labelled \"sof\")",
+      "ok": true,
+      "expected": {
+        "net": 4,
+        "debt": 72,
+        "advance": 68
+      },
+      "actual": {
+        "net": "4.00 g",
+        "breakdown": "Mijozlar bizga qarzdor · qarz 72.00 g − avans 68.00 g"
+      }
+    },
+    {
+      "id": "BM-UI-6",
+      "title": "monthly report tab: total = server report (net, debt, advance); G row \"+7.00 g avans\" (was 2.00 g debt), D row 7.00 g (was 11.00 g)",
+      "ok": true,
+      "expected": {
+        "net": 4,
+        "G": "+7.00 g avans",
+        "D": "7.00 g"
+      },
+      "actual": {
+        "total": "4.00 g",
+        "breakdown": "Mijozlar bizga qarzdor · qarz 72.00 g − avans 68.00 g",
+        "G": "+7.00 g avans",
+        "D": "7.00 g",
+        "bad": []
+      }
+    }
+  ]
+}
