@@ -1,6 +1,6 @@
 {
  "target": "local",
- "at": "2026-11-05T13:19:39.927Z",
+ "at": "2026-11-09T20:21:01.380Z",
  "director_manager_mismatches": [],
  "missing_or_ambiguous": [],
  "matrix": {
@@ -14,12 +14,12 @@
     "e": "Mijoz topilmadi: 00000000-0000-0000-0000-000000000000"
    },
    "sellera": {
-    "c": "DENY",
-    "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+    "c": "PASSES",
+    "e": "Mijoz topilmadi: 00000000-0000-0000-0000-000000000000"
    },
    "worker": {
     "c": "DENY",
-    "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+    "e": "Ruxsat etilmadi: mijozni arxivlash faqat direktor, menejer yoki mijozning sotuvchisi uchun"
    },
    "director56": {
     "c": "PASSES",
@@ -711,11 +711,11 @@
   "rpc_confirm_accounting_baseline": {
    "director": {
     "c": "PASSES",
-    "e": "ERR_USD_RATE_NOT_SET: Kassalarda dollar (USD) mavjud, boshlang'ich hisob uchun tasdiqlangan USD kursi kiritili"
+    "e": "ERR_USD_RATE_NOT_SET: Kassalarda yoki mijoz qarzlarida dollar (USD) mavjud, boshlang'ich hisob uchun USD kursi"
    },
    "manager": {
     "c": "PASSES",
-    "e": "ERR_USD_RATE_NOT_SET: Kassalarda dollar (USD) mavjud, boshlang'ich hisob uchun tasdiqlangan USD kursi kiritili"
+    "e": "ERR_USD_RATE_NOT_SET: Kassalarda yoki mijoz qarzlarida dollar (USD) mavjud, boshlang'ich hisob uchun USD kursi"
    },
    "sellera": {
     "c": "DENY",
@@ -727,7 +727,7 @@
    },
    "director56": {
     "c": "PASSES",
-    "e": "ERR_DAILY_RATE_NOT_SET: Boshlang'ich hisobni tasdiqlash uchun bugungi (2026-11-05 sanadagi) tasdiqlangan 585 o"
+    "e": "ERR_DAILY_RATE_NOT_SET: Boshlang'ich hisobni tasdiqlash uchun bugungi (2026-11-10 sanadagi) tasdiqlangan 585 o"
    }
   },
   "rpc_set_daily_gold_rate": {
@@ -843,11 +843,11 @@
   "rpc_close_report_period": {
    "director": {
     "c": "PASSES",
-    "e": "Bu sana oldingi yopilgan davr (2026-11-04) ichida"
+    "e": "Davr tugash sanasi bugundan keyin bo'lishi mumkin emas"
    },
    "manager": {
     "c": "PASSES",
-    "e": "Bu sana oldingi yopilgan davr (2026-11-04) ichida"
+    "e": "Davr tugash sanasi bugundan keyin bo'lishi mumkin emas"
    },
    "sellera": {
     "c": "DENY",
@@ -859,7 +859,7 @@
    },
    "director56": {
     "c": "PASSES",
-    "e": ""
+    "e": "Davr tugash sanasi bugundan keyin bo'lishi mumkin emas"
    }
   },
   "rpc_get_director_sales_overview": {
