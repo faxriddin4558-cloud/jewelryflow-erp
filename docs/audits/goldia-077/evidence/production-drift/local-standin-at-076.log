@@ -1,0 +1,37 @@
+GOLDIA read-only checks - target production-drift-audit (vrozlllcaxinavzxueif), host 127.0.0.1
+  identity: transaction_read_only=on (explicit BEGIN TRANSACTION READ ONLY) user=postgres not_jfs=true latest_migration=20260101000076 session_default_read_only=on (informational; the pooler ignores PGOPTIONS)
+    DRIFT|not_jfs_demo|OK|deployment_environment() absent = Goldia
+    DRIFT|read_only|OK|transaction_read_only=on
+    DRIFT|history_latest|INFO|latest=20260101000076 rows=76
+    DRIFT|history_latest_known|OK|latest is a repository migration
+    DRIFT|history_gaps|OK|unrecorded repository versions below the level: none
+    DRIFT|history_unknown|OK|recorded versions unknown to the repository: none
+    DRIFT|fe_rpc_present|STOP|77/83 present; MISSING: rpc_close_report_period(077),rpc_get_period_report(077),rpc_record_client_currency_settlement(077),rpc_record_currency_sale(077),rpc_reopen_report_period(078),rpc_reverse_client_currency_settlement(077)
+    DRIFT|fe_rpc_execute_grant|OK|77/83 executable by authenticated
+    DRIFT|fe_tables|STOP|7/10 present, RLS on: 7; MISSING: client_currency_accounts,client_currency_settlements,goldia_report_periods
+    DRIFT|fe_customers_archive_columns|STOP|customers.is_archived / archived_at / archived_by (078)
+    DRIFT|fe_sale_currency_column|STOP|jewelry_sales.sale_currency (077)
+    DRIFT|parity_management_helper|OK|_goldia_is_management_role (077: director = manager)
+    DRIFT|parity_functions_using_helper|INFO|0 functions check management through the helper
+    DRIFT|archive_rpc_seller_rule|WARN|rpc_archive_customer has the 078 seller-own-customer branch
+    DRIFT|archived_sale_guard|WARN|079 D-A1 trigger (archived customer: no new sale)
+    DRIFT|assignment_guard|WARN|079 D-A2 trigger (only management assigns sellers)
+    DRIFT|period_report_080|WARN|080 performance type present (report timeout fix)
+    DRIFT|legacy_advance_rule|INFO|076 rule: seller cannot enter an advance (081 not applied) - matches the 2b48df9 UI
+    DRIFT|test_reset_director_only|INFO|rpc_execute_full_test_reset present=true (D-P1: director-only by decision)
+    DRIFT|negative_gold_balances|OK|0 customer gold accounts below 0
+    DRIFT|debt_and_advance_at_once|OK|0 customers with gold debt AND advance
+    DRIFT|seller_obligation_negative|OK|0 seller accounts below 0
+    DRIFT|vault_negative|OK|0 vaults with negative UZS / USD
+    DRIFT|currency_activity|INFO|no currency tables (pre-077)
+    DRIFT|currency_negative|INFO|-
+    DRIFT|archived_customers|INFO|0 archived of 85
+    DRIFT|archived_with_open_gold|INFO|0 archived customers still with gold debt / advance (allowed: payments stay possible)
+    DRIFT|report_periods|INFO|no table (pre-077)
+    DRIFT|legacy_advances_by_role|INFO|0 confirmed legacy advances
+    DRIFT|activity_since_2026_11_06|INFO|sales=53 payments=32 financial=2
+    DRIFT|staff_accounts|INFO|admin: 2 active, banned 0, unconfirmed 0; production_manager: 1 active, banned 0, unconfirmed 0; sales: 84 active, banned 0, unconfirmed 80; director: 61 active, banned 0, unconfirmed 60; manager: 60 active, banned 0, unconfirmed 60; worker: 1 active, banned 0, unconfirmed 0
+    DRIFT|management_accounts_usable|OK|1 active, unbanned, confirmed managers; 2 directors
+  08_drift_audit: FAIL - RESULT|drift_audit|STOP -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120531/08_drift_audit.txt
+
+RESULT: FAIL - 08_drift_audit: RESULT|drift_audit|STOP (remaining checks not run)

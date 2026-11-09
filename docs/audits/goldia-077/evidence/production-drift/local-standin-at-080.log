@@ -1,0 +1,48 @@
+GOLDIA read-only checks - target production-drift-audit (vrozlllcaxinavzxueif), host 127.0.0.1
+  identity: transaction_read_only=on (explicit BEGIN TRANSACTION READ ONLY) user=postgres not_jfs=true latest_migration=20260101000080 session_default_read_only=on (informational; the pooler ignores PGOPTIONS)
+    DRIFT|not_jfs_demo|OK|deployment_environment() absent = Goldia
+    DRIFT|read_only|OK|transaction_read_only=on
+    DRIFT|history_latest|INFO|latest=20260101000080 rows=80
+    DRIFT|history_latest_known|OK|latest is a repository migration
+    DRIFT|history_gaps|OK|unrecorded repository versions below the level: none
+    DRIFT|history_unknown|OK|recorded versions unknown to the repository: none
+    DRIFT|history_077_080|INFO|077,078,079,080
+    DRIFT|fe_rpc_present|OK|83/83 present
+    DRIFT|fe_rpc_execute_grant|OK|83/83 executable by authenticated
+    DRIFT|fe_tables|OK|10/10 present, RLS on: 10
+    DRIFT|fe_customers_archive_columns|OK|customers.is_archived / archived_at / archived_by (078)
+    DRIFT|fe_sale_currency_column|OK|jewelry_sales.sale_currency (077)
+    DRIFT|parity_management_helper|OK|_goldia_is_management_role (077: director = manager)
+    DRIFT|parity_functions_using_helper|INFO|4 functions check management through the helper
+    DRIFT|archive_rpc_seller_rule|OK|rpc_archive_customer has the 078 seller-own-customer branch
+    DRIFT|archived_sale_guard|OK|079 D-A1 trigger (archived customer: no new sale)
+    DRIFT|assignment_guard|OK|079 D-A2 trigger (only management assigns sellers)
+    DRIFT|period_report_080|OK|080 performance type present (report timeout fix)
+    DRIFT|legacy_advance_rule|INFO|076 rule: seller cannot enter an advance (081 not applied) - matches the 2b48df9 UI
+    DRIFT|test_reset_director_only|INFO|rpc_execute_full_test_reset present=true (D-P1: director-only by decision)
+    DRIFT|negative_gold_balances|OK|0 customer gold accounts below 0
+    DRIFT|debt_and_advance_at_once|OK|0 customers with gold debt AND advance
+    DRIFT|seller_obligation_negative|OK|0 seller accounts below 0
+    DRIFT|vault_negative|OK|0 vaults with negative UZS / USD
+    DRIFT|currency_activity|INFO|currency sales by currency: none; currency accounts: 0; currency payments: 0
+    DRIFT|currency_negative|OK|0 currency accounts below 0
+    DRIFT|archived_customers|INFO|0 archived of 85
+    DRIFT|archived_with_open_gold|INFO|0 archived customers still with gold debt / advance (allowed: payments stay possible)
+    DRIFT|report_periods|INFO|0 stored periods, latest end -
+    DRIFT|legacy_advances_by_role|INFO|0 confirmed legacy advances
+    DRIFT|activity_since_2026_11_06|INFO|sales=53 payments=32 financial=2
+    DRIFT|staff_accounts|INFO|admin: 2 active, banned 0, unconfirmed 0; production_manager: 1 active, banned 0, unconfirmed 0; sales: 84 active, banned 0, unconfirmed 80; director: 61 active, banned 0, unconfirmed 60; manager: 60 active, banned 0, unconfirmed 60; worker: 1 active, banned 0, unconfirmed 0
+    DRIFT|management_accounts_usable|OK|1 active, unbanned, confirmed managers; 2 directors
+  08_drift_audit: PASS - RESULT|drift_audit|OK -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/08_drift_audit.txt
+  073_postflight: PASS - 12 checks true -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/073_postflight.txt
+  074_postflight: PASS - 13 checks true -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/074_postflight.txt
+  075_postflight: PASS - 15 checks true -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/075_postflight.txt
+  076_postflight: PASS - 15 checks true -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/076_postflight.txt
+  077_postflight: PASS - 12 checks true -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/077_postflight.txt
+  078_postflight: PASS - 8 checks true -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/078_postflight.txt
+  079_postflight: PASS - 6 checks true -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/079_postflight.txt
+  080_postflight: PASS - 6 checks true -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/080_postflight.txt
+  function_body_parity_080: PASS - identical=168 crlf_only=0 different=0 missing=0 extra=0 (repository functions 168/168) -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/function_body_parity_080.txt
+  rls_isolation: PASS - RLS_ISOLATION|PASS|users=209|orgs=62|checks=10271 -> /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450/rls_isolation.txt
+
+RESULT: PASS - all read-only checks passed; files in /opt/goldia-audit/kits-drift/runs/readonly-production-drift-audit-20261109-120450

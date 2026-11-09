@@ -35,7 +35,7 @@
   file through the same read-only wrapper, used to prove that a write attempt fails).
 #>
 param(
-  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging", "staging-function-parity-080", "staging-function-parity-081")][string]$Target,
+  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging", "staging-function-parity-080", "staging-function-parity-081", "production-drift-audit")][string]$Target,
   [string]$PoolerHost = "",
   [int]$Port = 5432,
   [string]$PgBin = "C:\Program Files\PostgreSQL\17\bin",
@@ -51,7 +51,7 @@ $script:SummaryFile = $null
 
 $Refs = @{ production = "vrozlllcaxinavzxueif"; staging = "vouehtlmsunebracahon" }
 $Never = @("yvvbdoqncubtwlzskgml", "hbbuskyifxkowlozsaym", "vrozlilcaxinavzxueif")   # JFS demo, ERP, typo of prod ref
-$RefKey = $Target; if ($Target -eq "production-post" -or $Target -eq "production-prelaunch") { $RefKey = "production" }
+$RefKey = $Target; if ($Target -eq "production-post" -or $Target -eq "production-prelaunch" -or $Target -eq "production-drift-audit") { $RefKey = "production" }
 if ($Target -like "staging-function-parity-*") { $RefKey = "staging" }
 $Ref = $Refs[$RefKey]
 
@@ -107,6 +107,10 @@ if ($Target -eq "production") {
     @{ Name = "rls_isolation"; File = "docs/releases/production-075/03_rls_isolation_readonly.sql"; Kind = "rls" },
     @{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" }
   )
+} elseif ($Target -eq "production-drift-audit") {
+  # 2026-11-09 version drift audit (frontend 2b48df9 vs the real DB): the drift kit first; level-dependent postflights and
+  # the function-body parity of the detected level are added after the identity probe. Read only, any level 075..081.
+  $checks = @(@{ Name = "08_drift_audit"; File = "docs/releases/production-075/08_drift_audit_readonly.sql"; Kind = "drift" })
 } elseif ($Target -like "staging-function-parity-*") {
   # read-only: one SQL file through the same wrapper (explicit BEGIN TRANSACTION READ ONLY + guard + ROLLBACK)
   $lvl = $Target.Substring($Target.Length - 3)
@@ -217,6 +221,20 @@ if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000076") {
   $b6 = @{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" }
   foreach ($x in @($c5, $c6, $c7, $p6, $b6)) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
   $checks = @($c5, $c6, $c7, $p6, $b6)
+}
+if ($Target -eq "production-drift-audit") {
+  $lv = ([string]$pp[4]).Substring(11)
+  $extra = @()
+  foreach ($v in @("073", "074", "075", "076", "077", "078", "079", "080", "081")) {
+    if ([string]::CompareOrdinal([string]$pp[4], "20260101000" + $v) -ge 0) { $extra += @{ Name = ($v + "_postflight"); File = ("supabase/release/" + $v + "_postflight_readonly.sql"); Kind = "postflight" } }
+  }
+  $pf = "supabase/release/function_body_parity_" + $lv + "_full_readonly.sql"
+  if (-not (Test-Path -LiteralPath (Join-Path $repo $pf))) { $pf = "supabase/release/function_body_parity_" + $lv + "_readonly.sql" }
+  if (Test-Path -LiteralPath (Join-Path $repo $pf)) { $extra += @{ Name = ("function_body_parity_" + $lv); File = $pf; Kind = $(if ($pf -like "*_full_*") { "fnparity" } else { "parity" }) } }
+  else { Write-Host ("  no function-body parity file for level " + $lv + " in this checkout") -ForegroundColor Yellow }
+  $extra += @{ Name = "rls_isolation"; File = "docs/releases/production-075/03_rls_isolation_readonly.sql"; Kind = "rls" }
+  foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
+  $checks = @($checks) + $extra
 }
 if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077", "20260101000078", "20260101000079", "20260101000080", "20260101000081") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075 ... 081, found " + $pp[4]) }
 if ($Target -eq "production-post" -and $pp[4] -ne "20260101000075") {
@@ -401,6 +419,19 @@ foreach ($c in $checks) {
         $verdict = "FAIL"; $sum = @($all | Where-Object { $_ -match '^RLS_ISOLATION\|' })
         if ($sum.Count -gt 0) { $detail = $sum[0] } else { $detail = "no RLS_ISOLATION line" }
       } else { $detail = $pass[0] }
+    }
+    "drift" {
+      $res = @($lines | Where-Object { $_ -match '^RESULT\|drift_audit\|' })
+      foreach ($g in @($lines | Where-Object { $_ -match '^DRIFT\|' })) {
+        $gc = "Gray"; if ($g -match '\|STOP\|') { $gc = "Red" } elseif ($g -match '\|WARN\|') { $gc = "Yellow" } elseif ($g -match '\|OK\|') { $gc = "Green" }
+        Write-Host ("    " + $g) -ForegroundColor $gc
+        Add-Content -Path $script:SummaryFile -Value ("    " + $g) -Encoding ASCII
+      }
+      if ($res.Count -ne 1) { $verdict = "FAIL"; $detail = "no RESULT line" }
+      else {
+        $state = ($res[0] -split '\|')[2]; $detail = $res[0]
+        if ($state -eq "WARN") { $verdict = "REVIEW" } elseif ($state -ne "OK") { $verdict = "FAIL" }
+      }
     }
     "fnparity" {
       # rows: "<status>|<n>", "DETAIL <status> <signature>|<cr count>", "RESULT|function_parity_080|OK|REVIEW|..."
