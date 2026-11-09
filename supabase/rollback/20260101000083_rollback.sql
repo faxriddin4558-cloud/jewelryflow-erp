@@ -1,0 +1,1687 @@
+-- Rollback of 083. REFUSED while any return document exists (their effects on balances, stock and pieces would stay
+-- without a document). Restores the previous bodies of the changed functions.
+do $guard$ begin
+  if exists (select 1 from public.jewelry_sale_returns) then
+    raise exception 'ROLLBACK 083 REFUSED: customer return documents exist (jewelry_sale_returns)';
+  end if;
+end $guard$;
+drop trigger if exists trg_goldia_guard_sale_reversal_with_returns on public.jewelry_sales;
+drop function if exists public._goldia_guard_sale_reversal_with_returns();
+drop function if exists public.rpc_record_sale_return(uuid, numeric, text, text, text);
+
+-- ===== recalc_seller_gold_account (restore the body of 20260101000076_goldia_legacy_debt_manager_and_seller.sql)
+CREATE OR REPLACE FUNCTION public.recalc_seller_gold_account(p_seller_id uuid, p_org_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_total_phys       numeric(14, 4);
+  v_consignment_obl  numeric(14, 4);
+  v_legacy_debt_obl  numeric(14, 4);
+  v_total_obl        numeric(14, 4);
+  v_total_stl        numeric(14, 4);
+  v_s_owes           numeric(14, 4);
+  v_m_owes           numeric(14, 4);
+  v_signed           numeric(14, 4);
+  v_total_sold       numeric(14, 4);
+  v_cur_stock        numeric(14, 4);
+BEGIN
+  IF p_seller_id IS NULL OR p_org_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- 1. Active Consignments: sum base_weight_grams which represents active remaining physical grams
+  SELECT
+    COALESCE(SUM(base_weight_grams), 0),
+    COALESCE(SUM(COALESCE(seller_obligation_g, factory_gold_due_grams)), 0)
+  INTO v_total_phys, v_consignment_obl
+  FROM public.seller_consignments
+  WHERE seller_id = p_seller_id AND organization_id = p_org_id
+    AND status IN ('held_by_seller', 'partially_sold', 'fully_sold');
+
+  -- 1b. Legacy client debts assigned to this seller (unreversed)
+  -- 076: a downward reconciliation of a SALES debt has a negative delta; the seller's legacy obligation never goes below
+  -- zero (the column has CHECK >= 0 - before 076 such a reconciliation failed with a constraint error). The seller
+  -- still owes the manager for the consigned goods; only the customer's debt is lowered.
+  SELECT GREATEST(0, COALESCE(SUM(delta_585_g), 0))
+  INTO v_legacy_debt_obl
+  FROM public.client_legacy_debts
+  WHERE seller_id = p_seller_id AND organization_id = p_org_id
+    AND balance_type = 'debt'
+    AND status <> 'reversed';
+
+  v_total_obl := ROUND(v_consignment_obl + v_legacy_debt_obl, 4);
+
+  -- 2. Total non-reversed settlements surrendered to manager/factory
+  SELECT COALESCE(SUM(total_settled_grams), 0)
+  INTO v_total_stl
+  FROM public.gold_settlements
+  WHERE seller_id = p_seller_id AND organization_id = p_org_id
+    AND direction IN ('seller_to_manager', 'seller_to_factory')
+    AND (status IS NULL OR status NOT IN ('reversed', 'cancelled'))
+    AND reversal_of_id IS NULL;
+
+  v_s_owes := ROUND(GREATEST(0, v_total_obl - v_total_stl), 4);
+  v_m_owes := ROUND(GREATEST(0, v_total_stl - v_total_obl), 4);
+  v_signed := ROUND(v_m_owes - v_s_owes, 4);
+
+  -- 3. Total sold physical grams (sales not cancelled or reversed)
+  SELECT COALESCE(SUM(base_weight_grams), 0)
+  INTO v_total_sold
+  FROM public.jewelry_sales
+  WHERE seller_id = p_seller_id AND organization_id = p_org_id
+    AND status NOT IN ('cancelled', 'reversed');
+
+  -- Note: v_total_phys ALREADY reflects base_weight_grams reduced by returned pieces!
+  v_cur_stock := ROUND(GREATEST(0, v_total_phys - v_total_sold), 4);
+
+  INSERT INTO public.seller_gold_accounts (
+    seller_id, organization_id,
+    total_transferred_physical_g, total_seller_obligation_g,
+    total_settled_to_manager_g, seller_owes_manager_g,
+    manager_owes_seller_g, bozor_qarzi_signed_g,
+    total_consigned_gold_grams, current_factory_obligation_grams,
+    current_physical_stock_g, seller_legacy_debt_obligation_g,
+    updated_at
+  ) VALUES (
+    p_seller_id, p_org_id,
+    v_total_phys, v_total_obl,
+    v_total_stl, v_s_owes,
+    v_m_owes, v_signed,
+    v_consignment_obl, v_s_owes,
+    v_cur_stock, v_legacy_debt_obl,
+    NOW()
+  )
+  ON CONFLICT (seller_id) DO UPDATE SET
+    total_transferred_physical_g = v_total_phys,
+    total_seller_obligation_g = v_total_obl,
+    total_settled_to_manager_g = v_total_stl,
+    seller_owes_manager_g = v_s_owes,
+    manager_owes_seller_g = v_m_owes,
+    bozor_qarzi_signed_g = v_signed,
+    total_consigned_gold_grams = v_consignment_obl,
+    current_factory_obligation_grams = v_s_owes,
+    current_physical_stock_g = v_cur_stock,
+    seller_legacy_debt_obligation_g = v_legacy_debt_obl,
+    updated_at = NOW();
+END;
+$function$;
+
+-- ===== get_seller_available_stock_grams (restore the body of 20260101000065_goldia_blocker_high_audit_fixes.sql)
+create or replace function public.get_seller_available_stock_grams(p_seller_id uuid)
+returns numeric
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_org_id    uuid := public.current_organization_id();
+  v_consigned numeric(14, 4);
+  v_sold      numeric(14, 4);
+begin
+  if p_seller_id is null or v_org_id is null then
+    return 0;
+  end if;
+
+  if public._goldia_is_seller_role(public.current_employee_role_text())
+     and p_seller_id is distinct from public.current_employee_id() then
+    raise exception 'Ruxsat etilmadi: Sotuvchi faqat o''z qoldig''ini ko''ra oladi' using errcode = '42501';
+  end if;
+
+  -- base_weight_grams is already reduced when a piece is returned (rpc_return_piece_to_manager),
+  -- so returned pieces must NOT be subtracted again.
+  select coalesce(sum(base_weight_grams), 0) into v_consigned
+    from public.seller_consignments
+   where seller_id = p_seller_id and organization_id = v_org_id
+     and status in ('held_by_seller', 'partially_sold', 'fully_sold');
+
+  select coalesce(sum(base_weight_grams), 0) into v_sold
+    from public.jewelry_sales
+   where seller_id = p_seller_id and organization_id = v_org_id
+     and status not in ('cancelled', 'reversed');
+
+  return round(greatest(0, v_consigned - v_sold), 4);
+end;
+$$;
+
+-- ===== rpc_get_unified_customer_ledger (restore the body of 20260101000069_goldia_security_hotfix_anon_rpcs.sql)
+CREATE OR REPLACE FUNCTION public.rpc_get_unified_customer_ledger(p_customer_id uuid DEFAULT NULL::uuid, p_seller_id uuid DEFAULT NULL::uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org     uuid := public.current_organization_id();
+  v_caller_role    text := public.current_employee_role_text();
+  v_caller_emp_id  uuid := public.current_employee_id();
+  v_filter_seller  uuid;
+  v_cust_rec       record;
+  v_gross_sales    numeric(14, 4);
+  v_legacy_debt    numeric(14, 4);
+  v_paid_scrap     numeric(14, 4);
+  v_paid_cash_g    numeric(14, 4);
+  v_paid_cash_uzs  numeric(18, 2);
+  v_paid_usd_g     numeric(14, 4);
+  v_paid_usd       numeric(18, 2);
+  v_total_settled_sum numeric(14, 4);
+  v_total_paid     numeric(14, 4);
+  v_gross_debt     numeric(14, 4);
+  v_net_debt       numeric(14, 4);
+  v_avail_adv      numeric(14, 4);
+  v_applied_adv    numeric(14, 4);
+  v_tot_gross      numeric(14, 4) := 0;
+  v_tot_paid       numeric(14, 4) := 0;
+  v_tot_net        numeric(14, 4) := 0;
+  v_tot_adv        numeric(14, 4) := 0;
+  v_tot_cash_uzs   numeric(18, 2) := 0;
+  v_tot_usd        numeric(18, 2) := 0;
+  v_rows           jsonb := '[]'::jsonb;
+begin
+  -- 069: a signed-in, active employee of this organization is required (no fallbacks)
+  if auth.uid() is null then
+    raise exception 'Permission denied: authentication required' using errcode = '42501';
+  end if;
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar', 'accountant', 'buxgalter',
+    'manager', 'production_manager', 'boshqaruvchi', 'sales', 'seller', 'sotuvchi']);
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  if v_caller_role in ('seller', 'sotuvchi', 'sales') then
+    if p_seller_id is not null and p_seller_id <> v_caller_emp_id then
+      raise exception 'Cross-seller violation: Sotuvchilar faqat o''z mijozlarini ko''ra oladi' using errcode = '42501';
+    end if;
+    v_filter_seller := v_caller_emp_id;
+
+    if p_customer_id is not null then
+      if not exists (
+        select 1 from public.customers
+        where id = p_customer_id
+          and organization_id = v_caller_org
+          and (seller_id = v_caller_emp_id or seller_id is null)
+      ) then
+        raise exception 'Cross-seller violation: Ushbu mijoz sizga biriktirilmagan' using errcode = '42501';
+      end if;
+    end if;
+  else
+    v_filter_seller := p_seller_id;
+  end if;
+
+  for v_cust_rec in
+    select c.id, c.customer_code, c.contact_name, c.phone, c.company_name, c.seller_id,
+           coalesce(e.full_name, e.name, 'Biriktirilmagan') as seller_name
+    from public.customers c
+    left join public.employees e on e.id = c.seller_id
+    where c.organization_id = v_caller_org
+      and (p_customer_id is null or c.id = p_customer_id)
+      and (v_filter_seller is null or c.seller_id = v_filter_seller)
+    order by c.contact_name asc
+  loop
+    -- 1. Total Unreversed Gross Sales Due
+    select coalesce(sum(client_gold_due_grams), 0)
+    into v_gross_sales
+    from public.jewelry_sales
+    where customer_id = v_cust_rec.id
+      and organization_id = v_caller_org
+      and status <> 'reversed';
+
+    -- 2. Total Unreversed Legacy Debt / Advance (Signed Delta Sum)
+    select coalesce(sum(delta_585_g), 0)
+    into v_legacy_debt
+    from public.client_legacy_debts
+    where customer_id = v_cust_rec.id
+      and organization_id = v_caller_org
+      and status <> 'reversed';
+
+    -- 3. Total Unreversed Scrap Gold Paid
+    select coalesce(sum(coalesce(scrap_585_equiv_grams, scrap_weight_grams)), 0)
+    into v_paid_scrap
+    from public.gold_settlements
+    where customer_id = v_cust_rec.id
+      and organization_id = v_caller_org
+      and direction = 'client_to_seller'
+      and status <> 'reversed';
+
+    -- 4. Total Unreversed Cash Equivalent Paid (UZS & USD BOTH INCLUDED!)
+    select
+      coalesce(sum(cash_equivalent_grams), 0),
+      coalesce(sum(cash_paid_amount), 0),
+      coalesce(sum(usd_equivalent_grams), 0),
+      coalesce(sum(usd_paid_amount), 0),
+      coalesce(sum(total_settled_grams), 0)
+    into v_paid_cash_g, v_paid_cash_uzs, v_paid_usd_g, v_paid_usd, v_total_settled_sum
+    from public.gold_settlements
+    where customer_id = v_cust_rec.id
+      and organization_id = v_caller_org
+      and direction = 'client_to_seller'
+      and status <> 'reversed';
+
+    -- Total paid strictly combines Scrap + UZS Gold Eq + USD Gold Eq
+    v_total_paid := round(v_paid_scrap + v_paid_cash_g + v_paid_usd_g, 4);
+
+    -- Gross obligation combining sales and legacy debt
+    if v_legacy_debt >= 0 then
+      v_gross_debt := round(v_gross_sales + v_legacy_debt, 4);
+      if v_gross_debt >= v_total_paid then
+        v_net_debt := round((v_gross_debt - v_total_paid)::numeric, 4);
+        v_avail_adv := 0;
+      else
+        v_net_debt := 0;
+        v_avail_adv := round((v_total_paid - v_gross_debt)::numeric, 4);
+      end if;
+    else
+      -- Negative legacy debt means customer had pre-existing advance
+      v_gross_debt := v_gross_sales;
+      if v_gross_sales >= (v_total_paid + abs(v_legacy_debt)) then
+        v_net_debt := round((v_gross_sales - (v_total_paid + abs(v_legacy_debt)))::numeric, 4);
+        v_avail_adv := 0;
+      else
+        v_net_debt := 0;
+        v_avail_adv := round(((v_total_paid + abs(v_legacy_debt)) - v_gross_sales)::numeric, 4);
+      end if;
+    end if;
+
+    -- Applied Advance
+    select coalesce(sum(settled_gold_grams), 0)
+    into v_applied_adv
+    from public.jewelry_sales
+    where customer_id = v_cust_rec.id
+      and organization_id = v_caller_org
+      and status <> 'reversed';
+
+    v_rows := v_rows || jsonb_build_object(
+      'customer_id', v_cust_rec.id,
+      'customer_code', v_cust_rec.customer_code,
+      'contact_name', v_cust_rec.contact_name,
+      'phone', v_cust_rec.phone,
+      'company_name', v_cust_rec.company_name,
+      'seller_id', v_cust_rec.seller_id,
+      'seller_name', v_cust_rec.seller_name,
+      'gross_debt_g', v_gross_debt,
+      'legacy_debt_g', v_legacy_debt,
+      'paid_scrap_equivalent_g', v_paid_scrap,
+      'paid_cash_equivalent_g', v_paid_cash_g,
+      'paid_cash_amount_uzs', v_paid_cash_uzs,
+      'paid_usd_equivalent_g', v_paid_usd_g,
+      'paid_usd_amount', v_paid_usd,
+      'total_paid_g', v_total_paid,
+      'applied_advance_g', v_applied_adv,
+      'available_advance_g', v_avail_adv,
+      'net_debt_g', v_net_debt
+    );
+
+    v_tot_gross := v_tot_gross + v_gross_debt;
+    v_tot_paid  := v_tot_paid + v_total_paid;
+    v_tot_net   := v_tot_net + v_net_debt;
+    v_tot_adv   := v_tot_adv + v_avail_adv;
+    v_tot_cash_uzs := v_tot_cash_uzs + v_paid_cash_uzs;
+    v_tot_usd      := v_tot_usd + v_paid_usd;
+
+    -- Sync client_gold_accounts cache accurately
+    insert into public.client_gold_accounts (
+      customer_id, organization_id, seller_id, total_purchased_gold_grams,
+      total_scrap_paid_grams, total_cash_paid_amount, total_cash_equiv_grams,
+      total_usd_paid_amount, total_usd_equiv_grams, total_settled_grams,
+      current_debt_grams, advance_balance_grams, updated_at
+    ) values (
+      v_cust_rec.id, v_caller_org, v_cust_rec.seller_id, v_gross_debt,
+      v_paid_scrap, v_paid_cash_uzs, round(v_paid_cash_g + v_paid_usd_g, 4),
+      v_paid_usd, v_paid_usd_g, v_total_paid,
+      v_net_debt, v_avail_adv, now()
+    )
+    on conflict (customer_id) do update set
+      seller_id = coalesce(excluded.seller_id, client_gold_accounts.seller_id),
+      total_purchased_gold_grams = excluded.total_purchased_gold_grams,
+      total_scrap_paid_grams = excluded.total_scrap_paid_grams,
+      total_cash_paid_amount = excluded.total_cash_paid_amount,
+      total_cash_equiv_grams = excluded.total_cash_equiv_grams,
+      total_usd_paid_amount  = excluded.total_usd_paid_amount,
+      total_usd_equiv_grams  = excluded.total_usd_equiv_grams,
+      total_settled_grams = excluded.total_settled_grams,
+      current_debt_grams = excluded.current_debt_grams,
+      advance_balance_grams = excluded.advance_balance_grams,
+      updated_at = now();
+  end loop;
+
+  return jsonb_build_object(
+    'items', v_rows,
+    'summary', jsonb_build_object(
+      'total_gross_debt_g', v_tot_gross,
+      'total_paid_g', v_tot_paid,
+      'total_net_debt_g', v_tot_net,
+      'total_advance_g', v_tot_adv,
+      'total_cash_uzs', v_tot_cash_uzs,
+      'total_usd', v_tot_usd
+    )
+  );
+end;
+$function$;
+
+-- ===== rpc_get_customer_monthly_report (restore the body of 20260101000082_goldia_monthly_report_signed_balance.sql)
+CREATE OR REPLACE FUNCTION public.rpc_get_customer_monthly_report(p_seller_id uuid DEFAULT NULL::uuid, p_year integer DEFAULT NULL::integer, p_month integer DEFAULT NULL::integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org    uuid := public.current_organization_id();
+  v_caller_role   text := public.current_employee_role_text();
+  v_caller_emp_id uuid := public.current_employee_id();
+  v_filter_seller uuid;
+  v_year          integer := coalesce(p_year, extract(year from public._goldia_business_date())::integer);
+  v_month         integer := coalesce(p_month, extract(month from public._goldia_business_date())::integer);
+  v_start_date    date;
+  v_end_date      date;
+  v_rows          jsonb := '[]'::jsonb;
+  v_cust_rec      record;
+  v_open_debt     numeric(14, 4);
+  v_open_net      numeric(14, 4);
+  v_month_legacy  numeric(14, 4);
+  v_month_legacy_adv numeric(14, 4);
+  v_close_net     numeric(14, 4);
+  v_close_adv     numeric(14, 4);
+  v_open_adv      numeric(14, 4);
+  v_month_sales   numeric(14, 4);
+  v_month_scrap   numeric(14, 4);
+  v_month_cash    numeric(18, 2);
+  v_month_cash_g  numeric(14, 4);
+  v_month_usd     numeric(18, 2);
+  v_month_usd_g   numeric(14, 4);
+  v_month_usd_rate numeric(14, 2);
+  v_month_settle  numeric(14, 4);
+  v_close_debt    numeric(14, 4);
+
+  -- Overall totals
+  v_tot_open     numeric(14, 4) := 0;
+  v_tot_legacy   numeric(14, 4) := 0;
+  v_tot_dist     numeric(14, 4) := 0;
+  v_tot_coll     numeric(14, 4) := 0;
+  v_tot_debt     numeric(14, 4) := 0;
+  v_tot_open_adv numeric(14, 4) := 0;
+  v_tot_open_net numeric(14, 4) := 0;
+  v_tot_legacy_adv numeric(14, 4) := 0;
+  v_tot_close_adv numeric(14, 4) := 0;
+  v_tot_close_net numeric(14, 4) := 0;
+  v_tot_cash_uzs numeric(18, 2) := 0;
+  v_tot_usd      numeric(18, 2) := 0;
+  v_tot_scrap_g  numeric(14, 4) := 0;
+
+  -- Seller till & obligation totals
+  v_seller_held_cash_uzs numeric(18, 2) := 0;
+  v_seller_held_scrap_g  numeric(14, 4) := 0;
+  v_seller_held_usd      numeric(18, 2) := 0;
+  v_bozor_qarzi          numeric(14, 4) := 0;
+  v_seller_owes_m_tot    numeric(14, 4) := 0;
+  v_m_owes_seller_tot    numeric(14, 4) := 0;
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  if v_caller_role in ('seller', 'sotuvchi', 'sales') then
+    if p_seller_id is not null and p_seller_id <> v_caller_emp_id then
+      raise exception 'Cross-seller violation: Sotuvchilar faqat o''z hisobotini ko''ra oladi' using errcode = '42501';
+    end if;
+    v_filter_seller := v_caller_emp_id;
+  else
+    v_filter_seller := p_seller_id;
+  end if;
+
+  v_start_date := make_date(v_year, v_month, 1);
+  v_end_date   := (v_start_date + interval '1 month - 1 day')::date;
+
+  for v_cust_rec in
+    select c.id, c.customer_code, c.contact_name, c.phone, c.seller_id
+    from public.customers c
+    where c.organization_id = v_caller_org
+      and (v_filter_seller is null or c.seller_id = v_filter_seller)
+    order by c.contact_name asc
+  loop
+    -- 1. Opening SIGNED balance (082): all legacy rows before the start (debt +, advance -) + sales - payments
+    select coalesce(sum(delta_585_g), 0) into v_open_debt
+    from public.client_legacy_debts
+    where customer_id = v_cust_rec.id
+      and as_of_date < v_start_date
+      and status <> 'reversed';
+
+    select v_open_debt + coalesce(sum(client_gold_due_grams), 0) into v_open_debt
+    from public.jewelry_sales
+    where customer_id = v_cust_rec.id
+      and sale_date < v_start_date
+      and status <> 'reversed';
+
+    select v_open_debt - coalesce(sum(total_settled_grams), 0) into v_open_debt
+    from public.gold_settlements
+    where customer_id = v_cust_rec.id
+      and direction = 'client_to_seller'
+      and status <> 'reversed'
+      and settlement_date < v_start_date;
+
+    v_open_net  := round(v_open_debt, 4);
+    v_open_debt := greatest(0, v_open_net);
+    v_open_adv  := greatest(0, -v_open_net);
+
+    -- 2. Legacy entries registered in the month: debt rows (as before) and, separately, advance rows (082)
+    select coalesce(sum(delta_585_g) filter (where balance_type = 'debt'), 0),
+           coalesce(-sum(delta_585_g) filter (where balance_type = 'advance'), 0)
+      into v_month_legacy, v_month_legacy_adv
+    from public.client_legacy_debts
+    where customer_id = v_cust_rec.id
+      and as_of_date between v_start_date and v_end_date
+      and status <> 'reversed';
+
+    -- 3. Sales during selected month (EXCLUDE REVERSED!)
+    select coalesce(sum(client_gold_due_grams), 0) into v_month_sales
+    from public.jewelry_sales
+    where customer_id = v_cust_rec.id
+      and sale_date between v_start_date and v_end_date
+      and status <> 'reversed';
+
+    -- 4. Payments during selected month (EXCLUDE REVERSED!)
+    select
+      coalesce(sum(scrap_weight_grams), 0),
+      coalesce(sum(cash_paid_amount), 0),
+      coalesce(sum(cash_equivalent_grams), 0),
+      coalesce(sum(usd_paid_amount), 0),
+      coalesce(sum(usd_equivalent_grams), 0),
+      coalesce(sum(total_settled_grams), 0)
+    into v_month_scrap, v_month_cash, v_month_cash_g, v_month_usd, v_month_usd_g, v_month_settle
+    from public.gold_settlements
+    where customer_id = v_cust_rec.id
+      and direction = 'client_to_seller'
+      and status <> 'reversed'
+      and settlement_date between v_start_date and v_end_date;
+
+    -- Fetch applied USD rate for the month settlements if any
+    select coalesce(max(applied_usd_rate), 0) into v_month_usd_rate
+    from public.gold_settlements
+    where customer_id = v_cust_rec.id
+      and direction = 'client_to_seller'
+      and status <> 'reversed'
+      and settlement_date between v_start_date and v_end_date
+      and usd_paid_amount > 0;
+
+    -- 5. Closing SIGNED balance (082): opening + month legacy debt - month legacy advance + sales - settled.
+    --    closing_debt_g / closing_advance_g are its two sides; nothing is clamped away, the advance is subtracted once.
+    v_close_net  := round(v_open_net + v_month_legacy - v_month_legacy_adv + v_month_sales - v_month_settle, 4);
+    v_close_debt := greatest(0, v_close_net);
+    v_close_adv  := greatest(0, -v_close_net);
+
+    if v_open_net <> 0 or v_month_legacy <> 0 or v_month_legacy_adv <> 0 or v_month_sales <> 0 or v_month_settle <> 0 or v_close_net <> 0 then
+      v_rows := v_rows || jsonb_build_object(
+        'customer_id', v_cust_rec.id,
+        'customer_code', v_cust_rec.customer_code,
+        'customer_name', v_cust_rec.contact_name,
+        'phone', v_cust_rec.phone,
+        'opening_debt_g', v_open_debt,
+        'opening_advance_g', v_open_adv,
+        'opening_net_g', v_open_net,
+        'legacy_added_month_g', v_month_legacy,
+        'legacy_advance_month_g', v_month_legacy_adv,
+        'sales_in_month_g', v_month_sales,
+        'scrap_received_g', v_month_scrap,
+        'cash_received_uzs', v_month_cash,
+        'cash_equivalent_g', v_month_cash_g,
+        'usd_received', v_month_usd,
+        'usd_rate', v_month_usd_rate,
+        'usd_equivalent_g', v_month_usd_g,
+        'total_settled_g', v_month_settle,
+        'closing_debt_g', v_close_debt,
+        'closing_advance_g', v_close_adv,
+        'closing_net_g', v_close_net
+      );
+
+      v_tot_open := v_tot_open + v_open_debt;
+      v_tot_legacy := v_tot_legacy + v_month_legacy;
+      v_tot_dist := v_tot_dist + v_month_sales;
+      v_tot_coll := v_tot_coll + v_month_settle;
+      v_tot_debt := v_tot_debt + v_close_debt;
+      v_tot_open_adv := v_tot_open_adv + v_open_adv;
+      v_tot_open_net := v_tot_open_net + v_open_net;
+      v_tot_legacy_adv := v_tot_legacy_adv + v_month_legacy_adv;
+      v_tot_close_adv := v_tot_close_adv + v_close_adv;
+      v_tot_close_net := v_tot_close_net + v_close_net;
+      v_tot_cash_uzs := v_tot_cash_uzs + v_month_cash;
+      v_tot_usd := v_tot_usd + v_month_usd;
+      v_tot_scrap_g := v_tot_scrap_g + v_month_scrap;
+    end if;
+  end loop;
+
+  -- Calculate seller till and bozor qarzi (filter-specific OR across all sellers)
+  if v_filter_seller is not null then
+    select
+      coalesce(seller_till_cash_amount, 0),
+      coalesce(seller_till_scrap_grams, 0),
+      coalesce(seller_till_usd_amount, 0),
+      coalesce(seller_owes_manager_g, 0),
+      coalesce(manager_owes_seller_g, 0),
+      coalesce(bozor_qarzi_signed_g, 0)
+    into v_seller_held_cash_uzs, v_seller_held_scrap_g, v_seller_held_usd,
+         v_seller_owes_m_tot, v_m_owes_seller_tot, v_bozor_qarzi
+    from public.seller_gold_accounts
+    where seller_id = v_filter_seller and organization_id = v_caller_org;
+  else
+    select
+      coalesce(sum(seller_till_cash_amount), 0),
+      coalesce(sum(seller_till_scrap_grams), 0),
+      coalesce(sum(seller_till_usd_amount), 0),
+      coalesce(sum(seller_owes_manager_g), 0),
+      coalesce(sum(manager_owes_seller_g), 0),
+      coalesce(sum(bozor_qarzi_signed_g), 0)
+    into v_seller_held_cash_uzs, v_seller_held_scrap_g, v_seller_held_usd,
+         v_seller_owes_m_tot, v_m_owes_seller_tot, v_bozor_qarzi
+    from public.seller_gold_accounts
+    where organization_id = v_caller_org;
+  end if;
+
+  return jsonb_build_object(
+    'year', v_year,
+    'month', v_month,
+    'items', v_rows,
+    'summary', jsonb_build_object(
+      'total_customers', jsonb_array_length(v_rows),
+      -- Combine opening debt + legacy debt added in month so card matches table!
+      'total_opening_debt_g', round(v_tot_open + v_tot_legacy, 4),
+      'base_opening_debt_g', v_tot_open,
+      'total_legacy_added_month_g', v_tot_legacy,
+      'total_distributed_month_g', v_tot_dist,
+      'total_collected_scrap_g', v_tot_scrap_g,
+      'total_collected_cash_uzs', v_tot_cash_uzs,
+      'total_collected_usd', v_tot_usd,
+      'total_collected_month_g', v_tot_coll,
+      'total_closing_debt_g', v_tot_debt,
+      'total_customer_debt_g', v_tot_debt,
+      -- 082: the advance side and the signed totals (gross debt - gross advance)
+      'total_opening_advance_g', v_tot_open_adv,
+      'total_opening_net_g', v_tot_open_net,
+      'total_legacy_advance_month_g', v_tot_legacy_adv,
+      'total_closing_advance_g', v_tot_close_adv,
+      'total_closing_net_g', v_tot_close_net,
+      'seller_held_cash_uzs', v_seller_held_cash_uzs,
+      'seller_held_scrap_g', v_seller_held_scrap_g,
+      'seller_held_usd', v_seller_held_usd,
+      'seller_owes_manager_total_g', v_seller_owes_m_tot,
+      'manager_owes_seller_total_g', v_m_owes_seller_tot,
+      'seller_manager_bozor_qarzi_g', v_bozor_qarzi
+    )
+  );
+end;
+$function$;
+
+-- ===== rpc_get_daily_sales_ledger (restore the body of 20260101000064_goldia_audit_production_fixes.sql)
+CREATE OR REPLACE FUNCTION public.rpc_get_daily_sales_ledger(
+  p_seller_id   uuid DEFAULT NULL,
+  p_start_date  date DEFAULT NULL,
+  p_end_date    date DEFAULT NULL
+)
+RETURNS TABLE (
+  tx_id             uuid,
+  tx_type           text,
+  tx_date           date,
+  customer_id       uuid,
+  customer_code     text,
+  customer_name     text,
+  seller_id         uuid,
+  seller_name       text,
+  model_name        text,
+  model_code        text,
+  item_id           uuid,
+  sold_weight_g     numeric,
+  markup_pct        numeric,
+  obligation_g      numeric,
+  scrap_received_g  numeric,
+  cash_received_uzs numeric,
+  rate_per_gram     numeric,
+  cash_equiv_g      numeric,
+  usd_received      numeric,
+  usd_rate          numeric,
+  usd_equiv_g       numeric,
+  total_payment_g   numeric,
+  closing_debt_g    numeric,
+  notes             text,
+  status            text
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_caller_org    uuid := public.current_organization_id();
+  v_caller_role   text := public.current_employee_role_text();
+  v_caller_emp_id uuid := public.current_employee_id();
+  v_filter_seller uuid;
+  v_today_tkt     date := (timezone('Asia/Tashkent', NOW()))::date;
+  v_d1            date;
+  v_d2            date;
+  v_from          date;
+  v_to            date;
+BEGIN
+  IF v_caller_org IS NULL THEN
+    RAISE EXCEPTION 'Permission denied: User must belong to an active organization' USING errcode = '42501';
+  END IF;
+
+  IF v_caller_role IN ('seller', 'sotuvchi', 'sales') THEN
+    IF p_seller_id IS NOT NULL AND p_seller_id <> v_caller_emp_id THEN
+      RAISE EXCEPTION 'Cross-seller violation: Sotuvchilar faqat o''z savdo jurnalini ko''ra oladi' USING errcode = '42501';
+    END IF;
+    v_filter_seller := v_caller_emp_id;
+  ELSE
+    v_filter_seller := p_seller_id;
+  END IF;
+
+  IF p_start_date IS NOT NULL AND p_end_date IS NULL THEN
+    v_d1 := p_start_date;
+    v_d2 := p_start_date;
+  ELSIF p_start_date IS NULL AND p_end_date IS NOT NULL THEN
+    v_d1 := p_end_date;
+    v_d2 := p_end_date;
+  ELSIF p_start_date IS NOT NULL AND p_end_date IS NOT NULL THEN
+    v_d1 := p_start_date;
+    v_d2 := p_end_date;
+  ELSE
+    v_d1 := v_today_tkt - INTERVAL '30 days';
+    v_d2 := v_today_tkt;
+  END IF;
+
+  v_from := LEAST(v_d1, v_d2);
+  v_to   := GREATEST(v_d1, v_d2);
+
+  RETURN QUERY
+  -- 1. Sales entries
+  SELECT
+    s.id AS tx_id,
+    'sale'::text AS tx_type,
+    s.sale_date AS tx_date,
+    s.customer_id,
+    COALESCE(c.customer_code, 'CUST-XXXX') AS customer_code,
+    COALESCE(c.contact_name, 'Mijoz') AS customer_name,
+    s.seller_id,
+    COALESCE(e.full_name, e.name, 'Sotuvchi') AS seller_name,
+    s.product_name AS model_name,
+    COALESCE(cp.model_code, 'M-GENERIC') AS model_code,
+    cp.id AS item_id,
+    s.base_weight_grams AS sold_weight_g,
+    s.client_markup_pct AS markup_pct,
+    s.client_gold_due_grams AS obligation_g,
+    0::numeric AS scrap_received_g,
+    0::numeric AS cash_received_uzs,
+    0::numeric AS rate_per_gram,
+    0::numeric AS cash_equiv_g,
+    0::numeric AS usd_received,
+    0::numeric AS usd_rate,
+    0::numeric AS usd_equiv_g,
+    COALESCE(s.settled_gold_grams, 0)::numeric AS total_payment_g,
+    s.remaining_gold_grams AS closing_debt_g,
+    s.notes,
+    s.status
+  FROM public.jewelry_sales s
+  JOIN public.customers c ON c.id = s.customer_id
+  JOIN public.employees e ON e.id = s.seller_id
+  LEFT JOIN public.consignment_pieces cp ON cp.sale_id = s.id
+  WHERE s.organization_id = v_caller_org
+    AND s.sale_date BETWEEN v_from AND v_to
+    AND (v_filter_seller IS NULL OR s.seller_id = v_filter_seller)
+
+  UNION ALL
+
+  -- 2. Payment/Settlement entries
+  SELECT
+    gs.id AS tx_id,
+    'payment'::text AS tx_type,
+    gs.settlement_date AS tx_date,
+    gs.customer_id,
+    COALESCE(c.customer_code, 'CUST-XXXX') AS customer_code,
+    COALESCE(c.contact_name, 'Mijoz') AS customer_name,
+    gs.seller_id,
+    COALESCE(e.full_name, e.name, 'Sotuvchi') AS seller_name,
+    'To''lov / Qaytim'::text AS model_name,
+    'PAYMENT'::text AS model_code,
+    NULL::uuid AS item_id,
+    0::numeric AS sold_weight_g,
+    0::numeric AS markup_pct,
+    0::numeric AS obligation_g,
+    gs.scrap_weight_grams AS scrap_received_g,
+    gs.cash_paid_amount AS cash_received_uzs,
+    gs.gold_rate_applied AS rate_per_gram,
+    gs.cash_equivalent_grams AS cash_equiv_g,
+    COALESCE(gs.usd_paid_amount, 0)::numeric AS usd_received,
+    COALESCE(gs.applied_usd_rate, 0)::numeric AS usd_rate,
+    COALESCE(gs.usd_equivalent_grams, 0)::numeric AS usd_equiv_g,
+    gs.total_settled_grams AS total_payment_g,
+    gs.remaining_debt_grams AS closing_debt_g,
+    gs.notes,
+    gs.status
+  FROM public.gold_settlements gs
+  JOIN public.customers c ON c.id = gs.customer_id
+  JOIN public.employees e ON e.id = gs.seller_id
+  WHERE gs.organization_id = v_caller_org
+    AND gs.settlement_date BETWEEN v_from AND v_to
+    AND (v_filter_seller IS NULL OR gs.seller_id = v_filter_seller)
+  ORDER BY tx_date DESC, tx_id DESC;
+END;
+$$;
+
+-- ===== _goldia_period_effects (restore the body of 20260101000080_goldia_period_report_performance.sql)
+create or replace function public._goldia_period_effects(p_org uuid)
+returns table (
+  kind text, d date, seller_id uuid, cnt int,
+  cust_g numeric, cur_uzs numeric, cur_usd numeric, stock_g numeric,
+  till_uzs numeric, till_usd numeric, till_scrap_g numeric,
+  mgr_uzs numeric, mgr_usd numeric, factory_g numeric,
+  phys_g numeric, due_g numeric, amount numeric, extra numeric
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  with sales as (
+    select s.*, coalesce(s.sale_currency, 'XAU585') as cur, rv.rev_at
+      from public.jewelry_sales s
+      -- 080: one grouped pass over the reversal audit rows (was a correlated subquery per sale)
+      left join (select a.record_id, min(a.created_at) as rev_at
+                   from public.audit_logs a
+                  where a.table_name = 'jewelry_sales' and a.action in ('REVERSE_CLIENT_SALE', 'REVERSE_JEWELRY_SALE', 'REVERSE_SALE')
+                  group by a.record_id) rv on rv.record_id = s.id::text
+     where s.organization_id = p_org
+  )
+  -- sales (gram + %, UZS, USD): physical grams leave the seller stock; debt in 585 g or in the currency
+  select case cur when 'XAU585' then 'sale_gram' when 'UZS' then 'sale_uzs' else 'sale_usd' end, sale_date, seller_id, 1,
+         case when cur = 'XAU585' then client_gold_due_grams else 0 end,
+         case when cur = 'UZS' then sale_amount else 0 end, case when cur = 'USD' then sale_amount else 0 end,
+         -base_weight_grams, 0, 0, 0, 0, 0, 0,
+         base_weight_grams, case when cur = 'XAU585' then client_gold_due_grams else 0 end, coalesce(sale_amount, 0), 0
+    from sales
+  union all
+  select 'reversal_sale', public._goldia_business_date(coalesce(rev_at, updated_at)), seller_id, 1,
+         case when cur = 'XAU585' then -client_gold_due_grams else 0 end,
+         case when cur = 'UZS' then -sale_amount else 0 end, case when cur = 'USD' then -sale_amount else 0 end,
+         base_weight_grams, 0, 0, 0, 0, 0, 0,
+         base_weight_grams, case when cur = 'XAU585' then client_gold_due_grams else 0 end, coalesce(sale_amount, 0), 0
+    from sales where status in ('reversed', 'cancelled')
+  -- customer payments of 585 debts (cash / USD / scrap at the rate recorded on the payment)
+  union all
+  select 'payment_gram', g.settlement_date, g.seller_id, 1,
+         -g.total_settled_grams, 0, 0, 0,
+         coalesce(g.cash_paid_amount, 0), coalesce(g.usd_paid_amount, 0), coalesce(g.scrap_585_equiv_grams, 0), 0, 0, 0,
+         coalesce(g.physical_scrap_grams, 0), g.total_settled_grams, 0, coalesce(g.excess_gold_grams, 0)
+    from public.gold_settlements g where g.organization_id = p_org and g.direction = 'client_to_seller' and g.reversal_of_id is null
+  union all
+  select 'reversal_payment_gram', public._goldia_business_date(g.reversed_at), g.seller_id, 1,
+         g.total_settled_grams, 0, 0, 0,
+         -coalesce(g.cash_paid_amount, 0), -coalesce(g.usd_paid_amount, 0), -coalesce(g.scrap_585_equiv_grams, 0), 0, 0, 0,
+         coalesce(g.physical_scrap_grams, 0), g.total_settled_grams, 0, 0
+    from public.gold_settlements g where g.organization_id = p_org and g.direction = 'client_to_seller' and g.reversal_of_id is null
+     and g.status in ('reversed', 'cancelled') and g.reversed_at is not null
+  -- legacy debts / advances / reconciliations (entered on the day they were recorded, not on the notebook date)
+  union all
+  select 'legacy_' || l.entry_type || '_' || l.balance_type, public._goldia_business_date(l.created_at), l.seller_id, 1,
+         l.delta_585_g, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, l.delta_585_g, 0, 0
+    from public.client_legacy_debts l where l.organization_id = p_org
+  union all
+  select 'reversal_legacy', public._goldia_business_date(l.reversed_at), l.seller_id, 1,
+         -l.delta_585_g, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, l.delta_585_g, 0, 0
+    from public.client_legacy_debts l where l.organization_id = p_org and l.status = 'reversed' and l.reversed_at is not null
+  -- payments of UZS / USD debts
+  union all
+  select 'payment_' || lower(c.debt_currency), c.settlement_date, c.seller_id, 1,
+         0, case when c.debt_currency = 'UZS' then -c.credited_amount else 0 end, case when c.debt_currency = 'USD' then -c.credited_amount else 0 end, 0,
+         c.cash_uzs, c.usd_amount, c.scrap_585_g, 0, 0, 0,
+         c.scrap_physical_g, c.scrap_585_g, c.credited_amount, c.to_advance
+    from public.client_currency_settlements c where c.organization_id = p_org
+  union all
+  select 'reversal_payment_' || lower(c.debt_currency), public._goldia_business_date(c.reversed_at), c.seller_id, 1,
+         0, case when c.debt_currency = 'UZS' then c.credited_amount else 0 end, case when c.debt_currency = 'USD' then c.credited_amount else 0 end, 0,
+         -c.cash_uzs, -c.usd_amount, -c.scrap_585_g, 0, 0, 0,
+         c.scrap_physical_g, c.scrap_585_g, c.credited_amount, 0
+    from public.client_currency_settlements c where c.organization_id = p_org and c.status = 'reversed' and c.reversed_at is not null
+  -- seller -> manager handovers (till -> manager vault)
+  union all
+  select 'handover', g.settlement_date, g.seller_id, 1,
+         0, 0, 0, 0,
+         -coalesce(g.cash_paid_amount, 0), -coalesce(g.usd_paid_amount, 0), -coalesce(g.scrap_585_equiv_grams, 0),
+         coalesce(g.cash_paid_amount, 0), coalesce(g.usd_paid_amount, 0), 0,
+         coalesce(g.physical_scrap_grams, 0), g.total_settled_grams, 0, 0
+    from public.gold_settlements g where g.organization_id = p_org and g.direction = 'seller_to_manager' and g.reversal_of_id is null
+  union all
+  select 'reversal_handover', public._goldia_business_date(g.reversed_at), g.seller_id, 1,
+         0, 0, 0, 0,
+         coalesce(g.cash_paid_amount, 0), coalesce(g.usd_paid_amount, 0), coalesce(g.scrap_585_equiv_grams, 0),
+         -coalesce(g.cash_paid_amount, 0), -coalesce(g.usd_paid_amount, 0), 0,
+         coalesce(g.physical_scrap_grams, 0), g.total_settled_grams, 0, 0
+    from public.gold_settlements g where g.organization_id = p_org and g.direction = 'seller_to_manager' and g.reversal_of_id is null
+     and g.status in ('reversed', 'cancelled') and g.reversed_at is not null
+  -- distribution to sellers, returns, cancellations
+  union all
+  select 'consignment', public._goldia_business_date(coalesce(c.issued_at, c.created_at)), c.seller_id, 1,
+         0, 0, 0, coalesce(c.original_base_weight_grams, c.base_weight_grams + coalesce(c.returned_weight_grams, 0)),
+         0, 0, 0, 0, 0, 0,
+         coalesce(c.original_base_weight_grams, c.base_weight_grams + coalesce(c.returned_weight_grams, 0)),
+         coalesce(c.original_seller_obligation_g, c.seller_obligation_g, 0), 0, 0
+    from public.seller_consignments c where c.organization_id = p_org
+  union all
+  select 'consignment_cancelled', public._goldia_business_date(c.cancelled_at), c.seller_id, 1,
+         0, 0, 0, -c.base_weight_grams, 0, 0, 0, 0, 0, 0, c.base_weight_grams, 0, 0, 0
+    from public.seller_consignments c where c.organization_id = p_org and c.status = 'cancelled' and c.cancelled_at is not null
+  union all
+  select 'return_to_manager', public._goldia_business_date(p.returned_to_manager_at), p.seller_id, 1,
+         0, 0, 0, -p.weight_grams, 0, 0, 0, 0, 0, 0, p.weight_grams, 0, 0, 0
+    from public.consignment_pieces p where p.organization_id = p_org and p.returned_to_manager_at is not null
+  -- factory
+  union all
+  select 'factory_receipt', r.receipt_date, null::uuid, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, r.factory_obligation_g,
+         r.original_physical_g, r.factory_obligation_g, 0, coalesce(r.factory_markup_pct, 0)
+    from public.factory_receipts r where r.organization_id = p_org
+  union all
+  select 'reversal_factory_receipt', public._goldia_business_date(r.reversed_at), null, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -r.factory_obligation_g,
+         r.original_physical_g, r.factory_obligation_g, 0, 0
+    from public.factory_receipts r where r.organization_id = p_org and r.status in ('reversed', 'cancelled') and r.reversed_at is not null
+  union all
+  select 'factory_handover', h.handover_date, null, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -h.agreed_equivalent_g,
+         h.physical_weight_g, h.agreed_equivalent_g, 0, 0
+    from public.factory_gold_handovers h where h.organization_id = p_org
+  union all
+  select 'reversal_factory_handover', public._goldia_business_date(h.reversed_at), null, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, h.agreed_equivalent_g,
+         h.physical_weight_g, h.agreed_equivalent_g, 0, 0
+    from public.factory_gold_handovers h where h.organization_id = p_org and h.status in ('reversed', 'cancelled') and h.reversed_at is not null
+  -- capital / expenses (manager tills, seller tills); a reclassified operation: its original effect on its own date,
+  -- then the move (minus original, plus new) on the reclassification date
+  union all
+  select 'fin_' || f.transaction_type || '_' || coalesce(f.reclassified_from_till, f.source_till), f.transaction_date, f.seller_id, 1,
+         0, 0, 0, 0, o.till_uzs, o.till_usd, 0, o.mgr_uzs, o.mgr_usd, 0,
+         coalesce(f.physical_weight_grams, 0), coalesce(f.equiv_585_grams, 0), coalesce(f.reclassified_from_amount, f.amount_num), 0
+    from public.financial_transactions f
+    cross join lateral public._goldia_fin_cash_effect(f.transaction_type, coalesce(f.reclassified_from_till, f.source_till), coalesce(f.reclassified_from_amount, f.amount_num)) o
+   where f.organization_id = p_org
+  union all
+  select 'fin_reclassify', public._goldia_business_date(f.reclassified_at), f.seller_id, 1,
+         0, 0, 0, 0, n.till_uzs - o.till_uzs, n.till_usd - o.till_usd, 0, n.mgr_uzs - o.mgr_uzs, n.mgr_usd - o.mgr_usd, 0,
+         0, coalesce(f.equiv_585_grams, 0), f.amount_num, 0
+    from public.financial_transactions f
+    cross join lateral public._goldia_fin_cash_effect(f.transaction_type, f.reclassified_from_till, f.reclassified_from_amount) o
+    cross join lateral public._goldia_fin_cash_effect(f.transaction_type, f.source_till, f.amount_num) n
+   where f.organization_id = p_org and f.reclassified_at is not null
+  union all
+  select 'reversal_fin', public._goldia_business_date(f.reversed_at), f.seller_id, 1,
+         0, 0, 0, 0, -n.till_uzs, -n.till_usd, 0, -n.mgr_uzs, -n.mgr_usd, 0, 0, 0, f.amount_num, 0
+    from public.financial_transactions f
+    cross join lateral public._goldia_fin_cash_effect(f.transaction_type, f.source_till, f.amount_num) n
+   where f.organization_id = p_org and f.status = 'reversed' and f.reversed_at is not null
+  -- cash gold purchases
+  union all
+  select 'purchase', p.purchase_date, null, 1, 0, 0, 0, 0, 0, 0, 0, -coalesce(p.cash_spent_uzs, 0), -coalesce(p.usd_spent, 0), 0,
+         coalesce(p.gold_weight_grams, 0), coalesce(p.equiv_585_grams, 0), 0, 0
+    from public.gold_purchases p where p.organization_id = p_org
+  union all
+  select 'reversal_purchase', public._goldia_business_date(p.reversed_at), null, 1, 0, 0, 0, 0, 0, 0, 0, coalesce(p.cash_spent_uzs, 0), coalesce(p.usd_spent, 0), 0,
+         coalesce(p.gold_weight_grams, 0), coalesce(p.equiv_585_grams, 0), 0, 0
+    from public.gold_purchases p where p.organization_id = p_org and p.status in ('reversed', 'cancelled') and p.reversed_at is not null
+$$;
+
+-- ===== rpc_get_seller_markup_difference_report (restore the body of 20260101000073_goldia_release_candidate_stabilization.sql)
+CREATE OR REPLACE FUNCTION public.rpc_get_seller_markup_difference_report(p_seller_id uuid DEFAULT NULL::uuid, p_from date DEFAULT NULL::date, p_to date DEFAULT NULL::date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_org     uuid := public.current_organization_id();
+  v_role    text := public.current_employee_role_text();
+  v_emp     uuid := public.current_employee_id();
+  v_seller  uuid := p_seller_id;
+  v_from    date := coalesce(p_from, date '2000-01-01');
+  v_to      date := coalesce(p_to, public._goldia_business_date());
+  v_res     jsonb;
+begin
+  if v_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar', 'accountant', 'buxgalter',
+    'manager', 'production_manager', 'boshqaruvchi', 'sales', 'seller', 'sotuvchi']);
+  if public._goldia_is_seller_role(v_role) then
+    if v_seller is not null and v_seller is distinct from v_emp then
+      raise exception 'Ruxsat etilmadi: Sotuvchi faqat o''z ustama farqini ko''ra oladi' using errcode = '42501';
+    end if;
+    v_seller := v_emp;
+  end if;
+
+  with s as (
+    select js.*, (js.status in ('reversed', 'cancelled')) as is_reversed,
+           case when coalesce(js.client_gold_due_grams, 0) > 0
+                then least(1, greatest(0, coalesce(js.settled_gold_grams, 0) / js.client_gold_due_grams)) else 0 end as paid_ratio
+      from public.jewelry_sales js
+     where js.organization_id = v_org
+       and (v_seller is null or js.seller_id = v_seller)
+       and js.sale_date between v_from and v_to
+  ),
+  active as (select * from s where not is_reversed and markup_difference_g is not null)
+  select jsonb_build_object(
+    'status', 'ok',
+    'seller_id', v_seller,
+    'period_from', v_from,
+    'period_to', v_to,
+    'total_difference_g', coalesce((select round(sum(markup_difference_g), 4) from active), 0),
+    'positive_g', coalesce((select round(sum(markup_difference_g), 4) from active where markup_difference_g > 0), 0),
+    'negative_g', coalesce((select round(sum(markup_difference_g), 4) from active where markup_difference_g < 0), 0),
+    'realized_g', coalesce((select round(sum(markup_difference_g * paid_ratio), 4) from active), 0),
+    'unrealized_g', coalesce((select round(sum(markup_difference_g * (1 - paid_ratio)), 4) from active), 0),
+    'active_sales', (select count(*) from active),
+    'reversed_sales', (select count(*) from s where is_reversed),
+    'unknown_sales', (select count(*) from s where not is_reversed and markup_difference_g is null),
+    'included_in_profit_summary', true,
+    'note', 'Ustama farqi kompaniyaga tegishli; mijoz qarzi va sotuvchi majburiyatini o''zgartirmaydi, foyda hisobotida allaqachon bor — qayta qo''shilmaydi. Amalga oshgan qism mijoz to''lagan ulushga teng.',
+    'by_seller', case when public._goldia_is_seller_role(v_role) then '[]'::jsonb else coalesce((
+        select jsonb_agg(jsonb_build_object('seller_id', a.seller_id,
+                 'seller_name', coalesce(e.full_name, e.name), 'total_difference_g', a.total, 'positive_g', a.pos,
+                 'negative_g', a.neg, 'sales', a.cnt) order by a.total desc)
+          from (select seller_id, round(sum(markup_difference_g), 4) total,
+                       round(sum(markup_difference_g) filter (where markup_difference_g > 0), 4) pos,
+                       round(sum(markup_difference_g) filter (where markup_difference_g < 0), 4) neg, count(*) cnt
+                  from active group by seller_id) a
+          left join public.employees e on e.id = a.seller_id), '[]'::jsonb) end,
+    'entries', coalesce((
+        select jsonb_agg(jsonb_build_object(
+                 'sale_id', x.id, 'sale_no', x.sale_no, 'sale_date', x.sale_date, 'seller_id', x.seller_id,
+                 'customer_name', c.contact_name, 'model', coalesce(x.model_code, x.product_name),
+                 'base_weight_grams', x.base_weight_grams, 'assigned_seller_markup_pct', x.assigned_seller_markup_pct,
+                 'client_markup_pct', x.client_markup_pct, 'markup_difference_g', x.markup_difference_g,
+                 'snapshot_source', x.markup_snapshot_source, 'status', x.status, 'reversed', x.is_reversed)
+               order by x.sale_date desc, x.created_at desc)
+          from (select * from s order by sale_date desc, created_at desc limit 500) x
+          left join public.customers c on c.id = x.customer_id), '[]'::jsonb)
+  ) into v_res;
+  return v_res;
+end;
+$function$;
+
+-- ===== rpc_get_seller_reconciliation_statement (restore the body of 20260101000068_goldia_weight_sale_pieces_and_factory_counters.sql)
+CREATE OR REPLACE FUNCTION public.rpc_get_seller_reconciliation_statement(p_seller_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_caller_org        uuid := public.current_organization_id();
+  v_seller            public.employees%rowtype;
+  v_seller_acc        public.seller_gold_accounts%rowtype;
+
+  -- Section A: Received from Manager + Legacy customer debts assigned
+  v_sec_a_orig_g      numeric(14, 4) := 0;
+  v_sec_a_obl_g       numeric(14, 4) := 0;
+  v_sec_a_count       integer := 0;
+  v_sec_a_legacy_g    numeric(14, 4) := 0;
+
+  -- Section B: Goods Unsold
+  v_sec_b_count       integer := 0;
+  v_sec_b_orig_g      numeric(14, 4) := 0;
+  v_sec_b_equiv_g     numeric(14, 4) := 0;
+  v_sec_b_pieces_g    numeric(14, 4) := 0;
+  v_sec_b_auth_g      numeric(14, 4) := 0;
+
+  -- Section C: Goods Sold to Customers
+  v_sec_c_count       integer := 0;
+  v_sec_c_orig_g      numeric(14, 4) := 0;
+  v_sec_c_equiv_g     numeric(14, 4) := 0;
+
+  -- Section D: Customer Receivables
+  v_sec_d_client_obl  numeric(14, 4) := 0;
+  v_sec_d_scrap_rec   numeric(14, 4) := 0;
+  v_sec_d_cash_rec    numeric(18, 2) := 0;
+  v_sec_d_cash_eq     numeric(14, 4) := 0;
+  v_sec_d_usd_rec     numeric(18, 2) := 0;
+  v_sec_d_usd_eq      numeric(14, 4) := 0;
+  v_sec_d_cust_debt   numeric(14, 4) := 0;
+
+  -- Section E: Seller Holdings
+  v_sec_e_cash_uzs    numeric(18, 2) := 0;
+  v_sec_e_cash_usd    numeric(18, 2) := 0;
+  v_sec_e_scrap_g     numeric(14, 4) := 0;
+
+  -- Section F: Seller-to-Manager Settlements & Returns
+  v_sec_f_scrap_g     numeric(14, 4) := 0;
+  v_sec_f_cash_uzs    numeric(18, 2) := 0;
+  v_sec_f_cash_eq     numeric(14, 4) := 0;
+  v_sec_f_usd_amount  numeric(18, 2) := 0;
+  v_sec_f_usd_eq      numeric(14, 4) := 0;
+  v_sec_f_ret_count   integer := 0;
+  v_sec_f_ret_orig_g  numeric(14, 4) := 0;
+  v_sec_f_ret_obl_g   numeric(14, 4) := 0;
+  v_sec_f_total_ded   numeric(14, 4) := 0;
+
+  -- Section G: Signed Bozor Qarzi
+  v_sec_g_signed_g    numeric(14, 4) := 0;
+  v_sec_g_owes_m_g    numeric(14, 4) := 0;
+  v_sec_g_m_owes_s_g  numeric(14, 4) := 0;
+  v_expected_obl      numeric(14, 4) := 0;
+  v_discrepancy       numeric(14, 4) := 0;
+  v_is_reconciled     boolean := true;
+BEGIN
+  IF v_caller_org IS NULL THEN
+    RAISE EXCEPTION 'Permission denied: User must belong to an active organization' USING errcode = '42501';
+  END IF;
+
+  SELECT * INTO v_seller
+    FROM public.employees
+   WHERE id = p_seller_id AND organization_id = v_caller_org;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Sotuvchi topilmadi (%)', p_seller_id;
+  END IF;
+  IF public._goldia_is_seller_role(public.current_employee_role_text())
+     AND p_seller_id IS DISTINCT FROM public.current_employee_id() THEN
+    RAISE EXCEPTION 'Ruxsat etilmadi: Sotuvchi faqat o''z hisobotini ko''ra oladi' USING errcode = '42501';
+  END IF;
+
+  SELECT * INTO v_seller_acc
+    FROM public.seller_gold_accounts
+   WHERE seller_id = p_seller_id AND organization_id = v_caller_org;
+
+  -- Section A: Consignments (Sum base_weight + returned_weight + sold_weight, and quantity + returned_quantity + sold_quantity)
+  SELECT
+    COALESCE(SUM(base_weight_grams + returned_weight_grams), 0),
+    COALESCE(SUM(COALESCE(seller_obligation_g, 0) + returned_seller_obligation_g), 0),
+    COALESCE(SUM(quantity + returned_quantity + COALESCE(sold_quantity, 0)), 0)
+  INTO v_sec_a_orig_g, v_sec_a_obl_g, v_sec_a_count
+  FROM public.seller_consignments
+  WHERE seller_id = p_seller_id
+    AND organization_id = v_caller_org
+    AND (status IS NULL OR status NOT IN ('cancelled', 'reversed'));
+
+  -- Legacy customer debts assigned to this seller
+  SELECT COALESCE(SUM(delta_585_g), 0)
+  INTO v_sec_a_legacy_g
+  FROM public.client_legacy_debts
+  WHERE seller_id = p_seller_id
+    AND organization_id = v_caller_org
+    AND balance_type = 'debt'
+    AND status <> 'reversed';
+
+  -- Section B: Unsold goods
+  SELECT
+    COUNT(*)::integer,
+    COALESCE(SUM(weight_grams), 0),
+    COALESCE(SUM(ROUND(weight_grams * (1.0 + COALESCE(seller_markup_pct, 12.0) / 100.0), 4)), 0)
+  INTO v_sec_b_count, v_sec_b_orig_g, v_sec_b_equiv_g
+  FROM public.consignment_pieces
+  WHERE seller_id = p_seller_id
+    AND organization_id = v_caller_org
+    AND status = 'held_by_seller';
+
+  -- 068: unsold grams follow the authoritative stock (active consignments - active sales); the piece
+  -- total is shown alongside so any shelf/stock difference is visible instead of silently reported.
+  v_sec_b_pieces_g := v_sec_b_orig_g;
+  SELECT ROUND(GREATEST(0,
+           COALESCE((SELECT SUM(base_weight_grams) FROM public.seller_consignments
+                      WHERE seller_id = p_seller_id AND organization_id = v_caller_org
+                        AND status IN ('held_by_seller', 'partially_sold', 'fully_sold')), 0)
+         - COALESCE((SELECT SUM(base_weight_grams) FROM public.jewelry_sales
+                      WHERE seller_id = p_seller_id AND organization_id = v_caller_org
+                        AND status NOT IN ('cancelled', 'reversed')), 0)), 4)
+    INTO v_sec_b_auth_g;
+  IF v_sec_b_pieces_g > 0 THEN
+    v_sec_b_equiv_g := ROUND(v_sec_b_equiv_g * v_sec_b_auth_g / v_sec_b_pieces_g, 4);
+  END IF;
+  v_sec_b_orig_g := v_sec_b_auth_g;
+
+  -- Section C: Sold goods (Calculate seller obligation equivalent)
+  SELECT
+    COUNT(*)::integer,
+    COALESCE(SUM(s.base_weight_grams), 0),
+    COALESCE(SUM(ROUND(s.base_weight_grams * (1.0 + COALESCE(cp.seller_markup_pct, sc.seller_markup_pct, 12.0) / 100.0), 4)), 0)
+  INTO v_sec_c_count, v_sec_c_orig_g, v_sec_c_equiv_g
+  FROM public.jewelry_sales s
+  LEFT JOIN public.consignment_pieces cp ON cp.sale_id = s.id
+  LEFT JOIN public.seller_consignments sc ON sc.id = cp.consignment_id
+  WHERE s.seller_id = p_seller_id
+    AND s.organization_id = v_caller_org
+    AND s.status NOT IN ('cancelled', 'reversed');
+
+  -- Section D: Customer Receivables & Payments
+  SELECT
+    COALESCE(SUM(s.client_gold_due_grams), 0)
+  INTO v_sec_d_client_obl
+  FROM public.jewelry_sales s
+  WHERE s.seller_id = p_seller_id AND s.organization_id = v_caller_org AND s.status NOT IN ('cancelled', 'reversed');
+
+  SELECT
+    COALESCE(SUM(gs.scrap_weight_grams), 0),
+    COALESCE(SUM(gs.cash_paid_amount), 0),
+    COALESCE(SUM(gs.cash_equivalent_grams), 0),
+    COALESCE(SUM(gs.usd_paid_amount), 0),
+    COALESCE(SUM(gs.usd_equivalent_grams), 0)
+  INTO v_sec_d_scrap_rec, v_sec_d_cash_rec, v_sec_d_cash_eq, v_sec_d_usd_rec, v_sec_d_usd_eq
+  FROM public.gold_settlements gs
+  WHERE gs.seller_id = p_seller_id
+    AND gs.organization_id = v_caller_org
+    AND gs.direction = 'client_to_seller'
+    AND (gs.status IS NULL OR gs.status NOT IN ('cancelled', 'reversed'));
+
+  v_sec_d_cust_debt := ROUND(GREATEST(0, (v_sec_d_client_obl + v_sec_a_legacy_g) - (v_sec_d_scrap_rec + v_sec_d_cash_eq + v_sec_d_usd_eq)), 4);
+
+  -- Section E: Seller Holdings
+  v_sec_e_cash_uzs := COALESCE(v_seller_acc.seller_till_cash_amount, 0);
+  v_sec_e_cash_usd := COALESCE(v_seller_acc.seller_till_usd_amount, 0);
+  v_sec_e_scrap_g  := COALESCE(v_seller_acc.seller_till_scrap_grams, 0);
+
+  -- Section F: Settlements & Returns
+  SELECT
+    COALESCE(SUM(gs.scrap_weight_grams), 0),
+    COALESCE(SUM(gs.cash_paid_amount), 0),
+    COALESCE(SUM(gs.cash_equivalent_grams), 0),
+    COALESCE(SUM(gs.usd_paid_amount), 0),
+    COALESCE(SUM(gs.usd_equivalent_grams), 0)
+  INTO v_sec_f_scrap_g, v_sec_f_cash_uzs, v_sec_f_cash_eq, v_sec_f_usd_amount, v_sec_f_usd_eq
+  FROM public.gold_settlements gs
+  WHERE gs.seller_id = p_seller_id
+    AND gs.organization_id = v_caller_org
+    AND gs.direction IN ('seller_to_manager', 'seller_to_factory')
+    AND (gs.status IS NULL OR gs.status NOT IN ('reversed', 'cancelled'));
+
+  SELECT
+    COUNT(*)::integer,
+    COALESCE(SUM(cp.weight_grams), 0),
+    COALESCE(SUM(ROUND(cp.weight_grams * (1.0 + COALESCE(cp.seller_markup_pct, 12.0) / 100.0), 4)), 0)
+  INTO v_sec_f_ret_count, v_sec_f_ret_orig_g, v_sec_f_ret_obl_g
+  FROM public.consignment_pieces cp
+  WHERE cp.seller_id = p_seller_id
+    AND cp.organization_id = v_caller_org
+    AND cp.status IN ('returned_to_manager', 'returned_to_factory');
+
+  v_sec_f_total_ded := ROUND(v_sec_f_scrap_g + v_sec_f_cash_eq + v_sec_f_usd_eq + v_sec_f_ret_obl_g, 4);
+
+  -- Section G: Final Signed Bozor Qarzi
+  v_sec_g_signed_g   := COALESCE(v_seller_acc.bozor_qarzi_signed_g, 0);
+  v_sec_g_owes_m_g   := COALESCE(v_seller_acc.seller_owes_manager_g, 0);
+  v_sec_g_m_owes_s_g := COALESCE(v_seller_acc.manager_owes_seller_g, 0);
+
+  v_expected_obl := ROUND(GREATEST(0, (v_sec_a_obl_g + v_sec_a_legacy_g) - v_sec_f_total_ded), 4);
+  v_discrepancy  := ROUND(ABS(v_sec_g_owes_m_g - v_expected_obl), 4);
+  v_is_reconciled := v_discrepancy < 0.001;
+
+  RETURN jsonb_build_object(
+    'status', 'ok',
+    'seller_id', p_seller_id,
+    'seller_name', COALESCE(v_seller.full_name, v_seller.name, 'Sotuvchi'),
+    'as_of_date', to_char(NOW(), 'YYYY-MM-DD HH24:MI'),
+    'section_a', jsonb_build_object(
+      'title', 'A. Boshqaruvchidan Qabul Qilingan Tovar & Eski Qarzi',
+      'item_count', v_sec_a_count,
+      'original_grams', v_sec_a_orig_g,
+      'seller_markup_obligation_grams', v_sec_a_obl_g,
+      'legacy_debt_obligation_grams', v_sec_a_legacy_g,
+      'total_obligation_grams', (v_sec_a_obl_g + v_sec_a_legacy_g)
+    ),
+    'section_b', jsonb_build_object(
+      'title', 'B. Sotilmay Qolgan Tovar (Sotuvchi Javonida)',
+      'item_count', v_sec_b_count,
+      'original_grams', v_sec_b_orig_g,
+      'seller_markup_equivalent_grams', v_sec_b_equiv_g,
+      'pieces_on_shelf_grams', v_sec_b_pieces_g,
+      'pieces_vs_stock_difference_grams', ROUND(v_sec_b_pieces_g - v_sec_b_auth_g, 4)
+    ),
+    'section_c', jsonb_build_object(
+      'title', 'C. Mijozlarga Sotilgan Tovar',
+      'item_count', v_sec_c_count,
+      'original_grams', v_sec_c_orig_g,
+      'seller_markup_equivalent_grams', v_sec_c_equiv_g
+    ),
+    'section_d', jsonb_build_object(
+      'title', 'D. Mijozlar Nasiyasi & Tushumlar',
+      'customer_markup_obligation_grams', (v_sec_d_client_obl + v_sec_a_legacy_g),
+      'gross_client_obligation_grams', (v_sec_d_client_obl + v_sec_a_legacy_g),
+      'scrap_collected_grams', v_sec_d_scrap_rec,
+      'cash_collected_uzs', v_sec_d_cash_rec,
+      'cash_collected_gold_equiv_grams', v_sec_d_cash_eq,
+      'usd_collected_amount', v_sec_d_usd_rec,
+      'usd_collected_gold_equiv_grams', v_sec_d_usd_eq,
+      'outstanding_customer_debt_grams', v_sec_d_cust_debt,
+      'net_client_debt_grams', v_sec_d_cust_debt
+    ),
+    'section_e', jsonb_build_object(
+      'title', 'E. Sotuvchi Kassasidagi Mavjud Naqd & Lom',
+      'cash_till_uzs', v_sec_e_cash_uzs,
+      'cash_uzs', v_sec_e_cash_uzs,
+      'cash_till_usd', v_sec_e_cash_usd,
+      'scrap_till_grams', v_sec_e_scrap_g,
+      'scrap_grams', v_sec_e_scrap_g
+    ),
+    'section_f', jsonb_build_object(
+      'title', 'F. Boshqaruvchiga Topshirilgan Tushum & Qaytarilgan Tovar',
+      'scrap_surrendered_grams', v_sec_f_scrap_g,
+      'settlements_scrap_grams', v_sec_f_scrap_g,
+      'cash_surrendered_uzs', v_sec_f_cash_uzs,
+      'cash_surrendered_gold_equiv_grams', v_sec_f_cash_eq,
+      'usd_surrendered_amount', v_sec_f_usd_amount,
+      'usd_surrendered_gold_equiv_grams', v_sec_f_usd_eq,
+      'returned_pieces_count', v_sec_f_ret_count,
+      'returned_unsold_items_count', v_sec_f_ret_count,
+      'returned_pieces_original_grams', v_sec_f_ret_orig_g,
+      'returned_unsold_original_grams', v_sec_f_ret_orig_g,
+      'returned_pieces_seller_obligation_grams', v_sec_f_ret_obl_g,
+      'returned_unsold_seller_obligation_grams', v_sec_f_ret_obl_g,
+      'returned_unsold_seller_markup_equivalent_grams', v_sec_f_ret_obl_g,
+      'total_deducted_from_obligation_grams', v_sec_f_total_ded,
+      'total_obligation_deductions_grams', v_sec_f_total_ded
+    ),
+    'section_g', jsonb_build_object(
+      'title', 'G. Yakuniy Bozor Qarzi & Solishtirish',
+      'bozor_qarzi_signed_grams', v_sec_g_signed_g,
+      'seller_owes_manager_grams', v_sec_g_owes_m_g,
+      'manager_owes_seller_grams', v_sec_g_m_owes_s_g,
+      'expected_obligation_grams', v_expected_obl,
+      'discrepancy_grams', v_discrepancy,
+      'is_reconciled', v_is_reconciled
+    )
+  );
+END;
+$function$;
+
+-- ===== rpc_get_three_tier_ledger_summary (restore the body of 20260101000070_goldia_acceptance_audit_fixes.sql)
+CREATE OR REPLACE FUNCTION public.rpc_get_three_tier_ledger_summary()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org         uuid := public.current_organization_id();
+  v_tier1_received_g   numeric(14, 4) := 0;
+  v_tier1_factory_obl  numeric(14, 4) := 0;
+  v_tier1_handed_over  numeric(14, 4) := 0;
+  v_tier1_factory_due  numeric(14, 4) := 0;
+  v_tier2_consigned_g  numeric(14, 4) := 0;
+  v_tier2_seller_obl   numeric(14, 4) := 0;
+  v_tier2_settled_g    numeric(14, 4) := 0;
+  v_tier2_seller_due   numeric(14, 4) := 0;
+  v_tier3_sales_due    numeric(14, 4) := 0;
+  v_tier3_settled_g    numeric(14, 4) := 0;
+  v_tier3_client_debt  numeric(14, 4) := 0;
+  v_tier3_advance_g    numeric(14, 4) := 0;
+  v_vault_scrap_g      numeric(14, 4) := 0;
+  v_vault_cash         numeric(18, 2) := 0;
+  v_vault_refined_585  numeric(14, 4) := 0;
+  v_manager_avail_g    numeric(14, 4) := 0;
+begin
+  -- 070: company-wide balances are not visible to sellers
+  perform public.assert_erp_permission(array['admin', 'director', 'owner', 'direktor', 'rahbar', 'accountant', 'buxgalter', 'manager', 'production_manager', 'boshqaruvchi']);
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  -- Tier 1: Factory <-> Manager (Filter out reversed receipts!)
+  select
+    coalesce(sum(original_physical_g), 0),
+    coalesce(sum(factory_obligation_g), 0),
+    coalesce(sum(available_physical_g), 0)
+  into v_tier1_received_g, v_tier1_factory_obl, v_manager_avail_g
+  from public.factory_receipts
+  where organization_id = v_caller_org and status <> 'reversed';
+
+  select coalesce(sum(agreed_equivalent_g), 0)
+  into v_tier1_handed_over
+  from public.factory_gold_handovers
+  where organization_id = v_caller_org;
+
+  v_tier1_factory_due := round(greatest(0, v_tier1_factory_obl - v_tier1_handed_over), 4);
+
+  -- Tier 2: Manager <-> Seller (Filter out cancelled/reversed consignments and settlements!)
+  select
+    coalesce(sum(base_weight_grams), 0),
+    coalesce(sum(coalesce(seller_obligation_g, factory_gold_due_grams)), 0)
+  into v_tier2_consigned_g, v_tier2_seller_obl
+  from public.seller_consignments
+  where organization_id = v_caller_org and status <> 'cancelled' and status <> 'reversed';
+
+  select coalesce(sum(total_settled_grams), 0)
+  into v_tier2_settled_g
+  from public.gold_settlements
+  where organization_id = v_caller_org and direction = 'seller_to_manager' and status <> 'reversed';
+
+  v_tier2_seller_due := round(greatest(0, v_tier2_seller_obl - v_tier2_settled_g), 4);
+
+  -- Tier 3: Seller <-> Customer (Filter out reversed sales and settlements!)
+  select coalesce(sum(client_gold_due_grams), 0)
+  into v_tier3_sales_due
+  from public.jewelry_sales
+  where organization_id = v_caller_org and status <> 'reversed';
+
+  select coalesce(sum(total_settled_grams), 0)
+  into v_tier3_settled_g
+  from public.gold_settlements
+  where organization_id = v_caller_org and direction = 'client_to_seller' and status <> 'reversed';
+
+  select
+    coalesce(sum(current_debt_grams), 0),
+    coalesce(sum(advance_balance_grams), 0)
+  into v_tier3_client_debt, v_tier3_advance_g
+  from public.client_gold_accounts
+  where organization_id = v_caller_org;
+
+  -- Vault Snapshot
+  select
+    coalesce(manager_scrap_grams, 0),
+    coalesce(manager_cash_amount, 0),
+    coalesce(manager_refined_gold_grams, 0)
+  into v_vault_scrap_g, v_vault_cash, v_vault_refined_585
+  from public.manager_vault_account
+  where organization_id = v_caller_org;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'tier1_factory', jsonb_build_object(
+      'total_obligation_grams', v_tier1_factory_obl,
+      'total_handovers_grams', v_tier1_handed_over,
+      'net_factory_debt_grams', v_tier1_factory_due,
+      'available_stock_grams', v_manager_avail_g
+    ),
+    'tier1_factory_to_manager', jsonb_build_object(
+      'total_received_physical_g', v_tier1_received_g,
+      'total_factory_obligation_g', v_tier1_factory_obl,
+      'total_handed_over_g', v_tier1_handed_over,
+      'current_factory_gold_due_g', v_tier1_factory_due,
+      'manager_available_stock_g', v_manager_avail_g
+    ),
+    'tier2_sellers', jsonb_build_object(
+      'total_seller_obligation_grams', v_tier2_seller_obl,
+      'total_settled_to_manager_grams', v_tier2_settled_g,
+      'bozor_qarzi_signed_grams', -v_tier2_seller_due,
+      'net_seller_due_grams', v_tier2_seller_due
+    ),
+    'tier2_manager_to_seller', jsonb_build_object(
+      'total_consigned_physical_g', v_tier2_consigned_g,
+      'total_seller_obligation_g', v_tier2_seller_obl,
+      'total_surrendered_to_manager_g', v_tier2_settled_g,
+      'current_seller_gold_due_g', v_tier2_seller_due
+    ),
+    'tier3_clients', jsonb_build_object(
+      'total_purchased_grams', v_tier3_sales_due,
+      'total_settled_grams', v_tier3_settled_g,
+      'net_debt_grams', v_tier3_client_debt,
+      'advance_balance_grams', v_tier3_advance_g
+    ),
+    'tier3_seller_to_customer', jsonb_build_object(
+      'total_sales_obligation_g', v_tier3_sales_due,
+      'total_settled_by_customers_g', v_tier3_settled_g,
+      'current_customer_debt_g', v_tier3_client_debt,
+      'current_customer_advance_g', v_tier3_advance_g
+    ),
+    'manager_vault', jsonb_build_object(
+      'scrap_gold_585_g', v_vault_scrap_g,
+      'refined_gold_585_equiv_g', v_vault_refined_585,
+      'cash_amount_uzs', v_vault_cash
+    )
+  );
+end;
+$function$;
+
+-- ===== rpc_execute_full_test_reset (restore the body of 20260101000073_goldia_release_candidate_stabilization.sql)
+CREATE OR REPLACE FUNCTION public.rpc_execute_full_test_reset(p_confirmation_code text, p_reason text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org    uuid := public.current_organization_id();
+  v_caller_emp_id uuid := public.current_employee_id();
+  v_reason        text := nullif(btrim(p_reason), '');
+  v_rev_ts        timestamptz := now();
+  v_rev_note      text;
+  v_base_archived int := 0;
+  v_sale_rev      int := 0;
+  v_settle_rev    int := 0;
+  v_piece_rev     int := 0;
+  v_consign_rev   int := 0;
+  v_rcp_rev       int := 0;
+  v_hnd_rev       int := 0;
+  v_ref_rev       int := 0;
+  v_fintx_rev     int := 0;
+  v_purch_rev     int := 0;
+  v_leg_rev       int := 0;
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar'
+  ]);
+
+  if v_caller_emp_id is null then
+    select id into v_caller_emp_id from public.employees where user_id = auth.uid() and organization_id = v_caller_org limit 1;
+  end if;
+
+  if p_confirmation_code is null or btrim(p_confirmation_code) <> 'RESET_TEST_ACCOUNT_2026' then
+    raise exception 'Tasdiqlash kodi noto''g''ri. Talab qilinadi: RESET_TEST_ACCOUNT_2026';
+  end if;
+
+  if v_reason is null then
+    raise exception 'Test hisobini tozalash sababi (audit uchun) kiritilishi shart';
+  end if;
+
+  v_rev_note := 'TEST HISOBI TOZALANDI: ' || v_reason || ' (' || to_char(v_rev_ts, 'YYYY-MM-DD HH24:MI') || ')';
+
+  -- A. Reverse sales
+  update public.jewelry_sales
+     set status = 'reversed',
+         notes = coalesce(notes, '') || ' [' || v_rev_note || ']',
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org and status not in ('cancelled', 'reversed');
+  get diagnostics v_sale_rev = row_count;
+
+  -- B. Reverse customer settlements and manager surrenders
+  update public.gold_settlements
+     set status = 'reversed',
+         reversed_at = v_rev_ts,
+         reversed_by = v_caller_emp_id,
+         reversal_reason = v_reason,
+         notes = coalesce(notes, '') || ' [' || v_rev_note || ']'
+   where organization_id = v_caller_org and status not in ('cancelled', 'reversed');
+  get diagnostics v_settle_rev = row_count;
+
+  -- C. Reset client gold accounts
+  update public.client_gold_accounts
+     set current_debt_grams = 0,
+         advance_balance_grams = 0,
+         total_settled_grams = 0,
+         total_purchased_gold_grams = 0,
+         total_scrap_paid_grams = 0,
+         total_cash_paid_amount = 0,
+         total_cash_equiv_grams = 0,
+         total_usd_paid_amount = 0,
+         total_usd_equiv_grams = 0,
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org;
+
+  -- D. Reverse legacy client debts
+  update public.client_legacy_debts
+     set status = 'reversed',
+         reversed_at = v_rev_ts,
+         reversed_by = v_caller_emp_id,
+         reversal_reason = v_reason,
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org and status <> 'reversed';
+  get diagnostics v_leg_rev = row_count;
+
+  -- E. Mark consignment pieces CANCELLED (never returned_to_manager!)
+  update public.consignment_pieces
+     set status = 'cancelled',
+         sale_id = null,
+         sold_at = null,
+         notes = coalesce(notes, '') || ' [' || v_rev_note || ']',
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org and status <> 'cancelled';
+  get diagnostics v_piece_rev = row_count;
+
+  -- F. Cancel seller consignments
+  update public.seller_consignments
+     set status = 'cancelled',
+         base_weight_grams = 0,
+         seller_obligation_g = 0,
+         quantity = 0,
+         sold_quantity = 0,
+         returned_quantity = 0,
+         returned_weight_grams = 0,
+         notes = coalesce(notes, '') || ' [' || v_rev_note || ']',
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org and status <> 'cancelled';
+  get diagnostics v_consign_rev = row_count;
+
+  -- G. Reverse factory receipts
+  update public.factory_receipts
+     set status = 'reversed',
+         available_physical_g = 0,
+         transferred_physical_g = 0,
+         notes = coalesce(notes, '') || ' [' || v_rev_note || ']',
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org and status <> 'reversed';
+  get diagnostics v_rcp_rev = row_count;
+
+  -- H. Reverse factory gold handovers
+  update public.factory_gold_handovers
+     set status = 'reversed',
+         notes = coalesce(notes, '') || ' [' || v_rev_note || ']',
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org and status <> 'reversed';
+  get diagnostics v_hnd_rev = row_count;
+
+  -- I. Cancel refining batches
+  update public.refining_batches
+     set status = 'reversed',
+         reversed_at = v_rev_ts,
+         reversed_by = v_caller_emp_id,
+         reversal_reason = v_reason,
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org and status not in ('cancelled', 'reversed');
+  get diagnostics v_ref_rev = row_count;
+
+  -- J. Reverse financial transactions
+  update public.financial_transactions
+     set status = 'reversed',
+         reversed_at = v_rev_ts,
+         reversed_by = v_caller_emp_id,
+         reversal_reason = v_reason,
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org and status not in ('cancelled', 'reversed');
+  get diagnostics v_fintx_rev = row_count;
+
+  -- J2. Reverse gold purchases
+  update public.gold_purchases
+     set status = 'reversed',
+         notes = coalesce(notes, '') || ' [' || v_rev_note || ']'
+   where organization_id = v_caller_org and status not in ('cancelled', 'reversed');
+  get diagnostics v_purch_rev = row_count;
+
+  -- K. Reset seller gold accounts to exact zero
+  update public.seller_gold_accounts
+     set total_transferred_physical_g = 0,
+         total_seller_obligation_g = 0,
+         total_settled_to_manager_g = 0,
+         seller_owes_manager_g = 0,
+         manager_owes_seller_g = 0,
+         bozor_qarzi_signed_g = 0,
+         total_consigned_gold_grams = 0,
+         current_factory_obligation_grams = 0,
+         current_physical_stock_g = 0,
+         seller_till_scrap_grams = 0,
+         seller_till_scrap_physical_g = 0,
+         seller_till_scrap_585_eq_g = 0,
+         seller_till_cash_amount = 0,
+         seller_till_usd_amount = 0,
+         -- 073: empty the 072 valued till pool together with the till (the reset reverses handovers, whose grams
+         -- would otherwise flow back into the pool and mix with the first post-reset collection).
+         till_valued_cash_uzs = 0,
+         till_valued_cash_585_g = 0,
+         till_valued_usd = 0,
+         till_valued_usd_585_g = 0,
+         seller_legacy_debt_obligation_g = 0,
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org;
+
+  -- L. Reset manager vault to exact zero
+  perform public._get_or_create_manager_vault(v_caller_org);
+  update public.manager_vault_account
+     set manager_physical_stock_g        = 0,
+         manager_scrap_grams             = 0,
+         manager_scrap_physical_g        = 0,
+         manager_scrap_585_eq_g          = 0,
+         manager_refined_gold_grams      = 0,
+         manager_refined_gold_fine_grams = 0,
+         manager_capital_pure_gold_g     = 0,
+         manager_capital_pure_gold_fine_g= 0,
+         manager_finished_capital_g      = 0,
+         manager_purchased_gold_grams    = 0,
+         manager_cash_amount             = 0,
+         manager_usd_amount              = 0,
+         total_factory_received_g        = 0,
+         total_factory_obligation_g      = 0,
+         total_factory_handed_over_g     = 0,
+         current_factory_obligation_g    = 0,
+         current_factory_advance_g       = 0,
+         updated_at                      = v_rev_ts
+   where organization_id = v_caller_org;
+
+  -- M. Archive active baseline
+  update public.accounting_baselines
+     set status = 'archived',
+         notes = coalesce(notes, '') || ' [TEST HISOBI TOZALASH BILAN ARXIVLANDI: ' || v_reason || ']'
+   where organization_id = v_caller_org and status = 'active';
+  get diagnostics v_base_archived = row_count;
+
+  -- N. Audit log
+  insert into public.audit_logs (
+    organization_id, table_name, record_id, action, actor_id, new_data
+  ) values (
+    v_caller_org, 'accounting_baselines', 'FULL_RESET', 'FULL_TEST_ACCOUNT_RESET', auth.uid(),
+    jsonb_build_object(
+      'reason', v_reason,
+      'baselines_archived', v_base_archived,
+      'sales_reversed', v_sale_rev,
+      'settlements_reversed', v_settle_rev,
+      'consignments_cancelled', v_consign_rev,
+      'pieces_cancelled', v_piece_rev,
+      'receipts_reversed', v_rcp_rev,
+      'handovers_reversed', v_hnd_rev,
+      'refining_reversed', v_ref_rev,
+      'fintx_reversed', v_fintx_rev,
+      'purchases_reversed', v_purch_rev,
+      'legacy_debts_reversed', v_leg_rev
+    )
+  );
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'message', 'Test hisobi to''liq muvaffaqiyatli tozalandi va barcha faol qoldiqlar 0 ga keltirildi!',
+    'summary', jsonb_build_object(
+      'baselines_archived', v_base_archived,
+      'sales_reversed', v_sale_rev,
+      'settlements_reversed', v_settle_rev,
+      'consignments_cancelled', v_consign_rev,
+      'pieces_cancelled', v_piece_rev,
+      'factory_receipts_reversed', v_rcp_rev,
+      'factory_handovers_reversed', v_hnd_rev,
+      'refining_batches_reversed', v_ref_rev,
+      'financial_transactions_reversed', v_fintx_rev,
+      'gold_purchases_reversed', v_purch_rev,
+      'legacy_debts_reversed', v_leg_rev,
+      'active_inventory_g', 0.0,
+      'active_factory_obligation_g', 0.0,
+      'active_customer_debts_g', 0.0,
+      'active_seller_obligation_g', 0.0,
+      'active_vault_scrap_g', 0.0,
+      'active_vault_cash_uzs', 0.0,
+      'active_vault_usd', 0.0
+    )
+  );
+end;
+$function$;
+
+drop table if exists public.jewelry_sale_returns;

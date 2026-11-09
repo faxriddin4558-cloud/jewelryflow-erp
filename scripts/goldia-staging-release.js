@@ -476,7 +476,8 @@ async function main() {
   };
   process.on("exit", stopLocal);
   for (const sig of ["SIGINT", "SIGTERM", "SIGBREAK"]) process.on(sig, () => { stopLocal(); process.exit(130); });
-  run("pg_ctl", ["-D", dataDir, "-o", `-p ${localPort} -c listen_addresses=localhost -c max_connections=50`, "-l", path.join(restoreDir, "pg.log"), "-w", "-t", "120", "start"], { noPipes: true, timeoutMs: 3 * MIN });
+  // jit=off: the disposable restore copy only checks results (JIT changes speed, never results; some PostgreSQL builds lack LLVM)
+  run("pg_ctl", ["-D", dataDir, "-o", `-p ${localPort} -c listen_addresses=localhost -c max_connections=50 -c jit=off`, "-l", path.join(restoreDir, "pg.log"), "-w", "-t", "120", "start"], { noPipes: true, timeoutMs: 3 * MIN });
   let ready = false;
   for (let i = 0; i < 120 && !ready; i++) { ready = psql(localEnv, "select 1", { timeoutMs: 15000 }).status === 0; if (!ready) sleep(1); }
   if (!ready) stop("local PostgreSQL did not start");

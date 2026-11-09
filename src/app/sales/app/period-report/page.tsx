@@ -33,6 +33,7 @@ const KIND_LABEL: Record<string, string> = {
   factory_receipt: "Zavoddan kirim", reversal_factory_receipt: "Zavod kirimi bekor qilindi",
   consignment: "Sotuvchilarga tarqatildi", consignment_cancelled: "Tarqatish bekor qilindi", return_to_manager: "Sotuvchilardan qaytdi",
   sale_gram: "Savdo: gramm + %", sale_uzs: "Savdo: aniq UZS narxda", sale_usd: "Savdo: aniq USD narxda", reversal_sale: "Savdo bekor qilindi / qaytarildi",
+  return_gram: "Vozvrat (585 savdodan, qisman / to'liq)", return_uzs: "Vozvrat (UZS savdodan)", return_usd: "Vozvrat (USD savdodan)",
   payment_gram: "To'lov: 585 qarzga (naqd / USD / lom)", reversal_payment_gram: "To'lov bekor qilindi (585)",
   payment_uzs: "To'lov: UZS qarzga", payment_usd: "To'lov: USD qarzga", reversal_payment_uzs: "To'lov bekor qilindi (UZS)", reversal_payment_usd: "To'lov bekor qilindi (USD)",
   handover: "Sotuvchidan menejerga topshiruv", reversal_handover: "Topshiruv bekor qilindi",

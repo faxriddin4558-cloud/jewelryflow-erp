@@ -8,6 +8,7 @@ import { isManagementUiRole } from "@/lib/sales-role-access";
 import { isSellerRole, ownRatesFromRpc, pickPaymentRates } from "@/lib/sales-payment-rates";
 import { CurrencyPaymentModal } from "./CurrencyPaymentModal";
 import { customerBalance, netDirectionLabel } from "@/lib/customer-balance";
+import { SaleReturnModal } from "./SaleReturnModal";
 
 function parseErrorMessage(err: unknown, fallback: string = "Xatolik yuz berdi"): string {
   if (!err) return fallback;
@@ -75,7 +76,7 @@ export interface LegacyDebtRow {
 
 export interface DailyLedgerEntry {
   tx_id: string;
-  tx_type: "sale" | "payment" | "legacy_debt";
+  tx_type: "sale" | "payment" | "legacy_debt" | "return";
   tx_date: string;
   customer_id: string;
   customer_code: string;
@@ -271,6 +272,8 @@ export function CustomerLedgerAndSheetsSection() {
   const [currentRole, setCurrentRole] = useState<string>("");
   const [reversalModalOpen, setReversalModalOpen] = useState(false);
   const [reversalTarget, setReversalTarget] = useState<DailyLedgerEntry | null>(null);
+  // 083: partial / full customer return of one sale ("↩️ Vozvrat")
+  const [returnTarget, setReturnTarget] = useState<DailyLedgerEntry | null>(null);
   const [reversalReason, setReversalReason] = useState("");
   const [reversalError, setReversalError] = useState<string | null>(null);
 
@@ -1560,6 +1563,10 @@ export function CustomerLedgerAndSheetsSection() {
                         <span className="px-2 py-0.5 bg-cyan-950 text-cyan-300 border border-cyan-800 rounded text-[10px] font-bold">
                           🛍️ Savdo
                         </span>
+                      ) : r.tx_type === "return" ? (
+                        <span className="px-2 py-0.5 bg-amber-950 text-amber-300 border border-amber-800 rounded text-[10px] font-bold" data-testid="ledger-return-badge">
+                          ↩️ Vozvrat
+                        </span>
                       ) : (
                         <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded text-[10px] font-bold">
                           💰 To&apos;lov
@@ -1572,13 +1579,13 @@ export function CustomerLedgerAndSheetsSection() {
                     </td>
                     <td className="py-2.5 px-3 text-slate-300">{r.model_name}</td>
                     <td className="py-2.5 px-3 font-mono text-cyan-300">
-                      {Number(r.sold_weight_g) > 0 ? formatScreenGrams(r.sold_weight_g) : "—"}
+                      {Number(r.sold_weight_g) > 0 ? formatScreenGrams(r.sold_weight_g) : Number(r.sold_weight_g) < 0 ? <span className="text-amber-300">−{formatScreenGrams(-Number(r.sold_weight_g))}</span> : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono">
                       {Number(r.markup_pct) > 0 ? `${Number(r.markup_pct).toFixed(1)}%` : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-rose-300">
-                      {Number(r.obligation_g) > 0 ? formatScreenGrams(r.obligation_g) : "—"}
+                      {Number(r.obligation_g) > 0 ? formatScreenGrams(r.obligation_g) : Number(r.obligation_g) < 0 ? <span className="text-emerald-300">−{formatScreenGrams(-Number(r.obligation_g))}</span> : "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-amber-300">
                       {Number(r.scrap_received_g) > 0 ? formatScreenGrams(r.scrap_received_g) : "—"}
@@ -1609,7 +1616,22 @@ export function CustomerLedgerAndSheetsSection() {
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950/80 text-rose-400 border border-rose-900/60">
                           Bekor qilingan
                         </span>
-                      ) : isPrivileged || (r.tx_type === "sale" && r.item_id) ? (
+                      ) : r.tx_type === "return" ? (
+                        <span className="text-[10px] text-amber-300 italic" title="Vozvrat hujjati (asl savdo tarixda saqlanadi)">🧾 Vozvrat hujjati</span>
+                      ) : isPrivileged || (r.tx_type === "sale" && r.item_id) || r.tx_type === "sale" ? (
+                        <div className="flex flex-col gap-1 items-center">
+                        {r.tx_type === "sale" && r.status !== "cancelled" && (
+                          <button
+                            type="button"
+                            data-testid="open-sale-return"
+                            onClick={() => setReturnTarget(r)}
+                            disabled={busy}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-amber-700/80 bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 hover:text-white transition flex items-center gap-1"
+                          >
+                            <span>↩️</span> Vozvrat
+                          </button>
+                        )}
+                        {(isPrivileged || (r.tx_type === "sale" && r.item_id)) && (
                         <button
                           type="button"
                           onClick={() => openReversalModal(r)}
@@ -1618,6 +1640,8 @@ export function CustomerLedgerAndSheetsSection() {
                         >
                           <span>↩️</span> Bekor qilish
                         </button>
+                        )}
+                        </div>
                       ) : (
                         <span className="text-[10px] text-slate-500 italic" title="Faqat rahbar yoki menejer bekor qila oladi">
                           🔒 Tasdiqlangan
@@ -2414,6 +2438,23 @@ export function CustomerLedgerAndSheetsSection() {
         );
       })()}
       {/* MODAL: REVERSAL / BEKOR QILISH (Compensating Transaction) */}
+      {returnTarget && (
+        <SaleReturnModal
+          saleId={returnTarget.tx_id}
+          customerName={returnTarget.customer_name}
+          canReceiveAtManager={isPrivileged}
+          onClose={() => setReturnTarget(null)}
+          onDone={(res) => {
+            setReturnTarget(null);
+            setMessage({
+              type: "success",
+              text: `Vozvrat ${res.return_no} saqlandi: ${formatScreenGrams(res.returned_weight_g, 4)} qaytdi; ${res.unit === "XAU585" ? formatScreenGrams(res.returned_value, 4) : `${res.unit} ${Number(res.returned_value).toLocaleString("ru-RU")}`} — qarzdan ${Number(res.debt_reduced)}, avans ${Number(res.advance_created)}.`,
+            });
+            void loadDailyLedger();
+            void loadCustomers();
+          }}
+        />
+      )}
       {reversalModalOpen && reversalTarget && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 text-white space-y-5 shadow-2xl">
