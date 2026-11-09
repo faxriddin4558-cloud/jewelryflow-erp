@@ -1,0 +1,245 @@
+{
+  "target": "local",
+  "version": {
+    "status": "ok",
+    "commit": "414e0ec",
+    "full_commit": "414e0ec925cb9e9eac09e769bdd6b5a2c389d5bd",
+    "env": "staging",
+    "staging_mode": true,
+    "supabase_ref": "127",
+    "sha_source": "build",
+    "vercel_git_commit": null,
+    "timestamp": "2026-11-09T18:22:07.742Z"
+  },
+  "run": "mw9l720m",
+  "results": [
+    {
+      "id": "U77-01",
+      "title": "manager main screen: simple panel with key balances + action links; detailed part folded under \"Batafsil\"",
+      "ok": true,
+      "expected": {
+        "panel": true,
+        "cards": ">=7",
+        "detailsOpen": false
+      },
+      "actual": {
+        "panel": true,
+        "cards": 10,
+        "detailsOpen": false
+      }
+    },
+    {
+      "id": "U77-02",
+      "title": "manager sees the capital / expense button again (076 had hidden it)",
+      "ok": true,
+      "expected": ">0",
+      "actual": 1
+    },
+    {
+      "id": "U77-03",
+      "title": "manager records 3 000 000 UZS capital in the UI; manager cash +3 000 000 exactly once",
+      "ok": true,
+      "expected": 3000000,
+      "actual": {
+        "delta": 3000000,
+        "tx": {
+          "amount_num": 3000000,
+          "source_till": "manager_uzs",
+          "currency": "UZS"
+        }
+      }
+    },
+    {
+      "id": "U77-04",
+      "title": "manager has the markup preset buttons (director = manager)",
+      "ok": true,
+      "expected": 2,
+      "actual": 2
+    },
+    {
+      "id": "U77-05",
+      "title": "no API 4xx/5xx in the manager session",
+      "ok": true,
+      "expected": [],
+      "actual": []
+    },
+    {
+      "id": "U77-10",
+      "title": "seller sells 20 g for $2000 in the UI (double click -> one sale); no markup field for a price sale",
+      "ok": true,
+      "expected": {
+        "sales": 1,
+        "currency": "USD",
+        "amount": 2000
+      },
+      "actual": {
+        "sales": 1,
+        "row": {
+          "id": "001005f1-35c6-4088-8c49-84704917f04c",
+          "sale_currency": "USD",
+          "sale_amount": 2000,
+          "base_weight_grams": 20,
+          "client_gold_due_grams": 0
+        },
+        "markupHidden": true
+      }
+    },
+    {
+      "id": "U77-11",
+      "title": "seller stock -20 g; the 33 g (30 g x 1.10) obligation is unchanged by the sale",
+      "ok": true,
+      "expected": {
+        "stock": -20,
+        "obligation": "same"
+      },
+      "actual": {
+        "stock": -20,
+        "o0": 428.62,
+        "o1": 428.62
+      }
+    },
+    {
+      "id": "U77-12",
+      "title": "customer owes 2000 USD; 585 gram debt untouched (0)",
+      "ok": true,
+      "expected": 2000,
+      "actual": {
+        "d": 2000,
+        "a": 0
+      }
+    },
+    {
+      "id": "U77-13",
+      "title": "seller takes 500 USD in the UI (double click -> once): USD debt 1500, till +500 USD",
+      "ok": true,
+      "expected": {
+        "debt": 1500,
+        "till": 500
+      },
+      "actual": {
+        "debt": 1500,
+        "till": 500
+      }
+    },
+    {
+      "id": "U77-14",
+      "title": "seller pays a USD debt with 1 250 000 so'm at his own 12 500 rate (not editable) -> 100 USD; till +1 250 000 so'm",
+      "ok": true,
+      "expected": {
+        "debt": 1400,
+        "tillUzs": 1250000
+      },
+      "actual": {
+        "debt": 1400,
+        "till": 1250000,
+        "ownRatesShown": "Kurslaringiz (o'zgartirilmaydi): USD 12 500 so'm, LOM 900 000 so'm/g",
+        "preview": "Qarzga yoziladi: 100 USD\nHozirgi USD qarz: 1 500; ortiqchasi"
+      }
+    },
+    {
+      "id": "U77-15",
+      "title": "seller on a 390 px phone sells 2.5 g for 3 100 000 so'm; no horizontal overflow",
+      "ok": true,
+      "expected": {
+        "debt": 3100000,
+        "overflow": 0
+      },
+      "actual": {
+        "debt": 3100000,
+        "ov": 0
+      }
+    },
+    {
+      "id": "U77-16",
+      "title": "seller is kept out of the period report (page + server)",
+      "ok": true,
+      "expected": "redirected + 42501",
+      "actual": {
+        "path": "/sales/app",
+        "rpc": "Ruxsat etilmadi: davriy hisobot faqat direktor va "
+      }
+    },
+    {
+      "id": "U77-17",
+      "title": "no API 4xx/5xx in the seller sessions except the deliberate report probe",
+      "ok": true,
+      "expected": [],
+      "actual": []
+    },
+    {
+      "id": "U77-20",
+      "title": "manager reverses the latest currency payment (100 USD) in the UI -> USD debt 1500",
+      "ok": true,
+      "expected": 1500,
+      "actual": {
+        "button": 1,
+        "debt": 1500
+      }
+    },
+    {
+      "id": "U77-21",
+      "title": "period report shows UZS and USD sales separately; the page equals the server report (count, amount, physical g)",
+      "ok": true,
+      "expected": {
+        "usd": 2400,
+        "uzs": 3100000
+      },
+      "actual": {
+        "flowUsd": "Savdo: aniq USD narxda\t5\t24,0000 g\t0,0000 g\t$2 400,00\t—\t—\t—",
+        "flowUzs": "Savdo: aniq UZS narxda\t1\t2,5000 g\t0,0000 g\t3 100 000 so'm\t—\t—\t—"
+      }
+    },
+    {
+      "id": "U77-22",
+      "title": "report closing USD customer debt = live USD balances of the organization",
+      "ok": true,
+      "expected": 1300,
+      "actual": "$1 300,00"
+    },
+    {
+      "id": "U77-23",
+      "title": "CSV export downloads with balances and the USD sale flows",
+      "ok": true,
+      "expected": true,
+      "actual": "﻿\"bo'lim\",\"ko'rsatkich\",\"birlik\",\"davr boshi\",\"davr oxiri / qiymat\" | \"qoldiq\",\"Mijozlar qarzi (585 "
+    },
+    {
+      "id": "U77-24",
+      "title": "\"Yangi davrni boshlash\" stores the period, says so; debts, stock, tills, vault unchanged",
+      "ok": true,
+      "expected": {
+        "stored": "2026-11-08",
+        "unchanged": true
+      },
+      "actual": {
+        "msg": "Davr 2026-11-01 — 2026-11-08 saqlandi. Keyingi davr 2026-11-09 dan boshlanadi. Q",
+        "periods": 1,
+        "unchanged": true
+      }
+    },
+    {
+      "id": "U77-25",
+      "title": "a closed period can be opened again from the list (report kept)",
+      "ok": true,
+      "expected": "shown",
+      "actual": "Saqlangan davr hisoboti (2026-11-01 — 2026-11-08) ko'rsatilmoqda."
+    },
+    {
+      "id": "U77-26",
+      "title": "no API 4xx/5xx in the manager session",
+      "ok": true,
+      "expected": [],
+      "actual": []
+    },
+    {
+      "id": "U77-27",
+      "title": "manager on a 390 px phone: period report and main screen without horizontal overflow",
+      "ok": true,
+      "expected": 0,
+      "actual": {
+        "report": 0,
+        "main": 0
+      }
+    }
+  ]
+}
