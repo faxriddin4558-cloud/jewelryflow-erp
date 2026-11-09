@@ -21,6 +21,7 @@ import { SellerDashboard } from "@/components/sales/SellerDashboard";
 import { fetchManagerAvailableStockGrams, isManagementUiRole, isSellerUiRole } from "@/lib/sales-role-access";
 import { ManagerSimplePanel } from "@/components/sales/ManagerSimplePanel";
 import { useSessionUser } from "@/lib/use-session-user";
+import { balanceTotals, goldAdvanceOf, goldDebtOf, netDirectionLabel } from "@/lib/customer-balance";
 
 
 // Sellers get their own dashboard only; the company dashboard (and its company-wide queries) is never
@@ -146,15 +147,10 @@ function CompanyDashboardContent() {
     0
   );
 
-  // Client Net Debt & Advance
-  const totalClientDebtGrams = clientAccounts.reduce(
-    (acc, c) => acc + Math.max(0, Number(c.current_debt_grams || c.current_gold_debt_grams || 0) - Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0)),
-    0
-  );
-  const totalClientAdvanceGrams = clientAccounts.reduce(
-    (acc, c) => acc + Number(c.advance_balance_grams || c.advance_gold_balance_grams || 0),
-    0
-  );
+  // Client debt & advance - canonical model (src/lib/customer-balance.ts). The old card summed max(0, debt - advance)
+  // per customer (= gross debt) and labelled it "sof" while the advance was never subtracted from the total.
+  const clientTotals = balanceTotals(clientAccounts, goldDebtOf, goldAdvanceOf);
+  const clientNetText = clientTotals.signedNet < 0 ? `−${formatScreenGrams(-clientTotals.signedNet)}` : formatScreenGrams(clientTotals.signedNet);
 
   // Physical Gold Reconciliation (Pure 585g Base Weight)
   const totalFactoryPhysicalGrams = activeReceipts.reduce((sum, r) => sum + Number(r.original_physical_g || 0), 0);
@@ -280,11 +276,11 @@ function CompanyDashboardContent() {
 
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-rose-500/40 transition">
             <div className="text-slate-400 text-xs font-bold">3. Mijozlar Sof Nasiyasi</div>
-            <div className="text-xl font-black font-mono text-rose-400 mt-1">
-              {formatScreenGrams(totalClientDebtGrams)}
+            <div className={`text-xl font-black font-mono mt-1 ${clientTotals.signedNet < 0 ? "text-cyan-300" : "text-rose-400"}`} data-testid="home-client-net">
+              {clientNetText}
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">
-              Sof qarz (avans: +{formatScreenGrams(totalClientAdvanceGrams)})
+            <div className="text-[10px] text-slate-400 mt-1" data-testid="home-client-breakdown">
+              {netDirectionLabel(clientTotals.signedNet)} · qarz {formatScreenGrams(clientTotals.grossDebt)} − avans {formatScreenGrams(clientTotals.grossAdvance)}
             </div>
           </div>
 
@@ -436,10 +432,10 @@ function CompanyDashboardContent() {
           <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
             <div className="text-rose-400 text-xs font-black uppercase">3-Daraja: Mijozlar Nasiyasi</div>
             <div className="text-lg font-black font-mono text-rose-300">
-              {formatScreenGrams(totalClientDebtGrams)}
+              {clientNetText}
             </div>
             <p className="text-[11px] text-slate-400 leading-tight">
-              Mijozlarning sotuvchilar oldidagi 585 oltin qarzi. Mijoz to&apos;lov qilganda kamayadi.
+              Mijozlarning 585 oltin sof qarzi: qarz {formatScreenGrams(clientTotals.grossDebt)} − avans {formatScreenGrams(clientTotals.grossAdvance)} ({netDirectionLabel(clientTotals.signedNet)}). Sotuvchi majburiyatiga (bozor qarzi) avans ta&apos;sir qilmaydi.
             </p>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { tashkentBusinessDate } from "@/lib/business-date";
 import { isManagementUiRole } from "@/lib/sales-role-access";
 import { isSellerRole, ownRatesFromRpc, pickPaymentRates } from "@/lib/sales-payment-rates";
 import { CurrencyPaymentModal } from "./CurrencyPaymentModal";
+import { customerBalance, netDirectionLabel } from "@/lib/customer-balance";
 
 function parseErrorMessage(err: unknown, fallback: string = "Xatolik yuz berdi"): string {
   if (!err) return fallback;
@@ -116,6 +117,19 @@ export interface MonthlyReportItem {
   usd_equivalent_g?: number;
   total_settled_g: number;
   closing_debt_g: number;
+  // 082: signed balances (debt +, advance -) and the advance side; absent on a database before 082
+  opening_advance_g?: number;
+  opening_net_g?: number;
+  legacy_advance_month_g?: number;
+  closing_advance_g?: number;
+  closing_net_g?: number;
+}
+
+// one signed 585 balance cell: positive = customer owes (rose), negative = we hold an advance for him (cyan, "+X avans")
+function signedGramsCell(net: number | undefined, fallbackDebt: number | undefined) {
+  const n = net === undefined || net === null ? Number(fallbackDebt || 0) : Number(net);
+  if (n < 0) return <span className="text-cyan-300" title="Biz mijozga qarzdormiz">+{formatScreenGrams(-n)} avans</span>;
+  return <>{formatScreenGrams(n)}</>;
 }
 
 export interface MonthlyReportSummary {
@@ -131,6 +145,12 @@ export interface MonthlyReportSummary {
   total_collected_month_g: number;
   total_closing_debt_g?: number;
   total_customer_debt_g: number;
+  // 082
+  total_opening_advance_g?: number;
+  total_opening_net_g?: number;
+  total_legacy_advance_month_g?: number;
+  total_closing_advance_g?: number;
+  total_closing_net_g?: number;
   seller_held_cash_uzs: number;
   seller_held_scrap_g: number;
   seller_held_usd?: number;
@@ -369,9 +389,9 @@ export function CustomerLedgerAndSheetsSection() {
           const accObj = Array.isArray(rawAccounts)
             ? (rawAccounts[0] as CustomerAccountData | undefined)
             : (rawAccounts as CustomerAccountData | undefined);
-          const rawDebt = Number(accObj?.current_debt_grams || 0);
-          const rawAdv = Number(accObj?.advance_balance_grams || 0);
-          const netDebt = Math.max(0, rawDebt - rawAdv);
+          // same meaning as the unified-ledger path above: current_debt_grams = open debt, advance_balance_grams = open
+          // advance, never both > 0 (canonical model, src/lib/customer-balance.ts) - the advance is subtracted once
+          const bal = customerBalance(accObj?.current_debt_grams, accObj?.advance_balance_grams);
 
           return {
             id: row.id,
@@ -381,8 +401,8 @@ export function CustomerLedgerAndSheetsSection() {
             company_name: row.company_name,
             seller_id: row.seller_id,
             seller: row.seller,
-            current_debt_grams: netDebt,
-            advance_balance_grams: rawAdv,
+            current_debt_grams: bal.openDebt,
+            advance_balance_grams: bal.openAdvance,
             total_scrap_paid_grams: Number(accObj?.total_scrap_paid_grams || 0),
             total_cash_paid_amount: Number(accObj?.total_cash_paid_amount || 0),
             total_usd_paid_amount: Number(accObj?.total_usd_paid_amount || 0),
@@ -1656,10 +1676,19 @@ export function CustomerLedgerAndSheetsSection() {
                       <td className="py-2.5 px-3 font-bold text-white">{it.customer_name}</td>
                       <td className="py-2.5 px-3 font-mono text-slate-400">{it.customer_code}</td>
                       <td className="py-2.5 px-3 font-mono text-amber-200">
-                        <div>{formatScreenGrams(Number(it.opening_debt_g || 0) + Number(it.legacy_added_month_g || 0))}</div>
+                        {it.opening_net_g === undefined ? (
+                          <div>{formatScreenGrams(Number(it.opening_debt_g || 0) + Number(it.legacy_added_month_g || 0))}</div>
+                        ) : (
+                          <div data-testid="mr-opening">{signedGramsCell(it.opening_net_g, it.opening_debt_g)}</div>
+                        )}
                         {Number(it.legacy_added_month_g || 0) > 0 && (
                           <span className="text-[10px] text-amber-400 font-sans block">
-                            ({formatScreenGrams(it.legacy_added_month_g)} eski qarz)
+                            ({it.opening_net_g === undefined ? "" : "+ "}{formatScreenGrams(it.legacy_added_month_g)} eski qarz)
+                          </span>
+                        )}
+                        {Number(it.legacy_advance_month_g || 0) > 0 && (
+                          <span className="text-[10px] text-cyan-300 font-sans block">
+                            (− {formatScreenGrams(it.legacy_advance_month_g)} eski avans)
                           </span>
                         )}
                       </td>
@@ -1692,7 +1721,7 @@ export function CustomerLedgerAndSheetsSection() {
                         {formatScreenGrams(it.total_settled_g)}
                       </td>
                       <td className="py-2.5 px-3 font-mono font-black text-rose-400 text-sm">
-                        {formatScreenGrams(it.closing_debt_g)}
+                        <span data-testid="mr-closing">{signedGramsCell(it.closing_net_g, it.closing_debt_g)}</span>
                       </td>
                     </tr>
                   ))}
@@ -1748,10 +1777,21 @@ export function CustomerLedgerAndSheetsSection() {
               </div>
 
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1">
-                <div className="text-slate-400 font-sans font-bold text-[11px]">Mijozlar Nasiya Qoldig&apos;i</div>
-                <div className="text-lg font-black text-rose-400">
-                  {formatScreenGrams(monthlyReportData.summary.total_customer_debt_g)}
-                </div>
+                <div className="text-slate-400 font-sans font-bold text-[11px]">Mijozlar sof qoldig&apos;i (585)</div>
+                {monthlyReportData.summary.total_closing_net_g === undefined ? (
+                  <div className="text-lg font-black text-rose-400">
+                    {formatScreenGrams(monthlyReportData.summary.total_customer_debt_g)}
+                  </div>
+                ) : (
+                  <>
+                    <div className={`text-lg font-black ${Number(monthlyReportData.summary.total_closing_net_g) < 0 ? "text-cyan-300" : "text-rose-400"}`} data-testid="mr-total-net">
+                      {Number(monthlyReportData.summary.total_closing_net_g) < 0 ? "−" : ""}{formatScreenGrams(Math.abs(Number(monthlyReportData.summary.total_closing_net_g)))}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-sans" data-testid="mr-total-breakdown">
+                      {netDirectionLabel(Number(monthlyReportData.summary.total_closing_net_g))} · qarz {formatScreenGrams(monthlyReportData.summary.total_closing_debt_g)} − avans {formatScreenGrams(monthlyReportData.summary.total_closing_advance_g)}
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1">

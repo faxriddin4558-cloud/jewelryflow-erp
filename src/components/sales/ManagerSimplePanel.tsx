@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 import { fetchManagerAvailableStockGrams } from "@/lib/sales-role-access";
+import { balanceTotals, netDirectionLabel, type BalanceTotals } from "@/lib/customer-balance";
 
 type Totals = {
   managerStockG: number | null;
@@ -20,14 +21,27 @@ type Totals = {
   sellerTillUzs: number;
   sellerTillUsd: number;
   sellerTillScrapG585: number;
-  customerDebtG585: number;
-  customerAdvanceG585: number;
-  customerDebtUzs: number;
-  customerDebtUsd: number;
+  // canonical model per unit (src/lib/customer-balance.ts); 585 g, UZS and USD are never added together
+  customerG585: BalanceTotals;
+  customerUzs: BalanceTotals;
+  customerUsd: BalanceTotals;
 };
 
 const sum = <T,>(rows: T[] | null | undefined, f: (r: T) => unknown) => (rows ?? []).reduce((a, r) => a + Number(f(r) || 0), 0);
 const usd = (v: number) => `$${v.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}`;
+
+// one unit: signed net (negative = we owe the customers) with gross debt and gross advance underneath
+function NetLine({ b, fmt, unit, big, testid }: { b: BalanceTotals; fmt: (v: number) => string; unit: string; big?: boolean; testid: string }) {
+  const net = b.signedNet < 0 ? `−${fmt(-b.signedNet)}` : fmt(b.signedNet);
+  return (
+    <div data-testid={testid}>
+      <div className={`${big ? "text-lg" : "text-sm"} font-black ${b.signedNet < 0 ? "text-cyan-300" : "text-rose-300"}`}>
+        {net} <span className="text-[11px] text-slate-400">{unit}</span>
+      </div>
+      <div className="text-[10px] text-slate-400">{netDirectionLabel(b.signedNet)} · qarz {fmt(b.grossDebt)} − avans {fmt(b.grossAdvance)}</div>
+    </div>
+  );
+}
 
 export function ManagerSimplePanel() {
   const [t, setT] = useState<Totals | null>(null);
@@ -60,10 +74,9 @@ export function ManagerSimplePanel() {
       sellerTillUzs: sum(sellers.data, (r) => r.seller_till_cash_amount),
       sellerTillUsd: sum(sellers.data, (r) => r.seller_till_usd_amount),
       sellerTillScrapG585: sum(sellers.data, (r) => r.seller_till_scrap_grams),
-      customerDebtG585: sum(clients.data, (r) => r.current_debt_grams),
-      customerAdvanceG585: sum(clients.data, (r) => r.advance_balance_grams),
-      customerDebtUzs: sum(cur.filter((r) => r.currency === "UZS"), (r) => Number(r.debt_amount) - Number(r.advance_amount)),
-      customerDebtUsd: sum(cur.filter((r) => r.currency === "USD"), (r) => Number(r.debt_amount) - Number(r.advance_amount)),
+      customerG585: balanceTotals(clients.data, (r) => r.current_debt_grams, (r) => r.advance_balance_grams),
+      customerUzs: balanceTotals(cur.filter((r) => r.currency === "UZS"), (r) => r.debt_amount, (r) => r.advance_amount),
+      customerUsd: balanceTotals(cur.filter((r) => r.currency === "USD"), (r) => r.debt_amount, (r) => r.advance_amount),
     });
   }, []);
 
@@ -90,11 +103,14 @@ export function ManagerSimplePanel() {
           <div className="text-xl font-black text-amber-300">{t ? formatScreenGrams(t.sellerStockG) : "…"}</div>
           <div className="text-[11px] text-slate-400">fizik gramm</div>
         </Card>
-        <Card title="🛍️ Mijozlarning jami qarzi" testid="simple-customer-debt">
-          <div className="text-lg font-black text-rose-300">{t ? formatScreenGrams(t.customerDebtG585) : "…"} <span className="text-[11px] text-slate-400">585</span></div>
-          {t && t.customerAdvanceG585 > 0 && <div className="text-[11px] text-cyan-300">avans: {formatScreenGrams(t.customerAdvanceG585)}</div>}
-          <div className="text-sm">{t ? formatScreenUZS(t.customerDebtUzs) : "…"}</div>
-          <div className="text-sm">{t ? usd(t.customerDebtUsd) : "…"}</div>
+        <Card title="🛍️ Mijozlar sof qarzi" testid="simple-customer-debt">
+          {t ? (
+            <>
+              <NetLine testid="simple-customer-g585" b={t.customerG585} fmt={formatScreenGrams} unit="585" big />
+              <NetLine testid="simple-customer-uzs" b={t.customerUzs} fmt={formatScreenUZS} unit="UZS" />
+              <NetLine testid="simple-customer-usd" b={t.customerUsd} fmt={usd} unit="USD" />
+            </>
+          ) : "…"}
         </Card>
         <Card title="📋 Sotuvchilar majburiyati" testid="simple-seller-obligation">
           <div className="text-xl font-black text-rose-300">{t ? formatScreenGrams(t.sellerOwesG585) : "…"}</div>

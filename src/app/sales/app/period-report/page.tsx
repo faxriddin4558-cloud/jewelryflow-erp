@@ -17,9 +17,10 @@ type Report = {
 };
 
 const BALANCES: [string, string, "g" | "uzs" | "usd"][] = [
-  ["customer_debt_net_g585", "Mijozlar qarzi (585 g, avans ayirilgan)", "g"],
-  ["customer_debt_net_uzs", "Mijozlar qarzi (UZS savdolar)", "uzs"],
-  ["customer_debt_net_usd", "Mijozlar qarzi (USD savdolar)", "usd"],
+  // signed nets (debt - advance per unit); a negative value = we owe the customers (shown, never clamped)
+  ["customer_debt_net_g585", "Mijozlar qarzi (585 g, avans ayirilgan), manfiy = biz mijozlarga qarzdormiz", "g"],
+  ["customer_debt_net_uzs", "Mijozlar qarzi (UZS savdolar), manfiy = biz mijozlarga qarzdormiz", "uzs"],
+  ["customer_debt_net_usd", "Mijozlar qarzi (USD savdolar), manfiy = biz mijozlarga qarzdormiz", "usd"],
   ["seller_stock_physical_g", "Sotuvchilardagi oltin (fizik g)", "g"],
   ["seller_till_uzs", "Sotuvchilar kassasi UZS", "uzs"],
   ["seller_till_usd", "Sotuvchilar kassasi USD", "usd"],
@@ -185,7 +186,8 @@ export default function PeriodReportPage() {
                   {BALANCES.map(([k, label, unit]) => (
                     <tr key={k} className="border-t border-slate-800"><td className="py-1 pr-2">{label}</td>
                       <td className="py-1 pr-2 font-mono" data-testid={`open-${k}`}>{fmt(rep.opening[k], unit)}</td>
-                      <td className="py-1 font-mono" data-testid={`close-${k}`}>{fmt(rep.closing[k], unit)}</td></tr>
+                      <td className="py-1 font-mono"><span data-testid={`close-${k}`}>{fmt(rep.closing[k], unit)}</span>
+                        {k.startsWith("customer_debt_net_") && Number(rep.closing[k]) < 0 && <span className="block text-[10px] text-cyan-300">Biz mijozlarga qarzdormiz</span>}</td></tr>
                   ))}
                 </tbody>
               </table>

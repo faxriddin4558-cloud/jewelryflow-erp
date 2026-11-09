@@ -43,6 +43,7 @@ import { ProfitAccountingBanner } from "./ProfitAccountingBanner";
 import { CompanyRateDifferenceCard } from "./CompanyRateDifferenceCard";
 import { MarkupDifferenceCard } from "./MarkupDifferenceCard";
 import { tashkentBusinessDate } from "@/lib/business-date";
+import { balanceTotals, goldAdvanceOf, goldDebtOf, netDirectionLabel } from "@/lib/customer-balance";
 
 export type DirectorSalesTab =
   | "factory"
@@ -1137,7 +1138,8 @@ export function DirectorSalesWorkspace({
   const totalFactoryObligation = sellerAccounts.reduce((acc, s) => acc + Number(s.current_factory_obligation_grams || s.remaining_factory_gold_due_grams || 0), 0);
   const totalSellerTillScrap = sellerAccounts.reduce((acc, s) => acc + Number(s.seller_till_scrap_grams || 0), 0);
   const totalSellerTillCash = sellerAccounts.reduce((acc, s) => acc + Number(s.seller_till_cash_amount || 0), 0);
-  const totalClientDebtGrams = clientAccounts.reduce((acc, c) => acc + Number(c.current_debt_grams || c.current_gold_debt_grams || 0), 0);
+  // canonical model (src/lib/customer-balance.ts): signed net = gross debt - gross advance, the advance is subtracted once
+  const clientTotals = balanceTotals(clientAccounts, goldDebtOf, goldAdvanceOf);
 
   // Authoritative physical inventory and today's sales
   const todayStr: string = tashkentBusinessDate();
@@ -1230,11 +1232,13 @@ export function DirectorSalesWorkspace({
             </div>
 
             <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
-              <div className="text-slate-200 text-xs font-bold">Mijozlarning Jami Qarzi</div>
-              <div className="text-xl font-black font-mono text-rose-400 mt-1">
-                {formatScreenGrams(totalClientDebtGrams)}
+              <div className="text-slate-200 text-xs font-bold">Mijozlar sof qarzi (585)</div>
+              <div className={`text-xl font-black font-mono mt-1 ${clientTotals.signedNet < 0 ? "text-cyan-300" : "text-rose-400"}`} data-testid="director-client-net">
+                {clientTotals.signedNet < 0 ? `−${formatScreenGrams(-clientTotals.signedNet)}` : formatScreenGrams(clientTotals.signedNet)}
               </div>
-              <div className="text-[11px] text-slate-300 mt-1 font-medium">Barcha sotuvchilar bo&apos;yicha mijozlar qarzi</div>
+              <div className="text-[11px] text-slate-300 mt-1 font-medium" data-testid="director-client-breakdown">
+                {netDirectionLabel(clientTotals.signedNet)} · qarz {formatScreenGrams(clientTotals.grossDebt)} − avans {formatScreenGrams(clientTotals.grossAdvance)}
+              </div>
             </div>
 
             <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
