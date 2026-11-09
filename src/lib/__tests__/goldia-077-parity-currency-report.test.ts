@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { createGoldiaDb } from "./helpers/goldia-pglite";
+import { createGoldiaDb, rpcRolledBack } from "./helpers/goldia-pglite";
 
 // Migration 077: director = manager, UZS / USD price sales, period report without any zero-reset.
 type Rep = { flows: Record<string, Record<string, number>>; closing: Record<string, number>; opening: Record<string, number>; undocumented_opening: Record<string, unknown> };
@@ -139,8 +139,9 @@ describe("Goldia 077 — manager parity, currency sales, period report", () => {
     expect(t1.u - t0.u).toBe(600);
     expect(t1.c - t0.c).toBe(6250000);
     expect(Math.round((t1.sc - t0.sc) * 1e4) / 1e4).toBe(12.8205);
-    // a seller sending another USD rate is refused (ERR_RATE_MISMATCH), negative refused
-    await t.expectError(`SELECT public.rpc_record_client_currency_settlement(p_customer_id := '${cust}', p_currency := 'USD', p_cash_uzs := 100000, p_usd_rate := 13000)`, "ERR_RATE_MISMATCH");
+    // 084: a seller-entered USD rate is used for this payment (was ERR_RATE_MISMATCH); checked in a rolled-back transaction
+    const typed = await rpcRolledBack(t.db, `public.rpc_record_client_currency_settlement(p_customer_id := '${cust}', p_currency := 'USD', p_cash_uzs := 130000, p_usd_rate := 13000)`);
+    expect(Number(typed.credited_amount)).toBe(10);
     await t.expectError(`SELECT public.rpc_record_client_currency_settlement(p_customer_id := '${cust}', p_currency := 'USD', p_usd_amount := -1)`, "manfiy");
     // management must give the rate for a conversion
     await t.asUser(mgr.userId);

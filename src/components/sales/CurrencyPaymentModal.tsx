@@ -54,7 +54,11 @@ export function CurrencyPaymentModal({ customer, currentRole, onClose, onDone }:
       const r = await supabase.rpc("rpc_get_seller_rates");
       const row = ((r.data?.sellers ?? []) as { lom_rate_uzs?: number | null; usd_rate_uzs?: number | null }[])[0];
       const lom = row?.lom_rate_uzs ? Number(row.lom_rate_uzs) : r.data?.official_585_rate ? Number(r.data.official_585_rate) : null;
-      setOwnRates({ lom, usd: row?.usd_rate_uzs ? Number(row.usd_rate_uzs) : null });
+      const usdOwn = row?.usd_rate_uzs ? Number(row.usd_rate_uzs) : null;
+      setOwnRates({ lom, usd: usdOwn });
+      // 084: the saved rates are only the pre-filled default - the seller may change them for this payment
+      setUsdRate((v) => v || (usdOwn ? String(usdOwn) : ""));
+      setLomRate((v) => v || (lom ? String(lom) : ""));
     }
   }, [customer.id, seller]);
 
@@ -66,8 +70,8 @@ export function CurrencyPaymentModal({ customer, currentRole, onClose, onDone }:
   const usdN = parseFloat(usd) || 0;
   const scrapN = parseFloat(scrap) || 0;
   const probaN = parseFloat(proba) || 585;
-  const uRate = seller ? ownRates?.usd ?? 0 : parseFloat(usdRate) || 0;
-  const lRate = seller ? ownRates?.lom ?? 0 : parseFloat(lomRate) || 0;
+  const uRate = parseFloat(usdRate) || 0;
+  const lRate = parseFloat(lomRate) || 0;
   const scrap585 = scrapN > 0 ? r4(scrapN * (probaN / 585)) : 0;
   const needUsdRate = (currency === "USD" && (cashN > 0 || scrapN > 0)) || (currency === "UZS" && usdN > 0);
   const credited = useMemo(() => {
@@ -80,8 +84,8 @@ export function CurrencyPaymentModal({ customer, currentRole, onClose, onDone }:
     setErr(null);
     if (cashN < 0 || usdN < 0 || scrapN < 0) return setErr("Summalar manfiy bo'lishi mumkin emas");
     if (cashN <= 0 && usdN <= 0 && scrapN <= 0) return setErr("To'lov summasini kiriting");
-    if (needUsdRate && !(uRate > 0)) return setErr(seller ? "Avval Kassam sahifasida USD kursingizni belgilang" : "USD kursini kiriting");
-    if (scrapN > 0 && !(lRate > 0)) return setErr(seller ? "LOM kursingiz belgilanmagan" : "LOM (585) kursini kiriting");
+    if (needUsdRate && !(uRate > 0)) return setErr("USD kursini kiriting");
+    if (scrapN > 0 && !(lRate > 0)) return setErr("LOM (585) kursini kiriting");
     setBusy(true);
     const { data, error } = await supabase.rpc("rpc_record_client_currency_settlement", {
       p_customer_id: customer.id, p_currency: currency, p_cash_uzs: cashN, p_usd_amount: usdN, p_scrap_weight: scrapN,
@@ -132,16 +136,13 @@ export function CurrencyPaymentModal({ customer, currentRole, onClose, onDone }:
             <input data-testid="cpay-scrap" type="number" min="0" step="0.0001" value={scrap} onChange={(e) => setScrap(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 font-mono" /></label>
           <label className="space-y-1"><span className="text-slate-400">Proba</span>
             <select value={proba} onChange={(e) => setProba(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2"><option value="585">585</option><option value="750">750</option></select></label>
-          {seller ? (
-            <div className="col-span-2 text-[11px] text-slate-400" data-testid="cpay-own-rates">Kurslaringiz (o&apos;zgartirilmaydi): USD {ownRates?.usd ? ownRates.usd.toLocaleString("ru-RU") : "belgilanmagan"} so&apos;m, LOM {ownRates?.lom ? ownRates.lom.toLocaleString("ru-RU") : "—"} so&apos;m/g</div>
-          ) : (
-            <>
-              <label className="space-y-1"><span className="text-slate-400">USD kursi (so&apos;m)</span>
-                <input data-testid="cpay-usd-rate" type="number" min="0" step="1" value={usdRate} onChange={(e) => setUsdRate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 font-mono" /></label>
-              <label className="space-y-1"><span className="text-slate-400">LOM 585 kursi (so&apos;m/g)</span>
-                <input data-testid="cpay-lom-rate" type="number" min="0" step="1" value={lomRate} onChange={(e) => setLomRate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 font-mono" /></label>
-            </>
+          {seller && (
+            <div className="col-span-2 text-[11px] text-slate-400" data-testid="cpay-own-rates">Saqlangan kurslaringiz (shu to&apos;lov uchun o&apos;zgartirish mumkin): USD {ownRates?.usd ? ownRates.usd.toLocaleString("ru-RU") : "belgilanmagan"} so&apos;m, LOM {ownRates?.lom ? ownRates.lom.toLocaleString("ru-RU") : "—"} so&apos;m/g</div>
           )}
+          <label className="space-y-1"><span className="text-slate-400">USD kursi (so&apos;m)</span>
+            <input data-testid="cpay-usd-rate" type="number" min="0" step="1" value={usdRate} onChange={(e) => setUsdRate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 font-mono" /></label>
+          <label className="space-y-1"><span className="text-slate-400">LOM 585 kursi (so&apos;m/g)</span>
+            <input data-testid="cpay-lom-rate" type="number" min="0" step="1" value={lomRate} onChange={(e) => setLomRate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 font-mono" /></label>
         </div>
         <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1" data-testid="cpay-preview">
           <div>Qarzga yoziladi: <b className="font-mono">{Number.isFinite(credited) ? credited.toLocaleString("ru-RU") : "—"} {currency}</b>{scrap585 > 0 && <span className="text-slate-400"> (lom {scrap585} g 585)</span>}</div>

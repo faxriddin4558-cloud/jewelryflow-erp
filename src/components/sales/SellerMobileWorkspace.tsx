@@ -436,8 +436,11 @@ export function SellerMobileWorkspace({
     if (useOwnRates && ownRates?.usd) setSettleUsdRate(String(ownRates.usd));
   }, [useOwnRates, ownRates?.usd]);
 
-  const hasValidDailyRate = Boolean((useOwnRates && ownRates?.lom) || (dailyRate && Number(dailyRate.rate_per_gram) > 0));
-  const activeRatePerGram = useOwnRates && ownRates?.lom ? ownRates.lom : hasValidDailyRate ? Number(dailyRate!.rate_per_gram) : 0;
+  const defaultLomRate = useOwnRates && ownRates?.lom ? ownRates.lom : dailyRate && Number(dailyRate.rate_per_gram) > 0 ? Number(dailyRate.rate_per_gram) : 0;
+  // 084: the LOM rate of this payment can be changed; the saved / daily rate is only the pre-filled default
+  const [settleLomRate, setSettleLomRate] = useState("");
+  const activeRatePerGram = parseFloat(settleLomRate) > 0 ? parseFloat(settleLomRate) : defaultLomRate;
+  const hasValidDailyRate = activeRatePerGram > 0;
 
   const liveSettleCalc = useMemo(() => {
     const scrapW = parseFloat(settleScrapWeight) || 0;
@@ -472,12 +475,12 @@ export function SellerMobileWorkspace({
     }
 
     if ((cash > 0 || usd > 0) && !hasValidDailyRate) {
-      notifyError("⚠️ Bugungi 585 oltin kursi belgilanmagan! Naqd pul yoki valyuta qabul qilish uchun avval boshqaruvchidan kursni kiritishni so'rang.");
+      notifyError("Naqd pul yoki dollar uchun LOM / 585 kursini kiriting.");
       return;
     }
 
-    if (usd > 0 && useOwnRates && !ownRates?.usd) {
-      notifyError("Dollar qabul qilish uchun avval \"Kassam\" sahifasida o'z USD kursingizni belgilang.");
+    if (usd > 0 && !(parseFloat(settleUsdRate) > 0)) {
+      notifyError("Dollar uchun USD kursini kiriting.");
       return;
     }
     if (usd > 0 && (!usdRate || usdRate <= 0)) {
@@ -1602,8 +1605,7 @@ export function SellerMobileWorkspace({
                   type="number"
                   step="1"
                   min="0"
-                  placeholder={hasValidDailyRate ? "0" : "Kurs kerak"}
-                  disabled={!hasValidDailyRate}
+                  placeholder="0"
                   value={settleCashAmount}
                   onChange={(e) => setSettleCashAmount(e.target.value)}
                   className={`w-full p-2.5 rounded-xl font-mono text-xs font-bold ${
@@ -1637,9 +1639,16 @@ export function SellerMobileWorkspace({
                 <label className="block text-xs font-bold text-[#475569] mb-1">
                   {useOwnRates && ownRates?.lom ? "Mening LOM kursim" : "585 Kursi"}: {hasValidDailyRate ? `${activeRatePerGram.toLocaleString()} UZS` : <span className="text-amber-600">(Kiritilmagan)</span>}
                 </label>
-                <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono text-slate-700">
-                  {hasValidDailyRate ? `${activeRatePerGram.toLocaleString()} UZS/g` : "⚠️ Kurs yo'q"}
-                </div>
+                <input
+                  data-testid="settle-lom-rate"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder={defaultLomRate > 0 ? String(defaultLomRate) : "Kursni kiriting"}
+                  value={settleLomRate || (defaultLomRate > 0 ? String(defaultLomRate) : "")}
+                  onChange={(e) => setSettleLomRate(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-800"
+                />
               </div>
 
               <div>
@@ -1648,7 +1657,7 @@ export function SellerMobileWorkspace({
                     USD Kursi {isManualUsdRate ? <span className="text-[10px] text-amber-600 font-normal">(Qo&apos;lda)</span> : <span className="text-[10px] text-cyan-600 font-normal">(MB)</span>}:
                   </label>
                   {useOwnRates ? (
-                    <span className="text-[10px] text-slate-500">{ownRates?.usd ? "Mening kursim" : "Kassam sahifasida belgilang"}</span>
+                    <span className="text-[10px] text-slate-500">{ownRates?.usd ? "Saqlangan kursim (o'zgartirish mumkin)" : "Kursni kiriting"}</span>
                   ) : cbuUsdRate && (
                     <button
                       type="button"
@@ -1667,9 +1676,7 @@ export function SellerMobileWorkspace({
                   type="number"
                   placeholder="Masalan: 12800"
                   value={settleUsdRate}
-                  readOnly={useOwnRates}
                   onChange={(e) => {
-                    if (useOwnRates) return;
                     setSettleUsdRate(e.target.value);
                     setIsManualUsdRate(true);
                   }}

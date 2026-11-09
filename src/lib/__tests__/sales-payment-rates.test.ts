@@ -7,13 +7,13 @@ import { isSellerRole, ownRatesFromRpc, pickPaymentRates, tillValuation, pickHan
 describe("payment dialog rates (F-UI-1)", () => {
   it("seller: own stored LOM and USD rates, read-only, independent of CBU and of the official rate", () => {
     const p = pickPaymentRates({ role: "seller", ownRates: { lom: 905000, usd: 12650 }, officialRate: 900000, cbuUsdRate: null });
-    expect(p).toEqual({ lom: "905000", usd: "12650", locked: true, source: "seller_own" });
+    expect(p).toEqual({ lom: "905000", usd: "12650", locked: false, source: "seller_own" }); // 084: editable default
     const withCbu = pickPaymentRates({ role: "sales", ownRates: { lom: 890000, usd: 12500 }, officialRate: 900000, cbuUsdRate: 12999 });
     expect([withCbu.lom, withCbu.usd]).toEqual(["890000", "12500"]);
   });
   it("seller without an own LOM rate shows the official rate (server fallback); without own USD the field stays empty", () => {
     const p = pickPaymentRates({ role: "sotuvchi", ownRates: { lom: null, usd: null }, officialRate: 900000, cbuUsdRate: 12800 });
-    expect([p.lom, p.usd, p.locked]).toEqual(["900000", "", true]);
+    expect([p.lom, p.usd, p.locked]).toEqual(["900000", "", false]);
   });
   it("director / manager keep the previous behaviour (official + CBU, editable)", () => {
     for (const role of ["director", "admin", "production_manager", "manager"]) {
@@ -69,9 +69,24 @@ describe("UZS amount inputs accept whole so'm (F-UI-2)", () => {
     // 447 500 so'm is a valid amount for step=1, min=0
     expect(447500 % 1).toBe(0);
   });
-  it("the seller dialog sends the rate only as a check value; the server keeps ERR_RATE_MISMATCH (073 unchanged)", () => {
-    const mig = read("supabase/migrations/20260101000073_goldia_release_candidate_stabilization.sql");
-    expect(mig).toContain("ERR_RATE_MISMATCH: Sizning joriy LOM kursingiz");
-    expect(mig).toContain("ERR_RATE_MISMATCH: Sizning joriy USD kursingiz");
+  it("084: the saved rate is only the default; every role may enter the rate; no hard-coded fallback rate", () => {
+    const mig = read("supabase/migrations/20260101000084_goldia_operation_rates_and_currency_valuation.sql");
+    const lower = mig.toLowerCase();
+    const fn = (name: string) => {
+      const i = lower.indexOf(`create or replace function public.${name.toLowerCase()}(`);
+      expect(i, name).toBeGreaterThan(0);
+      const next = lower.indexOf("create or replace function", i + 30);
+      return mig.slice(i, next > 0 ? next : mig.length);
+    };
+    for (const name of ["rpc_record_client_settlement", "rpc_record_client_currency_settlement", "rpc_record_seller_to_manager_settlement"]) {
+      const body = fn(name);
+      expect(body, name).not.toContain("ERR_RATE_MISMATCH");
+      expect(body, name).toContain("_goldia_operation_rate(");
+    }
+    expect(fn("rpc_record_seller_to_manager_settlement")).not.toMatch(/_goldia_assert_seller_rate/);
+    for (const name of ["rpc_get_accounting_profit_summary", "rpc_record_financial_transaction", "rpc_record_seller_to_factory_settlement"]) {
+      expect(fn(name), name).not.toMatch(/\b(12800|880000|900000)\b/);
+    }
+    expect(mig).toContain("ERR_RATE_REQUIRED");
   });
 });

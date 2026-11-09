@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { pieceIdsArg } from "./helpers/goldia-pglite";
+import { pieceIdsArg, rpcRolledBack } from "./helpers/goldia-pglite";
 import { PGlite } from "@electric-sql/pglite";
 import { uuid_ossp } from "@electric-sql/pglite/contrib/uuid_ossp";
 import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
@@ -201,10 +201,10 @@ describe("Goldia migration 065 — BLOCKER / HIGH regression suite", () => {
     await expectError(`SELECT public.rpc_record_barcode_piece_sale(p_customer_id := '${customerB}', p_seller_id := '${sellerB}', p_piece_id := '${piece!.id}', p_client_markup_pct := 12)`, "boshqa sotuvchiga biriktirilgan");
   });
 
-  it("sellers must use the official rate, cannot collect for other sellers' customers, and the sale must belong to the customer", async () => {
+  it("sellers cannot use an absurd rate, cannot collect for other sellers' customers, and the sale must belong to the customer", async () => {
     await asUser(sellerAUser);
     // 12 UZS at a fake rate of 1 UZS/g would have cancelled 12 g of debt.
-    await expectError(`SELECT public.rpc_record_client_settlement(p_customer_id := '${customerA}', p_cash_amount := 12, p_rate_per_gram := 1)`, "ERR_RATE_MISMATCH");
+    await expectError(`SELECT public.rpc_record_client_settlement(p_customer_id := '${customerA}', p_cash_amount := 12, p_rate_per_gram := 1)`, "ERR_RATE_OUT_OF_RANGE"); // 084: was ERR_RATE_MISMATCH
     await expectError(`SELECT public.rpc_record_client_settlement(p_customer_id := '${customerB}', p_cash_amount := 900000)`, "o'z kassasiga");
     await expectError(`SELECT public.rpc_record_client_settlement(p_customer_id := '${customerB}', p_cash_amount := 900000, p_seller_id := '${sellerA}')`, "sizga biriktirilmagan");
     await expectError(`SELECT public.rpc_record_client_settlement(p_customer_id := '${customerA}', p_cash_amount := 900000, p_seller_id := '${sellerB}')`, "o'z kassasiga");
@@ -221,7 +221,10 @@ describe("Goldia migration 065 — BLOCKER / HIGH regression suite", () => {
     expect(Number(ok.cash_equivalent_grams)).toBe(1);
 
     await expectError(`SELECT public.rpc_record_seller_to_manager_settlement(p_seller_id := '${sellerB}', p_cash_paid_amount := 1000)`, "o'z kassasini");
-    await expectError(`SELECT public.rpc_record_seller_to_manager_settlement(p_seller_id := '${sellerA}', p_cash_paid_amount := 900000, p_rate_per_gram := 1)`, "ERR_RATE_MISMATCH");
+    // 084: this cash was already valued at the payment (900,000 -> 1 g captured); a rate sent with the handover cannot
+    // clear more than the captured grams (was ERR_RATE_MISMATCH). Checked in a rolled-back transaction.
+    const h = await rpcRolledBack(db, `public.rpc_record_seller_to_manager_settlement(p_seller_id := '${sellerA}', p_cash_paid_amount := 900000, p_rate_per_gram := 1)`);
+    expect(Number(h.cash_equivalent_grams)).toBe(1);
   });
 
   it("reversing a piece sale restores the consignment sold count so the piece is sellable by model + weight again", async () => {

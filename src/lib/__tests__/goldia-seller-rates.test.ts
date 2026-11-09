@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { createGoldiaDb, pieceIdsArg } from "./helpers/goldia-pglite";
+import { createGoldiaDb, pieceIdsArg, rpcRolledBack } from "./helpers/goldia-pglite";
 
 // Migration 072: independent seller LOM / USD rates. Calls run as the `authenticated` role with RLS on.
 // Every expected gram value is computed independently in the test (round to 4 decimals like the ledger).
@@ -148,11 +148,20 @@ describe("Goldia 072 — independent seller rates", () => {
 
   it("I: browser rates are checked, never trusted; invalid and cross-seller changes are rejected", async () => {
     await t.asUser(A.userId);
-    await t.expectError(`SELECT public.rpc_record_client_settlement(p_customer_id := '${A.customer}', p_cash_amount := 100000, p_rate_per_gram := 950000)`, "ERR_RATE_MISMATCH");
-    await t.expectError(`SELECT public.rpc_record_client_settlement(p_customer_id := '${A.customer}', p_usd_amount := 10, p_usd_rate := 13000)`, "ERR_RATE_MISMATCH");
-    // No own USD rate -> USD refused; no own LOM rate -> official rate (pre-072 rule)
+    // 084: the saved rate is only the default; a rate the seller enters for this payment is used (inside the limits and
+    // the deviation rule) and snapshotted. Was ERR_RATE_MISMATCH before 084. Checked in a rolled-back transaction.
+    const own = await rpcRolledBack(t.db, `public.rpc_record_client_settlement(p_customer_id := '${A.customer}', p_cash_amount := 950000, p_rate_per_gram := 950000)`);
+    expect(Number(own.rate_applied)).toBe(950000);
+    expect(Number(own.cash_equivalent_grams)).toBe(1);
+    const ownUsd = await rpcRolledBack(t.db, `public.rpc_record_client_settlement(p_customer_id := '${A.customer}', p_usd_amount := 10, p_usd_rate := 13000)`);
+    expect(Number(ownUsd.usd_rate_applied)).toBe(13000);
+    await t.expectError(`SELECT public.rpc_record_client_settlement(p_customer_id := '${A.customer}', p_cash_amount := 100000, p_rate_per_gram := 1)`, "ERR_RATE_OUT_OF_RANGE");
+    // No own USD rate: no rate entered -> refused (nothing is guessed); an entered rate is used (084, was ERR_USD_RATE_NOT_SET).
+    // No own LOM rate -> official rate is the default.
     await t.asUser(C.userId);
-    await t.expectError(`SELECT public.rpc_record_client_settlement(p_customer_id := '${C.customer}', p_usd_amount := 10, p_usd_rate := 12600)`, "ERR_USD_RATE_NOT_SET");
+    await t.expectError(`SELECT public.rpc_record_client_settlement(p_customer_id := '${C.customer}', p_usd_amount := 10)`, "ERR_RATE_REQUIRED");
+    const typedUsd = await rpcRolledBack(t.db, `public.rpc_record_client_settlement(p_customer_id := '${C.customer}', p_usd_amount := 10, p_usd_rate := 12600)`);
+    expect(Number(typedUsd.usd_rate_applied)).toBe(12600);
     const rc = await pay(C, `p_cash_amount := ${OFFICIAL}`);
     expect(Number(rc.rate_applied)).toBe(OFFICIAL);
     expect(Number(rc.cash_equivalent_grams)).toBe(1);
@@ -272,14 +281,16 @@ describe("Goldia 072 — independent seller rates", () => {
     expect(r4(Number(a.seller_owes_manager_g) - owesAfter)).toBe(1);
   });
 
-  it("legacy till cash (before 072) keeps the official-rate rule for sellers", async () => {
+  it("legacy till cash (before 072): official rate is the default, a seller-entered handover rate is used (084)", async () => {
     // Simulate cash already in C's till before 072 (no captured value)
     await t.asAdmin();
     await t.db.exec(`UPDATE public.seller_gold_accounts SET seller_till_cash_amount = seller_till_cash_amount + 890000 WHERE seller_id = '${C.employeeId}'`);
     const c0 = await acc(C);
     expect(Number(c0.till_valued_cash_uzs)).toBe(OFFICIAL); // only C's post-072 payment above
     await t.asUser(C.userId);
-    await t.expectError(`SELECT public.rpc_record_seller_to_manager_settlement(p_seller_id := '${C.employeeId}', p_cash_paid_amount := 1780000, p_rate_per_gram := 800000)`, "ERR_RATE_MISMATCH");
+    // 084: was ERR_RATE_MISMATCH; the entered rate now values only the legacy (unvalued) part: 1 g + 890,000 / 800,000
+    const typed = await rpcRolledBack(t.db, `public.rpc_record_seller_to_manager_settlement(p_seller_id := '${C.employeeId}', p_cash_paid_amount := 1780000, p_rate_per_gram := 800000)`);
+    expect(Number(typed.cash_equivalent_grams)).toBe(r4(1 + 890000 / 800000));
     const h = await t.rpc(`public.rpc_record_seller_to_manager_settlement(p_seller_id := '${C.employeeId}', p_cash_paid_amount := 1780000)`);
     expect(Number(h.cash_equivalent_grams)).toBe(2); // 1 g captured + 890,000 / official 890,000
   });

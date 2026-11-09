@@ -199,6 +199,8 @@ export function DirectorSalesWorkspace({
   const [surrenderCashAmount, setSurrenderCashAmount] = useState("0");
   const [surrenderUsdAmount, setSurrenderUsdAmount] = useState("0");
   const [surrenderUsdRate, setSurrenderUsdRate] = useState("");
+  // 084: LOM / 585 rate of this handover (only cash / USD without a captured gram value needs it); default = daily rate
+  const [surrenderLomRate, setSurrenderLomRate] = useState("");
   // F-UI-3: what part of the till already carries the grams captured at payment time (072 valued pool)
   const [surrenderValuation, setSurrenderValuation] = useState<TillValuation | null>(null);
   const [cbuUsdRate, setCbuUsdRate] = useState<number | null>(null);
@@ -912,8 +914,11 @@ export function DirectorSalesWorkspace({
       return;
     }
 
-    if ((cash > 0 || usd > 0) && (!dailyRate || !dailyRate.rate_per_gram || Number(dailyRate.rate_per_gram) <= 0)) {
-      notifyError("⚠️ Bugungi 585 oltin kursi belgilanmagan! Naqd pul yoki valyuta topshirish uchun avval kunlik kursni kiriting.");
+    const lomRate = parseFloat(surrenderLomRate) > 0 ? parseFloat(surrenderLomRate) : Number(dailyRate?.rate_per_gram || 0);
+    const unvaluedCash = Math.max(0, cash - (surrenderValuation?.valuedCash ?? 0));
+    const unvaluedUsdPart = Math.max(0, usd - (surrenderValuation?.valuedUsd ?? 0));
+    if ((unvaluedCash > 0 || unvaluedUsdPart > 0) && !(lomRate > 0)) {
+      notifyError("Qiymatlanmagan naqd pul / dollar uchun LOM (585) kursini kiriting.");
       return;
     }
 
@@ -932,7 +937,7 @@ export function DirectorSalesWorkspace({
         p_cash_paid_amount: cash,
         p_usd_paid_amount: usd,
         p_usd_rate: usd > 0 && usdRate > 0 ? usdRate : null,
-        p_rate_per_gram: (cash > 0 || usd > 0) ? (dailyRate?.rate_per_gram || null) : null,
+        p_rate_per_gram: (cash > 0 || usd > 0) && lomRate > 0 ? lomRate : null,
         p_notes: surrenderNotes.trim() || "Sotuvchi kassasidan boshqaruvchiga qabul qilingan tushum",
         p_idempotency_key: idempotencyKey,
       });
@@ -3953,6 +3958,19 @@ export function DirectorSalesWorkspace({
                 </div>
               </div>
 
+              <div>
+                  <label className="block text-xs font-bold text-[#475569] mb-1">LOM / 585 kursi (UZS/g) — faqat qiymatlanmagan pul uchun:</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder={dailyRate?.rate_per_gram ? String(dailyRate.rate_per_gram) : "Kursni kiriting"}
+                    value={surrenderLomRate || (dailyRate?.rate_per_gram ? String(dailyRate.rate_per_gram) : "")}
+                    onChange={(e) => setSurrenderLomRate(e.target.value)}
+                    data-testid="surrender-lom-rate"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm text-[#0F172A]"
+                  />
+              </div>
               {Number(surrenderUsdAmount || 0) > 0 && (
                 <div>
                   <div className="flex justify-between items-center mb-1">

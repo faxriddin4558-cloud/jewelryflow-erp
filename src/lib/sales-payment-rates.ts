@@ -1,7 +1,8 @@
 // Which LOM/USD rates the Goldia Sales payment and till-handover dialogs pre-fill.
-// The server stays the authority: rpc_record_client_settlement applies a seller's OWN stored rates and rejects any
-// other browser value (ERR_RATE_MISMATCH); rpc_record_seller_to_manager_settlement closes cash/USD collected since
-// 072 at the grams captured when the customer paid and needs a USD rate only for older (unvalued) dollars.
+// 084: every role may enter the LOM / USD rate of each payment and handover; the saved rate (seller) or the official
+// rate (director / manager) is only the pre-filled default. The server checks the organization's limits and stores the
+// rate on the document. rpc_record_seller_to_manager_settlement closes cash/USD collected since 072 at the grams
+// captured when the customer paid and needs a rate only for cash / dollars without a captured value.
 
 export const SELLER_ROLES = ["seller", "sotuvchi", "sales"];
 
@@ -17,7 +18,7 @@ export interface OwnRates {
 export interface PaymentRatePrefill {
   lom: string;
   usd: string;
-  /** seller: the server uses the stored rate, so the dialog shows it read-only */
+  /** 084: always false - the pre-filled rate can be changed for this operation */
   locked: boolean;
   source: "seller_own" | "official_and_cbu";
 }
@@ -47,7 +48,7 @@ export function pickPaymentRates(input: {
     return {
       lom: s(input.ownRates?.lom ?? input.officialRate),
       usd: s(input.ownRates?.usd ?? null),
-      locked: true,
+      locked: false,
       source: "seller_own",
     };
   }

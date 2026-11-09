@@ -108,3 +108,16 @@ export async function pieceIdsArg(db: PGlite, sellerEmployeeId: string, grams: n
     ) x WHERE before < ${grams} - 0.00005`);
   return `p_piece_ids := ARRAY[${res.rows.map((r) => `'${r.id}'`).join(",")}]::uuid[]`;
 }
+
+// 084: run one RPC inside a transaction that is always rolled back, so a test can prove that a call is ACCEPTED
+// (and inspect its result) without changing the state later assertions in the same suite depend on.
+export async function rpcRolledBack(db: PGlite, sql: string): Promise<Record<string, unknown>> {
+  await db.exec("BEGIN");
+  try {
+    const res = await db.query<{ r: unknown }>(`SELECT (${sql}) AS r`);
+    const raw = res.rows[0]!.r;
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as Record<string, unknown>;
+  } finally {
+    await db.exec("ROLLBACK");
+  }
+}
