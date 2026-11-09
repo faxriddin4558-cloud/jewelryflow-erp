@@ -1,0 +1,512 @@
+{
+  "target": "local",
+  "run": "mw9n2q25",
+  "results": [
+    {
+      "id": "RT-W-1",
+      "title": "100 g @12 % (112 g due): return 20 g -> debt -22.4 g; sale document still 100 g / 112 g; return document 20 g / 22.4 g",
+      "ok": true,
+      "expected": {
+        "debtDown": 22.4,
+        "sale": [
+          100,
+          112
+        ],
+        "remaining": 80
+      },
+      "actual": {
+        "debtDown": 22.4,
+        "sale": [
+          100,
+          112
+        ],
+        "ret": {
+          "unit": "XAU585",
+          "status": "ok",
+          "manager": null,
+          "sale_id": "516002ab-c955-4fe8-87c9-70f51c09af3c",
+          "sale_no": "SALE-W-20261110-3B5E2B",
+          "piece_id": "3ce06b5a-c99e-4775-b154-6bbfa2ea33f6",
+          "return_id": "3818cb5e-6c4f-4eed-930b-0e71c47a92d1",
+          "return_no": "SALE-W-20261110-3B5E2B-V1",
+          "destination": "seller",
+          "debt_reduced": 22.4,
+          "returned_value": 22.4,
+          "advance_created": 0,
+          "returned_amount": 0,
+          "returned_due_g585": 22.4,
+          "returned_weight_g": 20,
+          "customer_debt_after": 89.6,
+          "customer_advance_after": 0,
+          "remaining_sale_weight_g": 80
+        }
+      }
+    },
+    {
+      "id": "RT-W-2",
+      "title": "seller stock +20 g = held pieces; consignment obligation unchanged (seller holds the goods again)",
+      "ok": true,
+      "expected": {
+        "stock": 20,
+        "obligation": "same"
+      },
+      "actual": {
+        "stock": 20,
+        "held": 450.9801,
+        "st": 450.9801,
+        "o": [
+          1513.8997,
+          1513.8997
+        ]
+      }
+    },
+    {
+      "id": "RT-RPT-1",
+      "title": "returns 20 + 30 + 50 g: values 22.4 + 33.6 + 56.0 = 112.0 exactly (last = remainder); debt 0",
+      "ok": true,
+      "expected": [
+        22.4,
+        33.6,
+        56
+      ],
+      "actual": {
+        "rows": [
+          [
+            "SALE-W-20261110-3B5E2B-V1",
+            20,
+            22.4
+          ],
+          [
+            "SALE-W-20261110-3B5E2B-V2",
+            30,
+            33.6
+          ],
+          [
+            "SALE-W-20261110-3B5E2B-V3",
+            50,
+            56
+          ]
+        ],
+        "acc": {
+          "d": 0,
+          "a": 0
+        },
+        "e": [
+          null,
+          null
+        ]
+      }
+    },
+    {
+      "id": "RT-RPT-2",
+      "title": "fully returned sale: next return refused",
+      "ok": true,
+      "expected": "refused",
+      "actual": "Ushbu savdo to'liq qaytarilgan (SALE-W-20261110-3B5E2B)"
+    },
+    {
+      "id": "RT-RPT-3",
+      "title": "over-return (7 g of the 6 g left) refused, nothing changed",
+      "ok": true,
+      "expected": "refused",
+      "actual": {
+        "e": "Qaytariladigan vazn (7.0000 g) savdoning qaytarilmagan qismidan (6.0000 g) oshadi",
+        "acc": {
+          "d": 6.6,
+          "a": 0
+        }
+      }
+    },
+    {
+      "id": "RT-PAID",
+      "title": "fully paid 11 g: return 5 g (5.5 g) -> debt reduction 0, advance 5.5 g (no negative debt, no cash)",
+      "ok": true,
+      "expected": {
+        "d": 0,
+        "a": 5.5
+      },
+      "actual": {
+        "acc": {
+          "d": 0,
+          "a": 5.5
+        },
+        "ret": [
+          0,
+          5.5
+        ]
+      }
+    },
+    {
+      "id": "RT-PART",
+      "title": "partly paid (debt 5 g): return 6 g (6.6 g) -> 5 g debt reduction + 1.6 g advance",
+      "ok": true,
+      "expected": {
+        "reduced": 5,
+        "advance": 1.6
+      },
+      "actual": {
+        "acc": {
+          "d": 0,
+          "a": 1.6
+        },
+        "ret": [
+          5,
+          1.6
+        ]
+      }
+    },
+    {
+      "id": "RT-ADV",
+      "title": "advance 3 g used by an 11 g sale (debt 8): full return -> 8 g debt off + 3 g advance back",
+      "ok": true,
+      "expected": {
+        "before": 8,
+        "after": {
+          "d": 0,
+          "a": 3
+        }
+      },
+      "actual": {
+        "before": {
+          "d": 8,
+          "a": 0
+        },
+        "after": {
+          "d": 0,
+          "a": 3
+        }
+      }
+    },
+    {
+      "id": "RT-USD",
+      "title": "USD 100 for 3 g: three 1 g returns = 33.33 + 33.33 + 33.34 = 100 exactly; USD debt 0; grams untouched",
+      "ok": true,
+      "expected": {
+        "parts": [
+          33.33,
+          33.33,
+          33.34
+        ]
+      },
+      "actual": {
+        "parts": [
+          33.33,
+          33.33,
+          33.34
+        ],
+        "acc": {
+          "d": 0,
+          "a": 0
+        },
+        "g": {
+          "d": 0,
+          "a": 0
+        }
+      }
+    },
+    {
+      "id": "RT-UZS",
+      "title": "UZS 1000001 for 3 g: three 1 g returns = 333333.67 + 333333.67 + 333333.66 = 1000001 exactly; UZS debt 0; grams untouched",
+      "ok": true,
+      "expected": {
+        "parts": [
+          333333.67,
+          333333.67,
+          333333.66
+        ]
+      },
+      "actual": {
+        "parts": [
+          333333.67,
+          333333.67,
+          333333.66
+        ],
+        "acc": {
+          "d": 0,
+          "a": 0
+        },
+        "g": {
+          "d": 0,
+          "a": 0
+        }
+      }
+    },
+    {
+      "id": "RT-PC",
+      "title": "barcode piece: 5 g of 10 g refused; whole piece -> same piece back on the shelf (held, no sale); second return refused",
+      "ok": true,
+      "expected": "ok",
+      "actual": {
+        "part": "Barcode (dona) savdo faqat butun dona sifatida qaytariladi: 10.0000 g",
+        "full": "d5968416-eb93-4cd1-8d99-ea0e706754a9",
+        "piece": {
+          "status": "held_by_seller",
+          "sale_id": null
+        },
+        "again": "Ushbu savdo to'liq qaytarilgan (SALE-BC-A1BAA926)",
+        "stock": 10
+      }
+    },
+    {
+      "id": "RT-MGR",
+      "title": "manager receives 4 g: seller stock unchanged (= held pieces), manager stock +4 g, seller obligation -4.48 g (4 x (1 + 12 % of the source consignment)), piece returned_to_manager",
+      "ok": true,
+      "expected": {
+        "seller": 0,
+        "manager": 4,
+        "obligation": -4.48
+      },
+      "actual": {
+        "seller": 0,
+        "manager": 4,
+        "obligation": -4.48,
+        "piece": {
+          "status": "returned_to_manager",
+          "weight_grams": 4
+        }
+      }
+    },
+    {
+      "id": "RT-SEC",
+      "title": "refused: other seller (42501), seller -> manager, other organization, no key, 0 g, -2 g, empty reason, anon; nothing recorded",
+      "ok": true,
+      "expected": "all refused",
+      "actual": {
+        "other": "Ruxsat etilmadi: Sotuvchi faqat o'zi amalga oshirgan savdodan vozvrat qila oladi",
+        "toMgr": "Ruxsat etilmadi: mahsulotni menejer qabul qilganini faqat menejer yoki direktor tasdiqlaydi",
+        "org": "Savdo hujjati topilmadi (02d0238a-bec3-4368-ab85-333d73e2dd2f)",
+        "noKey": "Vozvrat uchun takrorlanmas so'rov kaliti (idempotency key) majburiy",
+        "zero": "Qaytariladigan vazn 0 dan katta bo'lishi shart",
+        "neg": "Qaytariladigan vazn 0 dan katta bo'lishi shart",
+        "reason": "Vozvrat sababi kiritilishi shart",
+        "anon": 401,
+        "rows": 0
+      }
+    },
+    {
+      "id": "RT-IDEM",
+      "title": "same key twice -> one document (replay); 8 parallel same key -> 1 more; 8 parallel ~3 g on a 10 g sale -> at most 10 g returned, the rest refused",
+      "ok": true,
+      "expected": {
+        "docs": 2,
+        "w11": "<= 10",
+        "accepted": 3
+      },
+      "actual": {
+        "replay": [
+          "SALE-W-20261110-CC668B-V1",
+          "SALE-W-20261110-CC668B-V1"
+        ],
+        "docs": 2,
+        "w11": 9.001,
+        "accepted": 3,
+        "refused": [
+          "Qaytariladigan vazn (3.0000 g) savdoning qaytarilmagan qismidan (0.9990 g) oshadi",
+          "Qaytariladigan vazn (3.0002 g) savdoning qaytarilmagan qismidan (0.9990 g) oshadi"
+        ]
+      }
+    },
+    {
+      "id": "RT-REV",
+      "title": "a sale with returns cannot be reversed as a whole (ERR_SALE_HAS_RETURNS); a sale without returns still can",
+      "ok": true,
+      "expected": "refused / ok",
+      "actual": {
+        "withReturns": "ERR_SALE_HAS_RETURNS: Ushbu savdodan vozvrat qilingan (SALE-W-20261110-CC668B) - butun savdoni bekor qilib bo'lmaydi; qolgan qismini vozvrat qiling",
+        "plain": true
+      }
+    },
+    {
+      "id": "RT-REC-STK-sellera",
+      "title": "sellera: stock = held pieces (0.0000 g)",
+      "ok": true,
+      "expected": 487.9811,
+      "actual": {
+        "st": 487.9811,
+        "o": 1509.4197,
+        "held": 487.9811
+      }
+    },
+    {
+      "id": "RT-REC-STK-sellerb",
+      "title": "sellerb: stock = held pieces (0.0000 g)",
+      "ok": true,
+      "expected": 40.0001,
+      "actual": {
+        "st": 40.0001,
+        "o": 1020.0314,
+        "held": 40.0001
+      }
+    },
+    {
+      "id": "RT-REC-OBL",
+      "title": "sellera obligation changed ONLY by the manager-received return; seller-side returns leave it unchanged",
+      "ok": true,
+      "expected": -4.48,
+      "actual": {
+        "before": 1513.8997,
+        "after": 1509.4197
+      }
+    },
+    {
+      "id": "RT-REC-UL",
+      "title": "unified ledger (documents) = live account for every return scenario customer",
+      "ok": true,
+      "expected": 0,
+      "actual": []
+    },
+    {
+      "id": "RT-REC-MR",
+      "title": "monthly report: closing net = live account; C1 row: sales 112, returns 112",
+      "ok": true,
+      "expected": 0,
+      "actual": {
+        "bad": [],
+        "c1": [
+          112,
+          112,
+          0
+        ]
+      }
+    },
+    {
+      "id": "RT-REC-PR",
+      "title": "period report closing (585 net, USD net) = live accounts; return flows listed",
+      "ok": true,
+      "expected": {
+        "g585": 1296.1562,
+        "usd": 30394.97
+      },
+      "actual": {
+        "g585": 1296.1562,
+        "usd": 30394.97,
+        "flows": [
+          "return_usd",
+          "return_uzs",
+          "return_gram",
+          "return_to_manager"
+        ]
+      }
+    },
+    {
+      "id": "RT-REC-DL",
+      "title": "daily ledger: C1 shows the 100 g sale and 3 return rows (-20, -30, -50 g; -22.4, -33.6, -56 g)",
+      "ok": true,
+      "expected": 3,
+      "actual": [
+        [
+          -30,
+          -33.6
+        ],
+        [
+          -20,
+          -22.4
+        ],
+        [
+          -50,
+          -56
+        ]
+      ]
+    },
+    {
+      "id": "RT-REC-MD",
+      "title": "markup difference report: C1 sale entry keeps its own difference and shows the returned share (whole sale returned)",
+      "ok": true,
+      "expected": "equal",
+      "actual": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "RT-UI-desktop-raw",
+      "title": "ui observations",
+      "ok": true,
+      "expected": null,
+      "actual": {
+        "preview": "Mijoz hisobidan kamayadi: 3.3000 g (585). Ochiq qarzdan oshgan qismi mijoz foydasiga avans bo'ladi (naqd pul qaytarilmaydi). Asl savdo hujjati o'zgarmaydi.",
+        "bad": [],
+        "overflow": 0
+      }
+    },
+    {
+      "id": "RT-UI-desktop",
+      "title": "seller UI (desktop): return 3 g of 10 g @10 % with a double click -> exactly one return document, value = 3.3 g (preview shows it), no API error",
+      "ok": true,
+      "expected": [
+        [
+          3,
+          3.3
+        ]
+      ],
+      "actual": {
+        "rows": [
+          [
+            3,
+            3.3
+          ]
+        ],
+        "preview": "Mijoz hisobidan kamayadi: 3.3000 g (585). Ochiq qarzdan oshgan qismi mijoz foydasiga avans",
+        "bad": [],
+        "overflow": 0
+      }
+    },
+    {
+      "id": "RT-UI-phone-raw",
+      "title": "ui observations",
+      "ok": true,
+      "expected": null,
+      "actual": {
+        "preview": "Mijoz hisobidan kamayadi: 2.2000 g (585). Ochiq qarzdan oshgan qismi mijoz foydasiga avans bo'ladi (naqd pul qaytarilmaydi). Asl savdo hujjati o'zgarmaydi.",
+        "bad": [],
+        "overflow": 0
+      }
+    },
+    {
+      "id": "RT-UI-phone",
+      "title": "seller UI (phone): return 2 g of 10 g @10 % with a double click -> exactly one return document, value = 2.2 g (preview shows it), no API error, no horizontal overflow",
+      "ok": true,
+      "expected": [
+        [
+          3,
+          3.3
+        ],
+        [
+          2,
+          2.2
+        ]
+      ],
+      "actual": {
+        "rows": [
+          [
+            3,
+            3.3
+          ],
+          [
+            2,
+            2.2
+          ]
+        ],
+        "preview": "Mijoz hisobidan kamayadi: 2.2000 g (585). Ochiq qarzdan oshgan qismi mijoz foydasiga avans",
+        "bad": [],
+        "overflow": 0
+      }
+    },
+    {
+      "id": "RT-UI-ACC",
+      "title": "after both UI returns the customer owes 11 - 3.3 - 2.2 = 5.5 g",
+      "ok": true,
+      "expected": 5.5,
+      "actual": {
+        "before": {
+          "d": 11,
+          "a": 0
+        },
+        "after": {
+          "d": 5.5,
+          "a": 0
+        }
+      }
+    }
+  ]
+}

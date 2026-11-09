@@ -1,0 +1,58 @@
+GOLDIA SALES — staging release <detected level> -> 083 (APPLY)
+
+started: 2026-11-09T19:06:50.721Z  mode: APPLY (LOCAL REHEARSAL)
+[1/10] tools: /opt/goldia-audit/pg17root/wrap (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
+  checkout: 83 migration files, newest 083
+[2/10] connection
+  host=127.0.0.1 port=55437 user=postgres
+  server: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2), user postgres
+[3/10] identity and state gates (read only)
+  organizations=61 employees=208 auth.users=209 jewelry_sales=52
+  history: 81 rows, latest 20260101000081 (level 081)
+  repository: 83 migration files, newest 083
+  unrecorded repository versions below the level (gaps): none
+  recorded versions unknown to this checkout: none
+  history repair requested: none
+  migrations to apply: 082 -> 083
+  RELEASE PLAN (detected): staging 081 -> 082 -> 083
+  chain file: chain-082-083.sql sha256=e61bb92683bc03b4 (2 migrations)
+[4/10] fresh backup (outside the repository)
+  schemas: public, auth, storage, supabase_migrations; roles dump: ok
+  cf42d37e3ef61c181ddc252d74666c8e25abfbd03fb2750762225ece88c73681  staging-full.dump  1440411 bytes
+  ce2139fbf6105ef0b075efb9d560884adb35d68b7e7d0a9b06a0f630acc3e742  staging-roles.sql  1582 bytes
+  e95dc52fc2b451f966d7949df8c4153eb17b039ae12d33762964d6661c609818  staging-schema.sql  1176987 bytes
+[5/10] restore test into a disposable LOCAL PostgreSQL (staging untouched)
+  extensions not available locally (platform only): none
+  restored copy vs staging row counts: identical (71 tables)
+  BACKUP: VERIFIED
+[6/10] schema parity of the restored copy with repository 001..081
+  missing objects: 0; different function bodies: 0; extra objects (kept): 0 — parity-081.txt
+  CR-tolerant: function bodies different from repository 081: 0 — parity-081-cr-tolerant.txt
+  (information only: the decisive gate is parity with 083 after the chain on the local copy)
+[7/10] 082..083 on the restored LOCAL copy (one transaction)
+  chain + per-migration postflight checks: PASS
+  business row counts changed: none
+  ledger/history rows added: supabase_migrations.schema_migrations: 81 -> 83
+  per-organization balances (customer/seller/vault): unchanged
+  factory obligation total: 3389.0400 -> 3389.0400
+  schema parity with repository 001..083: missing 0, different function bodies 0, extra 0
+  postflights 073 + 074 + 075 + 076 + 077 + 078 + 079 + 080 + 081 + 082 + 083: all true
+  RLS read  (every login x every organization + anon): 081 RLS_ISOLATION|PASS|users=208|orgs=61|checks=10225 -> 083 RLS_ISOLATION|PASS|users=208|orgs=61|checks=10434
+  RLS write (update/delete other organizations' rows, rolled back): 081 RLS_WRITE_ISOLATION|PASS|users=208|checks=18720 -> 083 RLS_WRITE_ISOLATION|PASS|users=208|checks=19136
+  emergency rollback 083 on the copy: ok (level 082)
+  emergency rollback 082 on the copy: ok (level 081)
+  re-apply 081 -> 083 on the copy: ok (postflights true, balances unchanged)
+  LOCAL COPY: PASS
+[9/10] apply to staging
+  082..083 applied and recorded in one transaction
+[10/10] postflight on staging (read only)
+  history rows 082,083: 2/2
+  history after: level 083, gaps none, unknown none
+  postflights 073 + 074 + 075 + 076 + 077 + 078 + 079 + 080 + 081 + 082 + 083: all true
+  schema parity with repository 001..083: missing 0, different function bodies 0, extra 0
+  RLS read isolation: RLS_ISOLATION|PASS|users=208|orgs=61|checks=10434
+  business row counts changed: none
+  per-organization balances: unchanged
+  POSTFLIGHT: PASS
+
+RESULT: STAGING 081 -> 083 APPLIED, POSTFLIGHT PASS. Next: deploy the release-candidate frontend to staging (docs/releases/staging-075/README.md). Report: /opt/goldia-audit/rehearsal083/goldia-staging-2026-11-09T19-06-50/STAGING-083-RESULT.txt
