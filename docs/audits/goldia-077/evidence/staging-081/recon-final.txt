@@ -1,0 +1,6 @@
+PASS RC-CUR every customer x currency (270): DB net (debt - advance) = active currency sales - applied - advance of active payments | exp={"diff":0,"net_uzs":1842769648.8,"net_usd":126905.79} act={"mismatches":[],"n":0,"sales":609,"payments":805}
+PASS RC-STK every seller (9): physical gram stock = held barcode pieces | exp={"diff_g":"0.0000","total_g":2613.034} act={"mismatches":[],"stock_total_g":2613.034,"pieces_total_g":2613.034}
+PASS RC-585 customer 585 net debt: opening (0, undocumented 0) + all documented flows since 01.11 = closing = live database | exp={"diff_g":"0.0000"} act={"opening":0,"flows_g":7977.2396,"closing":7977.2396,"live_g":7977.2396,"undocumented":0}
+PASS RC-OBL every seller: legacy 585 obligation = max(0, active legacy DEBT deltas; advances are booked on the customer only) | exp={"diff_g":"0.0000"} act={"mismatches":[],"rows":530}
+PASS RC-NEG no negative stock, till, vault, 585 or currency balance; no currency account with debt and advance at once | exp="all 0" act={"seller":0,"customer585":0,"currency":0,"vault":0,"debt_and_advance":0}
+TOTAL 5/5 -> docs/audits/goldia-077/evidence/staging-081/staging-recon-081-final.json

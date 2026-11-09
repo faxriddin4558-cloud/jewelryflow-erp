@@ -1,0 +1,10 @@
+PASS INT-01 every seller of the org (9): consigned - sold never negative | exp=0 act=[]
+PASS INT-02 every seller: held barcode piece grams = gram stock | exp=0 act=[]
+PASS INT-03 every seller: legacy obligation = max(0, active debt deltas) | exp=0 act=[]
+PASS INT-04 no piece is both held and linked to a sale | exp=0 act=0
+PASS INT-05 no piece fully consumed by two active sales (no double sale) | exp=0 act=0
+PASS INT-06 every active weight sale: allocated piece grams = sold grams | exp=0 act=[]
+PASS INT-07 allocations of normally REVERSED sales are all released (329 allocations) | exp=0 act=0
+PASS INT-07b INFO (LOW finding): allocations left open by the full TEST reset of 2026-11-03 (pieces cancelled, no balance effect) | exp="info" act=100
+PASS INT-08 no customer with debt and advance at the same time, none negative | exp=0 act={"both":0,"neg":0}
+checked: sellers 9, pieces 2054, consignments 139, sales 2588, allocations 3396, legacy 712, customer accounts 488

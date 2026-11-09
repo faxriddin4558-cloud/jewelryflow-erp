@@ -1,0 +1,16 @@
+Goldia staging vouehtlmsunebracahon - READ-ONLY Auth inspection 2026-11-09 (plain SELECT; no secret, no hash read out)
+
+account              exists banned_until confirmed identities         employee (organization "Goldia Jewelry Demo Staging") last_sign_in      updated_at
+director@goldia.uz   yes    null         yes       1 (email)          admin / active                                         2026-10-27 17:53  2026-11-04 18:25
+manager@goldia.uz    yes    null         yes       1 (email)          production_manager / active                            2026-10-23 17:35  2026-10-23 17:35
+seller@goldia.uz     yes    null         yes       1 (email)          sales / active                                         2026-10-23 17:31  2026-10-23 17:31
+all three: encrypted_password set, not SSO, provider email, deleted_at null
+
+=> not banned, not unconfirmed, identity and employee link intact. invalid_credentials = the password typed does not match
+   the stored one (director's Auth row was updated on 2026-11-04; no script of this repository changes these accounts:
+   the audit harnesses only create / ban users "AUDIT075 ..." in the synthetic organizations GOLDIA-AUDIT-075-A/B).
+   Nothing was unbanned or changed for these accounts by this session; the owner sets new passwords with
+   docs/releases/staging-075/reset-staging-test-passwords.ps1.
+
+Synthetic audit users (raw_user_meta_data.audit = true): 36, all banned before the run, 0 unconfirmed.
+Migration history: 81 rows, latest 20260101000081, 057 and 058 recorded (the staging release with -RepairStagingHistory ran).

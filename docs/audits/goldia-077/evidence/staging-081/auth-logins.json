@@ -1,0 +1,61 @@
+{
+  "at": "2026-11-09T11:53:32.772Z",
+  "results": [
+    {
+      "tag": "director",
+      "login": "PASS",
+      "role": "authenticated",
+      "aud": "authenticated",
+      "employee_linked": true
+    },
+    {
+      "tag": "manager",
+      "login": "PASS",
+      "role": "authenticated",
+      "aud": "authenticated",
+      "employee_linked": true
+    },
+    {
+      "tag": "sellera",
+      "login": "PASS",
+      "role": "authenticated",
+      "aud": "authenticated",
+      "employee_linked": true
+    },
+    {
+      "tag": "sellerb",
+      "login": "PASS",
+      "role": "authenticated",
+      "aud": "authenticated",
+      "employee_linked": true
+    },
+    {
+      "tag": "directorB",
+      "login": "PASS",
+      "role": "authenticated",
+      "aud": "authenticated",
+      "employee_linked": true
+    },
+    {
+      "tag": "managerB",
+      "login": "PASS",
+      "role": "authenticated",
+      "aud": "authenticated",
+      "employee_linked": true
+    },
+    {
+      "tag": "sellerB1",
+      "login": "PASS",
+      "role": "authenticated",
+      "aud": "authenticated",
+      "employee_linked": true
+    },
+    {
+      "tag": "noemp",
+      "login": "PASS",
+      "role": "authenticated",
+      "aud": "authenticated",
+      "employee_linked": false
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+parity-matrix exit=0 62s 
+staging-077-targeted exit=0 46s TOTAL 25/25 -> /home/user/jewelryflow-erp/docs/audits/goldia-077/evidence/staging-077-targeted.json
+ui-077 exit=1 173s TOTAL 19/21
+staging-078-extra exit=0 40s TOTAL 17/17 -> /home/user/jewelryflow-erp/docs/audits/goldia-077/evidence/staging-078-extra.json
+ui-078-archive exit=0 104s TOTAL 9/10
+da-079 exit=0 64s TOTAL 14/14
+report-080 exit=0 152s TOTAL 8/8
+currency-stress exit=0 116s TOTAL 13/13
+stg-076-api exit=0 46s TOTAL 57/57 -> docs/audits/goldia-077/evidence/staging-081/staging-076-api-on-081.json
+stress-076 exit=1 285s TOTAL 15/16 -> docs/audits/goldia-077/evidence/staging-081/stress-staging-076-on-081.json
+ui-076 exit=0 148s TOTAL 17/17
+stg-integrity exit=0 5s 
+recon exit=0 9s TOTAL 5/5 -> docs/audits/goldia-077/evidence/staging-081/staging-recon-081.json
+DONE

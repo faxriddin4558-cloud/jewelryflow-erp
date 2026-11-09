@@ -1,0 +1,17 @@
+PASS ATT-PAR 8 parallel requests with one idempotency key -> exactly one sale | exp=1 act={"distinct":1,"ok":8,"before":54.9837}
+PASS ATT-PK payment retried with the same key -> one payment | exp=true act={"a":true,"b":true}
+PASS REC-01 customer balances (debt - advance): model = database for all 30 customers (0.0000 g) | exp=0 act={"mismatches":0,"first":[]}
+PASS REC-ST-sellera sellera gram stock: model = database = held pieces | exp=536.7191 act={"db":536.7191,"pieces":536.7191}
+PASS REC-TILL-sellera sellera till UZS / USD: model = database | exp={"uzs":165646000,"usd":2608} act={"uzs":165646000,"usd":2608}
+PASS REC-LEG-sellera sellera legacy obligation: model max(0, sum of active debt deltas) = database | exp=675.5202 act=675.5202
+PASS REC-ST-sellerb sellerb gram stock: model = database = held pieces | exp=0 act={"db":0,"pieces":0}
+PASS REC-TILL-sellerb sellerb till UZS / USD: model = database | exp={"uzs":263320000,"usd":14891.52} act={"uzs":263320000,"usd":14891.52}
+PASS REC-LEG-sellerb sellerb legacy obligation: model max(0, sum of active debt deltas) = database | exp=500.4894 act=500.4894
+PASS REC-ST-sellerc sellerc gram stock: model = database = held pieces | exp=109.571 act={"db":109.571,"pieces":109.571}
+PASS REC-TILL-sellerc sellerc till UZS / USD: model = database | exp={"uzs":201230000,"usd":11531.54} act={"uzs":201230000,"usd":11531.54}
+PASS REC-LEG-sellerc sellerc legacy obligation: model max(0, sum of active debt deltas) = database | exp=401.346 act=401.346
+PASS REC-02 every sale: client due = grams x (1 + markup) exactly (no markup on markup) | exp=0 act=0
+PASS REC-03 every payment: grams = independent UZS / USD / scrap conversion at the seller's rate | exp=0 act=0
+PASS REC-04 every legacy entry: delta = independent expectation | exp=0 act=0
+PASS REC-05 attack / duplicate / permission cases behaved as expected (60) | exp=0 act=[]
+TOTAL 16/16 -> docs/audits/goldia-077/evidence/staging-081/stress-staging-076-on-081-rerun.json
