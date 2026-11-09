@@ -85,7 +85,7 @@ const s585 = (w, p) => r4(w * (p / 585));
   const cb = custs.sellerb[0], cc = custs.sellerc[0];
   let r = await L.rpc('sellerb', 'rpc_record_currency_sale', { p_customer_id: cc, p_currency: 'USD', p_amount: 10, p_weight_grams: 0.5 }); A("seller sells for USD to another seller's customer", !r.ok, { error: r.error });
   r = await L.rpc('sellerb', 'rpc_record_client_currency_settlement', { p_customer_id: cc, p_currency: 'USD', p_usd_amount: 1 }); A("seller takes a payment for another seller's customer", !r.ok, { error: r.error });
-  r = await L.rpc('sellerb', 'rpc_record_client_currency_settlement', { p_customer_id: cb, p_currency: 'USD', p_cash_uzs: 100000, p_usd_rate: 99999 }); A('seller sends another USD rate', !r.ok, { error: r.error });
+  r = await L.rpc('sellerb', 'rpc_record_client_currency_settlement', { p_customer_id: cb, p_currency: 'USD', p_cash_uzs: 100000, p_usd_rate: 200000000 }); A('seller sends an absurd USD rate (above every limit; 084 accepts typed rates inside the limits)', !r.ok, { error: r.error });
   r = await L.rpc('sellerb', 'rpc_record_client_currency_settlement', { p_customer_id: cb, p_currency: 'USD', p_usd_amount: -5 }); A('negative payment', !r.ok, { error: r.error });
   r = await L.rpc('sellerb', 'rpc_record_currency_sale', { p_customer_id: cb, p_currency: 'USD', p_amount: 0, p_weight_grams: 1 }); A('zero price', !r.ok, { error: r.error });
   r = await L.rpc('sellerb', 'rpc_record_currency_sale', { p_customer_id: cb, p_currency: 'USD', p_amount: 10, p_weight_grams: r4(M.stock.sellerb + 1) }); A('currency sale above the stock', !r.ok, { error: r.error });

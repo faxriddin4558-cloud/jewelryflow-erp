@@ -1,0 +1,14 @@
+local stand-in at 084 (after the 081 -> 084 release rehearsal), real GoTrue logins, real Next.js build
+rate-084 (GA_UI=1 GA_BASELINE=1) TOTAL 16/16
+ret-083 exit=0 26s TOTAL 28/28 -> docs/audits/goldia-077/evidence/local-084/local-ret-083-on-084.json
+balance-082 exit=0 28s TOTAL 19/19 -> docs/audits/goldia-077/evidence/local-084/local-balance-082-on-084.json
+adv-081 exit=0 26s TOTAL 11/11
+ui-076 exit=0 58s TOTAL 17/17
+ui-077 exit=0 87s TOTAL 21/21
+ui-078-archive exit=0 49s TOTAL 10/10
+da-079 exit=0 8s TOTAL 14/14
+parity-matrix exit=0 3s 
+parity-matrix: DIRECTOR vs MANAGER mismatches 0, missing / ambiguous 0
+currency (re-run after the attack case was changed to an absurd USD rate) TOTAL 13/13
+stress-076 (re-run after the attack cases were changed to absurd LOM / USD rates) TOTAL 16/16 -> docs/audits/goldia-077/evidence/local-084/local-stress-076-on-084.json
+vitest 413/413

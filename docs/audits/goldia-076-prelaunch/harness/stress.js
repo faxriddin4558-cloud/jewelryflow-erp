@@ -153,8 +153,10 @@ const dueOf = (w, m) => dh(U4(w) * (100 + m), 100) / 1e4; // server: round(w * (
   // ---------------- 50 attacks / duplicates / concurrency / permission cases
   const A = async (what, fn, expectRefused) => { const r = await fn(); const refused = !r.ok; op('attack', { what, expected: expectRefused ? 'refused' : 'accepted', refused, status: r.status, error: r.error && r.error.slice(0, 120) }); if (!refused && !expectRefused) return r; return r; };
   const ca = custs.sellera[0]; const cb = custs.sellerb[0];
-  await A('seller pays at another LOM rate', () => L.rpc('sellera', 'rpc_record_client_settlement', { p_customer_id: ca, p_cash_amount: 100000, p_rate_per_gram: 900000 }), true);
-  await A('seller pays at another USD rate', () => L.rpc('sellera', 'rpc_record_client_settlement', { p_customer_id: ca, p_usd_amount: 10, p_usd_rate: 13000 }), true);
+  // 084: a typed rate inside the limits is accepted (proven by goldia-077/harness/rate-084.js); an absurd rate is still refused
+  // (LOM: deviation rule from the official rate; USD: above every organization limit). Before 084 both were ERR_RATE_MISMATCH.
+  await A('seller pays at an absurd LOM rate (5 000 000)', () => L.rpc('sellera', 'rpc_record_client_settlement', { p_customer_id: ca, p_cash_amount: 100000, p_rate_per_gram: 5000000 }), true);
+  await A('seller pays at an absurd USD rate (200 000 000)', () => L.rpc('sellera', 'rpc_record_client_settlement', { p_customer_id: ca, p_usd_amount: 10, p_usd_rate: 200000000 }), true);
   await A("seller collects from another seller's customer", () => L.rpc('sellera', 'rpc_record_client_settlement', { p_customer_id: cb, p_cash_amount: 100000, p_rate_per_gram: SR.sellera.lom }), true);
   await A("seller sells by weight to another seller's customer", () => L.rpc('sellera', 'rpc_record_weight_sale', { p_customer_id: cb, p_weight_grams: 0.5, p_client_markup_pct: 10 }), V076);
   await A('seller oversells his stock', () => L.rpc('sellera', 'rpc_record_weight_sale', { p_customer_id: ca, p_weight_grams: r4(M.stock.sellera + 1), p_client_markup_pct: 10 }), true);

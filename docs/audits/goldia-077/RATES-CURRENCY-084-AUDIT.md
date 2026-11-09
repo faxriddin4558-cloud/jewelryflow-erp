@@ -65,6 +65,8 @@ Already correct, no change needed:
 
 **Control risk (for the owner):** a seller-entered handover rate decides how much obligation the **unvalued** cash clears. The limits and the deviation rule bound it whenever an official rate exists. Payments made after 072 are valued at payment time and are not affected.
 
+**USD has no official rate**, so for USD the organization's `usd_min_uzs` / `usd_max_uzs` limits are the only guard. The product default is 5 000 – 30 000. The local test organizations carry 1 – 100 000 000, so there a USD rate of 99 999 was accepted. The owner should check the limits in the rate settings on staging and production before release.
+
 ## 4. Evidence
 
 Files are in `evidence/local-084/`.
@@ -75,13 +77,15 @@ Files are in `evidence/local-084/`.
 | Staging release rehearsal 081 → 082 → 083 → 084 (dry run + apply): backup, restore copy, per-migration postflight + fingerprint, postflights 073–084 all true, schema parity 001..084 = 0 differences, RLS read 10 030 / write 18 400 checks PASS, emergency rollback 084 → 083 → 082 → 081, re-apply, balances and business row counts unchanged | **PASS** |
 | Postflight 084 on a fresh 001..084 stack | 10/10 true |
 | Schema signature 083 → 084 | only the intended changes: helper, `usd_rate` nullable, 8 bodies |
-| Regression 076–083 on 084 | see `battery-SUMMARY.txt` |
-| vitest | see §6 |
+| Regression 076–083 on 084: ret-083 (UI) 28/28, balance-082 (UI) 19/19, adv-081 11/11, ui-076 17/17, ui-077 21/21, ui-078 10/10, da-079 14/14, parity matrix 0 mismatches, currency 13/13, stress-076 16/16 | **PASS** |
+| vitest | **413/413** |
 
 Five older DB tests encoded the removed forced-rate rule (072, 065, 077). They were made 084-aware without weakening anything:
 - accepted calls are proven in a rolled-back transaction;
 - an absurd rate (1 so'm) is still refused, now with `ERR_RATE_OUT_OF_RANGE`;
 - no rate and no saved rate still gives `ERR_RATE_REQUIRED`.
+
+Two stress attack cases ("seller pays at another LOM / USD rate") now send an absurd rate (LOM 5 000 000, USD 200 000 000) and are still refused. Their first run on 084 failed because the plain "other" rate was accepted, which is the intended 084 behaviour.
 
 The U77-14 UI check now expects the prefilled, editable rate field. Harnesses kept as evidence of older releases (075 / 073 dirs) still describe the old rule and are not re-run.
 
