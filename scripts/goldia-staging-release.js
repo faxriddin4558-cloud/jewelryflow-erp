@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * GOLDIA SALES — gated STAGING release: migration 080 (079 -> 080) in ONE transaction.
- * (2026-11-04: 075 -> 076; 2026-11-05: 076 -> 077, then 077 -> 078; 2026-11-06: 078 -> 079, then 079 -> 080. The steps are unchanged; the 073-079 postflights must stay true.)
+ * GOLDIA SALES — gated STAGING release: migration 081 (080 -> 081) in ONE transaction.
+ * (2026-11-04: 075 -> 076; 2026-11-05: 076 -> 077, then 077 -> 078; 2026-11-06: 078 -> 079, then 079 -> 080; 2026-11-09: 080 -> 081. The steps are unchanged; the 073-080 postflights must stay true.)
  *
  *   node scripts/goldia-staging-release.js            dry run: backup + restore test + all checks on a LOCAL copy;
  *                                                     staging is only READ
@@ -53,8 +53,8 @@ for (let i = 2; i < process.argv.length; i++) {
 
 const STAGING_REF = "vouehtlmsunebracahon";
 const FORBIDDEN_REFS = { vrozlllcaxinavzxueif: "PRODUCTION", yvvbdoqncubtwlzskgml: "JewelryFlow SaaS demo (jfs-demo)" };
-const FROM = "079";
-const TO = "080";
+const FROM = "080";
+const TO = "081";
 const V = (n) => `20260101000${n}`;
 const MIN = 60 * 1000;
 
@@ -243,6 +243,7 @@ const F = {
   postflight077: path.join(REPO, "supabase/release/077_postflight_readonly.sql"),
   postflight078: path.join(REPO, "supabase/release/078_postflight_readonly.sql"),
   postflight079: path.join(REPO, "supabase/release/079_postflight_readonly.sql"),
+  postflight080: path.join(REPO, "supabase/release/080_postflight_readonly.sql"),
 };
 const migDir = path.join(REPO, "supabase/migrations");
 const CHAIN = [];
@@ -553,10 +554,12 @@ async function main() {
   if (pf078Local.status !== 0 || pf078Local.stdout.trim() !== "t") stop("078 postflight failed on the local copy");
   const pf079Local = psql(localEnv, checks.allColumnsTrue(F.postflight079));
   if (pf079Local.status !== 0 || pf079Local.stdout.trim() !== "t") stop("079 postflight failed on the local copy");
+  const pf080Local = psql(localEnv, checks.allColumnsTrue(F.postflight080));
+  if (pf080Local.status !== 0 || pf080Local.stdout.trim() !== "t") stop("080 postflight failed on the local copy");
   if (pfLocal.status !== 0 || pfLocal.stdout.trim() !== "t") stop(`${TO} postflight failed on the local copy`);
   if (pf073Local.status !== 0 || pf073Local.stdout.trim() !== "t") stop("073 postflight failed on the local copy");
   if (pf074Local.status !== 0 || pf074Local.stdout.trim() !== "t") stop("074 postflight failed on the local copy");
-  out(`  073 + 074 + 075 + 076 + 077 + 078 + 079 postflights: all true; ${TO} postflight: all true`);
+  out(`  073 + 074 + 075 + 076 + 077 + 078 + 079 + 080 postflights: all true; ${TO} postflight: all true`);
   const readAfter = isolationProbe(localEnv, F.rls, `local-${TO}`);
   const writeAfter = isolationProbe(localEnv, F.rlsWrite, `local-${TO}`);
   if (!readAfter.ok || !writeAfter.ok) stop(`isolation probe failed to run: ${readAfter.ok ? writeAfter.summary : readAfter.summary}`);
@@ -613,8 +616,9 @@ async function main() {
   const pf077 = psql(remoteEnv, checks.allColumnsTrue(F.postflight077));
   const pf078 = psql(remoteEnv, checks.allColumnsTrue(F.postflight078));
   const pf079 = psql(remoteEnv, checks.allColumnsTrue(F.postflight079));
-  pf.stdout = pf.stdout.trim() === "t" && pf073.stdout.trim() === "t" && pf074.stdout.trim() === "t" && pf075.stdout.trim() === "t" && pf076.stdout.trim() === "t" && pf077.stdout.trim() === "t" && pf078.stdout.trim() === "t" && pf079.stdout.trim() === "t" ? "t" : "f";
-  out(`  073 + 074 + 075 + 076 + 077 + 078 + 079 + ${TO} postflight: ${pf.stdout === "t" ? "all true" : "FAIL"}`);
+  const pf080 = psql(remoteEnv, checks.allColumnsTrue(F.postflight080));
+  pf.stdout = pf.stdout.trim() === "t" && pf073.stdout.trim() === "t" && pf074.stdout.trim() === "t" && pf075.stdout.trim() === "t" && pf076.stdout.trim() === "t" && pf077.stdout.trim() === "t" && pf078.stdout.trim() === "t" && pf079.stdout.trim() === "t" && pf080.stdout.trim() === "t" ? "t" : "f";
+  out(`  073 + 074 + 075 + 076 + 077 + 078 + 079 + 080 + ${TO} postflight: ${pf.stdout === "t" ? "all true" : "FAIL"}`);
   const sigStg = signatureDiff(q(remoteEnv, SIGNATURE_SQL), F.expectedTo);
   writeParity(`parity-${TO}-staging.txt`, sigStg);
   out(`  schema parity with repository 001..${TO}: missing ${sigStg.missing.length}, different function bodies ${sigStg.bodies.length}, extra ${sigStg.extra.length}`);

@@ -7,7 +7,12 @@ select
     and position('''manager'', ''production_manager''' in pg_get_functiondef('public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure)) > 0 as record_roles,
   position('Ushbu mijoz sizga biriktirilmagan' in pg_get_functiondef('public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure)) > 0
     and position('Qarzni kamaytirishni faqat menejer' in pg_get_functiondef('public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure)) > 0
-    and position('Avansni faqat menejer' in pg_get_functiondef('public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure)) > 0 as seller_limits,
+    -- 076 refused every seller advance; 081 (business decision 2026-11-09) allows it only as an addition for a customer
+    -- without open debt - accepted here only when 081 is recorded and its rule is in the body
+    and (position('Avansni faqat menejer' in pg_get_functiondef('public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure)) > 0
+         or (exists (select 1 from supabase_migrations.schema_migrations where version = '20260101000081')
+             and position('v_is_seller and v_bal_type = ''advance''' in pg_get_functiondef('public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure)) > 0
+             and position('v_cur_debt > 0' in pg_get_functiondef('public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure)) > 0)) as seller_limits,
   position('Sotuvchi boshqa tashkilotga tegishli' in pg_get_functiondef('public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure)) > 0 as seller_id_org_checked,
   position('Takroriy so''''rov' in pg_get_functiondef('public.rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid)'::regprocedure)) > 0 as duplicate_guard,
   position('recalc_seller_gold_account' in pg_get_functiondef('public.rpc_reverse_client_legacy_debt(uuid,text,text)'::regprocedure)) > 0

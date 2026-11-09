@@ -884,11 +884,20 @@ export function CustomerLedgerAndSheetsSection() {
 
       if (isSellerRole(currentRole)) {
         const curNetNow = Number(targetCustomer.current_debt_grams || 0) - Number(targetCustomer.advance_balance_grams || 0);
-        const sellerDelta = isReconciliation ? targetVal! - curNetNow : directAmt!;
-        if (legacyBalanceType !== "debt" || sellerDelta <= 0.00005) {
-          setMessage({ type: "error", text: "Sotuvchi faqat qarz qo'sha oladi. Qarzni kamaytirish yoki avans kiritishni menejer bajaradi." });
-          setBusy(false);
-          return;
+        if (legacyBalanceType === "advance") {
+          // 081: a seller's advance is a plain addition for a customer WITHOUT open debt (the server checks the same)
+          if (isReconciliation || Number(targetCustomer.current_debt_grams || 0) > 0.00005) {
+            setMessage({ type: "error", text: "Sotuvchi avansni faqat qarzi yo'q mijozga, qo'lda qo'shish orqali kiritadi. Qarzni avans bilan yopishni menejer bajaradi." });
+            setBusy(false);
+            return;
+          }
+        } else {
+          const sellerDelta = isReconciliation ? targetVal! - curNetNow : directAmt!;
+          if (sellerDelta <= 0.00005) {
+            setMessage({ type: "error", text: "Sotuvchi faqat qarz qo'sha oladi. Qarzni kamaytirishni menejer bajaradi." });
+            setBusy(false);
+            return;
+          }
         }
       }
 
@@ -2587,14 +2596,15 @@ export function CustomerLedgerAndSheetsSection() {
                     >
                       <span>🔴</span> Mijoz bizga qarzdor
                     </button>
-                    {isSellerRole(currentRole) ? (
+                    {isSellerRole(currentRole) && Number(targetCustomer?.current_debt_grams || 0) > 0.00005 ? (
                       <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950 text-[10px] text-slate-400 flex items-center justify-center text-center" data-testid="legacy-advance-manager-only">
-                        Avans va qarzni kamaytirish — menejer orqali
+                        Mijozda ochiq qarz bor — avans bilan yopishni menejer bajaradi
                       </div>
                     ) : (
                     <button
                       type="button"
-                      onClick={() => setLegacyBalanceType("advance")}
+                      data-testid="legacy-type-advance"
+                      onClick={() => { setLegacyBalanceType("advance"); if (isSellerRole(currentRole)) setLegacyCalculationMode("direct"); }}
                       className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                         legacyBalanceType === "advance"
                           ? "bg-cyan-500/20 border-cyan-500 text-cyan-300"

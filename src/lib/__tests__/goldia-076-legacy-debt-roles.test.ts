@@ -62,7 +62,7 @@ describe("Goldia 076 — legacy debt for managers and sellers", () => {
     await t.asUser(seller.userId);
     await t.expectError(`SELECT ${legacy(cust2, 5)}`, "sizga biriktirilmagan");
     await t.expectError(`SELECT public.rpc_record_client_legacy_debt(p_customer_id := '${cust}', p_balance_type := 'advance',
-      p_amount_585_g := 5, p_as_of_date := ${today})`, "Avansni faqat menejer");
+      p_amount_585_g := 5, p_as_of_date := ${today})`, "ochiq qarz bor"); // 081: a seller advance is refused while the customer has open debt
     await t.expectError(`SELECT public.rpc_record_client_legacy_debt(p_customer_id := '${cust}', p_balance_type := 'debt',
       p_amount_585_g := 0, p_as_of_date := ${today}, p_entry_type := 'reconciliation_adjustment', p_target_final_balance := 100)`, "kamaytirishni faqat menejer");
     await t.expectError(`SELECT ${legacy(cust, 1, `, p_seller_id := '${seller2.employeeId}'`)}`, "o''z nomiga".replace("''", "'"));

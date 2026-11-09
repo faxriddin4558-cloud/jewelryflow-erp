@@ -691,7 +691,7 @@ async function main() {
         return d;
       };
       const diffText = (d) => (d.length ? d.slice(0, 6).map((x) => `${x.category}: ${x.before ? `${x.before.n}/${x.before.h}` : "-"} -> ${x.after ? `${x.after.n}/${x.after.h}` : "missing"}`).join("; ") + (d.length > 6 ? ` (+${d.length - 6})` : "") : "");
-      let ok = m.status === 0 && Number(TO) > Number(TARGET);
+      let ok = m.status === 0 && Number(TO) >= Number(TARGET);   // a chain of one migration (e.g. 080 -> 081) is allowed
       // step 8 left TARGET applied without its history row: back to an exact PREVIOUS copy first (LF rollback)
       if (ok) ok = psql(localEnv, chainLib.lfCopy(FILES.rollback065, LFDIR), { file: true, tuples: false, singleTx: true }).status === 0;
       const sigPrev = ok ? lines(q(SIG)) : []; const fpPrev = ok ? fpNow() : "";

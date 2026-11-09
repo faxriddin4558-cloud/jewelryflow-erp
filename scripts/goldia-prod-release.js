@@ -400,16 +400,21 @@ async function mainChain() {
   if (args["local-rehearsal"] && !LOCAL_TARGET) stopChain("--local-rehearsal only works with a local --host");
   if (!LOCAL_TARGET && !String(PROD.user).endsWith(".vrozlllcaxinavzxueif")) stopChain(`unexpected database user ${PROD.user} (production is postgres.vrozlllcaxinavzxueif)`);
   if (!PG_BIN) stopChain("PostgreSQL 17 tools not found (pass --pg-bin)");
-  if (!(Number(CHAIN_TO) > Number(TARGET))) stopChain(`--chain-to ${CHAIN_TO} must be after --migration ${TARGET}`);
+  if (!(Number(CHAIN_TO) >= Number(TARGET))) stopChain(`--chain-to ${CHAIN_TO} must not be before --migration ${TARGET}`);
   let built;
   try { built = chainLib.buildChainSql(PREVIOUS, CHAIN_TO, { label: "production" }); } catch (e) { stopChain(`cannot build the chain: ${e.message}`); }
   for (const m of built.chain) {
     for (const f of [path.join(REPO, `supabase/rollback/${m.version}_rollback.sql`), path.join(REPO, `supabase/release/${m.num}_postflight_readonly.sql`),
       path.join(REPO, `docs/releases/production-075/emergency/rollback_${m.num}_with_history.sql`)]) if (!fs.existsSync(f)) stopChain(`missing ${path.relative(REPO, f)}`);
   }
-  const KITS = ["docs/releases/production-075/05_prelaunch_077_readonly.sql", "docs/releases/production-075/06_prelaunch_078_079_readonly.sql",
-    "supabase/release/function_body_parity_076_readonly.sql", "docs/releases/production-075/03_rls_isolation_readonly.sql"].map((f) => path.join(REPO, f));
-  for (const f of KITS) if (!fs.existsSync(f)) stopChain(`missing ${path.relative(REPO, f)}`);
+  // level-aware read-only kits: the prelaunch kit of every migration in the chain (when it has one) and the function-body
+  // parity of the CURRENT production level (the CR-tolerant full file when it exists)
+  const PRELAUNCH = { "077": "05_prelaunch_077_readonly.sql", "078": "06_prelaunch_078_079_readonly.sql", "079": "06_prelaunch_078_079_readonly.sql", "081": "07_prelaunch_081_readonly.sql" };
+  const preKits = [...new Set(built.chain.map((m) => PRELAUNCH[m.num]).filter(Boolean))].map((f) => path.join(REPO, "docs/releases/production-075", f));
+  const parityFull = path.join(REPO, `supabase/release/function_body_parity_${PREVIOUS}_full_readonly.sql`);
+  const parityFile = fs.existsSync(parityFull) ? parityFull : path.join(REPO, `supabase/release/function_body_parity_${PREVIOUS}_readonly.sql`);
+  const rlsKit = path.join(REPO, "docs/releases/production-075/03_rls_isolation_readonly.sql");
+  for (const f of [...preKits, parityFile, rlsKit]) if (!fs.existsSync(f)) stopChain(`missing ${path.relative(REPO, f)}`);
 
   password = process.env.PGPASSWORD || await promptHidden(`Supabase DB password for ${PROD.user} (hidden): `);
 
@@ -448,18 +453,20 @@ async function mainChain() {
     if (r.status !== 0) stopChain(`${name} failed: ${firstError(r)}`);
     return text;
   };
-  for (const [file, name] of [[KITS[0], "prelaunch-077"], [KITS[1], "prelaunch-078-079"]]) {
+  for (const [file, name] of preKits.map((f) => [f, path.basename(f).replace(/_readonly\.sql$/, "")])) {
     const text = kit(file, name);
     for (const l of text.split(/\r?\n/).filter((x) => /\|(WARN|STOP)\|/.test(x) || x.startsWith("RESULT|"))) out(`  ${l}`);
     const res = (text.match(/RESULT\|[^|]+\|(OK|WARN|STOP)/) || [])[1];
     if (res !== "OK" && res !== "WARN") stopChain(`${name}: ${res || "no RESULT line"}`);
     if (res === "WARN" && !args["acknowledge-findings"]) stopChain(`${name}: WARN - owner review needed; after review re-run with --acknowledge-findings (nothing was changed)`);
   }
-  const parity = kit(KITS[2], "function-body-parity-076");
-  const differ = parity.split(/\r?\n/).filter((l) => /^(DIFFERENT|MISSING)\|/.test(l) && !/\|0$/.test(l));
-  out(`  function-body parity 076: ${parity.split(/\r?\n/).filter((l) => /^(identical|crlf_only|DIFFERENT|MISSING)\|/.test(l)).join(" ")}`);
-  if (differ.length) stopChain("production function bodies differ from the repository 076 (see function-body-parity-076.txt)");
-  const rlsBefore = kit(KITS[3], "rls-isolation-before");
+  const parity = kit(chainLib.lfCopy(parityFile, path.join(latest, "lf-sql")), `function-body-parity-${PREVIOUS}`);
+  const parLines = chainLib.outputLines(parity);
+  const differ = parLines.filter((l) => /^(DIFFERENT|MISSING|EXTRA)\|/.test(l) && !/\|0$/.test(l));
+  out(`  function-body parity ${PREVIOUS}: ${parLines.filter((l) => /^(identical|crlf_only|DIFFERENT|MISSING|EXTRA)\|/.test(l)).join(" ")}`);
+  const parRes = parLines.find((l) => /^RESULT\|function_parity_/.test(l));
+  if (differ.length || (parRes && !/\|OK\|/.test(parRes))) stopChain(`production function bodies differ from the repository ${PREVIOUS} (see function-body-parity-${PREVIOUS}.txt)`);
+  const rlsBefore = kit(rlsKit, "rls-isolation-before");
   const leaksBefore = new Set(rlsBefore.split(/\r?\n/).map((l) => l.replace(/^.*NOTICE:\s*/, "")).filter((l) => l.startsWith("LEAK|")).map((l) => l.split("|").slice(0, 4).join("|")));
   out(`  RLS isolation before: ${(rlsBefore.match(/RLS_ISOLATION\|[^\r\n]*/) || ["no result line"])[0]}`);
   if (!/RLS_ISOLATION\|/.test(rlsBefore)) stopChain("RLS isolation probe produced no result");
@@ -516,7 +523,7 @@ async function mainChain() {
     out(`  function bodies (all public functions, CR-tolerant): ${res.split("|").slice(2).join(" ") || "no RESULT line"}`);
     for (const d of pl.filter((l) => /^DETAIL (DIFFERENT|MISSING|EXTRA) /.test(l)).slice(0, 10)) out(`    REAL DIFFERENCE ${d}`);
   }
-  const rlsAfter = kit(KITS[3], "rls-isolation-after");
+  const rlsAfter = kit(rlsKit, "rls-isolation-after");
   const newLeaks = rlsAfter.split(/\r?\n/).map((l) => l.replace(/^.*NOTICE:\s*/, "")).filter((l) => l.startsWith("LEAK|")).map((l) => l.split("|").slice(0, 4).join("|")).filter((k) => !leaksBefore.has(k));
   out(`  RLS isolation after: ${(rlsAfter.match(/RLS_ISOLATION\|[^\r\n]*/) || ["no result line"])[0]}${newLeaks.length ? " NEW LEAKS: " + newLeaks.join(", ") : ""}`);
   pass = pass && countsSame && balancesSame && !fpDiff.length && parityOk && !newLeaks.length && /RLS_ISOLATION\|/.test(rlsAfter);

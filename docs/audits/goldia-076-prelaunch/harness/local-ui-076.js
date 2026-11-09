@@ -50,7 +50,9 @@ const sellerAcc = async (sid) => (await L.sel(`seller_gold_accounts?seller_id=eq
   await s.p.waitForTimeout(800);
   const advHidden = await s.p.locator('[data-testid="legacy-advance-manager-only"]').isVisible();
   const advBtn = await s.p.locator('button', { hasText: 'Biz mijozga qarzdormiz' }).count();
-  T('UI-01', 'seller legacy dialog: advance option replaced by "menejer orqali" note, direct addition preselected', advHidden && advBtn === 0, { note: true, advanceButton: 0 }, { note: advHidden, advanceButton: advBtn });
+  // 081 (business decision 2026-11-09) supersedes the 076 expectation: a seller sees the advance option for a customer
+  // WITHOUT open debt (this one is new); with open debt the "menejer" note is shown instead (tested in adv-081.js)
+  T('UI-01', 'seller legacy dialog: advance option available for a customer without debt (081), direct addition preselected', !advHidden && advBtn === 1, { note: false, advanceButton: 1 }, { note: advHidden, advanceButton: advBtn });
   await s.p.fill('input[placeholder="Masalan: 10.0000"]', '206.83');
   await s.p.fill('input[placeholder^="Daftar 14-bet"]', 'Daftar 3-bet, eski qarz');
   const submit = s.p.locator('button[type="submit"]', { hasText: /Tasdiqlash & Saqlash|Saqlanmoqda/ });

@@ -35,7 +35,7 @@
   file through the same read-only wrapper, used to prove that a write attempt fails).
 #>
 param(
-  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging", "staging-function-parity-080")][string]$Target,
+  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging", "staging-function-parity-080", "staging-function-parity-081")][string]$Target,
   [string]$PoolerHost = "",
   [int]$Port = 5432,
   [string]$PgBin = "C:\Program Files\PostgreSQL\17\bin",
@@ -52,7 +52,7 @@ $script:SummaryFile = $null
 $Refs = @{ production = "vrozlllcaxinavzxueif"; staging = "vouehtlmsunebracahon" }
 $Never = @("yvvbdoqncubtwlzskgml", "hbbuskyifxkowlozsaym", "vrozlilcaxinavzxueif")   # JFS demo, ERP, typo of prod ref
 $RefKey = $Target; if ($Target -eq "production-post" -or $Target -eq "production-prelaunch") { $RefKey = "production" }
-if ($Target -eq "staging-function-parity-080") { $RefKey = "staging" }
+if ($Target -like "staging-function-parity-*") { $RefKey = "staging" }
 $Ref = $Refs[$RefKey]
 
 function Finish([string]$Result, [string]$Why) {
@@ -107,9 +107,10 @@ if ($Target -eq "production") {
     @{ Name = "rls_isolation"; File = "docs/releases/production-075/03_rls_isolation_readonly.sql"; Kind = "rls" },
     @{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" }
   )
-} elseif ($Target -eq "staging-function-parity-080") {
+} elseif ($Target -like "staging-function-parity-*") {
   # read-only: one SQL file through the same wrapper (explicit BEGIN TRANSACTION READ ONLY + guard + ROLLBACK)
-  $checks = @(@{ Name = "function_body_parity_080_full"; File = "supabase/release/function_body_parity_080_full_readonly.sql"; Kind = "fnparity" })
+  $lvl = $Target.Substring($Target.Length - 3)
+  $checks = @(@{ Name = ("function_body_parity_" + $lvl + "_full"); File = ("supabase/release/function_body_parity_" + $lvl + "_full_readonly.sql"); Kind = "fnparity" })
 } else {
   $checks = @(@{ Name = "function_body_parity_075"; File = "supabase/release/function_body_parity_075_readonly.sql"; Kind = "parity" })
 }
@@ -196,8 +197,16 @@ Write-Host ("  " + $idLine)
 Add-Content -Path $script:SummaryFile -Value $idLine -Encoding ASCII
 if ($pp[1] -ne "on") { Finish "FAIL" "the explicit read-only transaction is not read-only (transaction_read_only=" + $pp[1] + ")" }
 if ($pp[3] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
-if ($Target -eq "staging-function-parity-080" -and $pp[4] -ne "20260101000080") { Finish "FAIL" ("staging-function-parity-080 expects migration history at 20260101000080, found " + $pp[4]) }
-if ($Target -eq "production-prelaunch" -and @("20260101000075", "20260101000076") -notcontains $pp[4]) { Finish "FAIL" ("production-prelaunch expects migration history at 20260101000075 (before 076) or 20260101000076 (before 077), found " + $pp[4]) }
+if ($Target -like "staging-function-parity-*" -and $pp[4] -ne ("20260101000" + $Target.Substring($Target.Length - 3))) { Finish "FAIL" ($Target + " expects migration history at 20260101000" + $Target.Substring($Target.Length - 3) + ", found " + $pp[4]) }
+if ($Target -eq "production-prelaunch" -and @("20260101000075", "20260101000076", "20260101000080") -notcontains $pp[4]) { Finish "FAIL" ("production-prelaunch expects migration history at 075 (before 076), 076 (before 077..080) or 080 (before 081), found " + $pp[4]) }
+if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000080") {
+  # before 081: the 081 pre-release check, the CR-tolerant parity of ALL functions at 080 and the pre-release baseline
+  $c7 = @{ Name = "07_prelaunch_081"; File = "docs/releases/production-075/07_prelaunch_081_readonly.sql"; Kind = "pre" }
+  $p8 = @{ Name = "function_body_parity_080_full"; File = "supabase/release/function_body_parity_080_full_readonly.sql"; Kind = "fnparity" }
+  $b8 = @{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" }
+  foreach ($x in @($c7, $p8, $b8)) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
+  $checks = @($c7, $p8, $b8)
+}
 if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000076") {
   # before the 077 -> 078 -> 079 chain: the 077 and 078 / 079 pre-release checks and the 076 function-body parity
   $c5 = @{ Name = "05_prelaunch_077"; File = "docs/releases/production-075/05_prelaunch_077_readonly.sql"; Kind = "pre" }
@@ -208,11 +217,11 @@ if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000076") {
   foreach ($x in @($c5, $c6, $p6, $b6)) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
   $checks = @($c5, $c6, $p6, $b6)
 }
-if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077", "20260101000078", "20260101000079", "20260101000080") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075 ... 080, found " + $pp[4]) }
+if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077", "20260101000078", "20260101000079", "20260101000080", "20260101000081") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075 ... 081, found " + $pp[4]) }
 if ($Target -eq "production-post" -and $pp[4] -ne "20260101000075") {
   # after 076 / 077 their postflights run too (073/074/075 must stay true)
   $extra = @(@{ Name = "076_postflight"; File = "supabase/release/076_postflight_readonly.sql"; Kind = "postflight" })
-  foreach ($v in @("077", "078", "079", "080")) {
+  foreach ($v in @("077", "078", "079", "080", "081")) {
     if ([string]::CompareOrdinal([string]$pp[4], "20260101000" + $v) -ge 0) { $extra += @{ Name = ($v + "_postflight"); File = ("supabase/release/" + $v + "_postflight_readonly.sql"); Kind = "postflight" } }
   }
   foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
@@ -370,7 +379,7 @@ foreach ($c in $checks) {
       }
     }
     "pre" {
-      $res = @($lines | Where-Object { $_ -match '^RESULT\|prelaunch_07[6-9](_07[89])?\|' })
+      $res = @($lines | Where-Object { $_ -match '^RESULT\|prelaunch_0[78][0-9](_07[89])?\|' })
       foreach ($g in @($lines | Where-Object { $_ -match '^PRE\|' })) {
         $gc = "Gray"; if ($g -match '\|STOP\|') { $gc = "Red" } elseif ($g -match '\|WARN\|') { $gc = "Yellow" } elseif ($g -match '\|OK\|') { $gc = "Green" }
         Write-Host ("    " + $g) -ForegroundColor $gc
@@ -397,13 +406,13 @@ foreach ($c in $checks) {
       $expectedTotal = @(([System.IO.File]::ReadAllText($c.Path, [System.Text.Encoding]::UTF8) -split "`r?`n") | Where-Object { $_ -match "^\s*\('[^']+', '[0-9a-f]{32}'\),?\s*$" }).Count
       $stat = @{ identical = 0; crlf_only = 0; DIFFERENT = 0; MISSING = 0; EXTRA = 0 }
       foreach ($l in $lines) { if ($l -match '^(identical|crlf_only|DIFFERENT|MISSING|EXTRA)\|(\d+)$') { $stat[$Matches[1]] = [int]$Matches[2] } }
-      $res = @($lines | Where-Object { $_ -match '^RESULT\|function_parity_080\|' })
+      $res = @($lines | Where-Object { $_ -match '^RESULT\|function_parity_\d{3}\|' })
       $seen = $stat["identical"] + $stat["crlf_only"] + $stat["DIFFERENT"] + $stat["MISSING"]
       $bad = $stat["DIFFERENT"] + $stat["MISSING"] + $stat["EXTRA"]
       $detail = "identical=" + $stat["identical"] + " crlf_only=" + $stat["crlf_only"] + " different=" + $stat["DIFFERENT"] + " missing=" + $stat["MISSING"] + " extra=" + $stat["EXTRA"] + " (repository functions " + $seen + "/" + $expectedTotal + ")"
       if ($res.Count -ne 1) { $verdict = "FAIL"; $detail = "no RESULT line; " + $detail }
       elseif ($expectedTotal -lt 1 -or $seen -ne $expectedTotal) { $verdict = "FAIL"; $detail = "function count mismatch; " + $detail }
-      elseif ($bad -gt 0 -or -not ($res[0] -match '^RESULT\|function_parity_080\|OK\|')) { $verdict = "FAIL" }
+      elseif ($bad -gt 0 -or -not ($res[0] -match '^RESULT\|function_parity_\d{3}\|OK\|')) { $verdict = "FAIL" }
       foreach ($d in @($lines | Where-Object { $_ -match '^DETAIL (DIFFERENT|MISSING|EXTRA) ' })) { Write-Host ("    " + $d) -ForegroundColor Red; Add-Content -Path $script:SummaryFile -Value ("    " + $d) -Encoding ASCII }
       $crl = @($lines | Where-Object { $_ -match '^DETAIL crlf_only ' })
       if ($crl.Count -gt 0) { Add-Content -Path $script:SummaryFile -Value ("    crlf_only functions (" + $crl.Count + "): differ ONLY by carriage returns - listed in " + $c.Name + ".txt") -Encoding ASCII }

@@ -31,7 +31,7 @@ ui_rpc_facts as (
    group by u.name
 ),
 g(gate, state, detail) as (
-  select 'history_latest_075_to_080', case when latest in ('20260101000075', '20260101000076', '20260101000077', '20260101000078', '20260101000079', '20260101000080') then 'PASS' else 'FAIL' end, 'latest=' || coalesce(latest, '-') || ' count=' || n from hist
+  select 'history_latest_075_to_081', case when latest in ('20260101000075', '20260101000076', '20260101000077', '20260101000078', '20260101000079', '20260101000080', '20260101000081') then 'PASS' else 'FAIL' end, 'latest=' || coalesce(latest, '-') || ' count=' || n from hist
   union all
   select 'history_073_074_075', case when new_n = 3 then 'PASS' else 'FAIL' end, 'present=' || new_n || '/3' from hist
   union all

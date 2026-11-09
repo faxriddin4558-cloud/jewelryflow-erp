@@ -1,0 +1,246 @@
+-- ROLLBACK of 081 (seller legacy advance): restores the 076 body of rpc_record_client_legacy_debt (sellers: debt
+-- additions only). Advances already entered by sellers are KEPT (rows and balances unchanged); a manager can reverse them.
+-- Keeps the history row (the emergency variant removes it).
+
+CREATE OR REPLACE FUNCTION public.rpc_record_client_legacy_debt(p_customer_id uuid, p_balance_type text, p_amount_585_g numeric, p_as_of_date date, p_notes text DEFAULT NULL::text, p_entry_type text DEFAULT 'initial'::text, p_target_final_balance numeric DEFAULT NULL::numeric, p_idempotency_key text DEFAULT NULL::text, p_seller_id uuid DEFAULT NULL::uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_caller_org           uuid := public.current_organization_id();
+  v_caller_emp_id        uuid := public.current_employee_id();
+  v_customer             public.customers%rowtype;
+  v_seller_id            uuid;
+  v_client_acc           public.client_gold_accounts%rowtype;
+  v_cur_debt             numeric(14, 4) := 0;
+  v_cur_adv              numeric(14, 4) := 0;
+  v_target               numeric(14, 4);
+  v_delta                numeric(14, 4) := 0;
+  v_new_debt             numeric(14, 4) := 0;
+  v_new_adv              numeric(14, 4) := 0;
+  v_amt                  numeric(14, 4);
+  v_entry_type           text := coalesce(nullif(btrim(p_entry_type), ''), 'initial');
+  v_bal_type             text := coalesce(nullif(btrim(p_balance_type), ''), 'debt');
+  v_legacy_id            uuid;
+  v_payload              jsonb;
+  v_existing             jsonb;
+  v_caller_role          text := public.current_employee_role_text();
+  v_is_seller            boolean;
+  v_key                  text := nullif(btrim(coalesce(p_idempotency_key, '')), '');
+begin
+  if v_caller_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+
+  -- 076: managers and sellers may record legacy debts (sellers: own customers, additions only - see below)
+  perform public.assert_erp_permission(array[
+    'admin', 'director', 'owner', 'direktor', 'rahbar', 'accountant', 'buxgalter',
+    'manager', 'production_manager', 'boshqaruvchi', 'sales', 'seller', 'sotuvchi'
+  ]);
+  v_is_seller := public._goldia_is_seller_role(v_caller_role);
+
+  if p_customer_id is null then
+    raise exception 'Mijoz tanlanishi shart';
+  end if;
+
+  if p_as_of_date is null then
+    raise exception 'Qarz qaysi sanadagi holat ekani ko''rsatilishi shart';
+  end if;
+
+  if v_bal_type not in ('debt', 'advance') then
+    raise exception 'Qoldiq turi faqat "debt" (qarz) yoki "advance" (avans) bo''lishi mumkin';
+  end if;
+
+  select * into v_customer
+  from public.customers
+  where id = p_customer_id and organization_id = v_caller_org
+  for update;
+
+  if not found then
+    raise exception 'Mijoz topilmadi: %', p_customer_id;
+  end if;
+
+  v_seller_id := coalesce(p_seller_id, v_customer.seller_id);
+
+  -- 076: a seller works only with his own customers and books the debt on himself
+  if v_is_seller then
+    if v_caller_emp_id is null or v_customer.seller_id is distinct from v_caller_emp_id then
+      raise exception 'Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan (eski qarzni faqat o''z mijozingizga kiritasiz)' using errcode = '42501';
+    end if;
+    if p_seller_id is not null and p_seller_id <> v_caller_emp_id then
+      raise exception 'Ruxsat etilmadi: Sotuvchi eski qarzni faqat o''z nomiga kirita oladi' using errcode = '42501';
+    end if;
+    v_seller_id := v_caller_emp_id;
+    if v_bal_type <> 'debt' then
+      raise exception 'Ruxsat etilmadi: Avansni faqat menejer yoki direktor kiritadi' using errcode = '42501';
+    end if;
+  end if;
+
+  -- 076: the seller the debt is booked on must be an employee of the caller's organization
+  if v_seller_id is not null and not exists (
+    select 1 from public.employees e where e.id = v_seller_id and e.organization_id = v_caller_org
+  ) then
+    raise exception 'Ruxsat etilmadi: Sotuvchi boshqa tashkilotga tegishli' using errcode = '42501';
+  end if;
+
+  if p_idempotency_key is not null and btrim(p_idempotency_key) <> '' then
+    v_payload := jsonb_build_object(
+      'action', 'record_client_legacy_debt',
+      'customer_id', p_customer_id,
+      'balance_type', v_bal_type,
+      'amount_585_g', p_amount_585_g,
+      'target_balance', p_target_final_balance,
+      'as_of_date', p_as_of_date
+    );
+
+    v_existing := public.check_and_lock_idempotency(p_idempotency_key, 'rpc_record_client_legacy_debt', v_payload);
+    if v_existing is not null then
+      return v_existing;
+    end if;
+  end if;
+
+  select * into v_client_acc
+  from public.client_gold_accounts
+  where customer_id = p_customer_id and organization_id = v_caller_org
+  for update;
+
+  if found then
+    v_cur_debt := coalesce(v_client_acc.current_debt_grams, 0);
+    v_cur_adv  := coalesce(v_client_acc.advance_balance_grams, 0);
+  end if;
+
+  if p_target_final_balance is not null then
+    v_target := round(greatest(0, p_target_final_balance)::numeric, 4);
+
+    if v_bal_type = 'debt' then
+      v_new_debt := v_target;
+      v_new_adv  := 0;
+      v_delta    := round(v_new_debt - (v_cur_debt - v_cur_adv), 4);
+    else
+      v_new_debt := 0;
+      v_new_adv  := v_target;
+      v_delta    := round((-v_new_adv) - (v_cur_debt - v_cur_adv), 4);
+    end if;
+
+    v_amt := abs(v_delta);
+    if abs(v_delta) < 0.0001 then
+      return jsonb_build_object(
+        'status', 'ok',
+        'no_change_needed', true,
+        'current_debt_585_g', v_cur_debt,
+        'current_advance_585_g', v_cur_adv,
+        'target_balance', v_target,
+        'delta_585_g', 0
+      );
+    end if;
+
+  else
+    v_amt := round(greatest(0, coalesce(p_amount_585_g, 0))::numeric, 4);
+    if v_amt <= 0 then
+      raise exception 'Qarz yoki avans miqdori 0 dan katta bo''lishi shart';
+    end if;
+
+    if v_bal_type = 'debt' then
+      v_delta := v_amt;
+      if v_cur_adv > 0 then
+        if v_cur_adv >= v_amt then
+          v_new_adv  := round(v_cur_adv - v_amt, 4);
+          v_new_debt := v_cur_debt;
+        else
+          v_new_debt := round(v_cur_debt + (v_amt - v_cur_adv), 4);
+          v_new_adv  := 0;
+        end if;
+      else
+        v_new_debt := round(v_cur_debt + v_amt, 4);
+        v_new_adv  := 0;
+      end if;
+    else
+      v_delta := -v_amt;
+      if v_cur_debt > 0 then
+        if v_cur_debt >= v_amt then
+          v_new_debt := round(v_cur_debt - v_amt, 4);
+          v_new_adv  := v_cur_adv;
+        else
+          v_new_adv  := round(v_cur_adv + (v_amt - v_cur_debt), 4);
+          v_new_debt := 0;
+        end if;
+      else
+        v_new_adv  := round(v_cur_adv + v_amt, 4);
+        v_new_debt := 0;
+      end if;
+    end if;
+  end if;
+
+  -- 076: a seller may only ADD debt; lowering a debt (it lowers the seller's own obligation) needs a manager
+  if v_is_seller and v_delta <= 0 then
+    raise exception 'Ruxsat etilmadi: Qarzni kamaytirishni faqat menejer yoki direktor bajaradi (hozirgi qarz: % g)', round(v_cur_debt - v_cur_adv, 4) using errcode = '42501';
+  end if;
+
+  -- 076: the same addition sent again (double click / retry with a new key) is refused for 10 minutes
+  if exists (
+    select 1 from public.client_legacy_debts d
+     where d.organization_id = v_caller_org and d.customer_id = p_customer_id and d.status <> 'reversed'
+       and d.delta_585_g = v_delta and d.entry_type = v_entry_type and d.as_of_date = p_as_of_date
+       and d.created_by is not distinct from v_caller_emp_id
+       and d.created_at > clock_timestamp() - interval '10 minutes'
+       and (v_key is null or d.idempotency_key is distinct from v_key)
+  ) then
+    raise exception 'Takroriy so''rov: shu mijozga xuddi shu eski qarz (% g) 10 daqiqa ichida kiritilgan. Ikki marta qo''shilmadi.', v_delta using errcode = '23505';
+  end if;
+
+  insert into public.client_legacy_debts (
+    organization_id, customer_id, seller_id, balance_type,
+    amount_585_g, previous_debt_585_g, previous_advance_585_g, delta_585_g,
+    new_debt_585_g, new_advance_585_g, as_of_date, notes,
+    entry_type, status, created_by, idempotency_key
+  ) values (
+    v_caller_org, p_customer_id, v_seller_id, v_bal_type,
+    v_amt, v_cur_debt, v_cur_adv, v_delta,
+    v_new_debt, v_new_adv, p_as_of_date, p_notes,
+    v_entry_type, 'confirmed', v_caller_emp_id, v_key
+  ) returning id into v_legacy_id;
+
+  insert into public.client_gold_accounts (
+    customer_id, organization_id, seller_id,
+    total_purchased_gold_grams, total_scrap_paid_grams,
+    total_cash_paid_amount, total_cash_equiv_grams, total_settled_grams,
+    current_debt_grams, advance_balance_grams, updated_at
+  ) values (
+    p_customer_id, v_caller_org, v_seller_id,
+    0, 0, 0, 0, 0,
+    v_new_debt, v_new_adv, now()
+  )
+  on conflict (customer_id) do update set
+    seller_id = coalesce(client_gold_accounts.seller_id, excluded.seller_id),
+    current_debt_grams = v_new_debt,
+    advance_balance_grams = v_new_adv,
+    updated_at = now();
+
+  if v_seller_id is not null then
+    perform public.recalc_seller_gold_account(v_seller_id, v_caller_org);
+  end if;
+
+  v_existing := jsonb_build_object(
+    'status', 'ok',
+    'legacy_debt_id', v_legacy_id,
+    'customer_id', p_customer_id,
+    'seller_id', v_seller_id,
+    'balance_type', v_bal_type,
+    'delta_585_g', v_delta,
+    'previous_debt_585_g', v_cur_debt,
+    'previous_advance_585_g', v_cur_adv,
+    'new_debt_585_g', v_new_debt,
+    'new_advance_585_g', v_new_adv,
+    'as_of_date', p_as_of_date
+  );
+
+  perform public.save_idempotency_response(p_idempotency_key, 'rpc_record_client_legacy_debt', v_existing, v_payload);
+  return v_existing;
+end;
+$function$;
+
+revoke execute on function public.rpc_record_client_legacy_debt(uuid, text, numeric, date, text, text, numeric, text, uuid) from public, anon;
+grant execute on function public.rpc_record_client_legacy_debt(uuid, text, numeric, date, text, text, numeric, text, uuid) to authenticated, service_role;
+notify pgrst, 'reload schema';

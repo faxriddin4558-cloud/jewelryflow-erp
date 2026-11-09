@@ -1,0 +1,13 @@
+GOLDIA read-only checks - target production-prelaunch (vrozlllcaxinavzxueif), host 127.0.0.1
+  identity: transaction_read_only=on (explicit BEGIN TRANSACTION READ ONLY) user=postgres not_jfs=true latest_migration=20260101000080 session_default_read_only=on (informational; the pooler ignores PGOPTIONS)
+    PRE|customers_debt_and_advance_at_once|OK|client accounts with debt > 0 AND advance > 0 = 0
+    PRE|history_latest|OK|latest=20260101000080 (expected 080 before 081)
+    PRE|legacy_function_at_076_rules|OK|seller advance refused today (081 not applied yet, no drift)
+    PRE|legacy_obligation_drift|OK|sellers whose legacy obligation <> max(0, active debt deltas) = 0
+    PRE|legacy_rows|INFO|debt=0 advance=0 reversed=0
+    PRE|negative_customer_balances|OK|client accounts with a negative debt or advance = 0
+  07_prelaunch_081: PASS - RESULT|prelaunch_081|OK -> /opt/goldia-audit/kits081/runs/readonly-production-prelaunch-20261109-075538/07_prelaunch_081.txt
+  function_body_parity_080_full: PASS - identical=168 crlf_only=0 different=0 missing=0 extra=0 (repository functions 168/168) -> /opt/goldia-audit/kits081/runs/readonly-production-prelaunch-20261109-075538/function_body_parity_080_full.txt
+  01_baseline: PASS - 143 lines, BASELINE | fingerprint business | 27ca37012018e50a5a667d10c4557002 -> /opt/goldia-audit/kits081/runs/readonly-production-prelaunch-20261109-075538/01_baseline.txt
+
+RESULT: PASS - all read-only checks passed; files in /opt/goldia-audit/kits081/runs/readonly-production-prelaunch-20261109-075538
