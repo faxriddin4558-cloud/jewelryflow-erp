@@ -32,7 +32,14 @@ const dueOf = (w, m) => dh(U4(w) * (100 + m), 100) / 1e4; // server: round(w * (
   const today = L.tashkentToday();
   // ---------------- snapshot of the sellers (stock / till / legacy obligation) as the model's starting point
   const acc = async (t) => (await L.sel(`seller_gold_accounts?seller_id=eq.${sid(t)}&select=st:current_physical_stock_g,c:seller_till_cash_amount,u:seller_till_usd_amount,l:seller_legacy_debt_obligation_g`))[0] || { st: 0, c: 0, u: 0, l: 0 };
-  for (const t of SELLERS) { const a = await acc(t); M.stock[t] = r4(a.st); M.cashUzs[t] = N(a.c); M.cashUsd[t] = N(a.u); M.legacy[t] = r4(a.l); }
+  // the stored legacy obligation is clamped at 0 (076): the model must start from the UNclamped sum of the seller's active
+  // debt-type deltas, otherwise a negative starting sum (e.g. a -1 g reduction by an earlier test) looks like a mismatch
+  for (const t of SELLERS) {
+    const a = await acc(t); M.stock[t] = r4(a.st); M.cashUzs[t] = N(a.c); M.cashUsd[t] = N(a.u);
+    const legRows = await L.sel(`client_legacy_debts?seller_id=eq.${sid(t)}&balance_type=eq.debt&status=eq.confirmed&select=delta_585_g`);
+    M.legacy[t] = r4(legRows.reduce((x, y) => x + N(y.delta_585_g), 0));
+    if (Math.abs(Math.max(0, M.legacy[t]) - N(a.l)) > 0.00005) console.log(`NOTE start ${t}: stored obligation ${a.l} <> max(0, active debt deltas ${M.legacy[t]})`);
+  }
   // ---------------- setup: rates, receipts (6/8/10 %), consignments (12/15/10 % seller markups)
   must(await L.rpc('director', 'rpc_set_daily_gold_rate', { p_rate_per_gram: 900000, p_rate_date: today }), 'daily rate');
   for (const t of SELLERS) must(await L.rpc(t, 'rpc_set_my_seller_rates', { p_lom_rate_uzs: SR[t].lom, p_usd_rate_uzs: SR[t].usd, p_reason: 'stress ' + run }), 'rates ' + t);

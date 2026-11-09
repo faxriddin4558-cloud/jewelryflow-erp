@@ -96,6 +96,8 @@ const sacc = async (sid) => (await L.sel(`seller_gold_accounts?seller_id=eq.${si
   await go(s, '/sales/app/customers');
   await row(s, nUsd).locator('[data-testid="open-currency-payment"]').first().click(); await s.p.waitForTimeout(1500);
   await s.p.locator('[data-testid="currency-tab-USD"]').click();
+  // the modal loads balances, history and THEN the seller's own rates: wait for the rates line instead of a fixed delay
+  await s.p.waitForFunction(() => /USD\s+[\d\s\u00a0]+\s*so/.test((document.querySelector('[data-testid="cpay-own-rates"]') || {}).textContent || ''), null, { timeout: 20000 }).catch(() => {});
   const ownRatesShown = await s.p.locator('[data-testid="cpay-own-rates"]').innerText().catch(() => '');
   const rateInputs = await s.p.locator('[data-testid="cpay-usd-rate"]').count();
   await s.p.locator('[data-testid="cpay-cash"]').fill('1250000');

@@ -130,8 +130,15 @@ const usd = async (id) => { const a = (await L.sel(`client_currency_accounts?cus
     await card(nMob).locator('[data-testid="archive-customer"]').click(); await ph.p.waitForTimeout(3000);
     const m1 = await cust(mob);
     await ph.p.locator('[data-testid="toggle-archived"]').first().click(); await ph.p.waitForTimeout(1000);
+    // the archived list re-renders after loading: wait for the restore button, click it and wait for the server answer
+    await card(nMob).locator('[data-testid="restore-customer"]').first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+    await ph.p.waitForTimeout(1500);
     const restoreBtn = await card(nMob).locator('[data-testid="restore-customer"]').count();
-    await card(nMob).locator('[data-testid="restore-customer"]').click(); await ph.p.waitForTimeout(3000);
+    await Promise.all([
+      ph.p.waitForResponse((r) => r.url().includes('/rpc/rpc_archive_customer'), { timeout: 20000 }).catch(() => null),
+      card(nMob).locator('[data-testid="restore-customer"]').first().click(),
+    ]);
+    await ph.p.waitForTimeout(2000);
     const m2 = await cust(mob);
     await ph.p.screenshot({ path: path.join(SHOTS, '04-seller-390-after-restore.png') });
     T('U78-10', 'seller on a 390 px phone archives a customer from the mobile card and restores it from "Arxivlangan mijozlar"; no API errors',
