@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Supabase__execute_sql",
+      "Bash(psql:*)",
+      "Bash(node scripts/*)"
+    ]
+  }
+}
