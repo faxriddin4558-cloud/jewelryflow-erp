@@ -99,12 +99,14 @@ const sacc = async (sid) => (await L.sel(`seller_gold_accounts?seller_id=eq.${si
   // the modal loads balances, history and THEN the seller's own rates: wait for the rates line instead of a fixed delay
   await s.p.waitForFunction(() => /USD\s+[\d\s\u00a0]+\s*so/.test((document.querySelector('[data-testid="cpay-own-rates"]') || {}).textContent || ''), null, { timeout: 20000 }).catch(() => {});
   const ownRatesShown = await s.p.locator('[data-testid="cpay-own-rates"]').innerText().catch(() => '');
-  const rateInputs = await s.p.locator('[data-testid="cpay-usd-rate"]').count();
+  // 084: the seller's saved rate is the editable default of the rate field (was hidden / locked before 084)
+  await s.p.waitForFunction(() => ((document.querySelector('[data-testid="cpay-usd-rate"]') || {}).value || '') !== '', null, { timeout: 20000 }).catch(() => {});
+  const rateValue = await s.p.locator('[data-testid="cpay-usd-rate"]').inputValue().catch(() => '');
   await s.p.locator('[data-testid="cpay-cash"]').fill('1250000');
   const preview = await s.p.locator('[data-testid="cpay-preview"]').innerText();
   await s.p.locator('[data-testid="cpay-submit"]').click(); await s.p.waitForTimeout(3000);
   const t2 = await sacc(C.sellera.id);
-  T('U77-14', "seller pays a USD debt with 1 250 000 so'm at his own 12 500 rate (not editable) -> 100 USD; till +1 250 000 so'm", (await curAcc(cUsd, 'USD')).d === 1400 && r2(N(t2.c) - N(t1.c)) === 1250000 && rateInputs === 0 && /12[\s ]?500/.test(ownRatesShown) && /100/.test(preview), { debt: 1400, tillUzs: 1250000 }, { debt: (await curAcc(cUsd, 'USD')).d, till: r2(N(t2.c) - N(t1.c)), ownRatesShown, preview: preview.slice(0, 60) });
+  T('U77-14', "seller pays a USD debt with 1 250 000 so'm at his saved 12 500 rate (prefilled default, editable since 084) -> 100 USD; till +1 250 000 so'm", (await curAcc(cUsd, 'USD')).d === 1400 && r2(N(t2.c) - N(t1.c)) === 1250000 && N(rateValue) === 12500 && /12[\s ]?500/.test(ownRatesShown) && /100/.test(preview), { debt: 1400, tillUzs: 1250000 }, { debt: (await curAcc(cUsd, 'USD')).d, till: r2(N(t2.c) - N(t1.c)), rateValue, ownRatesShown, preview: preview.slice(0, 60) });
   // UZS price sale on a phone
   await s.ctx.close();
   s = await login(br, 'sellera', { width: 390, height: 844 });

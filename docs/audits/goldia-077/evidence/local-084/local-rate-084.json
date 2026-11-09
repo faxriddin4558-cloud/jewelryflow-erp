@@ -1,0 +1,227 @@
+{
+  "target": "local",
+  "run": "mw9paycc",
+  "results": [
+    {
+      "id": "RR-1",
+      "title": "seller pays 910 000 so'm without a rate -> his saved 910 000 is used and snapshotted (1.0000 g)",
+      "ok": true,
+      "expected": {
+        "rate": 910000,
+        "g": 1
+      },
+      "actual": {
+        "gold_rate_applied": 910000,
+        "applied_usd_rate": null,
+        "cash_equivalent_grams": 1,
+        "usd_equivalent_grams": 0,
+        "total_settled_grams": 1
+      }
+    },
+    {
+      "id": "RR-2",
+      "title": "seller enters 920 000 (saved 910 000) -> accepted (was ERR_RATE_MISMATCH), snapshot 920 000, 1.0000 g",
+      "ok": true,
+      "expected": {
+        "rate": 920000,
+        "g": 1
+      },
+      "actual": {
+        "gold_rate_applied": 920000,
+        "applied_usd_rate": null,
+        "cash_equivalent_grams": 1,
+        "usd_equivalent_grams": 0,
+        "total_settled_grams": 1
+      }
+    },
+    {
+      "id": "RR-3",
+      "title": "seller rate 1215000 (> 25 % from the official 900000) -> refused, nothing recorded",
+      "ok": true,
+      "expected": "refused",
+      "actual": "ERR_RATE_OUT_OF_RANGE: LOM kursi rasmiy 585 kursidan (900000.00 UZS/g) 25.00 foizdan ortiq farq qila olmaydi"
+    },
+    {
+      "id": "RR-4",
+      "title": "manager receives 10 USD without a USD rate -> ERR_RATE_REQUIRED (no 12 800 / CBU guess)",
+      "ok": true,
+      "expected": "refused",
+      "actual": "ERR_RATE_REQUIRED: Dollar (USD) to'lovi uchun USD kursini kiriting"
+    },
+    {
+      "id": "RR-4b",
+      "title": "manager enters 12 700 -> snapshot 12 700, grams = 10 x 12 700 / 900 000",
+      "ok": true,
+      "expected": 0.1411,
+      "actual": {
+        "gold_rate_applied": 900000,
+        "applied_usd_rate": 12700,
+        "cash_equivalent_grams": 0,
+        "usd_equivalent_grams": 0.1411,
+        "total_settled_grams": 0.1411
+      }
+    },
+    {
+      "id": "RR-5",
+      "title": "seller pays a USD debt with 1 270 000 so'm at his entered 12 700 (saved 12 600) -> credited 100.00 USD, snapshot 12 700",
+      "ok": true,
+      "expected": {
+        "rate": 12700,
+        "credited": 100
+      },
+      "actual": {
+        "rate_usd_uzs": 12700,
+        "credited_amount": 100
+      }
+    },
+    {
+      "id": "RR-6",
+      "title": "manager scrap payment without a LOM rate -> default = official 900 000 (was \"required\"), credited 900 000 / 12 500 = 72.00 USD",
+      "ok": true,
+      "expected": {
+        "rate": 900000,
+        "credited": 72
+      },
+      "actual": {
+        "rate_lom_uzs": 900000,
+        "credited_amount": 72
+      }
+    },
+    {
+      "id": "RR-7",
+      "title": "handover 1930000 so'm: 1830000 valued (pool grams) + 100 000 unvalued at the entered 905 000 -> 2.1105 g",
+      "ok": true,
+      "expected": 2.1105,
+      "actual": {
+        "gold_rate_applied": 914475.24,
+        "applied_usd_rate": null,
+        "cash_equivalent_grams": 2.1105,
+        "usd_equivalent_grams": 0,
+        "total_settled_grams": 2.1105
+      }
+    },
+    {
+      "id": "RR-8",
+      "title": "after the saved rate changes, earlier payments keep 910 000 / 920 000 and their grams (no re-pricing)",
+      "ok": true,
+      "expected": [
+        910000,
+        920000
+      ],
+      "actual": [
+        910000,
+        920000
+      ]
+    },
+    {
+      "id": "RR-9",
+      "title": "profit summary lists customers' UZS / USD balances (debt and advance per currency = accounts)",
+      "ok": true,
+      "expected": {
+        "usdD": 256,
+        "usdA": 0,
+        "uzsD": 0
+      },
+      "actual": {
+        "usdD": 256,
+        "usdA": 0,
+        "uzsD": 0
+      }
+    },
+    {
+      "id": "RR-10",
+      "title": "without a USD rate: USD listed as not valued, no period result, no 12 800 anywhere",
+      "ok": true,
+      "expected": "not valued",
+      "actual": {
+        "usd_rate": 12500,
+        "result": -1.0577,
+        "not_valued": []
+      }
+    },
+    {
+      "id": "RR-10b",
+      "title": "with USD 12 500: customer USD debt valued = debt x 12 500 / 900 000, included in assets",
+      "ok": true,
+      "expected": 3.5556,
+      "actual": 3.5556
+    },
+    {
+      "id": "RR-11",
+      "title": "baseline: refused without a USD rate while customers hold USD; with 12 500 stored, snapshot marks currency receivables included",
+      "ok": true,
+      "expected": "ok",
+      "actual": {
+        "b0": "ERR_USD_RATE_NOT_SET: Kassalarda yoki mijoz qarzlarida dollar (USD) mavjud, boshlang'ich hisob uchun USD kursini kiriting",
+        "b1": true,
+        "row": {
+          "usd": 12500,
+          "inc": true
+        }
+      }
+    },
+    {
+      "id": "RR-UI-1",
+      "title": "seller phone: LOM field prefilled with the current saved 895000 and editable; typed 920 000 + double click -> exactly one payment at 920 000 = 1.0000 g, no API error, no overflow",
+      "ok": true,
+      "expected": {
+        "pre": 895000,
+        "rows": [
+          [
+            920000,
+            1
+          ]
+        ]
+      },
+      "actual": {
+        "pre": "895000",
+        "editable": true,
+        "rows": [
+          [
+            920000,
+            1
+          ]
+        ],
+        "bad": [],
+        "overflow": 0
+      }
+    },
+    {
+      "id": "RR-UI-2-raw",
+      "title": "handover observations",
+      "ok": true,
+      "expected": null,
+      "actual": {
+        "till_before": {
+          "c": 2090000,
+          "vc": 920000,
+          "vg": 1,
+          "st": 7.6549
+        },
+        "till_after": {
+          "c": 0,
+          "st": 11.0888
+        },
+        "legacy": 1170000
+      }
+    },
+    {
+      "id": "RR-UI-2",
+      "title": "manager handover dialog: LOM field present, default official 900000, editable; typed 905 000 -> cash till 0, settled >= captured 1 g + legacy / 905 000 (2.2928 g), no API error",
+      "ok": true,
+      "expected": {
+        "pre": 900000,
+        "till": 0,
+        "min_settled": 2.2928
+      },
+      "actual": {
+        "present": 1,
+        "pre": "900000",
+        "editable": true,
+        "till": 0,
+        "settled": 3.4339,
+        "bad": []
+      }
+    }
+  ]
+}
