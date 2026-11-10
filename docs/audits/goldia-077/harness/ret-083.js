@@ -88,7 +88,12 @@ const must = (r, what) => { if (!r.ok) throw new Error(`${what}: ${r.status} ${r
       { parts: [r2(amount / 3), r2(amount / 3), third] }, { parts, acc, g });
   }
   // ---------------- RT-PC barcode piece
-  const C7 = await cust('sellerb', 'Piece'); const pc = cb.pieces[0].id;
+  const C7 = await cust('sellerb', 'Piece');
+  // an untouched 10 g piece of this run's consignment (earlier weight sales take pieces FIFO by creation time + id, so
+  // cb.pieces[0] may already be partly sold)
+  const ids = cb.pieces.map((x) => x.id);
+  const free = await L.sel(`consignment_pieces?id=in.(${ids.join(',')})&status=eq.held_by_seller&sale_id=is.null&weight_grams=eq.10&select=id`);
+  const pc = free[0].id;
   const ps = must(await L.rpc('sellerb', 'rpc_record_barcode_piece_sale', { p_customer_id: C7, p_piece_id: pc, p_client_markup_pct: 12, p_idempotency_key: key('pc') }), 'piece sale');
   const sbBefore = await seller('sellerb');
   const pPart = await ret('sellerb', ps.sale_id, 5); const pFull = await ret('sellerb', ps.sale_id, 10); const pAgain = await ret('sellerb', ps.sale_id, 10);

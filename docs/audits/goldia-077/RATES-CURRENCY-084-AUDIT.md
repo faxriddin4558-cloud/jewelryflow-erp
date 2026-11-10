@@ -73,12 +73,12 @@ Files are in `evidence/local-084/`.
 
 | Test | Result |
 |---|---|
-| **rate-084**, local real Auth + UI: RR-1…RR-11 server checks, plus RR-UI-1 (seller phone at 390 px: saved rate prefilled and editable; typed 920 000 + double click gives exactly one payment, 1.0000 g) and RR-UI-2 (manager handover dialog: LOM field, official default, editable, till emptied) | **16/16** |
+| **rate-084**, local real Auth + UI: RR-1…RR-11 server checks, plus RR-UI-1 (seller phone at 390 px: saved rate prefilled and editable; typed 920 000 + double click gives exactly one payment, 1.0000 g) and RR-UI-2 (manager handover dialog: LOM field, official default, editable, till emptied) | **19/19** (2026-11-10, incl. RR-12 review, RR-UI-3 USD-debt payment, RR-UI-4 manager review) |
 | Staging release rehearsal 081 → 082 → 083 → 084 (dry run + apply): backup, restore copy, per-migration postflight + fingerprint, postflights 073–084 all true, schema parity 001..084 = 0 differences, RLS read 10 030 / write 18 400 checks PASS, emergency rollback 084 → 083 → 082 → 081, re-apply, balances and business row counts unchanged | **PASS** |
-| Postflight 084 on a fresh 001..084 stack | 10/10 true |
-| Schema signature 083 → 084 | only the intended changes: helper, `usd_rate` nullable, 8 bodies |
+| Postflight 084 on a fresh 001..084 stack | 12/12 true |
+| Schema signature 083 → 084 | only the intended changes: helper, `usd_rate` nullable, 8 bodies, `handover_entered_lom_rate`, review RPC |
 | Regression 076–083 on 084: ret-083 (UI) 28/28, balance-082 (UI) 19/19, adv-081 11/11, ui-076 17/17, ui-077 21/21, ui-078 10/10, da-079 14/14, parity matrix 0 mismatches, currency 13/13, stress-076 16/16 | **PASS** |
-| vitest | **413/413** |
+| vitest | **414/414** |
 
 Five older DB tests encoded the removed forced-rate rule (072, 065, 077). They were made 084-aware without weakening anything:
 - accepted calls are proven in a rolled-back transaction;
@@ -89,6 +89,24 @@ Two stress attack cases ("seller pays at another LOM / USD rate") now send an ab
 
 The U77-14 UI check now expects the prefilled, editable rate field. Harnesses kept as evidence of older releases (075 / 073 dirs) still describe the old rule and are not re-run.
 
+## 4a. Business decision confirmed 2026-11-10, and what 084 adds for it
+
+**Owner's decision:**
+- Seller, manager and director may enter or override the rate of an operation. There is no restriction and no manager approval.
+- Saved rates stay editable prefilled defaults.
+- Every financial operation keeps its actual rate, actor, time and audit history. No silent revaluation.
+- The manager reviews the rates sellers used.
+
+**What 084 does for it.** No accounting rule changes; only a snapshot column and a read-only report.
+
+| Requirement | How it is met | Proof |
+|---|---|---|
+| Rate kept per document | Payments: `gold_rate_applied` / `applied_usd_rate`. Currency payments: `rate_usd_uzs` / `rate_lom_uzs`. **New:** `gold_settlements.handover_entered_lom_rate` holds the rate entered for a handover's unvalued money. Before, only the blended effective rate was stored, e.g. 914 475.24 instead of the entered 905 000. | RR-7, vitest 072 "084 (decision 2026-11-10)" |
+| Actor and time | `recorded_by` and `created_at` on every document; `reversed_by` / `reversed_at` / `reversal_reason` on reversals. | RR-1…RR-7, RR-UI-3 |
+| Never revalued | No function updates a stored rate column. Clients have no UPDATE / INSERT / DELETE on `gold_settlements` or `client_currency_settlements`. A wrong rate is corrected only by reversal plus a new document. | Postflight 084 `rate_snapshots_immutable`, RR-8 |
+| Manager review | `rpc_get_operation_rate_review(start, end, seller)` (read only) and the "Operatsiyalarda ishlatilgan kurslar" card on the sellers page. Per document it shows: rate used, the seller's saved rate and the official rate in force at that moment, a "differs from saved" flag, deviation from official in %, who entered it and when. The per-seller summary counts overrides. Management sees all sellers; a seller sees only his own, and asking for another seller is refused. | RR-12, RR-UI-4, vitest |
+| Rollback | Emergency rollback 084 is **refused** while any handover holds an entered-rate snapshot, because dropping the column would lose the fact. | Local check on the stand-in: refused, level stays 084 |
+
 ## 5. Decision gates (not computed, no figure guessed)
 
 - **D-C3: profit / rate difference of currency sales.** A UZS / USD sale has no gram cost basis at sale time, and its cash is not valued in the till pool (R7). The owner must decide which rate defines its 585 value — sale day, payment day or handover day — before any currency-sale profit or rate difference is reported. Until then, currency receivables are shown at the report's rates as balances only.
@@ -96,7 +114,7 @@ The U77-14 UI check now expects the prefilled, editable rate field. Harnesses ke
 
 ## 6. Verdict
 
-**Production: NO-GO** (freeze; staging verification and owner approval pending).
+**Production: NO-GO** (freeze; staging verification and owner approval pending). Readiness and BUSINESS DECISION REQUIRED list: `STAGING-084-READINESS.md`.
 
 Staging is ready for the owner's release:
 

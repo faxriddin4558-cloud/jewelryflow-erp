@@ -1,6 +1,6 @@
 {
   "target": "local",
-  "run": "mw9paycc",
+  "run": "mwafp66c",
   "results": [
     {
       "id": "RR-1",
@@ -15,7 +15,10 @@
         "applied_usd_rate": null,
         "cash_equivalent_grams": 1,
         "usd_equivalent_grams": 0,
-        "total_settled_grams": 1
+        "total_settled_grams": 1,
+        "handover_entered_lom_rate": null,
+        "recorded_by": "0435450e-e379-43ed-b682-b7a0961c4f53",
+        "created_at": "2026-11-10T08:34:35.679201+00:00"
       }
     },
     {
@@ -31,7 +34,10 @@
         "applied_usd_rate": null,
         "cash_equivalent_grams": 1,
         "usd_equivalent_grams": 0,
-        "total_settled_grams": 1
+        "total_settled_grams": 1,
+        "handover_entered_lom_rate": null,
+        "recorded_by": "0435450e-e379-43ed-b682-b7a0961c4f53",
+        "created_at": "2026-11-10T08:34:35.703801+00:00"
       }
     },
     {
@@ -58,7 +64,10 @@
         "applied_usd_rate": 12700,
         "cash_equivalent_grams": 0,
         "usd_equivalent_grams": 0.1411,
-        "total_settled_grams": 0.1411
+        "total_settled_grams": 0.1411,
+        "handover_entered_lom_rate": null,
+        "recorded_by": "44d5c59f-9c9f-452c-8763-2490b5cf3cd9",
+        "created_at": "2026-11-10T08:34:35.737093+00:00"
       }
     },
     {
@@ -91,13 +100,20 @@
       "id": "RR-7",
       "title": "handover 1930000 so'm: 1830000 valued (pool grams) + 100 000 unvalued at the entered 905 000 -> 2.1105 g",
       "ok": true,
-      "expected": 2.1105,
+      "expected": {
+        "grams": 2.1105,
+        "entered_lom_rate_snapshot": 905000,
+        "recorded_by": "sellera"
+      },
       "actual": {
         "gold_rate_applied": 914475.24,
         "applied_usd_rate": null,
         "cash_equivalent_grams": 2.1105,
         "usd_equivalent_grams": 0,
-        "total_settled_grams": 2.1105
+        "total_settled_grams": 2.1105,
+        "handover_entered_lom_rate": 905000,
+        "recorded_by": "0435450e-e379-43ed-b682-b7a0961c4f53",
+        "created_at": "2026-11-10T08:34:35.801713+00:00"
       }
     },
     {
@@ -118,12 +134,12 @@
       "title": "profit summary lists customers' UZS / USD balances (debt and advance per currency = accounts)",
       "ok": true,
       "expected": {
-        "usdD": 256,
+        "usdD": 128,
         "usdA": 0,
         "uzsD": 0
       },
       "actual": {
-        "usdD": 256,
+        "usdD": 128,
         "usdA": 0,
         "uzsD": 0
       }
@@ -134,17 +150,19 @@
       "ok": true,
       "expected": "not valued",
       "actual": {
-        "usd_rate": 12500,
-        "result": -1.0577,
-        "not_valued": []
+        "usd_rate": null,
+        "result": null,
+        "not_valued": [
+          "USD baholanmadi (USD kursi berilmagan): kassa 10.00, mijoz qarzi 128.00, mijoz avansi 0.00"
+        ]
       }
     },
     {
       "id": "RR-10b",
       "title": "with USD 12 500: customer USD debt valued = debt x 12 500 / 900 000, included in assets",
       "ok": true,
-      "expected": 3.5556,
-      "actual": 3.5556
+      "expected": 1.7778,
+      "actual": 1.7778
     },
     {
       "id": "RR-11",
@@ -158,6 +176,24 @@
           "usd": 12500,
           "inc": true
         }
+      }
+    },
+    {
+      "id": "RR-12",
+      "title": "review: manager sees the seller's typed 920 000 (saved 910 000 -> flagged, actor = seller) and the handover's entered 905 000; director sees the same rows; seller sees only his own, another seller's rates refused",
+      "ok": true,
+      "expected": "ok",
+      "actual": {
+        "typed": {
+          "lom": 920000,
+          "saved": 910000,
+          "flag": true
+        },
+        "handover": 905000,
+        "manager_rows": 6,
+        "director_rows": 6,
+        "seller_rows": 6,
+        "other": "Permission denied: sotuvchi faqat o'z operatsiyalari kurslarini ko'radi"
       }
     },
     {
@@ -196,11 +232,11 @@
           "c": 2090000,
           "vc": 920000,
           "vg": 1,
-          "st": 7.6549
+          "st": 2.1105
         },
         "till_after": {
           "c": 0,
-          "st": 11.0888
+          "st": 5.5444
         },
         "legacy": 1170000
       }
@@ -220,6 +256,47 @@
         "editable": true,
         "till": 0,
         "settled": 3.4339,
+        "bad": []
+      }
+    },
+    {
+      "id": "RR-UI-3",
+      "title": "seller desktop: USD rate field prefilled with the saved 12 400 and editable; typed 12 650 + 632 500 so'm + double click -> one payment, 50.00 USD credited, USD debt 150, till +632 500 so'm once, snapshot 12 650, actor = seller",
+      "ok": true,
+      "expected": {
+        "pre": 12400,
+        "docs": [
+          [
+            12650,
+            50
+          ]
+        ],
+        "debt": 150,
+        "till": 632500
+      },
+      "actual": {
+        "pre": "12400",
+        "docs": [
+          [
+            12650,
+            50
+          ]
+        ],
+        "debt": {
+          "d": 150,
+          "a": 0
+        },
+        "till": 632500,
+        "bad": []
+      }
+    },
+    {
+      "id": "RR-UI-4",
+      "title": "manager sellers page: rate review lists the seller's overridden rates (920 000 LOM, 12 650 USD) with the saved values next to them, no API error",
+      "ok": true,
+      "expected": "listed",
+      "actual": {
+        "excerpt": "Vaqt\tHujjat\tSotuvchi\tKiritgan\tNaqd / USD\tLOM kursi\tSaqlangan\tRasmiy\tUSD kursi\tSaqlangan\n10.11.2026, 08:35:04\tTo'lov (USD qarz) CPAY-USD-20261110-9C7924 · RR84 UIUSD mwafp66c\tAUDIT sellera\tAUDIT sellera (sales)\t632 500 / 0\t—\t895 000\t900 000\t12 650\t12 400\n10.11.2026, 08:34:54\tTopshiruv STL-MGR-20261110-F37A16\tAUDIT sellera\tAUDIT manager (production_manager)\t2 090 000 / 10\t905 000 (+0.56%)\t895 000\t90",
         "bad": []
       }
     }

@@ -20,6 +20,12 @@ end $guard$;
 
 -- ===== supabase/rollback/20260101000084_rollback.sql =====
 -- Rollback of 084: restores the previous bodies; usd_rate becomes NOT NULL again only if no baseline stored NULL.
+-- Refused while a handover holds an entered-rate snapshot (dropping the column would lose that audit fact).
+do $g$ begin if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'gold_settlements'
+  and column_name = 'handover_entered_lom_rate') then
+  if exists (select 1 from public.gold_settlements where handover_entered_lom_rate is not null) then
+    raise exception 'ROLLBACK 084 REFUSED: handovers hold entered-rate snapshots (handover_entered_lom_rate)';
+  end if; end if; end $g$;
 
 -- ===== rpc_record_client_settlement (restore the body of 20260101000073_goldia_release_candidate_stabilization.sql)
 CREATE OR REPLACE FUNCTION public.rpc_record_client_settlement(p_customer_id uuid, p_sale_id uuid DEFAULT NULL::uuid, p_scrap_weight numeric DEFAULT 0, p_scrap_proba numeric DEFAULT NULL::numeric, p_cash_amount numeric DEFAULT 0, p_rate_per_gram numeric DEFAULT NULL::numeric, p_settlement_date date DEFAULT public._goldia_business_date(), p_notes text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text, p_seller_id uuid DEFAULT NULL::uuid, p_usd_amount numeric DEFAULT 0, p_usd_rate numeric DEFAULT NULL::numeric)
@@ -2129,6 +2135,8 @@ $function$;
 
 do $nn$ begin if not exists (select 1 from public.accounting_baselines where usd_rate is null) then
   alter table public.accounting_baselines alter column usd_rate set not null; end if; end $nn$;
+drop function if exists public.rpc_get_operation_rate_review(date, date, uuid);
+alter table public.gold_settlements drop column if exists handover_entered_lom_rate;
 drop function if exists public._goldia_operation_rate(uuid, text, text, numeric, numeric);
 
 ;

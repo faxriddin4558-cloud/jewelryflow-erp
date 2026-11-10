@@ -2,6 +2,7 @@
 
 import { DirectorSalesWorkspace } from "@/components/sales/DirectorSalesWorkspace";
 import { SellerRatesOverview } from "@/components/sales/SellerRatesCard";
+import { OperationRateReview } from "@/components/sales/OperationRateReview";
 
 export default function SellersPage() {
   return (
@@ -18,6 +19,8 @@ export default function SellersPage() {
       </div>
 
       <SellerRatesOverview />
+
+      <OperationRateReview />
 
       <DirectorSalesWorkspace initialTab="sellers" hideTopBanner={true} hideTabBar={true} />
     </div>

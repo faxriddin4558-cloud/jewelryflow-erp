@@ -295,6 +295,38 @@ describe("Goldia 072 — independent seller rates", () => {
     expect(Number(h.cash_equivalent_grams)).toBe(2); // 1 g captured + 890,000 / official 890,000
   });
 
+  it("084 (decision 2026-11-10): a handover keeps the rate entered for unvalued cash as its own snapshot; the manager reviews every seller's rates, a seller only his own", async () => {
+    // unvalued (legacy) cash in B's till, handed over at a typed 880,000
+    await t.asAdmin();
+    await t.db.exec(`UPDATE public.seller_gold_accounts SET seller_till_cash_amount = seller_till_cash_amount + 880000 WHERE seller_id = '${B.employeeId}'`);
+    const b0 = await acc(B);
+    await t.asUser(B.userId);
+    const h = await t.rpc(`public.rpc_record_seller_to_manager_settlement(p_seller_id := '${B.employeeId}', p_cash_paid_amount := ${Number(b0.seller_till_cash_amount)}, p_rate_per_gram := 880000)`);
+    expect(Number(h.entered_lom_rate)).toBe(880000);
+    await t.asAdmin();
+    const row = (await t.db.query<{ e: string; g: string }>(`SELECT handover_entered_lom_rate AS e, gold_rate_applied AS g FROM public.gold_settlements WHERE id = '${h.settlement_id}'`)).rows[0]!;
+    expect(Number(row.e)).toBe(880000);
+    // a payment at a typed rate other than the saved one is flagged in the review
+    await setRates(A, 890000, 12500);
+    await pay(A, `p_cash_amount := 900000, p_rate_per_gram := 900000`);
+    await t.asUser(manager.userId);
+    const rv = await t.rpc(`public.rpc_get_operation_rate_review()`);
+    const rows = rv.rows as Array<Record<string, unknown>>;
+    const aTyped = rows.find((r) => r.seller_id === A.employeeId && r.kind === "payment_gram" && Number(r.lom_rate) === 900000);
+    expect(aTyped).toBeTruthy();
+    expect(Number(aTyped!.saved_lom_rate)).toBe(890000);
+    expect(aTyped!.lom_differs_from_saved).toBe(true);
+    expect(aTyped!.recorded_by).toBe(A.employeeId);
+    const hv = rows.find((r) => r.id === h.settlement_id);
+    expect(hv && Number(hv.lom_rate)).toBe(880000);
+    expect(new Set(rows.map((r) => r.seller_id)).size).toBeGreaterThanOrEqual(3);
+    // seller: only own rows; asking for another seller is refused
+    await t.asUser(A.userId);
+    const own = await t.rpc(`public.rpc_get_operation_rate_review()`);
+    expect((own.rows as Array<Record<string, unknown>>).every((r) => r.seller_id === A.employeeId)).toBe(true);
+    await t.expectError(`SELECT public.rpc_get_operation_rate_review(p_seller_id := '${B.employeeId}')`, "Permission denied");
+  });
+
   it("M: management entries keep their pre-072 behaviour", async () => {
     await t.asUser(manager.userId);
     const r = await t.rpc(`public.rpc_record_client_settlement(p_customer_id := '${B.customer}', p_cash_amount := 870000, p_rate_per_gram := 870000)`);

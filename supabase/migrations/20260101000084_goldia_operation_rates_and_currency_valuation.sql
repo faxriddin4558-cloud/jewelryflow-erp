@@ -55,6 +55,122 @@ revoke all on function public._goldia_operation_rate(uuid, text, text, numeric, 
 -- a baseline without dollars stores no USD rate (the 1.0 placeholder valued later dollars at 1 so'm)
 alter table public.accounting_baselines alter column usd_rate drop not null;
 
+-- ------------------------------------------------------------------ 2. rate snapshot + manager review (2026-11-10)
+-- Business decision confirmed 2026-11-10: seller, manager and director may enter / override the rate of an operation;
+-- every operation keeps its actual rate, actor and time; history is never revalued; the manager reviews sellers' rates.
+-- A handover stores the rate entered for its unvalued money (gold_rate_applied is the effective rate of the whole
+-- handover). NULL on older rows and when nothing needed a rate. Written only by rpc_record_seller_to_manager_settlement.
+alter table public.gold_settlements add column if not exists handover_entered_lom_rate numeric(18, 2);
+comment on column public.gold_settlements.handover_entered_lom_rate is
+  '084: LOM rate entered (or defaulted) for the unvalued cash / USD of a seller -> manager handover; snapshot, never revalued';
+
+-- Read-only review of the rates used per operation. Management: every seller of the organization; a seller: only his
+-- own operations. For each document: rate used, the seller's saved rate and the official 585 rate in force at that
+-- moment, whether the rate differs from the saved default, deviation from the official rate, actor, time, status.
+create or replace function public.rpc_get_operation_rate_review(p_start_date date default null, p_end_date date default null,
+  p_seller_id uuid default null)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $function$
+declare
+  v_org    uuid := public.current_organization_id();
+  v_role   text := public.current_employee_role_text();
+  v_emp    uuid := public.current_employee_id();
+  v_end    date := coalesce(p_end_date, public._goldia_business_date());
+  v_start  date := coalesce(p_start_date, coalesce(p_end_date, public._goldia_business_date()) - 30);
+  v_seller uuid := p_seller_id;
+  v_rows   jsonb;
+  v_sum    jsonb;
+  v_n      integer;
+begin
+  if v_org is null then
+    raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501';
+  end if;
+  perform public.assert_erp_permission(array['admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'boshqaruvchi', 'sales', 'seller', 'sotuvchi']);
+  if not public._goldia_is_management_role(v_role) then
+    if p_seller_id is not null and p_seller_id is distinct from v_emp then
+      raise exception 'Permission denied: sotuvchi faqat o''z operatsiyalari kurslarini ko''radi' using errcode = '42501';
+    end if;
+    v_seller := v_emp;
+  end if;
+  if v_end < v_start or v_end - v_start > 366 then
+    raise exception 'Davr noto''g''ri (eng ko''pi 366 kun)' using errcode = '22023';
+  end if;
+
+  with docs as (
+    select 'payment_gram'::text as kind, g.id, g.settlement_no as doc_no, g.settlement_date as doc_date, g.created_at,
+           g.seller_id, g.customer_id, g.recorded_by, g.status, g.reversed_at, g.reversed_by,
+           case when coalesce(g.cash_paid_amount, 0) > 0 then g.gold_rate_applied end as lom_rate,
+           case when coalesce(g.usd_paid_amount, 0) > 0 then g.applied_usd_rate end as usd_rate,
+           null::numeric as effective_rate, g.cash_paid_amount as cash_uzs, g.usd_paid_amount as usd, g.total_settled_grams as grams,
+           null::text as debt_currency
+      from public.gold_settlements g
+     where g.organization_id = v_org and g.direction = 'client_to_seller' and g.reversal_of_id is null
+       and g.settlement_date between v_start and v_end and (v_seller is null or g.seller_id = v_seller)
+    union all
+    select 'handover', g.id, g.settlement_no, g.settlement_date, g.created_at, g.seller_id, null, g.recorded_by, g.status,
+           g.reversed_at, g.reversed_by, g.handover_entered_lom_rate,
+           case when coalesce(g.usd_paid_amount, 0) > coalesce(g.till_pool_usd, 0) then g.applied_usd_rate end,
+           case when coalesce(g.cash_paid_amount, 0) > 0 then g.gold_rate_applied end, g.cash_paid_amount, g.usd_paid_amount,
+           g.total_settled_grams, null
+      from public.gold_settlements g
+     where g.organization_id = v_org and g.direction = 'seller_to_manager' and g.reversal_of_id is null
+       and g.settlement_date between v_start and v_end and (v_seller is null or g.seller_id = v_seller)
+    union all
+    select 'payment_' || lower(c.debt_currency), c.id, c.settlement_no, c.settlement_date, c.created_at, c.seller_id, c.customer_id,
+           c.recorded_by, c.status, c.reversed_at, c.reversed_by, c.rate_lom_uzs, c.rate_usd_uzs, null, c.cash_uzs, c.usd_amount,
+           c.scrap_585_g, c.debt_currency
+      from public.client_currency_settlements c
+     where c.organization_id = v_org and c.settlement_date between v_start and v_end and (v_seller is null or c.seller_id = v_seller)
+  ), enriched as (
+    select d.*,
+           (select h.new_lom_rate_uzs from public.seller_rate_history h
+             where h.organization_id = v_org and h.seller_id = d.seller_id and h.changed_at <= d.created_at
+             order by h.changed_at desc limit 1) as saved_lom,
+           (select h.new_usd_rate_uzs from public.seller_rate_history h
+             where h.organization_id = v_org and h.seller_id = d.seller_id and h.changed_at <= d.created_at
+             order by h.changed_at desc limit 1) as saved_usd,
+           (select r.rate_per_gram from public.daily_gold_rates r
+             where r.organization_id = v_org and r.proba = 585 and r.rate_per_gram > 0 and r.created_at <= d.created_at
+             order by r.is_confirmed desc, r.rate_date desc, r.created_at desc limit 1) as official_lom
+      from docs d
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'kind', e.kind, 'id', e.id, 'doc_no', e.doc_no, 'doc_date', e.doc_date, 'created_at', e.created_at,
+           'seller_id', e.seller_id, 'seller_name', coalesce(se.name, se.full_name),
+           'customer_name', cu.contact_name, 'recorded_by', e.recorded_by, 'recorded_by_name', coalesce(rb.name, rb.full_name),
+           'recorded_by_role', rb.role, 'status', e.status, 'reversed_at', e.reversed_at,
+           'debt_currency', e.debt_currency, 'cash_uzs', e.cash_uzs, 'usd', e.usd, 'grams', e.grams,
+           'lom_rate', e.lom_rate, 'usd_rate', e.usd_rate, 'effective_rate', e.effective_rate,
+           'saved_lom_rate', e.saved_lom, 'saved_usd_rate', e.saved_usd, 'official_lom_rate', e.official_lom,
+           'lom_differs_from_saved', e.lom_rate is not null and e.saved_lom is not null and e.lom_rate <> e.saved_lom,
+           'usd_differs_from_saved', e.usd_rate is not null and e.saved_usd is not null and e.usd_rate <> e.saved_usd,
+           'lom_deviation_from_official_pct', case when e.lom_rate is not null and e.official_lom > 0
+             then round((e.lom_rate - e.official_lom) / e.official_lom * 100, 2) end)
+         order by e.created_at desc), '[]'::jsonb), count(*)
+    into v_rows, v_n
+    from (select * from enriched order by created_at desc limit 2000) e
+    left join public.employees se on se.id = e.seller_id
+    left join public.employees rb on rb.id = e.recorded_by
+    left join public.customers cu on cu.id = e.customer_id;
+
+  select coalesce(jsonb_agg(x order by x ->> 'seller_name'), '[]'::jsonb) into v_sum from (
+    select jsonb_build_object('seller_id', r ->> 'seller_id', 'seller_name', max(r ->> 'seller_name'), 'operations', count(*),
+             'lom_differs_from_saved', count(*) filter (where (r ->> 'lom_differs_from_saved')::boolean),
+             'usd_differs_from_saved', count(*) filter (where (r ->> 'usd_differs_from_saved')::boolean),
+             'max_abs_lom_deviation_pct', max(abs((r ->> 'lom_deviation_from_official_pct')::numeric))) as x
+      from jsonb_array_elements(v_rows) r group by r ->> 'seller_id') s;
+
+  return jsonb_build_object('status', 'ok', 'start_date', v_start, 'end_date', v_end,
+    'seller_id', v_seller, 'truncated', v_n >= 2000, 'rows', v_rows, 'by_seller', v_sum);
+end;
+$function$;
+revoke all on function public.rpc_get_operation_rate_review(date, date, uuid) from public, anon;
+grant execute on function public.rpc_get_operation_rate_review(date, date, uuid) to authenticated;
+
 -- ===== rpc_record_client_settlement (from 20260101000073_goldia_release_candidate_stabilization.sql)
 CREATE OR REPLACE FUNCTION public.rpc_record_client_settlement(p_customer_id uuid, p_sale_id uuid DEFAULT NULL::uuid, p_scrap_weight numeric DEFAULT 0, p_scrap_proba numeric DEFAULT NULL::numeric, p_cash_amount numeric DEFAULT 0, p_rate_per_gram numeric DEFAULT NULL::numeric, p_settlement_date date DEFAULT public._goldia_business_date(), p_notes text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text, p_seller_id uuid DEFAULT NULL::uuid, p_usd_amount numeric DEFAULT 0, p_usd_rate numeric DEFAULT NULL::numeric)
  RETURNS jsonb
@@ -761,6 +877,7 @@ begin
     till_pool_cash_585_g,
     till_pool_usd,
     till_pool_usd_585_g,
+    handover_entered_lom_rate,
     applied_to_debt_grams,
     excess_gold_grams,
     previous_debt_grams,
@@ -790,6 +907,7 @@ begin
     v_val_cash_g,
     v_val_usd,
     v_val_usd_g,
+    case when v_leg_cash > 0 or v_leg_usd > 0 then v_rate end,
     v_total_settled,
     0,
     coalesce(v_seller_acc.seller_owes_manager_g, v_seller_acc.current_factory_obligation_grams, 0),
@@ -816,6 +934,7 @@ begin
     'usd_amount_settled', v_usd,
     'applied_usd_rate', v_usd_rate,
     'applied_rate_per_gram', v_rate_applied,
+    'entered_lom_rate', case when v_leg_cash > 0 or v_leg_usd > 0 then v_rate end,
     'valued_cash_uzs', v_val_cash,
     'valued_usd', v_val_usd,
     'cash_equivalent_grams', v_cash_equiv,

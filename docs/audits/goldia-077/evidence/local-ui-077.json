@@ -2,16 +2,16 @@
   "target": "local",
   "version": {
     "status": "ok",
-    "commit": "3a6f147",
-    "full_commit": "3a6f147d73a28602ae1778418e34b776a676e4ca",
+    "commit": "e3c0a65",
+    "full_commit": "e3c0a65bf2dd6b8e889babdd9e038e5d38172bb7",
     "env": "staging",
     "staging_mode": true,
     "supabase_ref": "127",
     "sha_source": "build",
     "vercel_git_commit": null,
-    "timestamp": "2026-11-09T20:20:01.442Z"
+    "timestamp": "2026-11-10T08:39:35.202Z"
   },
-  "run": "mw9penpa",
+  "run": "mwaftq7p",
   "results": [
     {
       "id": "U77-01",
@@ -75,7 +75,7 @@
       "actual": {
         "sales": 1,
         "row": {
-          "id": "63618d03-3496-4945-87db-4013f9e88226",
+          "id": "e87cef39-1ccc-4147-9fa4-c7e8c65f4d95",
           "sale_currency": "USD",
           "sale_amount": 2000,
           "base_weight_grams": 20,
@@ -94,8 +94,8 @@
       },
       "actual": {
         "stock": -20,
-        "o0": 614.22,
-        "o1": 614.22
+        "o0": 548.22,
+        "o1": 548.22
       }
     },
     {
@@ -182,11 +182,11 @@
       "title": "period report shows UZS and USD sales separately; the page equals the server report (count, amount, physical g)",
       "ok": true,
       "expected": {
-        "usd": 2800,
+        "usd": 2700,
         "uzs": 4100001
       },
       "actual": {
-        "flowUsd": "Savdo: aniq USD narxda\t5\t28,0000 g\t0,0000 g\t$2 800,00\t—\t—\t—",
+        "flowUsd": "Savdo: aniq USD narxda\t5\t27,0000 g\t0,0000 g\t$2 700,00\t—\t—\t—",
         "flowUzs": "Savdo: aniq UZS narxda\t2\t5,5000 g\t0,0000 g\t4 100 001 so'm\t—\t—\t—"
       }
     },
@@ -194,8 +194,8 @@
       "id": "U77-22",
       "title": "report closing USD customer debt = live USD balances of the organization",
       "ok": true,
-      "expected": 1706,
-      "actual": "$1 706,00"
+      "expected": 1728,
+      "actual": "$1 728,00"
     },
     {
       "id": "U77-23",

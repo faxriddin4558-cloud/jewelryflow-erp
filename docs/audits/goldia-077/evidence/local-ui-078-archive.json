@@ -1,11 +1,11 @@
 {
  "target": "local",
- "run": "mw9pgixn",
+ "run": "mwafvlyw",
  "ids": {
-  "own": "d09ec614-5b8f-4946-a08b-7a66d4607061",
-  "other": "d68f3aec-c3d7-4217-9f4f-d4ead7619d97",
-  "free": "d5673d79-7d64-44a1-8d16-c0691c7d2bb2",
-  "foreign": "0eb68e4d-fac5-43fd-b8f0-042d548a0672"
+  "own": "b9bfde69-0abb-43b9-bb62-417a7bca8d20",
+  "other": "2d1f4364-7c0c-4436-876f-bef824b231d1",
+  "free": "7ad6cdb3-de1a-4dc5-ae12-54733ef0dce8",
+  "foreign": "50ae3311-f247-46be-a5b5-269a1de06471"
  },
  "results": [
   {
@@ -36,7 +36,7 @@
     "audits": 1,
     "listed": 0,
     "dialogs": 1,
-    "msg": "\"UI78 Ochiriladi mw9pgixn\" mijozini o'chirasizmi? Mijoz ro'yxatdan yashiriladi (arxivga o'tadi), savdo, to'lov va qarz t"
+    "msg": "\"UI78 Ochiriladi mwafvlyw\" mijozini o'chirasizmi? Mijoz ro'yxatdan yashiriladi (arxivga o'tadi), savdo, to'lov va qarz t"
    }
   },
   {
@@ -47,7 +47,7 @@
    "actual": {
     "other": "Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan (faqat o'z mijozing",
     "free": "Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan",
-    "foreign": "Mijoz topilmadi: 0eb68e4d-fac5-43fd-b8f0",
+    "foreign": "Mijoz topilmadi: 50ae3311-f247-46be-a5b5",
     "patchOther": [],
     "patchFree": "Ruxsat etilmadi: mijozni faqat uning sotuvchisi, menejer yok",
     "st": {
@@ -70,10 +70,10 @@
     "g585": 12.5,
     "usd": 800,
     "sales": 1,
-    "rowShown": "CUST-0039 UI78 Ochiriladi mw9pgixn — AUDIT sellera 0.00 g 0 UZS — — 12.50 g 📋 Eski qarz +",
+    "rowShown": "CUST-0037 UI78 Ochiriladi mwafvlyw — AUDIT sellera 0.00 g 0 UZS — — 12.50 g 📋 Eski qarz +",
     "pay": true,
-    "reportUsd": 2506,
-    "liveUsd": 2506
+    "reportUsd": 2528,
+    "liveUsd": 2528
    }
   },
   {

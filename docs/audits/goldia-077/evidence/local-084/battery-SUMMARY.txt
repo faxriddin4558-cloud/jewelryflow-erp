@@ -1,14 +1,18 @@
-local stand-in at 084 (after the 081 -> 084 release rehearsal), real GoTrue logins, real Next.js build
-rate-084 (GA_UI=1 GA_BASELINE=1) TOTAL 16/16
-ret-083 exit=0 26s TOTAL 28/28 -> docs/audits/goldia-077/evidence/local-084/local-ret-083-on-084.json
-balance-082 exit=0 28s TOTAL 19/19 -> docs/audits/goldia-077/evidence/local-084/local-balance-082-on-084.json
+2026-11-10 — fresh container; local stand-in rebuilt at 081 + seed, then the staging release rehearsal 081 -> 084 (dry run + apply), real GoTrue logins, real Next.js build of the working tree
+rate-084 (GA_UI=1 GA_BASELINE=1) TOTAL 19/19
+balance-082 exit=0 29s TOTAL 19/19 -> docs/audits/goldia-077/evidence/local-084/local-balance-082-on-084.json
 adv-081 exit=0 26s TOTAL 11/11
 ui-076 exit=0 58s TOTAL 17/17
-ui-077 exit=0 87s TOTAL 21/21
-ui-078-archive exit=0 49s TOTAL 10/10
+ui-077 exit=0 88s TOTAL 21/21
+ui-078-archive exit=0 50s TOTAL 10/10
 da-079 exit=0 8s TOTAL 14/14
-parity-matrix exit=0 3s 
-parity-matrix: DIRECTOR vs MANAGER mismatches 0, missing / ambiguous 0
-currency (re-run after the attack case was changed to an absurd USD rate) TOTAL 13/13
-stress-076 (re-run after the attack cases were changed to absurd LOM / USD rates) TOTAL 16/16 -> docs/audits/goldia-077/evidence/local-084/local-stress-076-on-084.json
-vitest 413/413
+currency exit=0 6s TOTAL 13/13
+stress-076 exit=0 11s TOTAL 16/16 -> docs/audits/goldia-077/evidence/local-084/local-stress-076-on-084.json
+ret-083 first run 27/28: RT-PC harness picked consignment piece [0], which an earlier FIFO weight sale had already cut to 4 g (order dependence, not a product fault); harness now picks an untouched 10 g held piece -> re-run TOTAL 28/28 -> docs/audits/goldia-077/evidence/local-084/local-ret-083-on-084.json
+parity-matrix: DIRECTOR vs MANAGER mismatches (excluding test reset): 0 MISSING / AMBIGUOUS calls: 0 
+ui-078-report-race: 1 PASS, 0 FAIL
+emergency rollback 084 with entered-rate snapshots present: REFUSED ("ROLLBACK 084 REFUSED"), level stays 084
+vitest Tests  414 passed (414)
+tsc --noEmit: exit 0
+eslint src --max-warnings 0: exit 0; eslint . : 24 problems in 6 docs/releases harness files, identical on the committed baseline (pre-existing)
+next build: success (local UI stack)

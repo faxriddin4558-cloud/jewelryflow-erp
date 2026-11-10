@@ -37,6 +37,18 @@ select
   (select bool_and(has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE'))
      from pg_proc p where p.pronamespace = 'public'::regnamespace
       and p.proname in ('rpc_record_client_settlement', 'rpc_record_client_currency_settlement', 'rpc_record_seller_to_manager_settlement',
-                        'rpc_get_accounting_profit_summary', 'rpc_confirm_accounting_baseline')) as grants;
+                        'rpc_get_accounting_profit_summary', 'rpc_confirm_accounting_baseline')) as grants,
+  -- decision 2026-11-10: a handover snapshots the rate entered for its unvalued money; nothing revalues stored rates
+  exists (select 1 from pg_attribute where attrelid = 'public.gold_settlements'::regclass and attname = 'handover_entered_lom_rate' and not attisdropped)
+    and (select position('handover_entered_lom_rate' in prosrc) > 0 from f where proname = 'rpc_record_seller_to_manager_settlement')
+    and not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
+          and p.prosrc ~* 'update\s+public\.(gold_settlements|client_currency_settlements)[^;]*(gold_rate_applied|applied_usd_rate|rate_usd_uzs|rate_lom_uzs|handover_entered_lom_rate)\s*=')
+    and not has_table_privilege('authenticated', 'public.gold_settlements', 'UPDATE')
+    and not has_table_privilege('authenticated', 'public.client_currency_settlements', 'UPDATE') as rate_snapshots_immutable,
+  -- the manager review of the rates used: read-only definer, signed-in users only (sellers see only their own rows)
+  (select prosecdef and provolatile = 's' and position('_goldia_is_management_role' in prosrc) > 0 and position('v_seller := v_emp' in prosrc) > 0
+     from pg_proc where oid = 'public.rpc_get_operation_rate_review(date,date,uuid)'::regprocedure)
+    and has_function_privilege('authenticated', 'public.rpc_get_operation_rate_review(date,date,uuid)', 'EXECUTE')
+    and not has_function_privilege('anon', 'public.rpc_get_operation_rate_review(date,date,uuid)', 'EXECUTE') as rate_review;
 
 rollback;

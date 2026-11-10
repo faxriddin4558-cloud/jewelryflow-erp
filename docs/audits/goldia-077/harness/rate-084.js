@@ -26,7 +26,7 @@ const must = (r, what) => { if (!r.ok) throw new Error(`${what}: ${r.status} ${r
   const cust = async (n) => must(await L.rpc('sellera', 'rpc_create_customer_with_code', { p_contact_name: `RR84 ${n} ${run}` }), 'customer').customer_id;
   const sale = async (c, g) => must(await L.rpc('sellera', 'rpc_record_weight_sale', { p_customer_id: c, p_seller_id: C.sellera.id, p_weight_grams: g, p_client_markup_pct: 10, p_idempotency_key: key('s') }), 'sale');
   const pay = (who, c, extra) => L.rpc(who, 'rpc_record_client_settlement', { p_customer_id: c, p_idempotency_key: key('p'), ...extra });
-  const sett = async (id) => (await L.sel(`gold_settlements?id=eq.${id}&select=gold_rate_applied,applied_usd_rate,cash_equivalent_grams,usd_equivalent_grams,total_settled_grams`))[0];
+  const sett = async (id) => (await L.sel(`gold_settlements?id=eq.${id}&select=gold_rate_applied,applied_usd_rate,cash_equivalent_grams,usd_equivalent_grams,total_settled_grams,handover_entered_lom_rate,recorded_by,created_at`))[0];
 
   // RR-1 default = saved rate
   const C1 = await cust('Def'); await sale(C1, 10);
@@ -60,7 +60,8 @@ const must = (r, what) => { if (!r.ok) throw new Error(`${what}: ${r.status} ${r
     const h = await L.rpc('sellera', 'rpc_record_seller_to_manager_settlement', { p_seller_id: C.sellera.id, p_cash_paid_amount: cash, p_rate_per_gram: 905000, p_idempotency_key: key('h') });
     const exp = r4(Math.round(poolG * 1e6) / 1e6 + 100000 / 905000);
     const hs = h.ok ? await sett(h.data.settlement_id) : null;
-    T('RR-7', `handover ${cash} so'm: ${pool} valued (pool grams) + 100 000 unvalued at the entered 905 000 -> ${exp} g`, h.ok && Math.abs(r4(hs.cash_equivalent_grams) - exp) <= 0.0001, exp, h.ok ? hs : h.error);
+    T('RR-7', `handover ${cash} so'm: ${pool} valued (pool grams) + 100 000 unvalued at the entered 905 000 -> ${exp} g`, h.ok && Math.abs(r4(hs.cash_equivalent_grams) - exp) <= 0.0001 && N(hs.handover_entered_lom_rate) === 905000 && hs.recorded_by === C.sellera.id && !!hs.created_at,
+      { grams: exp, entered_lom_rate_snapshot: 905000, recorded_by: 'sellera' }, h.ok ? hs : h.error);
   } else T('RR-7', 'handover of unvalued cash', false, 'till with >= 100 000 unvalued so\'m', { till: acc });
   // RR-8 snapshots stay after the saved rate changes
   must(await L.rpc('sellera', 'rpc_set_my_seller_rates', { p_lom_rate_uzs: 895000, p_usd_rate_uzs: 12400, p_reason: 'rr84 change' }), 'change rates');
@@ -87,6 +88,19 @@ const must = (r, what) => { if (!r.ok) throw new Error(`${what}: ${r.status} ${r
     T('RR-11', 'baseline: refused without a USD rate while customers hold USD; with 12 500 stored, snapshot marks currency receivables included',
       (usdD + usdA > 0 ? !b0.ok && /ERR_USD_RATE_NOT_SET/.test(b0.error) : true) && b1.ok && N(bRow.usd_rate) === 12500 && bRow.components_snapshot.currency_receivables_included === true && r2(bRow.components_snapshot.usd_receivable_total) === r2(usdD - usdA),
       'ok', { b0: b0.ok || b0.error, b1: b1.ok || b1.error, row: bRow && { usd: bRow.usd_rate, inc: bRow.components_snapshot.currency_receivables_included } });
+  }
+  // RR-12 manager review of the rates used (decision 2026-11-10): every seller for management, own rows for a seller
+  {
+    const mv = must(await L.rpc('manager', 'rpc_get_operation_rate_review', {}), 'review manager');
+    const typed = mv.rows.find((x) => x.seller_id === C.sellera.id && x.kind === 'payment_gram' && N(x.lom_rate) === 920000);
+    const hv = mv.rows.find((x) => x.kind === 'handover' && N(x.lom_rate) === 905000);
+    const sv = must(await L.rpc('sellera', 'rpc_get_operation_rate_review', {}), 'review seller');
+    const other = await L.rpc('sellera', 'rpc_get_operation_rate_review', { p_seller_id: C.sellerb.id });
+    const dv = must(await L.rpc('director', 'rpc_get_operation_rate_review', {}), 'review director');
+    T('RR-12', 'review: manager sees the seller\'s typed 920 000 (saved 910 000 -> flagged, actor = seller) and the handover\'s entered 905 000; director sees the same rows; seller sees only his own, another seller\'s rates refused',
+      !!typed && N(typed.saved_lom_rate) === 910000 && typed.lom_differs_from_saved === true && typed.recorded_by === C.sellera.id && !!hv && dv.rows.length === mv.rows.length
+        && sv.rows.every((x) => x.seller_id === C.sellera.id) && !other.ok && /Permission denied/.test(other.error),
+      'ok', { typed: typed && { lom: typed.lom_rate, saved: typed.saved_lom_rate, flag: typed.lom_differs_from_saved }, handover: hv && hv.lom_rate, manager_rows: mv.rows.length, director_rows: dv.rows.length, seller_rows: sv.rows.length, other: other.error });
   }
   // ---------------- RR-UI (GA_UI=1): the rate is typed in the real frontend
   if (process.env.GA_UI) {
@@ -146,6 +160,43 @@ const must = (r, what) => { if (!r.ok) throw new Error(`${what}: ${r.status} ${r
       T('RR-UI-2', `manager handover dialog: LOM field present, default official ${OFF}, editable; typed 905 000 -> cash till 0, settled >= captured ${r4(N(t0.vg))} g + legacy / 905 000 (${expG} g), no API error`,
         present === 1 && N(pre) === OFF && editable && N(t1.c) === 0 && settledCash >= expG - 5e-5 && bad.length === 0,
         { pre: OFF, till: 0, min_settled: expG }, { present, pre, editable, till: N(t1.c), settled: settledCash, bad });
+    }
+    // UI-3 seller pays a USD currency debt in the real dialog at a typed USD rate; till gets the so'm once
+    {
+      const nC = `RR84 UIUSD ${run}`; const cC = must(await L.rpc('sellera', 'rpc_create_customer_with_code', { p_contact_name: nC }), 'ui usd customer').customer_id;
+      must(await L.rpc('sellera', 'rpc_record_currency_sale', { p_customer_id: cC, p_seller_id: C.sellera.id, p_currency: 'USD', p_amount: 200, p_weight_grams: 1, p_idempotency_key: key('cs') }), 'ui usd sale');
+      const till0 = (await L.sel(`seller_gold_accounts?seller_id=eq.${C.sellera.id}&select=c:seller_till_cash_amount`))[0];
+      const { ctx, p, bad } = await login('sellera', { width: 1366, height: 900 });
+      await p.goto(BASE + '/sales/app/customers', { waitUntil: 'networkidle' }); await p.waitForTimeout(1500);
+      await p.locator(`tr:has-text("${nC}"), div.rounded-2xl:has-text("${nC}")`).locator('visible=true').last().locator('[data-testid="open-currency-payment"]').first().click(); await p.waitForTimeout(1500);
+      await p.locator('[data-testid="currency-tab-USD"]').click().catch(() => {});
+      await p.waitForFunction(() => ((document.querySelector('[data-testid="cpay-usd-rate"]') || {}).value || '') !== '', null, { timeout: 20000 }).catch(() => {});
+      const pre = await p.locator('[data-testid="cpay-usd-rate"]').inputValue();
+      await p.locator('[data-testid="cpay-usd-rate"]').fill('12650');
+      await p.locator('[data-testid="cpay-cash"]').fill('632500');
+      await p.locator('[data-testid="cpay-submit"]').dblclick(); await p.waitForTimeout(4000);
+      await p.screenshot({ path: shot('seller-usd-payment') }).catch(() => {});
+      await ctx.close();
+      const docs = await L.sel(`client_currency_settlements?customer_id=eq.${cC}&status=eq.confirmed&select=rate_usd_uzs,credited_amount,cash_uzs,recorded_by`);
+      const cacc = (await L.sel(`client_currency_accounts?customer_id=eq.${cC}&currency=eq.USD&select=d:debt_amount,a:advance_amount`))[0] || {};
+      const till1 = (await L.sel(`seller_gold_accounts?seller_id=eq.${C.sellera.id}&select=c:seller_till_cash_amount`))[0];
+      T('RR-UI-3', "seller desktop: USD rate field prefilled with the saved 12 400 and editable; typed 12 650 + 632 500 so'm + double click -> one payment, 50.00 USD credited, USD debt 150, till +632 500 so'm once, snapshot 12 650, actor = seller",
+        N(pre) === 12400 && docs.length === 1 && N(docs[0].rate_usd_uzs) === 12650 && r2(docs[0].credited_amount) === 50 && docs[0].recorded_by === C.sellera.id && r2(cacc.d) === 150 && r2(N(till1.c) - N(till0.c)) === 632500 && bad.length === 0,
+        { pre: 12400, docs: [[12650, 50]], debt: 150, till: 632500 }, { pre, docs: docs.map((x) => [N(x.rate_usd_uzs), r2(x.credited_amount)]), debt: cacc, till: r2(N(till1.c) - N(till0.c)), bad });
+    }
+    // UI-4 manager reviews the rates the seller used (sellers page)
+    {
+      const { ctx, p, bad } = await login('manager', { width: 1366, height: 900 });
+      await p.goto(BASE + '/sales/app/sellers', { waitUntil: 'networkidle' });
+      await p.locator('[data-testid="rate-review-row"]').first().waitFor({ timeout: 20000 }).catch(() => {});
+      await p.locator('[data-testid="rate-review-seller"]').selectOption(C.sellera.id).catch(() => {});
+      await p.locator('[data-testid="rate-review-only-diff"]').check().catch(() => {});
+      await p.waitForTimeout(800);
+      const txt = await p.locator('[data-testid="rate-review-table"]').innerText().catch(() => '');
+      await p.screenshot({ path: shot('manager-rate-review'), fullPage: false }).catch(() => {});
+      await ctx.close();
+      T('RR-UI-4', "manager sellers page: rate review lists the seller's overridden rates (920 000 LOM, 12 650 USD) with the saved values next to them, no API error",
+        /920[\s\u00a0]?000/.test(txt) && /12[\s\u00a0]?650/.test(txt) && bad.length === 0, 'listed', { excerpt: txt.slice(0, 400), bad });
     }
     await br.close();
   }

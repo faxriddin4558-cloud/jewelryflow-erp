@@ -539,6 +539,7 @@ C gold_settlements.direction text NOT NULL
 C gold_settlements.excess_gold_grams numeric(14,4) NOT NULL
 C gold_settlements.fine_gold_grams numeric(14,4)
 C gold_settlements.gold_rate_applied numeric(18,2) NOT NULL
+C gold_settlements.handover_entered_lom_rate numeric(18,2)
 C gold_settlements.id uuid NOT NULL
 C gold_settlements.idempotency_key text
 C gold_settlements.notes text
@@ -1252,6 +1253,7 @@ F rpc_get_director_sales_overview() -> jsonb SECDEF
 F rpc_get_factory_settings(uuid) -> jsonb SECDEF
 F rpc_get_financial_reconciliation_summary() -> jsonb SECDEF
 F rpc_get_manager_available_stock_grams() -> numeric SECDEF
+F rpc_get_operation_rate_review(date,date,uuid) -> jsonb SECDEF
 F rpc_get_period_report(date,date,uuid) -> jsonb SECDEF
 F rpc_get_piece_sales_reconciliation_report() -> jsonb SECDEF
 F rpc_get_seller_available_pieces(uuid) -> jsonb SECDEF
@@ -1423,6 +1425,7 @@ H rpc_get_director_sales_overview() f437c49f079f835db2f1f6d92392bfe6
 H rpc_get_factory_settings(uuid) 7c6467c5ef50cd6fe7525d7cabfc9229
 H rpc_get_financial_reconciliation_summary() 49bd6154b37dbbcec3c16947698ae52a
 H rpc_get_manager_available_stock_grams() ff122356f224410c2356e5d6890ea1da
+H rpc_get_operation_rate_review(date,date,uuid) 3753c346890bf263dff2c42e3aff9875
 H rpc_get_period_report(date,date,uuid) 67a7d6a176a0c0e7b2cc8a24c5362294
 H rpc_get_piece_sales_reconciliation_report() a74a307ca47780c57366567151d049bc
 H rpc_get_seller_available_pieces(uuid) ba75a1144d275bed3d0f94500affe969
@@ -1463,7 +1466,7 @@ H rpc_record_salary_transaction(text,text,text,text,text,numeric,numeric,numeric
 H rpc_record_sale_return(uuid,numeric,text,text,text) b049c6a1dd28d3ade62ae3be2efaa688
 H rpc_record_sale_with_stock_deduction(text,text,text,integer,numeric,numeric,text,numeric,numeric,text,text) d5c1c21f49d21624dfceb249e942db83
 H rpc_record_seller_to_factory_settlement(uuid,numeric,numeric,numeric,date,text,text) 407a69126cd3f7e341e62b6315d61aef
-H rpc_record_seller_to_manager_settlement(uuid,numeric,numeric,numeric,text,text,numeric,numeric,numeric) 22bbdbcd4d4e4cb57148821c43cf5405
+H rpc_record_seller_to_manager_settlement(uuid,numeric,numeric,numeric,text,text,numeric,numeric,numeric) 52885ade384ab699a9b79e8b9a319c81
 H rpc_record_stage_consumption(text,text,text,numeric,numeric,numeric,numeric,numeric,text,boolean,text) e4bf102131838641ac4cf5c001321f3a
 H rpc_record_weight_sale(uuid,uuid,numeric,numeric,text,text,uuid[]) f511699348d59084fdb96c644e1e200a
 H rpc_register_or_get_customer(text,text,text,uuid) 2d9221b8c47e697ef85a41f0871cf758

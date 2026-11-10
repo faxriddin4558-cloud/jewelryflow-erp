@@ -1,6 +1,6 @@
 {
   "target": "local",
-  "run": "mw9pbozl",
+  "run": "mwafxviu",
   "results": [
     {
       "id": "RT-W-1",
@@ -24,11 +24,11 @@
           "unit": "XAU585",
           "status": "ok",
           "manager": null,
-          "sale_id": "ce675f35-f18e-40da-ac73-7b713d152904",
-          "sale_no": "SALE-W-20261110-A7D16D",
-          "piece_id": "015ada05-5309-4911-9e6d-87552393df8e",
-          "return_id": "788530f0-f2cf-463e-bdfa-014c05183812",
-          "return_no": "SALE-W-20261110-A7D16D-V1",
+          "sale_id": "b53b0843-5575-4f40-97de-cc5db98d4f42",
+          "sale_no": "SALE-W-20261110-B27CA0",
+          "piece_id": "cb91fc0d-e11d-41ee-8f62-9d1439cd21e4",
+          "return_id": "7b2d4824-b4a7-4952-8e72-d42f73828ffb",
+          "return_no": "SALE-W-20261110-B27CA0-V1",
           "destination": "seller",
           "debt_reduced": 22.4,
           "returned_value": 22.4,
@@ -52,11 +52,11 @@
       },
       "actual": {
         "stock": 20,
-        "held": 226,
-        "st": 226,
+        "held": 616.9749,
+        "st": 616.9749,
         "o": [
-          374,
-          374
+          1575.4997,
+          1575.4997
         ]
       }
     },
@@ -72,17 +72,17 @@
       "actual": {
         "rows": [
           [
-            "SALE-W-20261110-A7D16D-V1",
+            "SALE-W-20261110-B27CA0-V1",
             20,
             22.4
           ],
           [
-            "SALE-W-20261110-A7D16D-V2",
+            "SALE-W-20261110-B27CA0-V2",
             30,
             33.6
           ],
           [
-            "SALE-W-20261110-A7D16D-V3",
+            "SALE-W-20261110-B27CA0-V3",
             50,
             56
           ]
@@ -102,7 +102,7 @@
       "title": "fully returned sale: next return refused",
       "ok": true,
       "expected": "refused",
-      "actual": "Ushbu savdo to'liq qaytarilgan (SALE-W-20261110-A7D16D)"
+      "actual": "Ushbu savdo to'liq qaytarilgan (SALE-W-20261110-B27CA0)"
     },
     {
       "id": "RT-RPT-3",
@@ -238,28 +238,28 @@
       "expected": "ok",
       "actual": {
         "part": "Barcode (dona) savdo faqat butun dona sifatida qaytariladi: 10.0000 g",
-        "full": "b29726cd-2b62-475c-9ddb-cdd85372b391",
+        "full": "eb7799a6-ce94-421b-95e0-d5f99c0ddf90",
         "piece": {
           "status": "held_by_seller",
           "sale_id": null
         },
-        "again": "Ushbu savdo to'liq qaytarilgan (SALE-BC-BAFE0F4F)",
+        "again": "Ushbu savdo to'liq qaytarilgan (SALE-BC-DAA80946)",
         "stock": 10
       }
     },
     {
       "id": "RT-MGR",
-      "title": "manager receives 4 g: seller stock unchanged (= held pieces), manager stock +4 g, seller obligation -4.4 g (4 x (1 + 10 % of the source consignment)), piece returned_to_manager",
+      "title": "manager receives 4 g: seller stock unchanged (= held pieces), manager stock +4 g, seller obligation -4.48 g (4 x (1 + 12 % of the source consignment)), piece returned_to_manager",
       "ok": true,
       "expected": {
         "seller": 0,
         "manager": 4,
-        "obligation": -4.4
+        "obligation": -4.48
       },
       "actual": {
         "seller": 0,
         "manager": 4,
-        "obligation": -4.4,
+        "obligation": -4.48,
         "piece": {
           "status": "returned_to_manager",
           "weight_grams": 4
@@ -274,7 +274,7 @@
       "actual": {
         "other": "Ruxsat etilmadi: Sotuvchi faqat o'zi amalga oshirgan savdodan vozvrat qila oladi",
         "toMgr": "Ruxsat etilmadi: mahsulotni menejer qabul qilganini faqat menejer yoki direktor tasdiqlaydi",
-        "org": "Savdo hujjati topilmadi (405d18ec-328f-4892-a178-f0c3b7fd3253)",
+        "org": "Savdo hujjati topilmadi (6b6d24b4-0afe-441c-8f41-c1b9e91ebbab)",
         "noKey": "Vozvrat uchun takrorlanmas so'rov kaliti (idempotency key) majburiy",
         "zero": "Qaytariladigan vazn 0 dan katta bo'lishi shart",
         "neg": "Qaytariladigan vazn 0 dan katta bo'lishi shart",
@@ -294,15 +294,15 @@
       },
       "actual": {
         "replay": [
-          "SALE-W-20261110-0986EF-V1",
-          "SALE-W-20261110-0986EF-V1"
+          "SALE-W-20261110-6FBBA7-V1",
+          "SALE-W-20261110-6FBBA7-V1"
         ],
         "docs": 2,
-        "w11": 9.0012,
+        "w11": 9.001,
         "accepted": 3,
         "refused": [
-          "Qaytariladigan vazn (3.0000 g) savdoning qaytarilmagan qismidan (0.9988 g) oshadi",
-          "Qaytariladigan vazn (3.0002 g) savdoning qaytarilmagan qismidan (0.9988 g) oshadi"
+          "Qaytariladigan vazn (3.0000 g) savdoning qaytarilmagan qismidan (0.9990 g) oshadi",
+          "Qaytariladigan vazn (3.0002 g) savdoning qaytarilmagan qismidan (0.9990 g) oshadi"
         ]
       }
     },
@@ -312,7 +312,7 @@
       "ok": true,
       "expected": "refused / ok",
       "actual": {
-        "withReturns": "ERR_SALE_HAS_RETURNS: Ushbu savdodan vozvrat qilingan (SALE-W-20261110-0986EF) - butun savdoni bekor qilib bo'lmaydi; qolgan qismini vozvrat qiling",
+        "withReturns": "ERR_SALE_HAS_RETURNS: Ushbu savdodan vozvrat qilingan (SALE-W-20261110-6FBBA7) - butun savdoni bekor qilib bo'lmaydi; qolgan qismini vozvrat qiling",
         "plain": true
       }
     },
@@ -320,32 +320,32 @@
       "id": "RT-REC-STK-sellera",
       "title": "sellera: stock = held pieces (0.0000 g)",
       "ok": true,
-      "expected": 263.0012,
+      "expected": 653.9759,
       "actual": {
-        "st": 263.0012,
-        "o": 369.6,
-        "held": 263.0012
+        "st": 653.9759,
+        "o": 1571.0197,
+        "held": 653.9759
       }
     },
     {
       "id": "RT-REC-STK-sellerb",
       "title": "sellerb: stock = held pieces (0.0000 g)",
       "ok": true,
-      "expected": 40,
+      "expected": 65.8544,
       "actual": {
-        "st": 40,
-        "o": 44,
-        "held": 40
+        "st": 65.8544,
+        "o": 1020.0315,
+        "held": 65.8544
       }
     },
     {
       "id": "RT-REC-OBL",
       "title": "sellera obligation changed ONLY by the manager-received return; seller-side returns leave it unchanged",
       "ok": true,
-      "expected": -4.4,
+      "expected": -4.48,
       "actual": {
-        "before": 374,
-        "after": 369.6
+        "before": 1575.4997,
+        "after": 1571.0197
       }
     },
     {
@@ -374,12 +374,12 @@
       "title": "period report closing (585 net, USD net) = live accounts; return flows listed",
       "ok": true,
       "expected": {
-        "g585": 49.4965,
-        "usd": 256
+        "g585": 1107.1469,
+        "usd": 30572.97
       },
       "actual": {
-        "g585": 49.4965,
-        "usd": 256,
+        "g585": 1107.1469,
+        "usd": 30572.97,
         "flows": [
           "return_usd",
           "return_uzs",
@@ -395,16 +395,16 @@
       "expected": 3,
       "actual": [
         [
-          -30,
-          -33.6
+          -50,
+          -56
         ],
         [
           -20,
           -22.4
         ],
         [
-          -50,
-          -56
+          -30,
+          -33.6
         ]
       ]
     },
