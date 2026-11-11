@@ -1,0 +1,1 @@
+terminated the pg_dump connection mid-dump at 11:24:40

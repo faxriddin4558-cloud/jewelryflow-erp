@@ -24,7 +24,9 @@
  *  2. Connection: session pooler for postgres.vouehtlmsunebracahon (region found without sending the password,
  *     or --host). Hidden password prompt (or PGPASSWORD); never printed or saved.
  *  3. Identity + state gates (read only): PostgreSQL 17, not a JFS demo database, 074 recorded, nothing > 074.
- *  4. Fresh backup (pg_dump -Fc public/auth/storage/supabase_migrations + schema + roles), SHA256SUMS.
+ *  4. Fresh FULL backup (pg_dump -Fc public/auth/storage/supabase_migrations + schema + roles), SHA256SUMS. No partial
+ *     fallback; TCP keepalives; at most 3 attempts (15 s / 30 s pause), each a fresh file accepted only when pg_restore
+ *     --list reads it (a network drop through the session pooler no longer ends the release).
  *  5. Restore test into a disposable LOCAL cluster; row counts must match staging.
  *  6. Schema parity of the restored copy with repository 001..074 (reported; the 075 parity in step 7 decides).
  *  7. On the LOCAL copy: 075 in one transaction with its postflight checks; every business row
@@ -438,16 +440,37 @@ async function main() {
   const countsBefore = parseCounts(q(remoteEnv, ALL_COUNTS));
   const schemas = ["public", "auth", "storage", "supabase_migrations"];
   backupPath = path.join(outDir, "staging-full.dump");
-  let dumpSchemas = schemas;
-  let r = run("pg_dump", ["-w", "-Fc", ...dumpSchemas.flatMap((s) => ["-n", s]), "-f", backupPath], { env: remoteEnv(), timeoutMs: 60 * MIN });
-  if (r.status !== 0) {
-    fs.writeFileSync(path.join(outDir, "pg_dump-full.err.txt"), clean(r.stderr));
-    dumpSchemas = ["public", "supabase_migrations"];
-    r = run("pg_dump", ["-w", "-Fc", ...dumpSchemas.flatMap((s) => ["-n", s]), "-f", backupPath], { env: remoteEnv(), timeoutMs: 60 * MIN });
-    if (r.status !== 0) stop(`pg_dump failed: ${firstError(r)}`);
-    out("  WARNING: auth/storage could not be dumped; public + supabase_migrations only (logins are not in this backup)");
+  const dumpSchemas = schemas;
+  let r; // reused by the later steps (restore test, chain)
+  // A FULL backup (public, auth, storage, supabase_migrations) is mandatory - there is no partial fallback.
+  // pg_dump holds one long connection through the Supabase session pooler; a network drop on the way ("server closed
+  // the connection unexpectedly" / pooler: ECLIENTSOCKETCLOSED while busy) fails it. So: TCP keepalives, and at most
+  // DUMP_ATTEMPTS attempts with a growing pause, each into a fresh file that only counts after pg_restore --list reads it.
+  const DUMP_ATTEMPTS = 3;
+  const keepalive = `dbname=${TARGET.db} keepalives=1 keepalives_idle=30 keepalives_interval=10 keepalives_count=6 connect_timeout=30`;
+  let dumpOk = false;
+  for (let attempt = 1; attempt <= DUMP_ATTEMPTS && !dumpOk; attempt++) {
+    const part = `${backupPath}.attempt${attempt}`;
+    // local rehearsal only: simulate a failed attempt (wrong port) to prove the retry path
+    const simulate = REHEARSAL && Number(args["simulate-dump-failures"] || 0) >= attempt;
+    const env = simulate ? { ...remoteEnv(), PGPORT: "1" } : remoteEnv();
+    const t0 = Date.now();
+    const r = run("pg_dump", ["-w", "-Fc", "-d", keepalive, ...dumpSchemas.flatMap((s) => ["-n", s]), "-f", part], { env, timeoutMs: 60 * MIN });
+    const readable = r.status === 0 && run("pg_restore", ["--list", part], { timeoutMs: 10 * MIN });
+    if (r.status === 0 && readable && readable.status === 0 && /TABLE DATA public /.test(readable.stdout)) {
+      fs.renameSync(part, backupPath);
+      dumpOk = true;
+      out(`  full dump: attempt ${attempt} ok (${Math.round((Date.now() - t0) / 1000)} s, readable by pg_restore --list)`);
+    } else {
+      const why = r.status !== 0 ? firstError(r) : "dump file not readable by pg_restore --list";
+      fs.writeFileSync(path.join(outDir, `pg_dump-attempt${attempt}.err.txt`), clean(r.stderr || why));
+      try { fs.rmSync(part, { force: true }); } catch { /* partial file */ }
+      out(`  full dump: attempt ${attempt}/${DUMP_ATTEMPTS} FAILED (${Math.round((Date.now() - t0) / 1000)} s): ${why}`);
+      if (attempt < DUMP_ATTEMPTS) { const wait = attempt * 15; out(`  waiting ${wait} s before the next attempt...`); sleep(wait); }
+    }
   }
-  run("pg_dump", ["-w", "--schema-only", ...dumpSchemas.flatMap((s) => ["-n", s]), "-f", path.join(outDir, "staging-schema.sql")], { env: remoteEnv(), timeoutMs: 30 * MIN });
+  if (!dumpOk) stop(`full backup failed ${DUMP_ATTEMPTS} times (see pg_dump-attempt*.err.txt) - nothing was changed; check the network and re-run`);
+  run("pg_dump", ["-w", "--schema-only", "-d", keepalive, ...dumpSchemas.flatMap((s) => ["-n", s]), "-f", path.join(outDir, "staging-schema.sql")], { env: remoteEnv(), timeoutMs: 30 * MIN });
   const roles = run("pg_dumpall", ["-w", "--roles-only", "--no-role-passwords", "-l", TARGET.db, "-f", path.join(outDir, "staging-roles.sql")], { env: remoteEnv(), timeoutMs: 10 * MIN });
   out(`  schemas: ${dumpSchemas.join(", ")}; roles dump: ${roles.status === 0 ? "ok" : "not permitted (non-critical)"}`);
   const countsAfterDump = parseCounts(q(remoteEnv, ALL_COUNTS));
