@@ -1229,7 +1229,7 @@ export function DirectorSalesWorkspace({
             </div>
 
             <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 shadow-md">
-              <div className="text-slate-200 text-xs font-bold">Sotuvchilardagi Zavod Qarzi</div>
+              <div className="text-slate-200 text-xs font-bold">Sotuvchilarning menejerga majburiyati (zavod qarzi emas)</div>
               <div className="text-xl font-black font-mono text-amber-300 mt-1">
                 {formatScreenGrams(totalFactoryObligation)}
               </div>

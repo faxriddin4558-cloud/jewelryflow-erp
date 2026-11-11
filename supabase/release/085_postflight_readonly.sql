@@ -34,7 +34,12 @@ select
   (select bool_and(position('_goldia_opening_factory_net' in prosrc) > 0 and position('_goldia_opening_other' in prosrc) > 0) from pg_proc
     where pronamespace = 'public'::regnamespace and proname in ('rpc_get_accounting_profit_summary', 'rpc_confirm_accounting_baseline')) as profit_and_baseline,
   (select position('ERR_OPENING_SELLER_TILL_NOT_EMPTY' in prosrc) > 0 and position('status = ''locked''' in prosrc) > 0
+          and position('ERR_OPENING_NOT_RECONCILED' in prosrc) > 0
      from pg_proc where proname = 'rpc_confirm_accounting_baseline' and pronamespace = 'public'::regnamespace) as baseline_locks_opening,
+  -- D-1: the reconciliation proves the factory -> manager -> seller chain; the old test cleanup is refused once used
+  (select position('inventory_equals_opening_receipts' in prosrc) > 0 and position('factory_obligation_equals_documents' in prosrc) > 0
+     from pg_proc where oid = 'public.rpc_get_opening_state()'::regprocedure)
+    and (select position('ERR_USE_FINANCIAL_RESTART' in prosrc) > 0 from pg_proc where proname = 'rpc_execute_full_test_reset' and pronamespace = 'public'::regnamespace) as d1_chain_and_reset_guard,
   -- helpers are not callable by clients
   not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
                and p.proname in ('_goldia_opening_seller_obligation', '_goldia_opening_factory_net', '_goldia_opening_other', '_goldia_vault_factory_add', '_goldia_currency_account_add')

@@ -1487,7 +1487,7 @@ H rpc_calculate_piecework_salary(text,text,text,text,text,integer,numeric,intege
 H rpc_cancel_opening_document(uuid,text,text) 944afe22bc5f34d40a1699dc4bbdeac9
 H rpc_close_report_period(date,date,text) cad2426632ccfb31526ee8931f0dfd06
 H rpc_complete_qc_rework(text,text,text,integer,integer,integer,text,text,text) 39469b66b2063ab33e9603a89e4a900c
-H rpc_confirm_accounting_baseline(text,text,numeric) e9ebb87ad5d4cd0c4901c1bb1f01162b
+H rpc_confirm_accounting_baseline(text,text,numeric) 7d9b7cb2981023591cf0043ecbd81a79
 H rpc_create_batch_with_gold_issue(text,text,text,text,numeric,integer,numeric,numeric,text,date,text) 62da66cfec34bddbb06495b8e59880a4
 H rpc_create_customer_with_code(text,text,text,uuid,text) 502adfd3e57ccfe82d241ca0fcb12016
 H rpc_create_jewelry_model(text,text,text,numeric,text,text,uuid,text) 96cc71ec56c1117e97fd33225cea4d0d
@@ -1498,7 +1498,7 @@ H rpc_diagnose_piece_inventory_conflicts() 2fa214b8b8e62675ad4d1ac86ff5e37f
 H rpc_dispatch_stage_handover(text,text,integer,text,text,integer,text,text,text,text,integer,numeric,text,text,numeric,text,text,boolean,text,text) b91faa44a5c21383a93a7058086292cb
 H rpc_execute_affinaj_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text) 4d859c624ae436b2e79c743c51449706
 H rpc_execute_alloy_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text,numeric,text,numeric,text) e45b94b30ebdaa9a9a560b706725290e
-H rpc_execute_full_test_reset(text,text) 6bde994f936c8ad86a619d21a1859951
+H rpc_execute_full_test_reset(text,text) 1995b76e66a82c08ba84507b71e21b8d
 H rpc_execute_selective_test_cleanup(uuid[],text,text) 2ea00d514179828f439976b6962f1809
 H rpc_execute_sheets_historical_import(text,text,jsonb,boolean,text) 58c5cf791f11077afc1d5bf5b6b21e6b
 H rpc_execute_staging_test_cleanup(text,text) b3aa0c85f05a886fdb5b363c35f02b47
@@ -1513,7 +1513,7 @@ H rpc_get_director_sales_overview() f437c49f079f835db2f1f6d92392bfe6
 H rpc_get_factory_settings(uuid) 7c6467c5ef50cd6fe7525d7cabfc9229
 H rpc_get_financial_reconciliation_summary() 49bd6154b37dbbcec3c16947698ae52a
 H rpc_get_manager_available_stock_grams() ff122356f224410c2356e5d6890ea1da
-H rpc_get_opening_state() a01463964de2211295f3ca7ea83f5d58
+H rpc_get_opening_state() 5e5aace7e1281a8a9dd5cd9c7cb24e28
 H rpc_get_operation_rate_review(date,date,uuid) 3753c346890bf263dff2c42e3aff9875
 H rpc_get_period_report(date,date,uuid) 67a7d6a176a0c0e7b2cc8a24c5362294
 H rpc_get_piece_sales_reconciliation_report() a74a307ca47780c57366567151d049bc

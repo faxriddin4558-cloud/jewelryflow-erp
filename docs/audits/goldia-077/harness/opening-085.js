@@ -107,7 +107,7 @@ const T = (id, title, ok, exp, act) => { R.push({ id, title, ok: !!ok, expected:
     const after = await L.rpc('manager', 'rpc_record_opening_document', { p_kind: 'manager_cash', p_unit: 'UZS', p_amount: 1, p_idempotency_key: `op85-late-${run}` });
     const per = (await L.sel(`opening_periods?organization_id=eq.${L.ORG}&order=created_at.desc&limit=1&select=status,baseline_id`))[0];
     T('OP-6', 'reconciliation all green, lock via the baseline (double click once): period locked; a later opening entry is refused',
-      checks.length === 6 && checks.every((x) => x.startsWith('✅')) && per.status === 'locked' && !!per.baseline_id && /qulflangan/.test(status) && !after.ok && /ERR_OPENING_LOCKED/.test(after.error),
+      checks.length === 8 && checks.every((x) => x.startsWith('✅')) && per.status === 'locked' && !!per.baseline_id && /qulflangan/.test(status) && !after.ok && /ERR_OPENING_LOCKED/.test(after.error),
       'locked', { checks, period: per, after: after.error });
   }
   // OP-7 phone width

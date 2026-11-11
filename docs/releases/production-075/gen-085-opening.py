@@ -66,6 +66,18 @@ $$""",
      and o.status = 'cancelled' and o.cancelled_at is not null
 $$"""),
 ]
+# ------------------------------------------------------------------ old test reset: never once the controlled opening is used
+P["rpc_execute_full_test_reset"] = [
+("""    raise exception 'Test hisobini tozalash sababi (audit uchun) kiritilishi shart';
+  end if;""",
+ """    raise exception 'Test hisobini tozalash sababi (audit uchun) kiritilishi shart';
+  end if;
+  -- 085: this test cleanup leaves UZS / USD balances behind; an organization that uses the controlled financial
+  -- restart / opening accounting is never reset this way
+  if exists (select 1 from public.opening_periods where organization_id = v_caller_org) then
+    raise exception 'ERR_USE_FINANCIAL_RESTART: bu tashkilotda boshlang''ich hisob yuritiladi - sinov tozalash taqiqlangan (Boshlang''ich hisob sahifasidagi nazoratli qayta boshlashdan foydalaning)' using errcode = '55000';
+  end if;"""),
+]
 # ------------------------------------------------------------------ profit summary: opening factory net + other items
 OTHER_DECL = ("""  v_unvalued               text[] := array[]::text[];""",
 """  v_unvalued               text[] := array[]::text[];
@@ -114,6 +126,7 @@ P["rpc_confirm_accounting_baseline"] = [
 ("""  v_factory_advance_g      numeric(14, 4);""",
  """  v_factory_advance_g      numeric(14, 4);
   v_open                   public.opening_periods%rowtype;
+  v_open_fail              text;
   v_oth_assets_g           numeric(14, 4) := 0;
   v_oth_liab_g             numeric(14, 4) := 0;"""),
 ("""  v_net_factory_g := v_factory_rcp_g - v_factory_hnd_g;""",
@@ -141,6 +154,16 @@ P["rpc_confirm_accounting_baseline"] = [
                                 or coalesce(v_seller_scrap_585_eq_g, 0) <> 0) then
     raise exception 'ERR_OPENING_SELLER_TILL_NOT_EMPTY: Boshlang''ich hisobda sotuvchilar kassasi bo''sh bo''lishi shart (so''m %, USD %, lom % g)',
       coalesce(v_seller_cash_uzs, 0), coalesce(v_seller_cash_usd, 0), coalesce(v_seller_scrap_585_eq_g, 0) using errcode = '22023';
+  end if;
+  -- 085 (D-1): the server refuses an unreconciled opening - the UI button is not the only gate
+  if v_open.id is not null then
+    select string_agg(c.key, ', ' order by c.key) into v_open_fail
+      from jsonb_each(public.rpc_get_opening_state() -> 'checks') c
+     where (c.key = 'non_opening_documents_after_restart' and c.value <> '0'::jsonb)
+        or (c.key <> 'non_opening_documents_after_restart' and c.value <> 'true'::jsonb);
+    if v_open_fail is not null then
+      raise exception 'ERR_OPENING_NOT_RECONCILED: boshlang''ich hisob solishtirilmagan: %', v_open_fail using errcode = '22023';
+    end if;
   end if;
 
   update public.accounting_baselines
@@ -960,6 +983,14 @@ begin
       'manager_scrap_physical_g', (select manager_scrap_physical_g from public.manager_vault_account where organization_id = v_org),
       'manager_scrap_585_g', (select manager_scrap_grams from public.manager_vault_account where organization_id = v_org),
       'manager_fine_585_g', (select manager_refined_gold_grams from public.manager_vault_account where organization_id = v_org),
+      -- D-1 (2026-11-11): every piece on the manager or a seller came FACTORY -> MANAGER; the factory obligation is
+      -- created only at that stage (opening receipts) plus the obligation for goods already sold but not yet settled
+      'opening_receipts_physical_g', (select coalesce(sum(r.original_physical_g), 0) from public.factory_receipts r
+           where r.organization_id = v_org and r.status <> 'reversed' and r.opening_document_id is not null),
+      'factory_obligation_from_goods_g', (select coalesce(sum(r.factory_obligation_g), 0) from public.factory_receipts r
+           where r.organization_id = v_org and r.status <> 'reversed' and r.opening_document_id is not null),
+      'factory_obligation_without_goods_g', (select coalesce(sum(amount), 0) from d where kind = 'factory_obligation' and status = 'active'),
+      'factory_advance_documents_g', (select coalesce(sum(amount), 0) from d where kind = 'factory_advance' and status = 'active'),
       'other_assets_585_g', (select assets_g from public._goldia_opening_other(v_org)),
       'other_liabilities_585_g', (select liabilities_g from public._goldia_opening_other(v_org))),
     'sellers', coalesce((select jsonb_agg(jsonb_build_object('seller_id', s.id, 'name', s.name, 'stock_g', s.stock, 'held_g', s.held,
@@ -977,12 +1008,39 @@ begin
       'customer_usd_equals_documents', (select coalesce(sum(case side when 'debt' then amount else -amount end), 0) from d
                                           where kind = 'customer_currency' and unit = 'USD' and status = 'active')
         = (select coalesce(sum(debt_amount - advance_amount), 0) from public.client_currency_accounts where organization_id = v_org and currency = 'USD'),
-      'non_opening_documents_after_restart', (select count(*) from public.jewelry_sales s where s.organization_id = v_org and v_per.id is not null
+      -- D-1: manager stock + seller stock = the grams of the opening receipts (nothing on hand outside the chain)
+      'inventory_equals_opening_receipts', abs(public.get_manager_available_stock_grams(v_org) + (select coalesce(sum(held), 0) from sel)
+          - (select coalesce(sum(r.original_physical_g), 0) from public.factory_receipts r
+              where r.organization_id = v_org and r.status <> 'reversed' and r.opening_document_id is not null)) < 0.0001,
+      -- D-1: the factory account = opening receipts (goods) + sold-not-settled obligations - advances; a manager ->
+      -- seller transfer neither creates nor lowers it
+      'factory_obligation_equals_documents', abs(coalesce((select current_factory_obligation_g - current_factory_advance_g
+            from public.manager_vault_account where organization_id = v_org), 0)
+          - ((select coalesce(sum(r.factory_obligation_g), 0) from public.factory_receipts r
+               where r.organization_id = v_org and r.status <> 'reversed' and r.opening_document_id is not null)
+             + (select coalesce(sum(case kind when 'factory_obligation' then amount else -amount end), 0) from d
+                 where kind in ('factory_obligation', 'factory_advance') and status = 'active'))) < 0.0001,
+      'non_opening_documents_after_restart', (select count(*) from public.jewelry_sales s where s.organization_id = v_org and v_per.id is not null and s.status not in ('reversed', 'cancelled')
                                                 and s.created_at > (select created_at from public.financial_restarts where id = v_per.restart_id))
-        + (select count(*) from public.gold_settlements g where g.organization_id = v_org and v_per.id is not null
+        + (select count(*) from public.gold_settlements g where g.organization_id = v_org and v_per.id is not null and coalesce(g.status, 'confirmed') not in ('reversed', 'cancelled')
                                                 and g.created_at > (select created_at from public.financial_restarts where id = v_per.restart_id))
-        + (select count(*) from public.client_currency_settlements c where c.organization_id = v_org and v_per.id is not null
-                                                and c.created_at > (select created_at from public.financial_restarts where id = v_per.restart_id))))
+        + (select count(*) from public.client_currency_settlements c where c.organization_id = v_org and v_per.id is not null and c.status <> 'reversed'
+                                                and c.created_at > (select created_at from public.financial_restarts where id = v_per.restart_id))
+        -- D-1 rule 7: the opening is entered through opening documents only (no ordinary receipt / consignment /
+        -- legacy entry / capital / factory handover / purchase in the draft)
+        + (select count(*) from public.factory_receipts r where r.organization_id = v_org and v_per.id is not null and r.opening_document_id is null and r.status <> 'reversed'
+             and r.created_at > (select created_at from public.financial_restarts where id = v_per.restart_id))
+        + (select count(*) from public.seller_consignments c where c.organization_id = v_org and v_per.id is not null
+             and c.status <> 'cancelled' and not exists (select 1 from public.opening_documents o where o.consignment_id = c.id)
+             and c.created_at > (select created_at from public.financial_restarts where id = v_per.restart_id))
+        + (select count(*) from public.client_legacy_debts l where l.organization_id = v_org and v_per.id is not null and l.entry_type <> 'opening' and l.status <> 'reversed'
+             and l.created_at > (select created_at from public.financial_restarts where id = v_per.restart_id))
+        + (select count(*) from public.financial_transactions f where f.organization_id = v_org and v_per.id is not null and f.status <> 'reversed'
+             and f.created_at > (select created_at from public.financial_restarts where id = v_per.restart_id))
+        + (select count(*) from public.factory_gold_handovers h where h.organization_id = v_org and v_per.id is not null and h.status <> 'reversed'
+             and h.created_at > (select created_at from public.financial_restarts where id = v_per.restart_id))
+        + (select count(*) from public.gold_purchases g where g.organization_id = v_org and v_per.id is not null and g.status <> 'reversed'
+             and g.created_at > (select created_at from public.financial_restarts where id = v_per.restart_id))))
     into v_res;
   return v_res;
 end;

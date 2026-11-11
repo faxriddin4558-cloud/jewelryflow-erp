@@ -276,7 +276,11 @@ describe("Goldia 085 — financial restart + opening accounting", () => {
     const s = await t.rpc(`public.rpc_get_opening_state()`);
     expect((s.period as Record<string, unknown>).status).toBe("draft");
     expect(s.checks).toEqual({ seller_tills_empty: true, seller_stock_equals_held_pieces: true, customer_585_equals_documents: true,
-      customer_uzs_equals_documents: true, customer_usd_equals_documents: true, non_opening_documents_after_restart: 0 });
+      customer_uzs_equals_documents: true, customer_usd_equals_documents: true, inventory_equals_opening_receipts: true,
+      factory_obligation_equals_documents: true, non_opening_documents_after_restart: 0 });
+    // D-1: on hand (manager 70 + sellers 80) = opening receipts (100 manager + 50 seller-only); factory = 108 + 54 + 20 - 5
+    const t0 = s.totals as Record<string, unknown>;
+    expect([N(t0.opening_receipts_physical_g), N(t0.factory_obligation_from_goods_g), N(t0.factory_obligation_without_goods_g), N(t0.factory_advance_documents_g)]).toEqual([150, 162, 20, 5]);
     const tot = s.totals as Record<string, unknown>;
     expect([N(tot.manager_stock_g), N(tot.sellers_stock_g), N(tot.factory_obligation_g), N(tot.sellers_obligation_g)]).toEqual([70, 80, 177, r4(78.6 + 56)]);
   });
@@ -286,6 +290,11 @@ describe("Goldia 085 — financial restart + opening accounting", () => {
     await as(mgr);
     await t.expectError(`SELECT public.rpc_confirm_accounting_baseline(p_notes := 'T0', p_idempotency_key := 'b0', p_usd_rate := 12500)`, "ERR_OPENING_SELLER_TILL_NOT_EMPTY");
     await q(`UPDATE public.seller_gold_accounts SET seller_till_cash_amount = 0 WHERE seller_id = '${A.employeeId}'`);
+    // the SERVER refuses an unreconciled opening (not only the UI button): an ordinary factory receipt in the draft
+    await as(mgr);
+    const stray = await t.rpc(`public.rpc_record_factory_receipt(p_product_name := 'oddiy kirim', p_original_physical_g := 5, p_factory_markup_pct := 8, p_idempotency_key := 'stray-rc')`);
+    await t.expectError(`SELECT public.rpc_confirm_accounting_baseline(p_notes := 'T0', p_idempotency_key := 'b-stray', p_usd_rate := 12500)`, "ERR_OPENING_NOT_RECONCILED");
+    await t.rpc(`public.rpc_reverse_factory_receipt('${stray.receipt_id}', 'xato', 'stray-rev')`);
     await as(mgr);
     const b = await t.rpc(`public.rpc_confirm_accounting_baseline(p_notes := 'T0', p_idempotency_key := 'b1', p_usd_rate := 12500)`);
     const U = 12500;
