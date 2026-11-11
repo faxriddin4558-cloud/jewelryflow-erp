@@ -73,6 +73,22 @@ const T = (id, title, ok, exp, act) => { R.push({ id, title, ok: !!ok, expected:
 
   // OP-4 / OP-5 manager enters openings in the UI
   const cust = (await L.rpc('sellera', 'rpc_create_customer_with_code', { p_contact_name: `OP85 ${run}` })).data.customer_id;
+  // OP-9 D-4: during the draft every ordinary financial write is refused BY THE DATABASE - direct RPC, parallel requests,
+  // seller / manager / director alike (customers may still be created)
+  {
+    const calls = [];
+    for (let i = 0; i < 4; i++) calls.push(L.rpc('sellera', 'rpc_record_client_legacy_debt', { p_customer_id: cust, p_balance_type: 'debt', p_amount_585_g: 1 + i, p_as_of_date: L.tashkentToday(), p_idempotency_key: `op85-leg-${run}-${i}` }));
+    for (let i = 0; i < 3; i++) calls.push(L.rpc('sellera', 'rpc_record_client_currency_settlement', { p_customer_id: cust, p_currency: 'USD', p_usd_amount: 10 + i, p_idempotency_key: `op85-cp-${run}-${i}` }));
+    calls.push(L.rpc('manager', 'rpc_record_financial_transaction', { p_transaction_type: 'capital_contribution', p_source_till: 'manager_uzs', p_amount: 1000, p_currency: 'UZS', p_gold_rate: 900000, p_idempotency_key: `op85-cap-${run}` }));
+    calls.push(L.rpc('director', 'rpc_record_factory_receipt', { p_product_name: 'x', p_original_physical_g: 1, p_factory_markup_pct: 8, p_idempotency_key: `op85-rc-${run}` }));
+    calls.push(L.rpc('manager', 'rpc_execute_full_test_reset', { p_confirmation_code: 'RESET_TEST_ACCOUNT_2026', p_reason: 'bypass try' }));
+    const res = await Promise.all(calls);
+    const refused = res.filter((r) => !r.ok && /ERR_OPENING_DRAFT|ERR_USE_FINANCIAL_RESTART|Permission denied/.test(r.error)).length;
+    const live = (await L.sel(`client_legacy_debts?organization_id=eq.${L.ORG}&status=neq.reversed&select=id`)).length
+      + (await L.sel(`client_currency_settlements?organization_id=eq.${L.ORG}&status=neq.reversed&select=id`)).length;
+    T('OP-9', 'D-4: 10 parallel direct RPC writes in the draft (seller legacy / currency payments, manager capital, director receipt, old reset) -> all refused, nothing written', refused === res.length && live === 0,
+      { refused: res.length, live: 0 }, { refused, live, errors: [...new Set(res.map((r) => (r.error || 'OK').slice(0, 40)))] });
+  }
   {
     const { ctx, p, bad } = await login('manager');
     const kind = async (k) => { await p.selectOption('[data-testid="opening-kind"]', k); await p.waitForTimeout(300); };
@@ -123,6 +139,24 @@ const T = (id, title, ok, exp, act) => { R.push({ id, title, ok: !!ok, expected:
   const sa2 = (await L.sel(`seller_gold_accounts?seller_id=eq.${C.sellera.id}&select=current_physical_stock_g,seller_owes_manager_g`))[0];
   T('OP-8', 'after the opening: weight sale 5 g from the opening seller stock -> stock 25, obligation unchanged 43.6', sale.ok && r4(sa2.current_physical_stock_g) === 25 && r4(sa2.seller_owes_manager_g) === 43.6,
     { stock: 25, owes: 43.6 }, sale.ok ? sa2 : sale.error);
+  // OP-10 race: a restart and 10 parallel ordinary writes at the same moment -> the restart serializes with them; afterwards
+  // nothing ordinary is live in the new draft (each write either finished before and was archived, or was refused)
+  {
+    const bv2 = await L.svc('POST', 'rest/v1/financial_backup_verifications', { organization_id: L.ORG, backup_reference: `local-backup-${run}-2.dump`, restore_verified: true }, { Prefer: 'return=representation' });
+    const writes = [];
+    for (let i = 0; i < 6; i++) writes.push(L.rpc('sellera', 'rpc_record_client_legacy_debt', { p_customer_id: cust, p_balance_type: 'debt', p_amount_585_g: 2 + i, p_as_of_date: L.tashkentToday(), p_idempotency_key: `op85-race-leg-${run}-${i}` }));
+    for (let i = 0; i < 4; i++) writes.push(L.rpc('sellera', 'rpc_record_client_currency_settlement', { p_customer_id: cust, p_currency: 'USD', p_usd_amount: 5 + i, p_idempotency_key: `op85-race-cp-${run}-${i}` }));
+    const rs = L.rpc('director', 'rpc_financial_restart', { p_confirmation: 'MOLIYAVIY HISOBNI QAYTA BOSHLASH', p_reason: `OP85 race ${run}`, p_t0: new Date().toISOString(), p_backup_verification_id: bv2.data[0].id, p_idempotency_key: `op85-race-${run}` });
+    const all = await Promise.all([rs, ...writes]);
+    const restart = all[0]; const w = all.slice(1);
+    const okOrRefused = w.every((r) => r.ok || /ERR_OPENING_DRAFT/.test(r.error));
+    const live = (await L.sel(`client_legacy_debts?organization_id=eq.${L.ORG}&status=neq.reversed&select=id`)).length
+      + (await L.sel(`client_currency_settlements?organization_id=eq.${L.ORG}&status=neq.reversed&select=id`)).length;
+    const st = (await L.rpc('manager', 'rpc_get_opening_state', {})).data;
+    T('OP-10', 'race: restart + 10 parallel writes -> restart ok, every write either archived (before) or refused (after), nothing live in the draft, reconciliation counts 0',
+      restart.ok && okOrRefused && live === 0 && st.checks.non_opening_documents_after_restart === 0,
+      { restart: 'ok', live: 0 }, { restart: restart.ok || restart.error, accepted: w.filter((r) => r.ok).length, refused: w.filter((r) => !r.ok).length, live, other: w.filter((r) => !r.ok && !/ERR_OPENING_DRAFT/.test(r.error)).map((r) => r.error) });
+  }
   await br.close();
   fs.writeFileSync(OUT, JSON.stringify({ target: TARGET, run, results: R }, null, 2));
   console.log(`TOTAL ${R.filter((x) => x.ok).length}/${R.length} -> ${OUT}`);

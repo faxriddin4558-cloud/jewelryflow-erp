@@ -2,16 +2,16 @@
   "target": "local",
   "version": {
     "status": "ok",
-    "commit": "0ddf71f",
-    "full_commit": "0ddf71f1b66292fda2b79636b4c6c08a01a0f9fa",
+    "commit": "c36671e",
+    "full_commit": "c36671e5e1a4fa8bba05138aab218441fca06332",
     "env": "staging",
     "staging_mode": true,
     "supabase_ref": "127",
     "sha_source": "build",
     "vercel_git_commit": null,
-    "timestamp": "2026-11-11T08:37:56.795Z"
+    "timestamp": "2026-11-11T09:34:32.342Z"
   },
-  "run": "mwbv8447",
+  "run": "mwbx8vq4",
   "results": [
     {
       "id": "UI-01",
@@ -31,7 +31,7 @@
       "title": "seller saves 206.83 g legacy debt in the UI (075: permission denied) - success message, no error",
       "ok": true,
       "expected": "success",
-      "actual": "Eski qarz/avans muvaffaqiyatli saqlandi! (UI76 Aziza mwbv8447): Tuzatish: +206"
+      "actual": "Eski qarz/avans muvaffaqiyatli saqlandi! (UI76 Aziza mwbx8vq4): Tuzatish: +206"
     },
     {
       "id": "UI-03",
@@ -56,8 +56,8 @@
       },
       "actual": {
         "l": 206.83,
-        "stock0": 352.5008,
-        "stock1": 352.5008
+        "stock0": 352.5006,
+        "stock1": 352.5006
       }
     },
     {
@@ -94,7 +94,7 @@
       "ok": true,
       "expected": 33.6,
       "actual": {
-        "msg": "Vazn bo'yicha savdo muvaffaqiyatli rasmiylashtirildi! (UI76 Bobur mwbv8447): 30",
+        "msg": "Vazn bo'yicha savdo muvaffaqiyatli rasmiylashtirildi! (UI76 Bobur mwbx8vq4): 30",
         "debt": 33.6
       }
     },
@@ -107,8 +107,8 @@
       },
       "actual": {
         "dec": 30,
-        "held": 322.5008,
-        "stock": 322.5008
+        "held": 322.5006,
+        "stock": 322.5006
       }
     },
     {

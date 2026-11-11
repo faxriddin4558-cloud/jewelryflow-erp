@@ -1,6 +1,6 @@
 {
   "target": "local",
-  "run": "mwbvd99q",
+  "run": "mwbxe3q8",
   "results": [
     {
       "id": "OP-1",
@@ -26,7 +26,7 @@
         "restarts": 1,
         "drafts": 1,
         "draftBefore": 0,
-        "status": "Davr: OPN-20261111-1341-864089 · T0: 11.11.2026, 12:41:00 · Holat: qoralama",
+        "status": "Davr: OPN-20261111-1437-524DCA · T0: 11.11.2026, 13:37:00 · Holat: qoralama",
         "bad": []
       }
     },
@@ -39,6 +39,23 @@
         "idsSame": true,
         "sellers": 0,
         "cust": 0
+      }
+    },
+    {
+      "id": "OP-9",
+      "title": "D-4: 10 parallel direct RPC writes in the draft (seller legacy / currency payments, manager capital, director receipt, old reset) -> all refused, nothing written",
+      "ok": true,
+      "expected": {
+        "refused": 10,
+        "live": 0
+      },
+      "actual": {
+        "refused": 10,
+        "live": 0,
+        "errors": [
+          "ERR_OPENING_DRAFT: boshlang'ich hisob ta",
+          "Permission denied for role \"production_m"
+        ]
       }
     },
     {
@@ -91,7 +108,7 @@
         ],
         "period": {
           "status": "locked",
-          "baseline_id": "997396bb-0ca5-45e2-a66d-a509b70f9a1f"
+          "baseline_id": "05341261-961e-476a-8150-7dbf8aed08ec"
         },
         "after": "ERR_OPENING_LOCKED: boshlang'ich hisob tasdiqlangan va qulflangan"
       }
@@ -114,6 +131,22 @@
       "actual": {
         "current_physical_stock_g": 25,
         "seller_owes_manager_g": 43.6
+      }
+    },
+    {
+      "id": "OP-10",
+      "title": "race: restart + 10 parallel writes -> restart ok, every write either archived (before) or refused (after), nothing live in the draft, reconciliation counts 0",
+      "ok": true,
+      "expected": {
+        "restart": "ok",
+        "live": 0
+      },
+      "actual": {
+        "restart": true,
+        "accepted": 4,
+        "refused": 6,
+        "live": 0,
+        "other": []
       }
     }
   ]

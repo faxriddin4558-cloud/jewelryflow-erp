@@ -1,15 +1,16 @@
-2026-11-11 (after D-1) — local stand-in after the staging release rehearsal 081 -> 085, real GoTrue logins, Next.js build 0ddf71f
-rate-084 exit=0 42s TOTAL 18/18 -> docs/audits/goldia-077/evidence/local-085/local-rate-084-on-085.json
-ret-083 exit=0 29s TOTAL 28/28 -> docs/audits/goldia-077/evidence/local-085/local-ret-083-on-085.json
+2026-11-11 (final rules D-2 / D-3 / D-4 / D-6) — fresh 001..085 (postflight 085 15/15), rehearsal 081 -> 085 PASS, real GoTrue + Next.js build
+rate-084 exit=0 37s TOTAL 18/18 -> docs/audits/goldia-077/evidence/local-085/local-rate-084-on-085.json
+ret-083 exit=0 26s TOTAL 28/28 -> docs/audits/goldia-077/evidence/local-085/local-ret-083-on-085.json
 balance-082 exit=0 29s TOTAL 19/19 -> docs/audits/goldia-077/evidence/local-085/local-balance-082-on-085.json
 adv-081 exit=0 26s TOTAL 11/11
-ui-076 exit=0 57s TOTAL 17/17
-ui-077 exit=0 87s TOTAL 21/21
-ui-078-archive exit=0 49s TOTAL 10/10
+ui-076 exit=0 58s TOTAL 17/17
+ui-077 exit=0 88s TOTAL 21/21
+ui-078-archive exit=0 50s TOTAL 10/10
 da-079 exit=0 8s TOTAL 14/14
 currency exit=0 6s TOTAL 13/13
-stress-076 exit=0 11s TOTAL 16/16 -> docs/audits/goldia-077/evidence/local-085/local-stress-076-on-085.json
-opening-085 exit=0 41s TOTAL 8/8 -> docs/audits/goldia-077/evidence/local-085/local-opening-085.json
+stress-076 exit=0 12s TOTAL 16/16 -> docs/audits/goldia-077/evidence/local-085/local-stress-076-on-085.json
+opening-085 exit=0 42s TOTAL 10/10 -> docs/audits/goldia-077/evidence/local-085/local-opening-085.json
 parity-matrix: DIRECTOR vs MANAGER mismatches (excluding test reset): 0 MISSING / AMBIGUOUS calls: 0 
 ui-078-report-race: 1 PASS, 0 FAIL
-vitest 433/433 (085 14/14, D-1 chain 5/5); tsc exit 0; eslint src exit 0; next build OK
+first run of opening-085 OP-10 found a deadlock in a parallel write during the restart (safe outcome, nothing live); guard made non-blocking (try-lock), re-run 10/10
+vitest 439/439; tsc 0; eslint src 0; next build OK

@@ -2,14 +2,14 @@
  "target": "local",
  "version": {
   "status": "ok",
-  "commit": "0ddf71f",
-  "full_commit": "0ddf71f1b66292fda2b79636b4c6c08a01a0f9fa",
+  "commit": "c36671e",
+  "full_commit": "c36671e5e1a4fa8bba05138aab218441fca06332",
   "env": "staging",
   "staging_mode": true,
   "supabase_ref": "127",
   "sha_source": "build",
   "vercel_git_commit": null,
-  "timestamp": "2026-11-11T08:40:58.925Z"
+  "timestamp": "2026-11-11T09:37:37.633Z"
  },
  "requests": [
   "{\"p_from\":\"2026-11-01\",\"p_to\":\"2026-11-11\",\"p_seller_id\":null}",

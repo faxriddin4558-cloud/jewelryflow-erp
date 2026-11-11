@@ -1,6 +1,6 @@
 GOLDIA SALES — staging release <detected level> -> 085 (APPLY)
 
-started: 2026-11-11T08:33:05.683Z  mode: APPLY (LOCAL REHEARSAL)
+started: 2026-11-11T09:29:56.374Z  mode: APPLY (LOCAL REHEARSAL)
 [1/10] tools: /opt/goldia-audit/pg17root/wrap (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
   checkout: 85 migration files, newest 085
 [2/10] connection
@@ -15,12 +15,12 @@ started: 2026-11-11T08:33:05.683Z  mode: APPLY (LOCAL REHEARSAL)
   history repair requested: none
   migrations to apply: 082 -> 083 -> 084 -> 085
   RELEASE PLAN (detected): staging 081 -> 082 -> 083 -> 084 -> 085
-  chain file: chain-082-085.sql sha256=ba47e28e0e8a9a58 (4 migrations)
+  chain file: chain-082-085.sql sha256=817048ed27a408e3 (4 migrations)
 [4/10] fresh backup (outside the repository)
   schemas: public, auth, storage, supabase_migrations; roles dump: ok
-  74d027cce060fc69b7ad738797956c93cfba2b12db4852104208b39d5ab4def7  staging-full.dump  1435152 bytes
-  4caebce483c600a918a7e09d334ac5270200b81b0888273d539466d6d23a5542  staging-roles.sql  1582 bytes
-  c64731866d47bda510b5bc3ec48480ffc095ac074ab6413dbc2011e5f693b4ad  staging-schema.sql  1176987 bytes
+  5d899bb264372986ddb6c3700ac44e173707b7dbab70f74dee5cddff7e83f3d7  staging-full.dump  1434845 bytes
+  afe74de18bf335cb52c27f566ba90afc7c38ced0c5ca693496623aa1497fb8b4  staging-roles.sql  1582 bytes
+  0792de110400e65738065fc384ce205e64c61ccd2a7d535430d647e0390fc847  staging-schema.sql  1176987 bytes
 [5/10] restore test into a disposable LOCAL PostgreSQL (staging untouched)
   extensions not available locally (platform only): none
   restored copy vs staging row counts: identical (71 tables)
@@ -57,4 +57,4 @@ started: 2026-11-11T08:33:05.683Z  mode: APPLY (LOCAL REHEARSAL)
   per-organization balances: unchanged
   POSTFLIGHT: PASS
 
-RESULT: STAGING 081 -> 085 APPLIED, POSTFLIGHT PASS. Next: deploy the release-candidate frontend to staging (docs/releases/staging-075/README.md). Report: /opt/goldia-audit/rehearsal085/goldia-staging-2026-11-11T08-33-05/STAGING-085-RESULT.txt
+RESULT: STAGING 081 -> 085 APPLIED, POSTFLIGHT PASS. Next: deploy the release-candidate frontend to staging (docs/releases/staging-075/README.md). Report: /opt/goldia-audit/rehearsal085/goldia-staging-2026-11-11T09-29-56/STAGING-085-RESULT.txt

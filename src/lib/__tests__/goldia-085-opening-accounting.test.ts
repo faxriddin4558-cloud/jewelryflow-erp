@@ -292,9 +292,16 @@ describe("Goldia 085 — financial restart + opening accounting", () => {
     await q(`UPDATE public.seller_gold_accounts SET seller_till_cash_amount = 0 WHERE seller_id = '${A.employeeId}'`);
     // the SERVER refuses an unreconciled opening (not only the UI button): an ordinary factory receipt in the draft
     await as(mgr);
-    const stray = await t.rpc(`public.rpc_record_factory_receipt(p_product_name := 'oddiy kirim', p_original_physical_g := 5, p_factory_markup_pct := 8, p_idempotency_key := 'stray-rc')`);
+    // D-4: an ordinary write in the draft is refused by the database itself
+    await t.expectError(`SELECT public.rpc_record_factory_receipt(p_product_name := 'oddiy kirim', p_original_physical_g := 5, p_factory_markup_pct := 8, p_idempotency_key := 'stray-rc')`, "ERR_OPENING_DRAFT");
+    // second line of defence: even if a row got in (simulated bypass by the table owner), the baseline refuses
+    await ex(`BEGIN; SELECT set_config('goldia.opening_write', txid_current()::text, true);
+      INSERT INTO public.factory_receipts (id, organization_id, receipt_no, product_name, original_physical_g, available_physical_g, proba, factory_markup_pct, factory_obligation_g, status)
+      VALUES ('00000000-0000-0000-0000-00000000f085', '${org}', 'STRAY-085', 'stray', 5, 5, 585, 8, 5.4, 'in_manager_stock'); COMMIT;`);
+    await as(mgr);
     await t.expectError(`SELECT public.rpc_confirm_accounting_baseline(p_notes := 'T0', p_idempotency_key := 'b-stray', p_usd_rate := 12500)`, "ERR_OPENING_NOT_RECONCILED");
-    await t.rpc(`public.rpc_reverse_factory_receipt('${stray.receipt_id}', 'xato', 'stray-rev')`);
+    await ex(`BEGIN; SELECT set_config('goldia.opening_write', txid_current()::text, true);
+      UPDATE public.factory_receipts SET status = 'reversed', reversed_at = now(), available_physical_g = 0 WHERE id = '00000000-0000-0000-0000-00000000f085'; COMMIT;`);
     await as(mgr);
     const b = await t.rpc(`public.rpc_confirm_accounting_baseline(p_notes := 'T0', p_idempotency_key := 'b1', p_usd_rate := 12500)`);
     const U = 12500;

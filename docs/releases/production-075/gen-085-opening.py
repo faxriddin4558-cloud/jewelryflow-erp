@@ -66,6 +66,109 @@ $$""",
      and o.status = 'cancelled' and o.cancelled_at is not null
 $$"""),
 ]
+# ------------------------------------------------------------------ D-2 / D-3: currency payment into the valued till pool
+P["rpc_record_client_currency_settlement"] = [
+("""  v_applied       numeric(18, 2);""",
+ """  v_applied       numeric(18, 2);
+  v_f             numeric;
+  v_od            public.opening_documents%rowtype;
+  v_snap_g        numeric(14, 4) := 0;
+  v_cash_val      numeric;
+  v_usd_val       numeric;
+  v_pool_cash     numeric(18, 2) := 0;
+  v_pool_usd      numeric(18, 2) := 0;
+  v_pool_cash_g   numeric(18, 6) := 0;
+  v_pool_usd_g    numeric(18, 6) := 0;"""),
+("""    updated_at = now();
+
+  v_no := 'CPAY-' || v_cur""",
+ """    updated_at = now();
+
+  -- 085 (decisions D-2 / D-3, 2026-11-11). The part applied to an OPENING UZS / USD debt carries that debt's 585 g
+  -- snapshot (its seller obligation, created once at the opening rate) into the seller's valued till pool, so the
+  -- handover closes exactly that obligation - the difference to the handover rate is the company's and is recorded on
+  -- the handover. The advance part enters the pool with 0 g: handing an advance over never lowers the seller's
+  -- obligation (D-3). Debts of ordinary UZS / USD sales keep the earlier rule (unvalued, converted at the handover).
+  v_f := case when v_credit > 0 then v_applied / v_credit else 0 end;
+  select * into v_od from public.opening_documents
+   where organization_id = v_caller_org and customer_id = v_customer.id and kind = 'customer_currency' and unit = v_cur
+     and side = 'debt' and status = 'active' and seller_id = v_seller_id
+   order by created_at limit 1;
+  if v_od.id is not null and v_applied > 0 and v_od.amount > 0 then
+    v_snap_g := least(greatest(0, v_od.seller_obligation_g - coalesce((select sum(c.snapshot_released_g) from public.client_currency_settlements c
+                        where c.opening_document_id = v_od.id and c.status <> 'reversed'), 0)),
+                      round(v_applied * v_od.seller_obligation_g / v_od.amount, 4));
+  end if;
+  v_cash_val := case when v_cash <= 0 then 0 when v_cur = 'UZS' then v_cash else v_cash / nullif(v_usd_rate, 0) end;
+  v_usd_val  := case when v_usd <= 0 then 0 when v_cur = 'USD' then v_usd else v_usd * v_usd_rate end;
+  v_pool_cash := round(v_cash * case when v_od.id is not null then 1 else 1 - v_f end, 2);
+  v_pool_usd  := round(v_usd * case when v_od.id is not null then 1 else 1 - v_f end, 2);
+  v_pool_cash_g := case when v_credit > 0 then round(v_snap_g * coalesce(v_cash_val, 0) / v_credit, 6) else 0 end;
+  v_pool_usd_g  := case when v_credit > 0 then round(v_snap_g * coalesce(v_usd_val, 0) / v_credit, 6) else 0 end;
+  if v_pool_cash > 0 or v_pool_usd > 0 then
+    update public.seller_gold_accounts
+       set till_valued_cash_uzs   = round(coalesce(till_valued_cash_uzs, 0) + v_pool_cash, 2),
+           till_valued_cash_585_g = round(coalesce(till_valued_cash_585_g, 0) + v_pool_cash_g, 6),
+           till_valued_usd        = round(coalesce(till_valued_usd, 0) + v_pool_usd, 2),
+           till_valued_usd_585_g  = round(coalesce(till_valued_usd_585_g, 0) + v_pool_usd_g, 6)
+     where seller_id = v_seller_id;
+  end if;
+
+  v_no := 'CPAY-' || v_cur"""),
+("""    idempotency_key, recorded_by, notes)
+  values (v_caller_org, v_no, v_customer.id, v_seller_id, v_cur, v_cash, v_usd, v_scrap, v_proba, v_scrap_585, v_usd_rate, v_lom_rate,
+    v_credit, v_applied, v_credit - v_applied, nullif(btrim(p_idempotency_key), ''), v_caller_emp_id, p_notes)""",
+ """    idempotency_key, recorded_by, notes, opening_document_id, snapshot_released_g, pool_cash_uzs, pool_cash_585_g, pool_usd, pool_usd_585_g)
+  values (v_caller_org, v_no, v_customer.id, v_seller_id, v_cur, v_cash, v_usd, v_scrap, v_proba, v_scrap_585, v_usd_rate, v_lom_rate,
+    v_credit, v_applied, v_credit - v_applied, nullif(btrim(p_idempotency_key), ''), v_caller_emp_id, p_notes,
+    v_od.id, v_snap_g, v_pool_cash, v_pool_cash_g, v_pool_usd, v_pool_usd_g)"""),
+("""    'new_debt', greatest(v_new_net, 0), 'new_advance', greatest(-v_new_net, 0));""",
+ """    'new_debt', greatest(v_new_net, 0), 'new_advance', greatest(-v_new_net, 0),
+    'opening_snapshot_585_g', v_snap_g, 'valued_pool_cash_uzs', v_pool_cash, 'valued_pool_usd', v_pool_usd);"""),
+]
+P["rpc_reverse_client_currency_settlement"] = [
+("""   where seller_id = v_row.seller_id;
+  select * into v_acc""",
+ """   where seller_id = v_row.seller_id;
+  -- 085: the valued pool share of this payment leaves with it
+  update public.seller_gold_accounts
+     set till_valued_cash_uzs   = round(greatest(0, coalesce(till_valued_cash_uzs, 0) - coalesce(v_row.pool_cash_uzs, 0)), 2),
+         till_valued_cash_585_g = round(greatest(0, coalesce(till_valued_cash_585_g, 0) - coalesce(v_row.pool_cash_585_g, 0)), 6),
+         till_valued_usd        = round(greatest(0, coalesce(till_valued_usd, 0) - coalesce(v_row.pool_usd, 0)), 2),
+         till_valued_usd_585_g  = round(greatest(0, coalesce(till_valued_usd_585_g, 0) - coalesce(v_row.pool_usd_585_g, 0)), 6)
+   where seller_id = v_row.seller_id;
+  select * into v_acc"""),
+]
+P["rpc_record_seller_to_manager_settlement"] = [
+("""  v_leg_usd         numeric(18, 2) := 0;""",
+ """  v_leg_usd         numeric(18, 2) := 0;
+  v_diff_rate       numeric(18, 2);
+  v_rate_diff_g     numeric(14, 4) := 0;"""),
+("""  v_rate_applied := case when v_cash > 0 and v_cash_equiv > 0 then round(v_cash / v_cash_equiv, 2) else v_rate end;""",
+ """  v_rate_applied := case when v_cash > 0 and v_cash_equiv > 0 then round(v_cash / v_cash_equiv, 2) else v_rate end;
+  -- 085 (D-2): valued money closes the grams it carries; what that is more (or less) than the money is worth at the
+  -- handover rate (entered, else the official one) is the COMPANY's rate difference - recorded here, never charged
+  -- to the seller and never counted twice (the seller obligation, the customer debt and the vault are not touched again)
+  v_diff_rate := coalesce(nullif(round(coalesce(p_rate_per_gram, 0)::numeric, 2), 0), v_official_rate);
+  if coalesce(v_diff_rate, 0) > 0 then
+    v_rate_diff_g := case when v_val_cash > 0 then round(v_val_cash_g - v_val_cash / v_diff_rate, 4) else 0 end
+      + case when v_val_usd > 0 and coalesce(p_usd_rate, 0) > 0 then round(v_val_usd_g - v_val_usd * p_usd_rate / v_diff_rate, 4) else 0 end;
+  end if;"""),
+("""    handover_entered_lom_rate,
+    applied_to_debt_grams,""",
+ """    handover_entered_lom_rate,
+    company_rate_difference_585_g,
+    applied_to_debt_grams,"""),
+("""    case when v_leg_cash > 0 or v_leg_usd > 0 then v_rate end,
+    v_total_settled,""",
+ """    case when v_leg_cash > 0 or v_leg_usd > 0 then v_rate end,
+    v_rate_diff_g,
+    v_total_settled,"""),
+("""    'entered_lom_rate', case when v_leg_cash > 0 or v_leg_usd > 0 then v_rate end,""",
+ """    'entered_lom_rate', case when v_leg_cash > 0 or v_leg_usd > 0 then v_rate end,
+    'company_rate_difference_585_g', v_rate_diff_g,
+    'difference_rate_per_gram', v_diff_rate,"""),
+]
 # ------------------------------------------------------------------ old test reset: never once the controlled opening is used
 P["rpc_execute_full_test_reset"] = [
 ("""    raise exception 'Test hisobini tozalash sababi (audit uchun) kiritilishi shart';
@@ -119,7 +222,11 @@ OTHER_DECL,
       'customer_uzs_advance_585_eq_g', v_cur_uzs_adv_g,
       'customer_usd_advance_585_eq_g', v_cur_usd_adv_g,
       'other_opening_liabilities_585_g', v_oth_liab_g
-    )"""),
+    ),
+    -- 085 (D-2): the rate difference the company bore on handovers since the baseline (positive = cost to the company)
+    'company_rate_difference_585_g', coalesce((select sum(g.company_rate_difference_585_g) from public.gold_settlements g
+       where g.organization_id = v_org_id and g.direction = 'seller_to_manager' and g.reversal_of_id is null
+         and coalesce(g.status, 'confirmed') = 'confirmed' and (v_base.id is null or g.created_at > v_base.created_at)), 0)"""),
 ]
 # ------------------------------------------------------------------ baseline: same + O-2 check + lock the opening period
 P["rpc_confirm_accounting_baseline"] = [
@@ -280,6 +387,50 @@ create table if not exists public.opening_documents (
 create index if not exists opening_documents_period on public.opening_documents (opening_period_id, kind, status);
 create index if not exists opening_documents_seller on public.opening_documents (seller_id) where status = 'active';
 alter table public.factory_receipts add column if not exists opening_document_id uuid references public.opening_documents(id);
+-- D-2 / D-3: a currency payment remembers what it put into the seller's valued till pool and which opening debt
+alter table public.client_currency_settlements
+  add column if not exists opening_document_id uuid references public.opening_documents(id),
+  add column if not exists snapshot_released_g numeric(14, 4) not null default 0,
+  add column if not exists pool_cash_uzs numeric(18, 2) not null default 0,
+  add column if not exists pool_cash_585_g numeric(18, 6) not null default 0,
+  add column if not exists pool_usd numeric(18, 2) not null default 0,
+  add column if not exists pool_usd_585_g numeric(18, 6) not null default 0;
+alter table public.gold_settlements add column if not exists company_rate_difference_585_g numeric(14, 4);
+
+-- D-4 (decision 2026-11-11): while an opening is in draft every ordinary financial write is refused BY THE DATABASE
+-- (direct RPC, old screens, parallel requests alike). Only the opening functions (restart, opening documents, their
+-- cancellation) mark their own transaction; the baseline locks the opening and ordinary work opens again.
+-- A shared advisory lock on the organization serializes ordinary writes with a restart (no write slips in between).
+create or replace function public._goldia_guard_opening_draft()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $f$
+declare v_org uuid;
+begin
+  v_org := case when tg_op = 'DELETE' then old.organization_id else new.organization_id end;
+  if v_org is null then return coalesce(new, old); end if;
+  if current_setting('goldia.opening_write', true) is not distinct from txid_current()::text then
+    return coalesce(new, old);
+  end if;
+  -- never WAIT here: an ordinary write may already hold row locks the restart needs (waiting = deadlock); while a
+  -- restart runs the write is refused at once, otherwise it holds the shared lock until it commits
+  if not pg_try_advisory_xact_lock_shared(hashtext('goldia_financial_restart'), hashtext(v_org::text)) then
+    raise exception 'ERR_OPENING_DRAFT: moliyaviy hisob hozir qayta boshlanmoqda - amalni keyinroq takrorlang' using errcode = '55000';
+  end if;
+  if exists (select 1 from public.opening_periods where organization_id = v_org and status = 'draft') then
+    raise exception 'ERR_OPENING_DRAFT: boshlang''ich hisob tasdiqlanmagan - oddiy moliyaviy amallar qulflangan (avval boshlang''ich hisobni yakunlang)'
+      using errcode = '55000';
+  end if;
+  return coalesce(new, old);
+end $f$;
+revoke all on function public._goldia_guard_opening_draft() from public, anon, authenticated;
+do $t$ declare t text; begin
+  foreach t in array array['jewelry_sales', 'jewelry_sale_returns', 'gold_settlements', 'client_currency_settlements', 'client_legacy_debts',
+    'seller_consignments', 'consignment_pieces', 'factory_receipts', 'factory_gold_handovers', 'refining_batches',
+    'financial_transactions', 'gold_purchases'] loop
+    execute format('drop trigger if exists trg_goldia_opening_draft_guard on public.%I', t);
+    execute format('create trigger trg_goldia_opening_draft_guard before insert or update or delete on public.%I
+                    for each row execute function public._goldia_guard_opening_draft()', t);
+  end loop;
+end $t$;
 
 -- legacy entries may be opening entries (customer 585 debt / advance of an opening period)
 do $c$ declare r record; begin
@@ -429,6 +580,7 @@ begin
   if v_key is null then
     raise exception 'ERR_IDEMPOTENCY: so''rov kaliti (idempotency key) majburiy' using errcode = '22023';
   end if;
+  perform set_config('goldia.opening_write', txid_current()::text, true);
   v_payload := jsonb_build_object('t0', p_t0, 'reason', v_reason, 'backup', p_backup_verification_id);
   v_existing := public.check_and_lock_idempotency(v_key, 'rpc_financial_restart', v_payload);
   if v_existing is not null then
@@ -607,6 +759,7 @@ begin
   if v_key is null then
     raise exception 'ERR_IDEMPOTENCY: so''rov kaliti (idempotency key) majburiy' using errcode = '22023';
   end if;
+  perform set_config('goldia.opening_write', txid_current()::text, true);
   v_payload := jsonb_build_object('kind', v_kind, 'amount', p_amount, 'unit', v_unit, 'side', v_side, 'seller', p_seller_id,
                                   'customer', p_customer_id, 'physical', p_physical_g, 'pieces', p_pieces);
   v_existing := public.check_and_lock_idempotency(v_key, 'rpc_record_opening_document', v_payload);
@@ -844,6 +997,7 @@ begin
   end if;
   perform public.assert_erp_permission(array['admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'boshqaruvchi']);
   if v_reason is null then raise exception 'Bekor qilish sababi kiritilishi shart'; end if;
+  perform set_config('goldia.opening_write', txid_current()::text, true);
   v_payload := jsonb_build_object('document', p_document_id, 'reason', v_reason);
   v_existing := public.check_and_lock_idempotency(p_idempotency_key, 'rpc_cancel_opening_document', v_payload);
   if v_existing is not null then return v_existing; end if;
@@ -1072,6 +1226,10 @@ for fn, pairs in P.items():
       "drop function if exists public.rpc_cancel_opening_document(uuid, text, text);\n"
       "drop function if exists public.rpc_record_opening_document(text, numeric, text, text, uuid, uuid, numeric, numeric, numeric, numeric, numeric, numeric, numeric, jsonb, uuid, uuid, text, text, text, text, text);\n"
       "drop function if exists public.rpc_financial_restart(text, text, timestamptz, uuid, text);\n"
+      "do $t$ declare t text; begin foreach t in array array['jewelry_sales', 'jewelry_sale_returns', 'gold_settlements', 'client_currency_settlements', 'client_legacy_debts', 'seller_consignments', 'consignment_pieces', 'factory_receipts', 'factory_gold_handovers', 'refining_batches', 'financial_transactions', 'gold_purchases'] loop execute format('drop trigger if exists trg_goldia_opening_draft_guard on public.%I', t); end loop; end $t$;\n"
+      "drop function if exists public._goldia_guard_opening_draft();\n"
+      "alter table public.client_currency_settlements drop column if exists opening_document_id, drop column if exists snapshot_released_g, drop column if exists pool_cash_uzs, drop column if exists pool_cash_585_g, drop column if exists pool_usd, drop column if exists pool_usd_585_g;\n"
+      "alter table public.gold_settlements drop column if exists company_rate_difference_585_g;\n"
       "drop function if exists public._goldia_currency_account_add(uuid, uuid, uuid, text, numeric);\n"
       "drop function if exists public._goldia_vault_factory_add(uuid, numeric, numeric);\n"
       "drop function if exists public._goldia_opening_other(uuid);\n"

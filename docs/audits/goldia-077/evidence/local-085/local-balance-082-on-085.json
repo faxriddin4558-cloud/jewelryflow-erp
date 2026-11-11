@@ -1,6 +1,6 @@
 {
   "target": "local",
-  "run": "mwbv6xse",
+  "run": "mwbx7p2f",
   "results": [
     {
       "id": "BM-SCN-1",
@@ -207,14 +207,14 @@
       "title": "monthly totals: closing debt / advance / net = sums of the rows = live gross debt / gross advance / net; net = debt - advance",
       "ok": true,
       "expected": {
-        "debt": 69.738,
+        "debt": 69.7383,
         "advance": 27.1,
-        "net": 42.638
+        "net": 42.6383
       },
       "actual": {
-        "debt": 69.738,
+        "debt": 69.7383,
         "advance": 27.1,
-        "net": 42.638
+        "net": 42.6383
       }
     },
     {
@@ -223,8 +223,8 @@
       "ok": true,
       "expected": "consistent",
       "actual": {
-        "a": 42.638,
-        "own": 42.638,
+        "a": 42.6383,
+        "own": 42.6383,
         "b": 0
       }
     },
@@ -252,12 +252,12 @@
       "title": "period report closing (UI + CSV): 585 / UZS / USD net = sum(debt - advance) per unit of the database",
       "ok": true,
       "expected": {
-        "g585": 42.638,
+        "g585": 42.6383,
         "usd": 228,
         "uzs": 0
       },
       "actual": {
-        "g585": 42.638,
+        "g585": 42.6383,
         "usd": 228,
         "uzs": 0
       }
@@ -267,8 +267,8 @@
       "title": "manager panel 585: net, gross debt, gross advance = database (sum(debt) - sum(advance)); wording matches the sign",
       "ok": true,
       "expected": {
-        "net": 42.638,
-        "debt": 69.738,
+        "net": 42.6383,
+        "debt": 69.7383,
         "advance": 27.1
       },
       "actual": {
@@ -307,8 +307,8 @@
       "title": "director dashboard card: signed net + \"qarz X - avans Y\" = database",
       "ok": true,
       "expected": {
-        "net": 42.638,
-        "debt": 69.738,
+        "net": 42.6383,
+        "debt": 69.7383,
         "advance": 27.1
       },
       "actual": {
@@ -321,8 +321,8 @@
       "title": "main page card \"Mijozlar Sof Nasiyasi\": signed net = sum(debt) - sum(advance) (was: gross debt labelled \"sof\")",
       "ok": true,
       "expected": {
-        "net": 42.638,
-        "debt": 69.738,
+        "net": 42.6383,
+        "debt": 69.7383,
         "advance": 27.1
       },
       "actual": {
@@ -335,7 +335,7 @@
       "title": "monthly report tab: total = server report (net, debt, advance); G row \"+7.00 g avans\" (was 2.00 g debt), D row 7.00 g (was 11.00 g)",
       "ok": true,
       "expected": {
-        "net": 42.638,
+        "net": 42.6383,
         "G": "+7.00 g avans",
         "D": "7.00 g"
       },

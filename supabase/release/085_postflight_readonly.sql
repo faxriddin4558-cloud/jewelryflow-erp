@@ -40,9 +40,23 @@ select
   (select position('inventory_equals_opening_receipts' in prosrc) > 0 and position('factory_obligation_equals_documents' in prosrc) > 0
      from pg_proc where oid = 'public.rpc_get_opening_state()'::regprocedure)
     and (select position('ERR_USE_FINANCIAL_RESTART' in prosrc) > 0 from pg_proc where proname = 'rpc_execute_full_test_reset' and pronamespace = 'public'::regnamespace) as d1_chain_and_reset_guard,
+  -- D-4: every ordinary financial table refuses writes while an opening is in draft (database trigger, not the UI)
+  (select count(distinct c.relname) = 12 from pg_trigger tg join pg_class c on c.oid = tg.tgrelid
+    where tg.tgname = 'trg_goldia_opening_draft_guard' and not tg.tgisinternal
+      and c.relname in ('jewelry_sales', 'jewelry_sale_returns', 'gold_settlements', 'client_currency_settlements', 'client_legacy_debts',
+                        'seller_consignments', 'consignment_pieces', 'factory_receipts', 'factory_gold_handovers', 'refining_batches',
+                        'financial_transactions', 'gold_purchases'))
+    and (select position('pg_try_advisory_xact_lock_shared' in prosrc) > 0 and position('ERR_OPENING_DRAFT' in prosrc) > 0
+           from pg_proc where oid = 'public._goldia_guard_opening_draft()'::regprocedure) as draft_write_guard,
+  -- D-2 / D-3: currency payments carry their pool share; handovers record the company rate difference
+  exists (select 1 from pg_attribute where attrelid = 'public.client_currency_settlements'::regclass and attname = 'pool_cash_585_g' and not attisdropped)
+    and exists (select 1 from pg_attribute where attrelid = 'public.gold_settlements'::regclass and attname = 'company_rate_difference_585_g' and not attisdropped)
+    and (select position('company_rate_difference_585_g' in prosrc) > 0 from pg_proc where proname = 'rpc_record_seller_to_manager_settlement' and pronamespace = 'public'::regnamespace)
+    and (select position('till_valued_cash_585_g' in prosrc) > 0 from pg_proc where proname = 'rpc_record_client_currency_settlement' and pronamespace = 'public'::regnamespace)
+    and (select position('pool_cash_585_g' in prosrc) > 0 from pg_proc where proname = 'rpc_reverse_client_currency_settlement' and pronamespace = 'public'::regnamespace) as rate_difference_and_advance,
   -- helpers are not callable by clients
   not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
-               and p.proname in ('_goldia_opening_seller_obligation', '_goldia_opening_factory_net', '_goldia_opening_other', '_goldia_vault_factory_add', '_goldia_currency_account_add')
+               and p.proname in ('_goldia_opening_seller_obligation', '_goldia_opening_factory_net', '_goldia_opening_other', '_goldia_vault_factory_add', '_goldia_currency_account_add', '_goldia_guard_opening_draft')
                and has_function_privilege('authenticated', p.oid, 'EXECUTE')) as helpers_private,
   -- consistency of whatever exists (empty right after the migration): one draft per organization, active documents
   -- only in a draft or locked period, a used backup verification belongs to its restart's organization

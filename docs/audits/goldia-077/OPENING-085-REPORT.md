@@ -195,3 +195,19 @@ Testdagi asosiy holatlar:
 - tsc, `src` lint va build PASS.
 
 D-1 bilan **D-1 qarori yopildi**. 8-bo'limdagi D-2 … D-6 hali ochiq.
+
+## 11. Yakuniy qoidalar D-2 … D-6 (2026-11-11)
+
+085 hech qayerda qo'llanmagan (staging 081 — VERIFIED; production ≤ 081), shuning uchun tuzatishlar 085'ning o'ziga kiritildi, 086 kerak bo'lmadi.
+
+| Qaror | Amalga oshirilishi | Dalil |
+|---|---|---|
+| D-2 Kurs farqi | Boshlang'ich so'm/USD qarzga to'lov sotuvchi kassasining "baholangan" pooliga qarzning 585 g snapshoti bilan tushadi. Topshiruvda majburiyat aynan shu grammga yopiladi. Topshirish kursi (kiritilgan, bo'lmasa rasmiy) bilan farq `company_rate_difference_585_g` sifatida topshiruv hujjatida va foyda xulosasida alohida yoziladi. Mijoz qarzi, sotuvchi majburiyati va kassa qayta o'zgartirilmaydi. Snapshotlar o'zgarmaydi. | 8 600 000 @860 000 → 900 000 da topshirildi: majburiyat −10 g bir marta, farq 0.4444 g; USD 1.4 g → farq 0.0111 g; reversal hammasini aniq qaytaradi |
+| D-3 Valyuta avansi | Avans qismi poolga **0 g** bilan tushadi: na to'lovda, na topshiruvda sotuvchi majburiyatini kamaytirmaydi. Avans — majburiyat, kassa — aktiv; davr natijasi o'zgarmaydi. | final-rules D-3 |
+| D-4 Draft blokirovkasi | 12 ta moliyaviy jadvalda baza triggeri: draft davomida oddiy INSERT/UPDATE/DELETE rad (`ERR_OPENING_DRAFT`). Faqat restart, boshlang'ich hujjatlar va ularni bekor qilish o'z tranzaksiyasini belgilaydi. Qayta boshlash bilan parallel yozuvlar tartiblanadi (kutmasdan rad, deadlock yo'q). Eski reset va baseline orqali aylanib o'tib bo'lmaydi. | final-rules D-4 (direktor / menejer / sotuvchi, 9 xil RPC); OP-9 (10 parallel REST so'rov — hammasi rad); OP-10 (restart + 10 parallel yozuv — hech biri draftda tirik qolmadi) |
+| D-5 Boshqa qarzlar | Opening'da kiritiladi va hisobotda alohida ko'rinadi. To'lash/yopish — **backlog**. | O4 |
+| D-6 Toza oltin | Seyfning "afinaj toza oltini" ustuni — haqiqiy fizik toza oltin aktivi (zavodga `refined_gold` sifatida beriladi). Qayta ishlatildi, yangi ustun qo'shilmadi. 20 g @999 → 34.1538 g (585) / 19.98 g toza; zavodga 10 g berilganda faqat shu ustun va zavod majburiyati kamaydi. | final-rules D-6 |
+
+**Backlog (D-5):** "boshqa" aktiv/majburiyatni qisman yoki to'liq yopish hujjati — hisobot va audit bilan.
+
+**Cheklov (D-2):** lom (scrap) bilan to'langan qismning kurs farqi alohida yozilmaydi — lom o'z 585 grammi bilan yopiladi.

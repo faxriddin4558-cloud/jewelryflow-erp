@@ -1,6 +1,6 @@
 GOLDIA SALES — staging release <detected level> -> 085 (DRY RUN: staging is only read)
 
-started: 2026-11-11T08:32:15.427Z  mode: DRY RUN (LOCAL REHEARSAL)
+started: 2026-11-11T09:29:06.578Z  mode: DRY RUN (LOCAL REHEARSAL)
 [1/10] tools: /opt/goldia-audit/pg17root/wrap (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
   checkout: 85 migration files, newest 085
 [2/10] connection
@@ -15,12 +15,12 @@ started: 2026-11-11T08:32:15.427Z  mode: DRY RUN (LOCAL REHEARSAL)
   history repair requested: none
   migrations to apply: 082 -> 083 -> 084 -> 085
   RELEASE PLAN (detected): staging 081 -> 082 -> 083 -> 084 -> 085
-  chain file: chain-082-085.sql sha256=ba47e28e0e8a9a58 (4 migrations)
+  chain file: chain-082-085.sql sha256=817048ed27a408e3 (4 migrations)
 [4/10] fresh backup (outside the repository)
   schemas: public, auth, storage, supabase_migrations; roles dump: ok
-  5ab7adfb77d493d10b540daf1d47cfe9b5f6590865741079629587fc71f084f4  staging-full.dump  1435152 bytes
-  9a93d830e1530e949ccb3c43ef4a1547fbf4826623677a58b9e1b0b71b0e83a8  staging-roles.sql  1582 bytes
-  626411996333780ecf707c774318146f642003858230a9d615bf07526bcc239b  staging-schema.sql  1176987 bytes
+  c809b266cc93da682d14240b3f12ae992750f8c2ae5aee71633d15a23467823f  staging-full.dump  1434845 bytes
+  ed39947447387a4dff43b6397111ce0b129f960f92410911446f72d6f7db7796  staging-roles.sql  1582 bytes
+  9ebfbd49511c56ff8799e7c9dbf83eb2559b6d7da270ee8f753ca7b70a7f481c  staging-schema.sql  1176987 bytes
 [5/10] restore test into a disposable LOCAL PostgreSQL (staging untouched)
   extensions not available locally (platform only): none
   restored copy vs staging row counts: identical (71 tables)
@@ -47,4 +47,4 @@ started: 2026-11-11T08:32:15.427Z  mode: DRY RUN (LOCAL REHEARSAL)
   LOCAL COPY: PASS
 [8/10] DRY RUN PASS — staging was only read. To apply, run the same command with --apply.
 
-RESULT: DRY RUN PASS. Report: /opt/goldia-audit/rehearsal085/goldia-staging-2026-11-11T08-32-15/STAGING-085-RESULT.txt
+RESULT: DRY RUN PASS. Report: /opt/goldia-audit/rehearsal085/goldia-staging-2026-11-11T09-29-06/STAGING-085-RESULT.txt
