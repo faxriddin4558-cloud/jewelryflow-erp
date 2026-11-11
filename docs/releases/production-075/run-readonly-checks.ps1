@@ -109,7 +109,7 @@ if ($Target -eq "production") {
   )
 } elseif ($Target -eq "production-drift-audit") {
   # 2026-11-09 version drift audit (frontend 2b48df9 vs the real DB): the drift kit first; level-dependent postflights and
-  # the function-body parity of the detected level are added after the identity probe. Read only, any level 075..084.
+  # the function-body parity of the detected level are added after the identity probe. Read only, any level 075..085.
   $checks = @(@{ Name = "08_drift_audit"; File = "docs/releases/production-075/08_drift_audit_readonly.sql"; Kind = "drift" })
 } elseif ($Target -like "staging-function-parity-*") {
   # read-only: one SQL file through the same wrapper (explicit BEGIN TRANSACTION READ ONLY + guard + ROLLBACK)
@@ -225,7 +225,7 @@ if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000076") {
 if ($Target -eq "production-drift-audit") {
   $lv = ([string]$pp[4]).Substring(11)
   $extra = @()
-  foreach ($v in @("073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084")) {
+  foreach ($v in @("073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085")) {
     if ([string]::CompareOrdinal([string]$pp[4], "20260101000" + $v) -ge 0) { $extra += @{ Name = ($v + "_postflight"); File = ("supabase/release/" + $v + "_postflight_readonly.sql"); Kind = "postflight" } }
   }
   $pf = "supabase/release/function_body_parity_" + $lv + "_full_readonly.sql"
@@ -236,11 +236,11 @@ if ($Target -eq "production-drift-audit") {
   foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
   $checks = @($checks) + $extra
 }
-if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077", "20260101000078", "20260101000079", "20260101000080", "20260101000081", "20260101000082", "20260101000083", "20260101000084") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075 ... 084, found " + $pp[4]) }
+if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077", "20260101000078", "20260101000079", "20260101000080", "20260101000081", "20260101000082", "20260101000083", "20260101000084", "20260101000085") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075 ... 085, found " + $pp[4]) }
 if ($Target -eq "production-post" -and $pp[4] -ne "20260101000075") {
   # after 076 / 077 their postflights run too (073/074/075 must stay true)
   $extra = @(@{ Name = "076_postflight"; File = "supabase/release/076_postflight_readonly.sql"; Kind = "postflight" })
-  foreach ($v in @("077", "078", "079", "080", "081", "082", "083", "084")) {
+  foreach ($v in @("077", "078", "079", "080", "081", "082", "083", "084", "085")) {
     if ([string]::CompareOrdinal([string]$pp[4], "20260101000" + $v) -ge 0) { $extra += @{ Name = ($v + "_postflight"); File = ("supabase/release/" + $v + "_postflight_readonly.sql"); Kind = "postflight" } }
   }
   foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }

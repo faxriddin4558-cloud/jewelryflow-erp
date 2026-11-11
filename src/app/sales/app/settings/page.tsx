@@ -1,11 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DirectorSalesWorkspace } from "@/components/sales/DirectorSalesWorkspace";
 import { TestCleanupSection } from "@/components/sales/TestCleanupSection";
 
 export default function SettingsAndImportPage() {
   const [activeSubTab, setActiveSubTab] = useState<"presets" | "sheets_import" | "cleanup">("presets");
+  // 085: the old "test cleanup" leaves UZS / USD balances behind - never on production; the controlled financial
+  // restart lives on the "Boshlang'ich hisob" page
+  const [isStagingMode, setIsStagingMode] = useState(false);
+  useEffect(() => {
+    setIsStagingMode(process.env.NEXT_PUBLIC_APP_ENV !== "production" &&
+      (process.env.NEXT_PUBLIC_APP_ENV === "staging" || process.env.NEXT_PUBLIC_STAGING_MODE === "true" || window.location.hostname.includes("staging")));
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -43,7 +50,7 @@ export default function SettingsAndImportPage() {
           >
             📥 Sheets Import
           </button>
-          <button
+          {isStagingMode && <button
             type="button"
             onClick={() => setActiveSubTab("cleanup")}
             className={`px-3 py-1.5 rounded-xl transition ${
@@ -53,14 +60,14 @@ export default function SettingsAndImportPage() {
             }`}
           >
             🧹 Sinov Tozalash
-          </button>
+          </button>}
         </div>
       </div>
 
-      {activeSubTab === "cleanup" ? (
+      {activeSubTab === "cleanup" && isStagingMode ? (
         <TestCleanupSection />
       ) : (
-        <DirectorSalesWorkspace initialTab={activeSubTab} hideTopBanner={true} hideTabBar={true} />
+        <DirectorSalesWorkspace initialTab={activeSubTab === "cleanup" ? "presets" : activeSubTab} hideTopBanner={true} hideTabBar={true} />
       )}
     </div>
   );

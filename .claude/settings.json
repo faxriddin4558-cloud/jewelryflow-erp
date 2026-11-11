@@ -1,9 +1,32 @@
 {
   "permissions": {
     "allow": [
+      "Bash(psql -h 127.0.0.1 -p 55437 *)",
+      "Bash(node scripts/goldia-staging-release.js --local-rehearsal *)"
+    ],
+    "ask": [
       "mcp__Supabase__execute_sql",
-      "Bash(psql:*)",
+      "Bash(psql *)",
       "Bash(node scripts/*)"
+    ],
+    "deny": [
+      "mcp__Supabase__apply_migration",
+      "Bash(node scripts/apply-prod-*)",
+      "Bash(node scripts/sync-vercel-prod-env.js *)",
+      "Bash(node scripts/backup-prod-data.js *)",
+      "Read(./.env.production.local)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-protected-refs.js\"", "timeout": 10, "onFailure": "block" }]
+      },
+      {
+        "matcher": "mcp__Supabase__.*",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/supabase-staging-only.js\"", "timeout": 10, "onFailure": "block" }]
+      }
     ]
   }
 }
