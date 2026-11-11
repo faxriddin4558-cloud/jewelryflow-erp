@@ -1,0 +1,5 @@
+BASELINE|history count|85
+BASELINE|history latest|20260101000085
+BASELINE|org 00000000-0000-4001-8001-000000000001|cust=70 debt_g=0.0000 adv_g=0.0000 sel_obl_g=0.0000 sel_owes_g=0.0000 sel_stock_g=0.0000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=100.0000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=108.0000 fac_recv_g=100.0000 sales=0 settl=86 rcpt=1 held=0 held_g=0
+BASELINE|org a5d17075-0000-4000-8000-202611030075|cust=540 debt_g=8203.1851 adv_g=223.9455 sel_obl_g=19553.2827 sel_owes_g=14286.2667 sel_stock_g=2751.0340 till_uzs=1907487000.00 till_usd=162626.15 till_scrap_g=838.3910 till_valued_g=1012.894587 mgr_stock_g=3916.1040 mgr_uzs=4734530500.00 mgr_usd=600.00 fac_obl_g=17278.8000 fac_recv_g=15985.0000 sales=2362 settl=1815 rcpt=117 held=424 held_g=2751.0340
+BASELINE|org a5d17075-0000-4000-8000-20261103075b|cust=18 debt_g=4.6000 adv_g=0.0000 sel_obl_g=5.5000 sel_owes_g=5.5000 sel_stock_g=0.0000 till_uzs=900000.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=1.000000 mgr_stock_g=15.0000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=21.6000 fac_recv_g=20.0000 sales=1 settl=1 rcpt=1 held=0 held_g=0

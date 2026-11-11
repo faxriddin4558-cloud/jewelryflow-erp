@@ -43,15 +43,19 @@ const READ_RPCS = new Set([
   "rpc_get_customer_monthly_report", "rpc_get_daily_sales_ledger", "rpc_get_manager_available_stock_grams",
   "rpc_get_seller_markup_difference_report", "rpc_get_seller_rates", "rpc_get_seller_reconciliation_statement",
   "rpc_get_period_report", // 077 (STABLE, no writes - checked by 02_post_release_readonly.sql)
+  // 084 / 085: declared STABLE in the database - PostgreSQL itself refuses any INSERT / UPDATE / DELETE inside them
+  "rpc_get_operation_rate_review", "rpc_get_opening_state",
 ]);
 // writes the app makes on page view / login - blocked and reported, not a failure
-const EXPECTED_BLOCKS = new Set(["rpc_record_login_audit", "rpc_get_unified_customer_ledger", "rpc_get_factory_settings"]);
+// rpc_preview_*: staging-only test-cleanup tab (VOLATILE, body has no write today) - kept blocked on purpose
+const EXPECTED_BLOCKS = new Set(["rpc_record_login_audit", "rpc_get_unified_customer_ledger", "rpc_get_factory_settings",
+  "rpc_preview_selective_test_cleanup", "rpc_preview_full_test_reset"]);
 const PAGES = {
   director: ["/sales/app", "/sales/director", "/sales/app/factory", "/sales/app/inventory", "/sales/app/consignments", "/sales/app/sellers",
     "/sales/app/scan", "/sales/app/customers", "/sales/app/cash", "/sales/app/refining", "/sales/app/purchases", "/sales/app/reports",
-    "/sales/app/models", "/sales/app/users", "/sales/app/settings", "/sales/app/handovers", "/sales/app/markup", "/sales/app/factory-receive", "/sales/app/period-report"],
+    "/sales/app/models", "/sales/app/users", "/sales/app/settings", "/sales/app/handovers", "/sales/app/markup", "/sales/app/factory-receive", "/sales/app/period-report", "/sales/app/opening"],
   manager: ["/sales/app", "/sales/app/factory", "/sales/app/inventory", "/sales/app/consignments", "/sales/app/sellers", "/sales/app/scan",
-    "/sales/app/customers", "/sales/app/cash", "/sales/app/refining", "/sales/app/purchases", "/sales/app/reports", "/sales/app/handovers", "/sales/app/period-report"],
+    "/sales/app/customers", "/sales/app/cash", "/sales/app/refining", "/sales/app/purchases", "/sales/app/reports", "/sales/app/handovers", "/sales/app/period-report", "/sales/app/opening"],
   seller: ["/sales/app", "/sales/app/scan", "/sales/app/customers", "/sales/app/kassam"],
 };
 // the external Central Bank (CBU) currency endpoint can fail; the app then uses the stored rates (F-UI fix) - reported once
