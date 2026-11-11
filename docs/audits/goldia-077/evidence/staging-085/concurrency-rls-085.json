@@ -1,0 +1,134 @@
+[
+ {
+  "id": "K1",
+  "title": "3 parallel barcode sales of the same piece: exactly one succeeds",
+  "ok": true,
+  "expected": 1,
+  "actual": {
+   "ok": [
+    "4d5a99bf-4190-424d-9107-3d04a95e1224"
+   ],
+   "errors": [
+    "Bu mahsulot donasi (CONC-1 — 5.0000 g) allaqachon sotilgan (",
+    "Bu mahsulot donasi (CONC-1 — 5.0000 g) allaqachon sotilgan ("
+   ],
+   "sales": 1
+  },
+  "at": "2026-11-11T17:46:49.995Z"
+ },
+ {
+  "id": "K2",
+  "title": "2 parallel 4 g weight sales from the same 6 g piece: one succeeds, piece = 2 g, never negative",
+  "ok": true,
+  "expected": {
+   "ok": 1,
+   "piece": 2
+  },
+  "actual": {
+   "ok": 1,
+   "piece": {
+    "weight_grams": 2,
+    "status": "held_by_seller"
+   },
+   "errors": [
+    "ERR_PIECES_TOO_LIGHT: Tanlangan donalar jami vazni sotilayot"
+   ]
+  },
+  "at": "2026-11-11T17:46:50.625Z"
+ },
+ {
+  "id": "K3",
+  "title": "4 parallel retries of one payment (same key): one settlement of 1.0 g",
+  "ok": true,
+  "expected": {
+   "settlements": 1,
+   "grams": 1
+  },
+  "actual": {
+   "settlements": 1,
+   "errors": []
+  },
+  "at": "2026-11-11T17:46:51.567Z"
+ },
+ {
+  "id": "K4",
+  "title": "2 parallel handovers of the same till: till closed once (settled grows by the till grams only)",
+  "ok": false,
+  "expected": {
+   "ok": 1,
+   "settled_delta": 1,
+   "till_after": 0
+  },
+  "actual": {
+   "ok": 1,
+   "settled_delta": 203.10150000000004,
+   "till_after": 0,
+   "errors": [
+    "ERR_INSUFFICIENT_CASH_BALANCE: Sotuvchi kassasida yetarli na"
+   ]
+  },
+  "at": "2026-11-11T17:46:52.310Z"
+ },
+ {
+  "id": "K5",
+  "title": "sale and return of the same piece in parallel: exactly one wins",
+  "ok": true,
+  "expected": 1,
+  "actual": {
+   "results": [
+    "OK",
+    "Faqat sotuvchi javonidagi (sotilmagan) mahsulotni "
+   ],
+   "status": "sold"
+  },
+  "at": "2026-11-11T17:46:52.811Z"
+ },
+ {
+  "id": "RLS1",
+  "title": "no cross-org read (51 org tables/views x 9 logins, both directions)",
+  "ok": true,
+  "expected": 0,
+  "actual": {
+   "reads": 561,
+   "leaks": []
+  },
+  "at": "2026-11-11T17:49:09.817Z"
+ },
+ {
+  "id": "RLS2",
+  "title": "no cross-org UPDATE/DELETE (50 tables x 3 org-A logins, aimed at synthetic org B); org B rows unchanged",
+  "ok": true,
+  "expected": 0,
+  "actual": {
+   "writes": 300,
+   "leaks": [],
+   "orgB_unchanged": true
+  },
+  "at": "2026-11-11T17:50:21.776Z"
+ },
+ {
+  "id": "RLS3",
+  "title": "cross-org INSERT refused (jewelry_models, seller_rates)",
+  "ok": true,
+  "expected": "refused",
+  "actual": [
+   "new row violates row-level security policy for tab",
+   "permission denied for table seller_rates"
+  ],
+  "at": "2026-11-11T17:50:22.257Z"
+ },
+ {
+  "id": "RLS4",
+  "title": "RPCs refuse to act on another organization (rates, reports, handover, consignment, payment)",
+  "ok": false,
+  "expected": "refused",
+  "actual": {
+   "sellera rates of org B seller": "Ruxsat etilmadi: boshqa sotuvchining kursini ko'ri",
+   "director markup report of org B seller": "OK:{\"note\":\"Ustama farqi kompaniyaga tegishli; mijoz qarzi va s",
+   "director handover for org B seller": "Sotuvchi oltin hisobi topilmadi: cbe97a4e-cb1e-489",
+   "manager consign to org B seller": "Sotuvchi xodimi topilmadi (cbe97a4e-cb1e-4891-a60c",
+   "sellera sale to org B customer": "Mijoz (10ed1bb9-d073-4dca-91f5-cb21ef2fa79e) topil"
+  },
+  "at": "2026-11-11T17:50:23.600Z"
+ }
+]
