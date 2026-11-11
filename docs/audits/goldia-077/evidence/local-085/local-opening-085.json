@@ -1,6 +1,6 @@
 {
   "target": "local",
-  "run": "mwbn6ozj",
+  "run": "mwbvd99q",
   "results": [
     {
       "id": "OP-1",
@@ -26,7 +26,7 @@
         "restarts": 1,
         "drafts": 1,
         "draftBefore": 0,
-        "status": "Davr: OPN-20261111-0952-ABFF61 · T0: 11.11.2026, 08:52:00 · Holat: qoralama",
+        "status": "Davr: OPN-20261111-1341-864089 · T0: 11.11.2026, 12:41:00 · Holat: qoralama",
         "bad": []
       }
     },
@@ -85,11 +85,13 @@
           "✅ Mijozlar USD qoldig'i = boshlang'ich hujjatlar",
           "✅ Mijozlar so'm qoldig'i = boshlang'ich hujjatlar",
           "✅ Sotuvchi ombori = qo'lidagi donalar",
+          "✅ inventory_equals_opening_receipts",
+          "✅ factory_obligation_equals_documents",
           "✅ Qayta boshlashdan keyin oddiy hujjatlar soni (0 bo'lishi kerak): 0"
         ],
         "period": {
           "status": "locked",
-          "baseline_id": "180f93b4-064e-4cd1-a1b1-bd94aff30a82"
+          "baseline_id": "997396bb-0ca5-45e2-a66d-a509b70f9a1f"
         },
         "after": "ERR_OPENING_LOCKED: boshlang'ich hisob tasdiqlangan va qulflangan"
       }

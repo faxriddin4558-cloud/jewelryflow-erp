@@ -2,16 +2,16 @@
   "target": "local",
   "version": {
     "status": "ok",
-    "commit": "e9a47e6",
-    "full_commit": "e9a47e6f56c2baf8c1f92317518c77f056a293ae",
+    "commit": "0ddf71f",
+    "full_commit": "0ddf71f1b66292fda2b79636b4c6c08a01a0f9fa",
     "env": "staging",
     "staging_mode": true,
     "supabase_ref": "127",
     "sha_source": "build",
     "vercel_git_commit": null,
-    "timestamp": "2026-11-11T04:50:23.030Z"
+    "timestamp": "2026-11-11T08:39:23.872Z"
   },
-  "run": "mwbn2tpb",
+  "run": "mwbv9cn7",
   "results": [
     {
       "id": "U77-01",
@@ -75,7 +75,7 @@
       "actual": {
         "sales": 1,
         "row": {
-          "id": "65b8db47-10ed-42fb-8fe9-3343537dfd92",
+          "id": "ff87c7ee-baf7-4ddd-a17a-95b1276360ea",
           "sale_currency": "USD",
           "sale_amount": 2000,
           "base_weight_grams": 20,

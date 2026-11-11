@@ -1,6 +1,6 @@
 {
   "target": "local",
-  "run": "mwbmzqmz",
+  "run": "mwbv6b3j",
   "results": [
     {
       "id": "RT-W-1",
@@ -24,11 +24,11 @@
           "unit": "XAU585",
           "status": "ok",
           "manager": null,
-          "sale_id": "987aeaee-3765-4f06-bc86-5638c7baadd9",
-          "sale_no": "SALE-W-20261111-32B523",
-          "piece_id": "1c518d28-bc0f-4066-8870-9879e05a8701",
-          "return_id": "261a25e1-81bd-4099-bb3e-d71b8995883b",
-          "return_no": "SALE-W-20261111-32B523-V1",
+          "sale_id": "f01aeb28-90ad-49c3-8586-8e2c79f11c25",
+          "sale_no": "SALE-W-20261111-338C00",
+          "piece_id": "a820bd15-e496-42d3-8c11-05438e374e94",
+          "return_id": "a346dd1f-c415-41a6-8693-0fda870eaa4a",
+          "return_no": "SALE-W-20261111-338C00-V1",
           "destination": "seller",
           "debt_reduced": 22.4,
           "returned_value": 22.4,
@@ -72,17 +72,17 @@
       "actual": {
         "rows": [
           [
-            "SALE-W-20261111-32B523-V1",
+            "SALE-W-20261111-338C00-V1",
             20,
             22.4
           ],
           [
-            "SALE-W-20261111-32B523-V2",
+            "SALE-W-20261111-338C00-V2",
             30,
             33.6
           ],
           [
-            "SALE-W-20261111-32B523-V3",
+            "SALE-W-20261111-338C00-V3",
             50,
             56
           ]
@@ -102,7 +102,7 @@
       "title": "fully returned sale: next return refused",
       "ok": true,
       "expected": "refused",
-      "actual": "Ushbu savdo to'liq qaytarilgan (SALE-W-20261111-32B523)"
+      "actual": "Ushbu savdo to'liq qaytarilgan (SALE-W-20261111-338C00)"
     },
     {
       "id": "RT-RPT-3",
@@ -238,12 +238,12 @@
       "expected": "ok",
       "actual": {
         "part": "Barcode (dona) savdo faqat butun dona sifatida qaytariladi: 10.0000 g",
-        "full": "ace9faa0-276a-4290-977a-e07bd3cb2516",
+        "full": "eab19d8f-a2bb-4ca4-84ce-9bc7d6f85f00",
         "piece": {
           "status": "held_by_seller",
           "sale_id": null
         },
-        "again": "Ushbu savdo to'liq qaytarilgan (SALE-BC-821F21AD)",
+        "again": "Ushbu savdo to'liq qaytarilgan (SALE-BC-76D75A3C)",
         "stock": 10
       }
     },
@@ -274,7 +274,7 @@
       "actual": {
         "other": "Ruxsat etilmadi: Sotuvchi faqat o'zi amalga oshirgan savdodan vozvrat qila oladi",
         "toMgr": "Ruxsat etilmadi: mahsulotni menejer qabul qilganini faqat menejer yoki direktor tasdiqlaydi",
-        "org": "Savdo hujjati topilmadi (9c501513-3171-4d99-a998-8cb6a18e7fbb)",
+        "org": "Savdo hujjati topilmadi (a46a4bb6-d8df-4381-9092-99c462657a3d)",
         "noKey": "Vozvrat uchun takrorlanmas so'rov kaliti (idempotency key) majburiy",
         "zero": "Qaytariladigan vazn 0 dan katta bo'lishi shart",
         "neg": "Qaytariladigan vazn 0 dan katta bo'lishi shart",
@@ -294,15 +294,15 @@
       },
       "actual": {
         "replay": [
-          "SALE-W-20261111-4EF6C4-V1",
-          "SALE-W-20261111-4EF6C4-V1"
+          "SALE-W-20261111-173FFC-V1",
+          "SALE-W-20261111-173FFC-V1"
         ],
         "docs": 2,
-        "w11": 9.0004,
+        "w11": 9.0008,
         "accepted": 3,
         "refused": [
-          "Qaytariladigan vazn (3.0002 g) savdoning qaytarilmagan qismidan (0.9996 g) oshadi",
-          "Qaytariladigan vazn (3.0004 g) savdoning qaytarilmagan qismidan (0.9996 g) oshadi"
+          "Qaytariladigan vazn (3.0002 g) savdoning qaytarilmagan qismidan (0.9992 g) oshadi",
+          "Qaytariladigan vazn (3.0003 g) savdoning qaytarilmagan qismidan (0.9992 g) oshadi"
         ]
       }
     },
@@ -312,7 +312,7 @@
       "ok": true,
       "expected": "refused / ok",
       "actual": {
-        "withReturns": "ERR_SALE_HAS_RETURNS: Ushbu savdodan vozvrat qilingan (SALE-W-20261111-4EF6C4) - butun savdoni bekor qilib bo'lmaydi; qolgan qismini vozvrat qiling",
+        "withReturns": "ERR_SALE_HAS_RETURNS: Ushbu savdodan vozvrat qilingan (SALE-W-20261111-173FFC) - butun savdoni bekor qilib bo'lmaydi; qolgan qismini vozvrat qiling",
         "plain": true
       }
     },
@@ -320,11 +320,11 @@
       "id": "RT-REC-STK-sellera",
       "title": "sellera: stock = held pieces (0.0000 g)",
       "ok": true,
-      "expected": 219.0004,
+      "expected": 219.0008,
       "actual": {
-        "st": 219.0004,
+        "st": 219.0008,
         "o": 303.6,
-        "held": 219.0004
+        "held": 219.0008
       }
     },
     {
@@ -374,11 +374,11 @@
       "title": "period report closing (585 net, USD net) = live accounts; return flows listed",
       "ok": true,
       "expected": {
-        "g585": 36.1385,
+        "g585": 36.138,
         "usd": 278
       },
       "actual": {
-        "g585": 36.1385,
+        "g585": 36.138,
         "usd": 278,
         "flows": [
           "return_usd",
@@ -395,16 +395,16 @@
       "expected": 3,
       "actual": [
         [
-          -30,
-          -33.6
-        ],
-        [
           -50,
           -56
         ],
         [
           -20,
           -22.4
+        ],
+        [
+          -30,
+          -33.6
         ]
       ]
     },

@@ -1,6 +1,6 @@
 {
   "target": "local",
-  "run": "mwbmyxqt",
+  "run": "mwbv5exc",
   "results": [
     {
       "id": "RR-1",
@@ -17,8 +17,8 @@
         "usd_equivalent_grams": 0,
         "total_settled_grams": 1,
         "handover_entered_lom_rate": null,
-        "recorded_by": "d963475a-0ead-40c7-856d-2f0ecb03f276",
-        "created_at": "2026-11-11T04:45:54.791371+00:00"
+        "recorded_by": "c6174876-812f-4b27-a7b6-c9912e30c495",
+        "created_at": "2026-11-11T08:34:53.886836+00:00"
       }
     },
     {
@@ -36,8 +36,8 @@
         "usd_equivalent_grams": 0,
         "total_settled_grams": 1,
         "handover_entered_lom_rate": null,
-        "recorded_by": "d963475a-0ead-40c7-856d-2f0ecb03f276",
-        "created_at": "2026-11-11T04:45:54.810362+00:00"
+        "recorded_by": "c6174876-812f-4b27-a7b6-c9912e30c495",
+        "created_at": "2026-11-11T08:34:53.912605+00:00"
       }
     },
     {
@@ -66,8 +66,8 @@
         "usd_equivalent_grams": 0.1411,
         "total_settled_grams": 0.1411,
         "handover_entered_lom_rate": null,
-        "recorded_by": "778e8403-c1b3-44f3-a63f-c84982131c85",
-        "created_at": "2026-11-11T04:45:54.852013+00:00"
+        "recorded_by": "5a2450a0-9964-486c-945d-254b69b675f3",
+        "created_at": "2026-11-11T08:34:53.956119+00:00"
       }
     },
     {
@@ -112,8 +112,8 @@
         "usd_equivalent_grams": 0,
         "total_settled_grams": 2.1105,
         "handover_entered_lom_rate": 905000,
-        "recorded_by": "d963475a-0ead-40c7-856d-2f0ecb03f276",
-        "created_at": "2026-11-11T04:45:54.916165+00:00"
+        "recorded_by": "c6174876-812f-4b27-a7b6-c9912e30c495",
+        "created_at": "2026-11-11T08:34:54.035653+00:00"
       }
     },
     {
@@ -282,7 +282,7 @@
       "ok": true,
       "expected": "listed",
       "actual": {
-        "excerpt": "Vaqt\tHujjat\tSotuvchi\tKiritgan\tNaqd / USD\tLOM kursi\tSaqlangan\tRasmiy\tUSD kursi\tSaqlangan\n11.11.2026, 04:46:23\tTo'lov (USD qarz) CPAY-USD-20261111-F24951 · RR84 UIUSD mwbmyxqt\tAUDIT sellera\tAUDIT sellera (sales)\t632 500 / 0\t—\t895 000\t900 000\t12 650\t12 400\n11.11.2026, 04:46:13\tTopshiruv STL-MGR-20261111-9C1879\tAUDIT sellera\tAUDIT manager (production_manager)\t2 090 000 / 10\t905 000 (+0.56%)\t895 000\t90",
+        "excerpt": "Vaqt\tHujjat\tSotuvchi\tKiritgan\tNaqd / USD\tLOM kursi\tSaqlangan\tRasmiy\tUSD kursi\tSaqlangan\n11.11.2026, 08:35:27\tTo'lov (USD qarz) CPAY-USD-20261111-B7615E · RR84 UIUSD mwbv5exc\tAUDIT sellera\tAUDIT sellera (sales)\t632 500 / 0\t—\t895 000\t900 000\t12 650\t12 400\n11.11.2026, 08:35:17\tTopshiruv STL-MGR-20261111-648603\tAUDIT sellera\tAUDIT manager (production_manager)\t2 090 000 / 10\t905 000 (+0.56%)\t895 000\t90",
         "bad": []
       }
     }

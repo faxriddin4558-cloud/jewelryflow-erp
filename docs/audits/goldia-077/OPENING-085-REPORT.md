@@ -168,3 +168,30 @@ Testdagi asosiy holatlar:
    ```
    (081 → 082 → 083 → 084 → 085 va frontend).
 2. Keyin men staging sintetik tashkilotida to'liq to'plamni yuritaman, ochilish UI testi ham kiradi (`GA_TARGET=staging GA_ALLOW_RESTART=1`). Sintetik foydalanuvchilar test oldidan ochiladi, keyin yana bloklanadi.
+
+## 10. D-1 qarori (2026-11-11) — FACTORY → MANAGER → SELLER → CUSTOMER
+
+| Talab | Qanday ta'minlanadi | Dalil |
+|---|---|---|
+| 1. Menejer va sotuvchidagi barcha mahsulot zavoddan olingan mahsulotning bir qismi | Solishtirishdagi yangi tekshiruv: menejer ombori + sotuvchilar ombori = boshlang'ich zavod kirimlari grammi (`inventory_equals_opening_receipts`) | D1-2, O7 |
+| 2. Zavod majburiyati faqat zavod → menejer bosqichida | Majburiyat faqat boshlang'ich zavod kirimida (A, yoki B "faqat sotuvchida" — u ham shu bosqich) va mahsulotsiz C hujjatida yaratiladi | D1-1, D1-4 |
+| 3. Menejer → sotuvchi topshiruvi zavod majburiyatini yaratmaydi va kamaytirmaydi | Konsignatsiya zavod hisobiga tegmaydi; testda 60 g va keyin 10 g topshirilganda zavod 108 / 138 bo'lib qoldi | D1-1, D1-3 |
+| 4. Topshiruv menejer omborini kamaytiradi, sotuvchinikini oshiradi, sotuvchi majburiyatini yaratadi | 100 → 40 / 60, majburiyat 67.2; keyin 30 / 70, majburiyat 78.4 | D1-1, D1-3 |
+| 5. T0 dagi jami fizik mahsulot boshlang'ich kirimlar bilan moslashtiriladi | Tekshiruv yashil bo'lmasa, baseline **serverda** rad etiladi (`ERR_OPENING_NOT_RECONCILED`) | L, D1-3 |
+| 6. T0 gacha sotilgan, zavodga hali to'lanmagan mahsulot zavod majburiyatida qoladi | C hujjati (mahsulotsiz zavod majburiyati); zavod hisobi = kirimlar + C − avans (`factory_obligation_equals_documents`); solishtirishda "mahsulotdan" va "mahsulotsiz" alohida | D1-2 |
+| 7. Tarixiy topshiruvlar soxta yangi savdo sifatida yaratilmaydi | Draft davrdagi har qanday oddiy hujjat (kirim, konsignatsiya, eski qarz, kapital, zavodga topshirish, xarid, savdo, to'lov) sanaladi va baseline'ni to'xtatadi | L (oddiy kirim → rad) |
+| 8. Foizlar asl fizik grammga, ko'paytirilmaydi | Sotuvchi majburiyati = vazn × (1 + sotuvchi foizi); 60 × 1.12 = 67.2 (60 × 1.08 × 1.12 emas) | D1-1 |
+
+**Qo'shimcha xavfsizlik tuzatishlari:**
+- Asosiy paneldagi "Hisobni boshlash" endi serverda ham solishtirishsiz o'tmaydi.
+- Eski "Sinov Tozalash" boshlang'ich hisob yuritiladigan tashkilotda serverda rad etiladi (`ERR_USE_FINANCIAL_RESTART`).
+- Direktor panelidagi "Sotuvchilardagi Zavod Qarzi" yozuvi "Sotuvchilarning menejerga majburiyati (zavod qarzi emas)" ga o'zgartirildi — u zavod majburiyati bilan adashtirilib, ikki marta sanalgandek ko'rinardi.
+
+**Qayta sinov (D-1 dan keyin):**
+- vitest 433/433 (D-1 zanjiri 5/5, 085 14/14);
+- release mashqi 081 → 085 PASS;
+- ochilish UI 8/8 (8 ta tekshiruv yashil);
+- 077–084 regressiya to'liq PASS;
+- tsc, `src` lint va build PASS.
+
+D-1 bilan **D-1 qarori yopildi**. 8-bo'limdagi D-2 … D-6 hali ochiq.
