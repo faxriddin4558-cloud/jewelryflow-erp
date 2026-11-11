@@ -1,10 +1,10 @@
 {
  "target": "local",
- "run": "mwafwogp",
+ "run": "mwbn5rdg",
  "ids": {
-  "A": "7db4bcb5-f325-4f33-bc18-ea4fd4167b5d",
-  "F": "98b26834-40c2-4ef6-a738-0045acbe3be9",
-  "F2": "6cb98257-7a01-44d0-aae8-4607a4fa2b71"
+  "A": "d41429cf-5064-4f12-b2ea-0af1e9bb3992",
+  "F": "be8b2e46-0ff3-4a59-bdad-6c244cc54aca",
+  "F2": "b632149d-77c5-4db9-8dec-6a0adacbd0c8"
  },
  "results": [
   {
@@ -20,25 +20,25 @@
     "manager": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan",
     "director": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan"
    },
-   "at": "2026-11-10T08:40:26.069Z"
+   "at": "2026-11-11T04:51:13.204Z"
   },
   {
    "id": "DA1-02",
    "title": "nothing moved: seller stock, 585 debt, USD debt, number of sales",
    "ok": true,
    "expected": {
-    "s0": 358.0009,
+    "s0": 358.0004,
     "g0": 5.5,
     "u0": 500,
     "c0": 2
    },
    "actual": {
-    "s": 358.0009,
+    "s": 358.0004,
     "g": 5.5,
     "u": 500,
     "c": 2
    },
-   "at": "2026-11-10T08:40:26.089Z"
+   "at": "2026-11-11T04:51:13.230Z"
   },
   {
    "id": "DA1-07",
@@ -49,7 +49,7 @@
     "client_jewelry": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi sa",
     "create_sale": "ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi sa"
    },
-   "at": "2026-11-10T08:40:26.118Z"
+   "at": "2026-11-11T04:51:13.259Z"
   },
   {
    "id": "DA1-08",
@@ -62,7 +62,7 @@
     "refused": 9,
     "sales": 2
    },
-   "at": "2026-11-10T08:40:26.196Z"
+   "at": "2026-11-11T04:51:13.329Z"
   },
   {
    "id": "DA1-09",
@@ -70,11 +70,11 @@
    "ok": true,
    "expected": "refused",
    "actual": {
-    "sale": "Mijoz (7db4bcb5-f325-4f33-bc18-ea4fd4167b5d) topil",
-    "pay": "Mijoz (7db4bcb5-f325-4f33-bc18-ea4fd4167b5d) topil",
-    "restore": "Mijoz topilmadi: 7db4bcb5-f325-4f33-bc18-ea4fd4167"
+    "sale": "Mijoz (d41429cf-5064-4f12-b2ea-0af1e9bb3992) topil",
+    "pay": "Mijoz (d41429cf-5064-4f12-b2ea-0af1e9bb3992) topil",
+    "restore": "Mijoz topilmadi: d41429cf-5064-4f12-b2ea-0af1e9bb3"
    },
-   "at": "2026-11-10T08:40:26.303Z"
+   "at": "2026-11-11T04:51:13.472Z"
   },
   {
    "id": "DA1-03",
@@ -92,7 +92,7 @@
      null
     ]
    },
-   "at": "2026-11-10T08:40:26.332Z"
+   "at": "2026-11-11T04:51:13.509Z"
   },
   {
    "id": "DA1-04",
@@ -103,7 +103,7 @@
     "ok": true,
     "usd": 500
    },
-   "at": "2026-11-10T08:40:26.347Z"
+   "at": "2026-11-11T04:51:13.533Z"
   },
   {
    "id": "DA1-05",
@@ -118,7 +118,7 @@
     "payEnabled": true,
     "bad": []
    },
-   "at": "2026-11-10T08:40:32.862Z"
+   "at": "2026-11-11T04:51:19.949Z"
   },
   {
    "id": "DA1-06",
@@ -129,7 +129,7 @@
     "ok": true,
     "n": 3
    },
-   "at": "2026-11-10T08:40:33.012Z"
+   "at": "2026-11-11T04:51:20.107Z"
   },
   {
    "id": "DA2-01",
@@ -141,7 +141,7 @@
     "move": "Ruxsat etilmadi: mijozni sotuvchiga faqat direktor",
     "unassign": "Ruxsat etilmadi: mijozni sotuvchiga faqat direktor"
    },
-   "at": "2026-11-10T08:40:33.083Z"
+   "at": "2026-11-11T04:51:20.170Z"
   },
   {
    "id": "DA2-02",
@@ -149,7 +149,7 @@
    "ok": true,
    "expected": 1,
    "actual": 1,
-   "at": "2026-11-10T08:40:33.105Z"
+   "at": "2026-11-11T04:51:20.200Z"
   },
   {
    "id": "DA2-03",
@@ -163,7 +163,7 @@
     "ok": true,
     "owner": null
    },
-   "at": "2026-11-10T08:40:33.137Z"
+   "at": "2026-11-11T04:51:20.228Z"
   },
   {
    "id": "DA2-04",
@@ -179,7 +179,7 @@
     "o1": true,
     "o2": true
    },
-   "at": "2026-11-10T08:40:33.164Z"
+   "at": "2026-11-11T04:51:20.262Z"
   },
   {
    "id": "DA2-05",
@@ -194,55 +194,55 @@
      true
     ]
    },
-   "at": "2026-11-10T08:40:33.392Z"
+   "at": "2026-11-11T04:51:20.456Z"
   }
  ],
  "ops": [
   {
-   "at": "2026-11-10T08:40:25.925Z",
+   "at": "2026-11-11T04:51:13.080Z",
    "kind": "gram sale 5 g",
    "ok": true,
    "data": {
     "status": "ok",
-    "sale_id": "d1c1a2f9-7864-474f-82b9-33b9dc5377f0",
-    "sale_no": "SALE-W-20261110-F60668",
-    "seller_id": "0435450e-e379-43ed-b682-b7a0961c4f53",
-    "customer_id": "7db4bcb5-f325-4f33-bc18-ea4fd4167b5d",
+    "sale_id": "a386007a-c7d6-47d2-9cb5-16002aac148a",
+    "sale_no": "SALE-W-20261111-7E7709",
+    "seller_id": "d963475a-0ead-40c7-856d-2f0ecb03f276",
+    "customer_id": "d41429cf-5064-4f12-b2ea-0af1e9bb3992",
     "weight_grams": 5,
     "base_weight_grams": 5,
     "client_markup_pct": 10,
     "remaining_debt_grams": 5.5,
     "advance_applied_grams": 0,
     "client_gold_due_grams": 5.5,
-    "remaining_physical_stock_g": 360.0009
+    "remaining_physical_stock_g": 360.0004
    }
   },
   {
-   "at": "2026-11-10T08:40:25.956Z",
+   "at": "2026-11-11T04:51:13.103Z",
    "kind": "USD sale $500",
    "ok": true,
    "data": {
     "status": "ok",
-    "sale_id": "882ce49a-ebf9-437d-bcf7-4dec3d6298ab",
-    "sale_no": "SALE-USD-20261110-A1EE84",
+    "sale_id": "acf799be-67c2-49da-afbf-1e3b394c76f7",
+    "sale_no": "SALE-USD-20261111-BE095A",
     "currency": "USD",
-    "seller_id": "0435450e-e379-43ed-b682-b7a0961c4f53",
-    "customer_id": "7db4bcb5-f325-4f33-bc18-ea4fd4167b5d",
+    "seller_id": "d963475a-0ead-40c7-856d-2f0ecb03f276",
+    "customer_id": "d41429cf-5064-4f12-b2ea-0af1e9bb3992",
     "sale_amount": 500,
     "weight_grams": 2,
     "remaining_debt": 500,
     "advance_applied": 0,
-    "remaining_physical_stock_g": 358.0009
+    "remaining_physical_stock_g": 358.0004
    }
   },
   {
-   "at": "2026-11-10T08:40:25.965Z",
+   "at": "2026-11-11T04:51:13.114Z",
    "kind": "archive",
    "ok": true,
    "data": {
     "status": "ok",
     "changed": true,
-    "customer_id": "7db4bcb5-f325-4f33-bc18-ea4fd4167b5d",
+    "customer_id": "d41429cf-5064-4f12-b2ea-0af1e9bb3992",
     "is_archived": true,
     "open_balances": {
      "debt_usd": 500,
@@ -275,23 +275,23 @@
   {
    "kind": "cross-tenant",
    "results": {
-    "sale": "Mijoz (7db4bcb5-f325-4f33-bc18-ea4fd4167b5d) topilmadi",
-    "pay": "Mijoz (7db4bcb5-f325-4f33-bc18-ea4fd4167b5d) topilmadi",
-    "restore": "Mijoz topilmadi: 7db4bcb5-f325-4f33-bc18-ea4fd4167b5d"
+    "sale": "Mijoz (d41429cf-5064-4f12-b2ea-0af1e9bb3992) topilmadi",
+    "pay": "Mijoz (d41429cf-5064-4f12-b2ea-0af1e9bb3992) topilmadi",
+    "restore": "Mijoz topilmadi: d41429cf-5064-4f12-b2ea-0af1e9bb3992"
    }
   },
   {
-   "at": "2026-11-10T08:40:26.314Z",
+   "at": "2026-11-11T04:51:13.488Z",
    "kind": "gram payment",
    "ok": true,
    "data": {
     "status": "ok",
-    "seller_id": "0435450e-e379-43ed-b682-b7a0961c4f53",
-    "customer_id": "7db4bcb5-f325-4f33-bc18-ea4fd4167b5d",
+    "seller_id": "d963475a-0ead-40c7-856d-2f0ecb03f276",
+    "customer_id": "d41429cf-5064-4f12-b2ea-0af1e9bb3992",
     "scrap_proba": 585,
     "rate_applied": 900000,
-    "settlement_id": "d9863b06-eae5-4e7b-a493-6fa0686484d1",
-    "settlement_no": "SETTL-AD9D6EED",
+    "settlement_id": "562de40c-de1e-4489-8231-4c4ebcdde7e0",
+    "settlement_no": "SETTL-179C8B3C",
     "fine_gold_grams": 0,
     "usd_paid_amount": 0,
     "cash_paid_amount": 900000,
@@ -312,7 +312,7 @@
    }
   },
   {
-   "at": "2026-11-10T08:40:26.323Z",
+   "at": "2026-11-11T04:51:13.499Z",
    "kind": "USD payment",
    "ok": true,
    "data": {
@@ -324,14 +324,14 @@
     "scrap_585_g": 0,
     "rate_lom_uzs": null,
     "rate_usd_uzs": null,
-    "settlement_id": "c1c06353-82aa-4f74-bb5d-6f45bcd55e8d",
-    "settlement_no": "CPAY-USD-20261110-3CEEC4",
+    "settlement_id": "906d5d70-7db3-4fab-8f6c-faf5a9541bfb",
+    "settlement_no": "CPAY-USD-20261111-2AE895",
     "applied_to_debt": 200,
     "credited_amount": 200
    }
   },
   {
-   "at": "2026-11-10T08:40:26.342Z",
+   "at": "2026-11-11T04:51:13.527Z",
    "kind": "reverse USD payment",
    "ok": true,
    "data": {
@@ -339,18 +339,18 @@
     "currency": "USD",
     "new_debt": 500,
     "new_advance": 0,
-    "settlement_id": "c1c06353-82aa-4f74-bb5d-6f45bcd55e8d",
+    "settlement_id": "906d5d70-7db3-4fab-8f6c-faf5a9541bfb",
     "reversed_amount": 200
    }
   },
   {
-   "at": "2026-11-10T08:40:32.980Z",
+   "at": "2026-11-11T04:51:20.068Z",
    "kind": "restore",
    "ok": true,
    "data": {
     "status": "ok",
     "changed": true,
-    "customer_id": "7db4bcb5-f325-4f33-bc18-ea4fd4167b5d",
+    "customer_id": "d41429cf-5064-4f12-b2ea-0af1e9bb3992",
     "is_archived": false,
     "open_balances": {
      "debt_usd": 500,
@@ -363,22 +363,22 @@
    }
   },
   {
-   "at": "2026-11-10T08:40:33.003Z",
+   "at": "2026-11-11T04:51:20.098Z",
    "kind": "sale after restore",
    "ok": true,
    "data": {
     "status": "ok",
-    "sale_id": "9bd2e7f5-f52b-4e64-84e5-ed39a26d49c2",
-    "sale_no": "SALE-W-20261110-C26BD1",
-    "seller_id": "0435450e-e379-43ed-b682-b7a0961c4f53",
-    "customer_id": "7db4bcb5-f325-4f33-bc18-ea4fd4167b5d",
+    "sale_id": "0896a25e-ebb9-4dfc-8d58-aa93dba4ebd5",
+    "sale_no": "SALE-W-20261111-FE49E8",
+    "seller_id": "d963475a-0ead-40c7-856d-2f0ecb03f276",
+    "customer_id": "d41429cf-5064-4f12-b2ea-0af1e9bb3992",
     "weight_grams": 1,
     "base_weight_grams": 1,
     "client_markup_pct": 10,
     "remaining_debt_grams": 1.1,
     "advance_applied_grams": 0,
     "client_gold_due_grams": 1.1,
-    "remaining_physical_stock_g": 357.0009
+    "remaining_physical_stock_g": 357.0004
    }
   },
   {
@@ -390,22 +390,22 @@
    }
   },
   {
-   "at": "2026-11-10T08:40:33.131Z",
+   "at": "2026-11-11T04:51:20.222Z",
    "kind": "sale to unassigned",
    "ok": true,
    "data": {
     "status": "ok",
-    "sale_id": "f957d379-c770-42d9-a2f2-d9e73f75a73b",
-    "sale_no": "SALE-W-20261110-537585",
-    "seller_id": "0435450e-e379-43ed-b682-b7a0961c4f53",
-    "customer_id": "98b26834-40c2-4ef6-a738-0045acbe3be9",
+    "sale_id": "44dc93c1-8303-4e88-a1e9-830ddb559f2f",
+    "sale_no": "SALE-W-20261111-8CBA92",
+    "seller_id": "d963475a-0ead-40c7-856d-2f0ecb03f276",
+    "customer_id": "be8b2e46-0ff3-4a59-bdad-6c244cc54aca",
     "weight_grams": 1,
     "base_weight_grams": 1,
     "client_markup_pct": 10,
     "remaining_debt_grams": 1.1,
     "advance_applied_grams": 0,
     "client_gold_due_grams": 1.1,
-    "remaining_physical_stock_g": 356.0009
+    "remaining_physical_stock_g": 356.0004
    }
   },
   {

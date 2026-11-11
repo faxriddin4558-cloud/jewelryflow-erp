@@ -1,0 +1,118 @@
+{
+  "target": "local",
+  "run": "mwbn6ozj",
+  "results": [
+    {
+      "id": "OP-1",
+      "title": "backup verification: service role (release tooling) writes it; a signed-in director cannot",
+      "ok": true,
+      "expected": "service only",
+      "actual": {
+        "director": 403,
+        "service": 201
+      }
+    },
+    {
+      "id": "OP-2",
+      "title": "director UI: wrong phrase keeps the button disabled; exact phrase + double click -> exactly one restart and one draft period",
+      "ok": true,
+      "expected": {
+        "restarts": 1,
+        "drafts": 1
+      },
+      "actual": {
+        "panel": 1,
+        "disabledWrong": true,
+        "restarts": 1,
+        "drafts": 1,
+        "draftBefore": 0,
+        "status": "Davr: OPN-20261111-0952-ABFF61 · T0: 11.11.2026, 08:52:00 · Holat: qoralama",
+        "bad": []
+      }
+    },
+    {
+      "id": "OP-3",
+      "title": "identities kept (customers, phones, seller assignment, employees, logins); every balance zero",
+      "ok": true,
+      "expected": "kept / 0",
+      "actual": {
+        "idsSame": true,
+        "sellers": 0,
+        "cust": 0
+      }
+    },
+    {
+      "id": "OP-4",
+      "title": "manager UI (double clicks): 4 documents once each; manager stock 100 - 30 = 70, factory 108, seller A stock 30",
+      "ok": true,
+      "expected": {
+        "docs": 4,
+        "mstock": 70,
+        "factory": 108,
+        "sellerStock": 30
+      },
+      "actual": {
+        "docs": 4,
+        "rows": 4,
+        "mstock": 70,
+        "factory": 108,
+        "sellerStock": 30,
+        "bad": []
+      }
+    },
+    {
+      "id": "OP-5",
+      "title": "opening UZS debt 8 600 000 @ 860 000: customer UZS debt 8.6 M, seller obligation 33.6 + 10 = 43.6 g (snapshot 860 000 stored)",
+      "ok": true,
+      "expected": {
+        "uzs": 8600000,
+        "owes": 43.6
+      },
+      "actual": {
+        "uzs": 8600000,
+        "owes": 43.6
+      }
+    },
+    {
+      "id": "OP-6",
+      "title": "reconciliation all green, lock via the baseline (double click once): period locked; a later opening entry is refused",
+      "ok": true,
+      "expected": "locked",
+      "actual": {
+        "checks": [
+          "✅ Sotuvchilar kassasi bo'sh (so'm, USD, LOM — O-2)",
+          "✅ Mijozlar 585 g qoldig'i = boshlang'ich hujjatlar",
+          "✅ Mijozlar USD qoldig'i = boshlang'ich hujjatlar",
+          "✅ Mijozlar so'm qoldig'i = boshlang'ich hujjatlar",
+          "✅ Sotuvchi ombori = qo'lidagi donalar",
+          "✅ Qayta boshlashdan keyin oddiy hujjatlar soni (0 bo'lishi kerak): 0"
+        ],
+        "period": {
+          "status": "locked",
+          "baseline_id": "180f93b4-064e-4cd1-a1b1-bd94aff30a82"
+        },
+        "after": "ERR_OPENING_LOCKED: boshlang'ich hisob tasdiqlangan va qulflangan"
+      }
+    },
+    {
+      "id": "OP-7",
+      "title": "opening page on a 390 px phone: no horizontal page overflow",
+      "ok": true,
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "id": "OP-8",
+      "title": "after the opening: weight sale 5 g from the opening seller stock -> stock 25, obligation unchanged 43.6",
+      "ok": true,
+      "expected": {
+        "stock": 25,
+        "owes": 43.6
+      },
+      "actual": {
+        "current_physical_stock_g": 25,
+        "seller_owes_manager_g": 43.6
+      }
+    }
+  ]
+}

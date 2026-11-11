@@ -1,6 +1,6 @@
 {
  "target": "local",
- "at": "2026-11-10T08:40:35.993Z",
+ "at": "2026-11-11T04:51:22.888Z",
  "director_manager_mismatches": [],
  "missing_or_ambiguous": [],
  "matrix": {
@@ -727,7 +727,7 @@
    },
    "director56": {
     "c": "PASSES",
-    "e": "ERR_DAILY_RATE_NOT_SET: Boshlang'ich hisobni tasdiqlash uchun bugungi (2026-11-10 sanadagi) tasdiqlangan 585 o"
+    "e": "ERR_DAILY_RATE_NOT_SET: Boshlang'ich hisobni tasdiqlash uchun bugungi (2026-11-11 sanadagi) tasdiqlangan 585 o"
    }
   },
   "rpc_set_daily_gold_rate": {

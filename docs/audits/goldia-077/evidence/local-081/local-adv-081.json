@@ -1,13 +1,13 @@
 {
  "target": "local",
- "run": "mwafrx2a",
+ "run": "mwbn114a",
  "ids": {
-  "A": "cd2e08df-7174-4321-88a0-6ff5f559807f",
-  "Dc": "dc1903b0-0912-4be8-8a9f-ff9f1fa9a78c",
-  "P1": "3740f61b-b6a9-4a26-a5e5-a1da3692d4e6",
-  "P2": "a7b4b686-8218-4c20-bda8-5451903867e7",
-  "Bc": "79623df1-4f60-4af5-abc0-c7330a9d3255",
-  "X": "19de51d9-6cd0-4f96-a109-1b5cc9f9e815"
+  "A": "bfec1a22-a46b-4c4e-90b7-7b2dd2e6995c",
+  "Dc": "ceead0ec-4631-45e1-9d2c-814c3591e938",
+  "P1": "59adc084-a073-4117-94db-19e00fc71b73",
+  "P2": "868fe1f6-21a4-4bf9-b981-6fd09ed8dbaa",
+  "Bc": "dcc8db17-3737-4457-b48d-e1481f1ebb5a",
+  "X": "b15e06fa-57b9-42ef-9da5-8a92f33e0103"
  },
  "results": [
   {
@@ -23,16 +23,16 @@
     "button": 1,
     "rows": 1,
     "row": {
-     "id": "209a1c51-db32-457d-857c-d4511d861d05",
+     "id": "e2be0b43-b5d9-4e36-af60-19285c89991c",
      "balance_type": "advance",
      "delta_585_g": -12.5,
      "status": "confirmed",
-     "created_by": "0435450e-e379-43ed-b682-b7a0961c4f53",
-     "seller_id": "0435450e-e379-43ed-b682-b7a0961c4f53"
+     "created_by": "d963475a-0ead-40c7-856d-2f0ecb03f276",
+     "seller_id": "d963475a-0ead-40c7-856d-2f0ecb03f276"
     },
-    "msg": "Eski qarz/avans muvaffaqiyatli saqlandi! (ADV81 Avans mwafrx2a): Tuzatish: -12"
+    "msg": "Eski qarz/avans muvaffaqiyatli saqlandi! (ADV81 Avans mwbn114a): Tuzatish: -12"
    },
-   "at": "2026-11-10T08:36:54.899Z"
+   "at": "2026-11-11T04:47:43.627Z"
   },
   {
    "id": "SA-MOD-1",
@@ -50,7 +50,7 @@
     },
     "same": true
    },
-   "at": "2026-11-10T08:36:54.932Z"
+   "at": "2026-11-11T04:47:43.651Z"
   },
   {
    "id": "SA-UI-2",
@@ -64,7 +64,7 @@
     "note": true,
     "button": 0
    },
-   "at": "2026-11-10T08:36:58.745Z"
+   "at": "2026-11-11T04:47:47.503Z"
   },
   {
    "id": "SA-UI-3",
@@ -72,7 +72,7 @@
    "ok": true,
    "expected": [],
    "actual": [],
-   "at": "2026-11-10T08:36:58.745Z"
+   "at": "2026-11-11T04:47:47.503Z"
   },
   {
    "id": "SA-API-1",
@@ -83,12 +83,12 @@
     "openDebt": "Ruxsat etilmadi: Mijozda ochiq qarz bor (7.00",
     "otherSellerCustomer": "Ruxsat etilmadi: Ushbu mijoz sizga biriktiril",
     "otherSellerId": "Ruxsat etilmadi: Sotuvchi eski qarzni faqat o",
-    "otherOrg": "Mijoz topilmadi: 19de51d9-6cd0-4f96-a109-1b5c",
+    "otherOrg": "Mijoz topilmadi: b15e06fa-57b9-42ef-9da5-8a92",
     "targetBalance": "Ruxsat etilmadi: Avans bo'yicha yakuniy balan",
     "reconEntry": "Ruxsat etilmadi: Sotuvchi avansni faqat qo'sh",
     "sellerReverse": "Permission denied for role \"seller\" (required"
    },
-   "at": "2026-11-10T08:36:58.815Z"
+   "at": "2026-11-11T04:47:47.563Z"
   },
   {
    "id": "SA-API-2",
@@ -109,7 +109,7 @@
      "a": 0
     }
    },
-   "at": "2026-11-10T08:36:58.840Z"
+   "at": "2026-11-11T04:47:47.582Z"
   },
   {
    "id": "SA-PAR",
@@ -137,7 +137,7 @@
     "ok_same_key": 8,
     "refused_other_keys": 7
    },
-   "at": "2026-11-10T08:36:58.906Z"
+   "at": "2026-11-11T04:47:47.642Z"
   },
   {
    "id": "SA-MOD-2",
@@ -158,7 +158,7 @@
      "a": 1.5
     }
    },
-   "at": "2026-11-10T08:36:58.945Z"
+   "at": "2026-11-11T04:47:47.681Z"
   },
   {
    "id": "SA-MOD-3",
@@ -177,7 +177,7 @@
     },
     "bad": []
    },
-   "at": "2026-11-10T08:37:08.865Z"
+   "at": "2026-11-11T04:47:57.591Z"
   },
   {
    "id": "SA-MOD-4",
@@ -191,7 +191,7 @@
      "a": 2
     }
    },
-   "at": "2026-11-10T08:37:08.897Z"
+   "at": "2026-11-11T04:47:57.618Z"
   },
   {
    "id": "SA-REC",
@@ -208,7 +208,7 @@
     "negative": 0,
     "both": 0
    },
-   "at": "2026-11-10T08:37:09.014Z"
+   "at": "2026-11-11T04:47:57.719Z"
   }
  ],
  "ops": [
@@ -218,7 +218,7 @@
     "openDebt": "Ruxsat etilmadi: Mijozda ochiq qarz bor (7.0000 g) - avans uni kamaytiradi; buni faqat men",
     "otherSellerCustomer": "Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan (eski qarzni faqat o'z mijozingizga kir",
     "otherSellerId": "Ruxsat etilmadi: Sotuvchi eski qarzni faqat o'z nomiga kirita oladi",
-    "otherOrg": "Mijoz topilmadi: 19de51d9-6cd0-4f96-a109-1b5cc9f9e815",
+    "otherOrg": "Mijoz topilmadi: b15e06fa-57b9-42ef-9da5-8a92f33e0103",
     "targetBalance": "Ruxsat etilmadi: Avans bo'yicha yakuniy balansni almashtirishni faqat menejer yoki direkto",
     "reconEntry": "Ruxsat etilmadi: Sotuvchi avansni faqat qo'shish sifatida kiritadi (yozuv turi: reconcilia",
     "sellerReverse": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, ra"

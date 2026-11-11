@@ -1,0 +1,290 @@
+{
+  "target": "local",
+  "run": "mwbmyxqt",
+  "results": [
+    {
+      "id": "RR-1",
+      "title": "seller pays 910 000 so'm without a rate -> his saved 910 000 is used and snapshotted (1.0000 g)",
+      "ok": true,
+      "expected": {
+        "rate": 910000,
+        "g": 1
+      },
+      "actual": {
+        "gold_rate_applied": 910000,
+        "applied_usd_rate": null,
+        "cash_equivalent_grams": 1,
+        "usd_equivalent_grams": 0,
+        "total_settled_grams": 1,
+        "handover_entered_lom_rate": null,
+        "recorded_by": "d963475a-0ead-40c7-856d-2f0ecb03f276",
+        "created_at": "2026-11-11T04:45:54.791371+00:00"
+      }
+    },
+    {
+      "id": "RR-2",
+      "title": "seller enters 920 000 (saved 910 000) -> accepted (was ERR_RATE_MISMATCH), snapshot 920 000, 1.0000 g",
+      "ok": true,
+      "expected": {
+        "rate": 920000,
+        "g": 1
+      },
+      "actual": {
+        "gold_rate_applied": 920000,
+        "applied_usd_rate": null,
+        "cash_equivalent_grams": 1,
+        "usd_equivalent_grams": 0,
+        "total_settled_grams": 1,
+        "handover_entered_lom_rate": null,
+        "recorded_by": "d963475a-0ead-40c7-856d-2f0ecb03f276",
+        "created_at": "2026-11-11T04:45:54.810362+00:00"
+      }
+    },
+    {
+      "id": "RR-3",
+      "title": "seller rate 1215000 (> 25 % from the official 900000) -> refused, nothing recorded",
+      "ok": true,
+      "expected": "refused",
+      "actual": "ERR_RATE_OUT_OF_RANGE: LOM kursi rasmiy 585 kursidan (900000.00 UZS/g) 25.00 foizdan ortiq farq qila olmaydi"
+    },
+    {
+      "id": "RR-4",
+      "title": "manager receives 10 USD without a USD rate -> ERR_RATE_REQUIRED (no 12 800 / CBU guess)",
+      "ok": true,
+      "expected": "refused",
+      "actual": "ERR_RATE_REQUIRED: Dollar (USD) to'lovi uchun USD kursini kiriting"
+    },
+    {
+      "id": "RR-4b",
+      "title": "manager enters 12 700 -> snapshot 12 700, grams = 10 x 12 700 / 900 000",
+      "ok": true,
+      "expected": 0.1411,
+      "actual": {
+        "gold_rate_applied": 900000,
+        "applied_usd_rate": 12700,
+        "cash_equivalent_grams": 0,
+        "usd_equivalent_grams": 0.1411,
+        "total_settled_grams": 0.1411,
+        "handover_entered_lom_rate": null,
+        "recorded_by": "778e8403-c1b3-44f3-a63f-c84982131c85",
+        "created_at": "2026-11-11T04:45:54.852013+00:00"
+      }
+    },
+    {
+      "id": "RR-5",
+      "title": "seller pays a USD debt with 1 270 000 so'm at his entered 12 700 (saved 12 600) -> credited 100.00 USD, snapshot 12 700",
+      "ok": true,
+      "expected": {
+        "rate": 12700,
+        "credited": 100
+      },
+      "actual": {
+        "rate_usd_uzs": 12700,
+        "credited_amount": 100
+      }
+    },
+    {
+      "id": "RR-6",
+      "title": "manager scrap payment without a LOM rate -> default = official 900 000 (was \"required\"), credited 900 000 / 12 500 = 72.00 USD",
+      "ok": true,
+      "expected": {
+        "rate": 900000,
+        "credited": 72
+      },
+      "actual": {
+        "rate_lom_uzs": 900000,
+        "credited_amount": 72
+      }
+    },
+    {
+      "id": "RR-7",
+      "title": "handover 1930000 so'm: 1830000 valued (pool grams) + 100 000 unvalued at the entered 905 000 -> 2.1105 g",
+      "ok": true,
+      "expected": {
+        "grams": 2.1105,
+        "entered_lom_rate_snapshot": 905000,
+        "recorded_by": "sellera"
+      },
+      "actual": {
+        "gold_rate_applied": 914475.24,
+        "applied_usd_rate": null,
+        "cash_equivalent_grams": 2.1105,
+        "usd_equivalent_grams": 0,
+        "total_settled_grams": 2.1105,
+        "handover_entered_lom_rate": 905000,
+        "recorded_by": "d963475a-0ead-40c7-856d-2f0ecb03f276",
+        "created_at": "2026-11-11T04:45:54.916165+00:00"
+      }
+    },
+    {
+      "id": "RR-8",
+      "title": "after the saved rate changes, earlier payments keep 910 000 / 920 000 and their grams (no re-pricing)",
+      "ok": true,
+      "expected": [
+        910000,
+        920000
+      ],
+      "actual": [
+        910000,
+        920000
+      ]
+    },
+    {
+      "id": "RR-9",
+      "title": "profit summary lists customers' UZS / USD balances (debt and advance per currency = accounts)",
+      "ok": true,
+      "expected": {
+        "usdD": 128,
+        "usdA": 0,
+        "uzsD": 0
+      },
+      "actual": {
+        "usdD": 128,
+        "usdA": 0,
+        "uzsD": 0
+      }
+    },
+    {
+      "id": "RR-10",
+      "title": "without a USD rate: USD listed as not valued, no period result, no 12 800 anywhere",
+      "ok": true,
+      "expected": "not valued",
+      "actual": {
+        "usd_rate": null,
+        "result": null,
+        "not_valued": [
+          "USD baholanmadi (USD kursi berilmagan): kassa 10.00, mijoz qarzi 128.00, mijoz avansi 0.00"
+        ]
+      }
+    },
+    {
+      "id": "RR-10b",
+      "title": "with USD 12 500: customer USD debt valued = debt x 12 500 / 900 000, included in assets",
+      "ok": true,
+      "expected": 1.7778,
+      "actual": 1.7778
+    },
+    {
+      "id": "RR-12",
+      "title": "review: manager sees the seller's typed 920 000 (saved 910 000 -> flagged, actor = seller) and the handover's entered 905 000; director sees the same rows; seller sees only his own, another seller's rates refused",
+      "ok": true,
+      "expected": "ok",
+      "actual": {
+        "typed": {
+          "lom": 920000,
+          "saved": 910000,
+          "flag": true
+        },
+        "handover": 905000,
+        "manager_rows": 6,
+        "director_rows": 6,
+        "seller_rows": 6,
+        "other": "Permission denied: sotuvchi faqat o'z operatsiyalari kurslarini ko'radi"
+      }
+    },
+    {
+      "id": "RR-UI-1",
+      "title": "seller phone: LOM field prefilled with the current saved 895000 and editable; typed 920 000 + double click -> exactly one payment at 920 000 = 1.0000 g, no API error, no overflow",
+      "ok": true,
+      "expected": {
+        "pre": 895000,
+        "rows": [
+          [
+            920000,
+            1
+          ]
+        ]
+      },
+      "actual": {
+        "pre": "895000",
+        "editable": true,
+        "rows": [
+          [
+            920000,
+            1
+          ]
+        ],
+        "bad": [],
+        "overflow": 0
+      }
+    },
+    {
+      "id": "RR-UI-2-raw",
+      "title": "handover observations",
+      "ok": true,
+      "expected": null,
+      "actual": {
+        "till_before": {
+          "c": 2090000,
+          "vc": 920000,
+          "vg": 1,
+          "st": 2.1105
+        },
+        "till_after": {
+          "c": 0,
+          "st": 5.5444
+        },
+        "legacy": 1170000
+      }
+    },
+    {
+      "id": "RR-UI-2",
+      "title": "manager handover dialog: LOM field present, default official 900000, editable; typed 905 000 -> cash till 0, settled >= captured 1 g + legacy / 905 000 (2.2928 g), no API error",
+      "ok": true,
+      "expected": {
+        "pre": 900000,
+        "till": 0,
+        "min_settled": 2.2928
+      },
+      "actual": {
+        "present": 1,
+        "pre": "900000",
+        "editable": true,
+        "till": 0,
+        "settled": 3.4339,
+        "bad": []
+      }
+    },
+    {
+      "id": "RR-UI-3",
+      "title": "seller desktop: USD rate field prefilled with the saved 12 400 and editable; typed 12 650 + 632 500 so'm + double click -> one payment, 50.00 USD credited, USD debt 150, till +632 500 so'm once, snapshot 12 650, actor = seller",
+      "ok": true,
+      "expected": {
+        "pre": 12400,
+        "docs": [
+          [
+            12650,
+            50
+          ]
+        ],
+        "debt": 150,
+        "till": 632500
+      },
+      "actual": {
+        "pre": "12400",
+        "docs": [
+          [
+            12650,
+            50
+          ]
+        ],
+        "debt": {
+          "d": 150,
+          "a": 0
+        },
+        "till": 632500,
+        "bad": []
+      }
+    },
+    {
+      "id": "RR-UI-4",
+      "title": "manager sellers page: rate review lists the seller's overridden rates (920 000 LOM, 12 650 USD) with the saved values next to them, no API error",
+      "ok": true,
+      "expected": "listed",
+      "actual": {
+        "excerpt": "Vaqt\tHujjat\tSotuvchi\tKiritgan\tNaqd / USD\tLOM kursi\tSaqlangan\tRasmiy\tUSD kursi\tSaqlangan\n11.11.2026, 04:46:23\tTo'lov (USD qarz) CPAY-USD-20261111-F24951 · RR84 UIUSD mwbmyxqt\tAUDIT sellera\tAUDIT sellera (sales)\t632 500 / 0\t—\t895 000\t900 000\t12 650\t12 400\n11.11.2026, 04:46:13\tTopshiruv STL-MGR-20261111-9C1879\tAUDIT sellera\tAUDIT manager (production_manager)\t2 090 000 / 10\t905 000 (+0.56%)\t895 000\t90",
+        "bad": []
+      }
+    }
+  ]
+}

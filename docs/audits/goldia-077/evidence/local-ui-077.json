@@ -2,16 +2,16 @@
   "target": "local",
   "version": {
     "status": "ok",
-    "commit": "e3c0a65",
-    "full_commit": "e3c0a65bf2dd6b8e889babdd9e038e5d38172bb7",
+    "commit": "e9a47e6",
+    "full_commit": "e9a47e6f56c2baf8c1f92317518c77f056a293ae",
     "env": "staging",
     "staging_mode": true,
     "supabase_ref": "127",
     "sha_source": "build",
     "vercel_git_commit": null,
-    "timestamp": "2026-11-10T08:39:35.202Z"
+    "timestamp": "2026-11-11T04:50:23.030Z"
   },
-  "run": "mwaftq7p",
+  "run": "mwbn2tpb",
   "results": [
     {
       "id": "U77-01",
@@ -75,7 +75,7 @@
       "actual": {
         "sales": 1,
         "row": {
-          "id": "e87cef39-1ccc-4147-9fa4-c7e8c65f4d95",
+          "id": "65b8db47-10ed-42fb-8fe9-3343537dfd92",
           "sale_currency": "USD",
           "sale_amount": 2000,
           "base_weight_grams": 20,
@@ -209,11 +209,11 @@
       "title": "\"Yangi davrni boshlash\" stores the period, says so; debts, stock, tills, vault unchanged",
       "ok": true,
       "expected": {
-        "stored": "2026-11-09",
+        "stored": "2026-11-10",
         "unchanged": true
       },
       "actual": {
-        "msg": "Davr 2026-11-01 — 2026-11-09 saqlandi. Keyingi davr 2026-11-10 dan boshlanadi. Q",
+        "msg": "Davr 2026-11-01 — 2026-11-10 saqlandi. Keyingi davr 2026-11-11 dan boshlanadi. Q",
         "periods": 1,
         "unchanged": true
       }
@@ -223,7 +223,7 @@
       "title": "a closed period can be opened again from the list (report kept)",
       "ok": true,
       "expected": "shown",
-      "actual": "Saqlangan davr hisoboti (2026-11-01 — 2026-11-09) ko'rsatilmoqda."
+      "actual": "Saqlangan davr hisoboti (2026-11-01 — 2026-11-10) ko'rsatilmoqda."
     },
     {
       "id": "U77-26",

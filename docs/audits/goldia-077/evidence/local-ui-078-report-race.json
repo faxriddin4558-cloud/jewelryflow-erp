@@ -2,18 +2,18 @@
  "target": "local",
  "version": {
   "status": "ok",
-  "commit": "e3c0a65",
-  "full_commit": "e3c0a65bf2dd6b8e889babdd9e038e5d38172bb7",
+  "commit": "e9a47e6",
+  "full_commit": "e9a47e6f56c2baf8c1f92317518c77f056a293ae",
   "env": "staging",
   "staging_mode": true,
   "supabase_ref": "127",
   "sha_source": "build",
   "vercel_git_commit": null,
-  "timestamp": "2026-11-10T08:41:11.960Z"
+  "timestamp": "2026-11-11T04:51:55.805Z"
  },
  "requests": [
-  "{\"p_from\":\"2026-11-01\",\"p_to\":\"2026-11-10\",\"p_seller_id\":null}",
-  "{\"p_from\":\"2026-11-10\",\"p_to\":\"2026-11-10\",\"p_seller_id\":null}"
+  "{\"p_from\":\"2026-11-01\",\"p_to\":\"2026-11-11\",\"p_seller_id\":null}",
+  "{\"p_from\":\"2026-11-11\",\"p_to\":\"2026-11-11\",\"p_seller_id\":null}"
  ],
  "shown": "Savdo: aniq USD narxda\t72\t173,3057 g\t0,0000 g\t$61 922,69\t—\t—\t—",
  "server_today_usd_sales": 72,
