@@ -2,16 +2,16 @@
   "target": "staging",
   "version": {
     "status": "ok",
-    "commit": "c1a1d09",
-    "full_commit": "c1a1d09f283b81ec9c281c8ade0b52f3bdd0870c",
+    "commit": "1621c1b",
+    "full_commit": "1621c1bac944b29991d320afa642de80685372ac",
     "env": "staging",
     "staging_mode": true,
     "supabase_ref": "vouehtlmsunebracahon",
     "sha_source": "build",
     "vercel_git_commit": null,
-    "timestamp": "2026-11-05T17:00:24.246Z"
+    "timestamp": "2026-11-11T19:10:39.740Z"
   },
-  "run": "mw3sgwxj",
+  "run": "mwchqovn",
   "results": [
     {
       "id": "U77-01",
@@ -24,7 +24,7 @@
       },
       "actual": {
         "panel": true,
-        "cards": 7,
+        "cards": 10,
         "detailsOpen": false
       }
     },
@@ -75,7 +75,7 @@
       "actual": {
         "sales": 1,
         "row": {
-          "id": "594855be-0f53-4c22-9dee-7bc592bc96f4",
+          "id": "f79e899c-aa15-47bd-ba40-7c39bc9a0c7c",
           "sale_currency": "USD",
           "sale_amount": 2000,
           "base_weight_grams": 20,
@@ -94,8 +94,8 @@
       },
       "actual": {
         "stock": -20,
-        "o0": 2257.2362,
-        "o1": 2257.2362
+        "o0": 2695.8894,
+        "o1": 2695.8894
       }
     },
     {
@@ -123,7 +123,7 @@
     },
     {
       "id": "U77-14",
-      "title": "seller pays a USD debt with 1 250 000 so'm at his own 12 500 rate (not editable) -> 100 USD; till +1 250 000 so'm",
+      "title": "seller pays a USD debt with 1 250 000 so'm at his saved 12 500 rate (prefilled default, editable since 084) -> 100 USD; till +1 250 000 so'm",
       "ok": true,
       "expected": {
         "debt": 1400,
@@ -132,7 +132,8 @@
       "actual": {
         "debt": 1400,
         "till": 1250000,
-        "ownRatesShown": "Kurslaringiz (o'zgartirilmaydi): USD 12 500 so'm, LOM 900 000 so'm/g",
+        "rateValue": "12500",
+        "ownRatesShown": "Saqlangan kurslaringiz (shu to'lov uchun o'zgartirish mumkin): USD 12 500 so'm, LOM 900 000 so'm/g",
         "preview": "Qarzga yoziladi: 100 USD\nHozirgi USD qarz: 1 500; ortiqchasi"
       }
     },
@@ -181,20 +182,20 @@
       "title": "period report shows UZS and USD sales separately; the page equals the server report (count, amount, physical g)",
       "ok": true,
       "expected": {
-        "usd": 4000,
-        "uzs": 6200000
+        "usd": 102669.25,
+        "uzs": 1090450000
       },
       "actual": {
-        "flowUsd": "Savdo: aniq USD narxda\t2\t40,0000 g\t0,0000 g\t$4 000,00\t—\t—\t—",
-        "flowUzs": "Savdo: aniq UZS narxda\t2\t5,0000 g\t0,0000 g\t6 200 000 so'm\t—\t—\t—"
+        "flowUsd": "Savdo: aniq USD narxda\t114\t266,4677 g\t0,0000 g\t$102 669,25\t—\t—\t—",
+        "flowUzs": "Savdo: aniq UZS narxda\t100\t216,8523 g\t0,0000 g\t1 090 450 000 so'm\t—\t—\t—"
       }
     },
     {
       "id": "U77-22",
       "title": "report closing USD customer debt = live USD balances of the organization",
       "ok": true,
-      "expected": 3000,
-      "actual": "$3 000,00"
+      "expected": 178048.39,
+      "actual": "$178 048,39"
     },
     {
       "id": "U77-23",
@@ -208,12 +209,12 @@
       "title": "\"Yangi davrni boshlash\" stores the period, says so; debts, stock, tills, vault unchanged",
       "ok": true,
       "expected": {
-        "stored": "2026-11-04",
+        "stored": "2026-11-11",
         "unchanged": true
       },
       "actual": {
-        "msg": "Davr 2026-11-01 — 2026-11-04 saqlandi. Keyingi davr 2026-11-05 dan boshlanadi. Q",
-        "periods": 1,
+        "msg": "Davr 2026-11-11 — 2026-11-11 saqlandi. Keyingi davr 2026-11-12 dan boshlanadi. Q",
+        "periods": 5,
         "unchanged": true
       }
     },
@@ -222,7 +223,7 @@
       "title": "a closed period can be opened again from the list (report kept)",
       "ok": true,
       "expected": "shown",
-      "actual": "Saqlangan davr hisoboti (2026-11-01 — 2026-11-04) ko'rsatilmoqda."
+      "actual": "Saqlangan davr hisoboti (2026-11-11 — 2026-11-11) ko'rsatilmoqda."
     },
     {
       "id": "U77-26",

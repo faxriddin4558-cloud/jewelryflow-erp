@@ -1,0 +1,11 @@
+PASS U78-01 seller sees "Mijozni o'chirish" on his own customer, not on an unassigned one | exp={"own":1,"unassigned":0} act={"own":1,"unassigned":0}
+PASS U78-02 one confirmation, double click -> exactly one archive operation; archived_by = the seller; gone from the normal list | exp={"archived":true,"audits":1,"listed":0} act={"archived":true,"by":true,"audits":1,"listed":0,"dialogs":1,"msg":"\"UI78 Ochiriladi mwchv11s\" mijozini o'chirasizmi? Mijoz ro'yxatdan yashiriladi (arxivga o'tadi), savdo, to'lov va qarz t"}
+PASS U78-03 seller cannot archive another seller's / unassigned / other organization's customer (RPC 42501 / not found; direct PATCH 0 rows / refused); nothing changed | exp="all refused" act={"other":"Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan (faqat o'z mijozing","free":"Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan","foreign":"Mijoz topilmadi: 961f8ab8-c608-4568-846d","patchOther":[],"patchFree":"Ruxsat etilmadi: mijozni faqat uning
+PASS U78-04 archived: 585 g debt and USD debt unchanged, sales kept, shown under "Arxivlangan mijozlar" with the debt; a $200 payment still works; report includes it | exp={"g585":12.5,"usd":800,"sales":1} act={"g585":12.5,"usd":800,"sales":1,"rowShown":"CUST-0602 UI78 Ochiriladi mwchv11s — AUDIT075 sellera 0.00 g 0 UZS — — 12.50 g 📋 Eski qar","pay":true,"reportUsd":178848.39,"liveUsd":178848.39}
+PASS U78-05 seller restores his own customer from "Arxivlangan mijozlar"; back in the normal list; debts unchanged | exp={"archived":false,"listed":1} act={"archived":false,"at":null,"listed":1,"audits":2}
+PASS U78-06 no API 4xx/5xx in the seller UI session | exp=[] act=[]
+FAIL U78-07 manager archives and restores another seller's customer in the UI (director = manager) | exp={"archived":true,"restored":true} act={"a":true,"r":false,"bad":[]}
+PASS U78-08 director archives / restores an unassigned customer via the API | exp=true act={"a":true,"r":true}
+PASS U78-09 seller on a 390 px phone: "Mijozni o'chirish" in the mobile card, no horizontal overflow | exp={"button":1,"overflow":0} act={"button":1,"overflow":0}
+PASS U78-10 seller on a 390 px phone archives a customer from the mobile card and restores it from "Arxivlangan mijozlar"; no API errors | exp={"archived":true,"restored":true,"audits":2} act={"a":true,"btn":1,"r":true,"audits":2,"bad":[]}
+TOTAL 9/10

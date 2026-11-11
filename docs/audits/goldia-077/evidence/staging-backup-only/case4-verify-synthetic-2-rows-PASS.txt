@@ -1,0 +1,32 @@
+GOLDIA SALES — staging release <detected level> -> 085 (DRY RUN: staging is only read)
+
+started: 2026-11-11T17:44:24.835Z  mode: BACKUP ONLY (LOCAL REHEARSAL)
+[1/10] tools: /opt/goldia-audit/pg17root/wrap (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
+  checkout: 85 migration files, newest 085
+[2/10] connection
+  host=127.0.0.1 port=55437 user=postgres
+  server: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2), user postgres
+[3/10] identity and state gates (read only)
+  organizations=61 employees=200 auth.users=200 jewelry_sales=52
+  history: 85 rows, latest 20260101000085 (level 085)
+  repository: 85 migration files, newest 085
+  unrecorded repository versions below the level (gaps): none
+  recorded versions unknown to this checkout: none
+  history repair requested: none
+  migrations to apply: none (up to date)
+  backup verification will be written for: LOCAL REHEARSAL C (sintetik) (LOCAL-085-C), 2 row(s), after BACKUP: VERIFIED
+  staging is at 085: BACKUP ONLY - no migration will run
+[4/10] fresh backup (outside the repository)
+  full dump: attempt 1 ok (0 s, readable by pg_restore --list)
+  schemas: public, auth, storage, supabase_migrations; roles dump: ok
+  f66535c1aebe50241935658b478615467b3d4aa1e08b3b532af81519bfe8f71e  staging-full.dump  1599001 bytes
+  2363311491b9f90af31301a732b3cc8f6aefa778fe2c60d700c8d2371099e6d3  staging-roles.sql  1582 bytes
+  b263e7aedfb90f1527ca35c4d5f0f1576e5714726c8addaff8fb6a7551858ae3  staging-schema.sql  1323980 bytes
+[5/10] restore test into a disposable LOCAL PostgreSQL (staging untouched)
+  extensions not available locally (platform only): none
+  restored copy vs staging row counts: identical (77 tables)
+  BACKUP: VERIFIED
+  backup reference: goldia-staging-2026-11-11T17-44-24/staging-full.dump sha256=f66535c1aebe50241935658b478615467b3d4aa1e08b3b532af81519bfe8f71e
+  backup verification rows written: 2 (2de6e2b9-397b-4120-9f5a-fca30623c911, 35017596-347f-40dd-9315-f12349196b97)
+
+RESULT: BACKUP ONLY VERIFIED (085) - full backup, SHA256SUMS and restore test PASS; no migration was run. Report: /opt/goldia-audit/backuponly/goldia-staging-2026-11-11T17-44-24/STAGING-085-RESULT.txt

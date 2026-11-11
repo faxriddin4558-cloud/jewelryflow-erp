@@ -65,7 +65,7 @@ const owner = async (c) => (await L.sel(`customers?id=eq.${c}&select=seller_id`)
   T('DA1-08', '8 parallel sales (same key) + retry to the archived customer: all 9 refused (ERR_CUSTOMER_ARCHIVED), nothing created, stock unchanged',
     [...par, retry].every((r) => !r.ok && /ERR_CUSTOMER_ARCHIVED/.test(r.error || '')) && (await nSales(A)) === c0 && (await stock(C.sellera.id)) === s0, { refused: 9 }, { refused: [...par, retry].filter((r) => !r.ok).length, sales: await nSales(A) });
   // another organization: cannot sell to / pay for / restore the archived customer of organization A
-  const OB = TARGET === 'staging' ? 'directorB' : 'director56';
+  const OB = TARGET === 'staging' ? (process.env.GA_OTHER_DIRECTOR || 'directorB') : 'director56'; // PHASE D: another synthetic org (C), B stays read-only
   const xt = {
     sale: await L.rpc(OB, 'rpc_record_currency_sale', { p_customer_id: A, p_currency: 'USD', p_amount: 10, p_weight_grams: 1, p_idempotency_key: `da79-xt1-${run}` }),
     pay: await L.rpc(OB, 'rpc_record_client_currency_settlement', { p_customer_id: A, p_currency: 'USD', p_usd_amount: 1, p_usd_rate: 12500, p_idempotency_key: `da79-xt2-${run}` }),
@@ -120,7 +120,7 @@ const owner = async (c) => (await L.sel(`customers?id=eq.${c}&select=seller_id`)
 
   // seller A tries to take seller B's customer; a seller of another organization tries to claim an unassigned customer
   const Bc = (await L.rpc('sellerb', 'rpc_create_customer_with_code', { p_contact_name: `DA79 SellerB ${run}` })).data.customer_id;
-  const SB = TARGET === 'staging' ? 'sellerB1' : 'seller56';
+  const SB = TARGET === 'staging' ? (process.env.GA_OTHER_SELLER || 'sellerB1') : 'seller56';
   const take = await L.uwrite('sellera', 'PATCH', `customers?id=eq.${Bc}`, { seller_id: C.sellera.id });
   const takeX = await L.uwrite(SB, 'PATCH', `customers?id=eq.${F}`, { seller_id: C[SB].id });
   const archX = await L.rpc('sellera', 'rpc_archive_customer', { p_customer_id: Bc, p_archive: true });

@@ -1,21 +1,21 @@
 {
  "target": "staging",
- "at": "2026-11-06T07:44:27.580Z",
+ "at": "2026-11-11T18:52:48.522Z",
  "results": [
   {
    "id": "RC-CUR",
-   "title": "every customer x currency (181): DB net (debt - advance) = active currency sales - applied - advance of active payments",
+   "title": "every customer x currency (275): DB net (debt - advance) = active currency sales - applied - advance of active payments",
    "ok": true,
    "expected": {
     "diff": 0,
-    "net_uzs": 1228401894,
-    "net_usd": 86820.88
+    "net_uzs": 1844769648.8,
+    "net_usd": 127205.79
    },
    "actual": {
     "mismatches": [],
     "n": 0,
-    "sales": 414,
-    "payments": 538
+    "sales": 614,
+    "payments": 809
    }
   },
   {
@@ -24,27 +24,27 @@
    "ok": true,
    "expected": {
     "diff_g": "0.0000",
-    "total_g": 1958.7208
+    "total_g": 2784.034
    },
    "actual": {
     "mismatches": [],
-    "stock_total_g": 1958.7208,
-    "pieces_total_g": 1958.7208
+    "stock_total_g": 2784.034,
+    "pieces_total_g": 2784.034
    }
   },
   {
    "id": "RC-585",
-   "title": "customer 585 net debt = documented history (period report) - BLOCKED: the report timed out (finding F79-1, fixed by 080)",
-   "ok": false,
+   "title": "customer 585 net debt: opening (0, undocumented 0) + all documented flows since 01.11 = closing = live database",
+   "ok": true,
    "expected": {
     "diff_g": "0.0000"
    },
    "actual": {
-    "errors": [
-     "500 canceling statement due to statement timeout",
-     "500 canceling statement due to statement timeout",
-     "500 canceling statement due to statement timeout"
-    ]
+    "opening": 0,
+    "flows_g": 8016.4996,
+    "closing": 8016.4996,
+    "live_g": 8016.4996,
+    "undocumented": 0
    }
   },
   {
@@ -56,7 +56,7 @@
    },
    "actual": {
     "mismatches": [],
-    "rows": 387
+    "rows": 535
    }
   },
   {

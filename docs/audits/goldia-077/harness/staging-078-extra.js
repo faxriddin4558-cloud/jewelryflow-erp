@@ -100,8 +100,8 @@ const yesterday = (d) => new Date(Date.parse(d + 'T00:00:00Z') - 864e5).toISOStr
     delOwn: await L.uwrite('sellera', 'DELETE', `customers?id=eq.${X}`),
     delOther: await L.uwrite('sellera', 'DELETE', `customers?id=eq.${Y}`),
     workerRpc: await L.rpc('worker', 'rpc_archive_customer', { p_customer_id: Y, p_archive: true }),
-    orgBRpc: await L.rpc('directorB', 'rpc_archive_customer', { p_customer_id: X, p_archive: false }),
-    orgBPatch: await L.uwrite('directorB', 'PATCH', `customers?id=eq.${X}`, { is_archived: false }),
+    orgBRpc: await L.rpc((process.env.GA_OTHER_DIRECTOR || 'directorB'), 'rpc_archive_customer', { p_customer_id: X, p_archive: false }),
+    orgBPatch: await L.uwrite((process.env.GA_OTHER_DIRECTOR || 'directorB'), 'PATCH', `customers?id=eq.${X}`, { is_archived: false }),
     sellerBRestoreA: await L.rpc('sellerb', 'rpc_archive_customer', { p_customer_id: X, p_archive: false }),
   };
   const empty = (r) => r.ok && Array.isArray(r.data) && r.data.length === 0;
@@ -133,7 +133,7 @@ const yesterday = (d) => new Date(Date.parse(d + 'T00:00:00Z') - 864e5).toISOStr
   const older = p1.length > 1 ? p1[p1.length - 2] : null;
   const roOld = older ? await L.rpc('manager', 'rpc_reopen_report_period', { p_period_id: older.id }) : { ok: false, error: 'no older period' };
   const roSeller = await L.rpc('sellera', 'rpc_reopen_report_period', { p_period_id: latest.id });
-  const roOrgB = await L.rpc('managerB', 'rpc_reopen_report_period', { p_period_id: latest.id });
+  const roOrgB = await L.rpc((process.env.GA_OTHER_MANAGER || 'managerB'), 'rpc_reopen_report_period', { p_period_id: latest.id });
   const p2 = await periods();
   T('PR-02', 'reopen refused for an older period, for a seller; other organization gets changed=false; nothing removed',
     !roOld.ok && /oxirgi/.test(roOld.error || '') && !roSeller.ok && roOrgB.ok && roOrgB.data.changed === false && p2.length === p1.length, 'refused / no-op',

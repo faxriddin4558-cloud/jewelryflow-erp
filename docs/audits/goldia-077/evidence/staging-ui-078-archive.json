@@ -1,0 +1,156 @@
+{
+ "target": "staging",
+ "run": "mwci30l2",
+ "ids": {
+  "own": "4e39f76a-7a7a-48f9-bea4-1efc30006b8f",
+  "other": "6ad1ad78-5684-41fa-bcaf-028e5dc2df37",
+  "free": "336b8d1c-7e74-40db-bd57-891af95bec91",
+  "foreign": "93501159-d730-4f20-a934-0de759d3575d"
+ },
+ "results": [
+  {
+   "id": "U78-01",
+   "title": "seller sees \"Mijozni o'chirish\" on his own customer, not on an unassigned one",
+   "ok": true,
+   "expected": {
+    "own": 1,
+    "unassigned": 0
+   },
+   "actual": {
+    "own": 1,
+    "unassigned": 0
+   }
+  },
+  {
+   "id": "U78-02",
+   "title": "one confirmation, double click -> exactly one archive operation; archived_by = the seller; gone from the normal list",
+   "ok": true,
+   "expected": {
+    "archived": true,
+    "audits": 1,
+    "listed": 0
+   },
+   "actual": {
+    "archived": true,
+    "by": true,
+    "audits": 1,
+    "listed": 0,
+    "dialogs": 1,
+    "msg": "\"UI78 Ochiriladi mwci30l2\" mijozini o'chirasizmi? Mijoz ro'yxatdan yashiriladi (arxivga o'tadi), savdo, to'lov va qarz t"
+   }
+  },
+  {
+   "id": "U78-03",
+   "title": "seller cannot archive another seller's / unassigned / other organization's customer (RPC 42501 / not found; direct PATCH 0 rows / refused); nothing changed",
+   "ok": true,
+   "expected": "all refused",
+   "actual": {
+    "other": "Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan (faqat o'z mijozing",
+    "free": "Ruxsat etilmadi: Ushbu mijoz sizga biriktirilmagan",
+    "foreign": "Mijoz topilmadi: 93501159-d730-4f20-a934",
+    "patchOther": [],
+    "patchFree": "Ruxsat etilmadi: mijozni faqat uning sotuvchisi, menejer yok",
+    "st": {
+     "other": false,
+     "free": false,
+     "foreign": false
+    }
+   }
+  },
+  {
+   "id": "U78-04",
+   "title": "archived: 585 g debt and USD debt unchanged, sales kept, shown under \"Arxivlangan mijozlar\" with the debt; a $200 payment still works; report includes it",
+   "ok": true,
+   "expected": {
+    "g585": 12.5,
+    "usd": 800,
+    "sales": 1
+   },
+   "actual": {
+    "g585": 12.5,
+    "usd": 800,
+    "sales": 1,
+    "rowShown": "CUST-0605 UI78 Ochiriladi mwci30l2 — AUDIT075 sellera 0.00 g 0 UZS — — 12.50 g 📋 Eski qar",
+    "pay": true,
+    "reportUsd": 179648.39,
+    "liveUsd": 179648.39
+   }
+  },
+  {
+   "id": "U78-05",
+   "title": "seller restores his own customer from \"Arxivlangan mijozlar\"; back in the normal list; debts unchanged",
+   "ok": true,
+   "expected": {
+    "archived": false,
+    "listed": 1
+   },
+   "actual": {
+    "archived": false,
+    "at": null,
+    "listed": 1,
+    "audits": 2
+   }
+  },
+  {
+   "id": "U78-06",
+   "title": "no API 4xx/5xx in the seller UI session",
+   "ok": true,
+   "expected": [],
+   "actual": []
+  },
+  {
+   "id": "U78-07",
+   "title": "manager archives and restores another seller's customer in the UI (director = manager)",
+   "ok": true,
+   "expected": {
+    "archived": true,
+    "restored": true
+   },
+   "actual": {
+    "a": true,
+    "r": true,
+    "bad": []
+   }
+  },
+  {
+   "id": "U78-08",
+   "title": "director archives / restores an unassigned customer via the API",
+   "ok": true,
+   "expected": true,
+   "actual": {
+    "a": true,
+    "r": true
+   }
+  },
+  {
+   "id": "U78-09",
+   "title": "seller on a 390 px phone: \"Mijozni o'chirish\" in the mobile card, no horizontal overflow",
+   "ok": true,
+   "expected": {
+    "button": 1,
+    "overflow": 0
+   },
+   "actual": {
+    "button": 1,
+    "overflow": 0
+   }
+  },
+  {
+   "id": "U78-10",
+   "title": "seller on a 390 px phone archives a customer from the mobile card and restores it from \"Arxivlangan mijozlar\"; no API errors",
+   "ok": true,
+   "expected": {
+    "archived": true,
+    "restored": true,
+    "audits": 2
+   },
+   "actual": {
+    "a": true,
+    "btn": 1,
+    "r": true,
+    "audits": 2,
+    "bad": []
+   }
+  }
+ ]
+}

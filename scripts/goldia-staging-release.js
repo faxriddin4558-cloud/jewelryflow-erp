@@ -41,6 +41,13 @@
  * Report: STAGING-075-RESULT.txt in the backup folder (no secrets, no customer data).
  *
  * Options: --host --port --sslmode --pg-bin <dir> --out <dir> --keep-restore
+ *
+ * --backup-only (2026-11-11, PHASE D): staging must already be at the newest migration of this checkout. Steps 1-5 only
+ *   (full backup + SHA256SUMS + restore test on a disposable LOCAL cluster); no migration, nothing else is run.
+ *   --verify-org <uuid> [--verify-count N] (only with --backup-only, after BACKUP: VERIFIED): the tooling writes N rows
+ *   (default 1, max 3) into public.financial_backup_verifications for that organization (backup_reference = folder/dump,
+ *   backup_sha256 = the dump's SHA-256). Only an organization whose name ends with "(sintetik)" is accepted, and you type
+ *   the organization code to confirm. This is the only staging write of this mode.
  */
 "use strict";
 
@@ -77,6 +84,13 @@ const MIN = 60 * 1000;
 
 // Local rehearsal only: a disposable cluster on this machine stands in for staging (used to test this script).
 const REHEARSAL = !!args["local-rehearsal"];
+const BACKUP_ONLY = !!args["backup-only"];
+if (BACKUP_ONLY && args.apply) { console.error("STOP: --backup-only cannot be combined with --apply"); process.exit(1); }
+if (args["verify-org"] && !BACKUP_ONLY) { console.error("STOP: --verify-org is accepted only with --backup-only"); process.exit(1); }
+const VERIFY_ORG = args["verify-org"] ? String(args["verify-org"]) : null;
+if (VERIFY_ORG && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(VERIFY_ORG)) { console.error("STOP: --verify-org must be an organization uuid"); process.exit(1); }
+const VERIFY_COUNT = args["verify-count"] ? Number(args["verify-count"]) : 1;
+if (!(Number.isInteger(VERIFY_COUNT) && VERIFY_COUNT >= 1 && VERIFY_COUNT <= 3)) { console.error("STOP: --verify-count must be 1, 2 or 3"); process.exit(1); }
 const TARGET = {
   host: args.host || null,
   port: String(args.port || 5432),
@@ -372,7 +386,7 @@ async function main() {
   outDir = path.join(outRoot, `goldia-staging-${stamp}`);
   fs.mkdirSync(outDir, { recursive: true });
   resultFile = path.join(outDir, `STAGING-${TO}-RESULT.txt`);
-  out(`started: ${new Date().toISOString()}  mode: ${args.apply ? "APPLY" : "DRY RUN"}${REHEARSAL ? " (LOCAL REHEARSAL)" : ""}`);
+  out(`started: ${new Date().toISOString()}  mode: ${BACKUP_ONLY ? "BACKUP ONLY" : args.apply ? "APPLY" : "DRY RUN"}${REHEARSAL ? " (LOCAL REHEARSAL)" : ""}`);
   out(`[1/10] tools: ${PG.dir} (${toolVer})`);
   out(`  checkout: ${REPO_MIGRATIONS.length} migration files, newest ${TO}`);
 
@@ -418,11 +432,23 @@ async function main() {
     }
     stop(lv.stops[0]);
   }
-  if (lv.upToDate) {
+  if (BACKUP_ONLY && !lv.upToDate) stop(`--backup-only needs staging at the newest migration of this checkout (${TO}); run the dry run / apply instead`);
+  if (BACKUP_ONLY && VERIFY_ORG) {
+    const o = q(remoteEnv, `select coalesce((select name || '|' || coalesce(code, '') from public.organizations where id = '${VERIFY_ORG}'), '')`);
+    if (!o) stop(`--verify-org ${VERIFY_ORG}: organization not found on staging`);
+    if (!/\(sintetik\)$/.test(o.split("|")[0])) stop(`--verify-org: "${o.split("|")[0]}" is not a synthetic organization - refused`);
+    out(`  backup verification will be written for: ${o.split("|")[0]} (${o.split("|")[1]}), ${VERIFY_COUNT} row(s), after BACKUP: VERIFIED`);
+  }
+  if (BACKUP_ONLY) {
+    out(`  staging is at ${TO}: BACKUP ONLY - no migration will run`);
+    FROM = TO;
+  }
+  if (lv.upToDate && !BACKUP_ONLY) {
     out(`  staging is already at the newest migration of this checkout (${TO}); nothing to apply.`);
     out(`\nRESULT: UP TO DATE (${TO}) — staging was only read. Report: ${resultFile}`);
     process.exit(0);
   }
+  if (!BACKUP_ONLY) {
   FROM = lv.latestNum;
   CHAIN = lv.chain;
   if (Number(FROM) < 72) stop(`detected level ${FROM}: this kit only releases from 072 or later`);
@@ -434,6 +460,7 @@ async function main() {
     fs.writeFileSync(chainFile, buildChainSql(FROM, REPAIR));
   } catch (e) { stop(`cannot build the chain: ${e.message}`); }
   out(`  chain file: ${path.basename(chainFile)} sha256=${sha256(chainFile).slice(0, 16)} (${CHAIN.length} migrations)`);
+  }
 
   // 4. Fresh backup
   out("[4/10] fresh backup (outside the repository)");
@@ -476,7 +503,7 @@ async function main() {
   const countsAfterDump = parseCounts(q(remoteEnv, ALL_COUNTS));
   const liveChanges = diffCounts(countsBefore, countsAfterDump, () => false);
   if (liveChanges.length) stop(`staging changed during the backup (${liveChanges.slice(0, 5).join("; ")}) — pause staging use and re-run`);
-  const sums = fs.readdirSync(outDir).filter((f) => /\.(dump|sql)$/.test(f) && f !== path.basename(chainFile))
+  const sums = fs.readdirSync(outDir).filter((f) => /\.(dump|sql)$/.test(f) && (!chainFile || f !== path.basename(chainFile)))
     .map((f) => `${sha256(path.join(outDir, f))}  ${f}  ${fs.statSync(path.join(outDir, f)).size} bytes`);
   fs.writeFileSync(path.join(outDir, "SHA256SUMS.txt"), sums.join(os.EOL) + os.EOL);
   for (const s of sums) out(`  ${s}`);
@@ -531,6 +558,24 @@ async function main() {
   out(`  restored copy vs staging row counts: ${restoreDiff.length ? restoreDiff.join("; ") : "identical"} (${Object.keys(countsLocal).length} tables)`);
   if (restoreDiff.length) stop("restore test failed: restored copy differs from staging");
   out("  BACKUP: VERIFIED");
+  if (BACKUP_ONLY) {
+    const dumpSha = sha256(backupPath);
+    out(`  backup reference: ${path.basename(outDir)}/staging-full.dump sha256=${dumpSha}`);
+    if (VERIFY_ORG) {
+      const code = q(remoteEnv, `select coalesce(code, '') from public.organizations where id = '${VERIFY_ORG}'`);
+      const typed = REHEARSAL && args.yes ? code : await promptLine(`Type the organization code (${code}) to record ${VERIFY_COUNT} backup verification row(s): `);
+      if (typed.trim() !== code || !code) stop("confirmation did not match - no verification was written");
+      const ref = `${path.basename(outDir)}/staging-full.dump`.replace(/'/g, "");
+      const ins = psql(remoteEnv, `insert into public.financial_backup_verifications (organization_id, backup_reference, backup_sha256, restore_verified)
+        select '${VERIFY_ORG}', '${ref}', '${dumpSha}', true from generate_series(1, ${VERIFY_COUNT}) returning id`, { singleTx: true });
+      if (ins.status !== 0) stop(`writing the backup verification failed: ${firstError(ins)}`);
+      const ids = String(ins.stdout || "").split(/\r?\n/).map((x) => x.trim()).filter((x) => /^[0-9a-f-]{36}$/.test(x));
+      out(`  backup verification rows written: ${ids.length} (${ids.join(", ")})`);
+      if (ids.length !== VERIFY_COUNT) stop("unexpected number of verification rows");
+    }
+    out(`\nRESULT: BACKUP ONLY VERIFIED (${TO}) - full backup, SHA256SUMS and restore test PASS; no migration was run. Report: ${resultFile}`);
+    process.exit(0);
+  }
 
   // 6. FROM schema parity
   out(`[6/10] schema parity of the restored copy with repository 001..${FROM}`);

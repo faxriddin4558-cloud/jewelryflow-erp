@@ -1,0 +1,15 @@
+PASS DA1-01 archived customer: gram, UZS, USD, barcode-piece sale (seller) and manager / director sales refused with ERR_CUSTOMER_ARCHIVED | exp="all refused" act={"gram":"ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan","uzs":"ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan","usd":"ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan","barcode":"ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan","manager":"ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan","director":"ERR_CUSTOMER_ARCHIVED: Mijoz arxi
+PASS DA1-02 nothing moved: seller stock, 585 debt, USD debt, number of sales | exp={"s0":651.7191,"g0":5.5,"u0":500,"c0":2} act={"s":651.7191,"g":5.5,"u":500,"c":2}
+PASS DA1-07 other sale paths (consignment client sale, legacy create-sale) create no sale for the archived customer | exp="refused, no sale" act={"client_jewelry":"ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi sa","create_sale":"ERR_CUSTOMER_ARCHIVED: Mijoz arxivlangan (o'chirilgan) - unga yangi sa"}
+PASS DA1-08 8 parallel sales (same key) + retry to the archived customer: all 9 refused (ERR_CUSTOMER_ARCHIVED), nothing created, stock unchanged | exp={"refused":9} act={"refused":9,"sales":2}
+PASS DA1-09 other organization: sale, payment and restore of the archived customer all refused; customer still archived, debts unchanged | exp="refused" act={"sale":"Mijoz (b75c8465-11b5-4c99-9f5e-3860235450fd) topil","pay":"Mijoz (b75c8465-11b5-4c99-9f5e-3860235450fd) topil","restore":"Mijoz topilmadi: b75c8465-11b5-4c99-9f5e-386023545"}
+PASS DA1-03 old debt still collectible while archived: 900 000 so'm -> -1 g; $200 -> USD debt 300 | exp={"g":4.5,"usd":300} act={"g":4.5,"usd":300,"e":[null,null]}
+PASS DA1-04 manager reverses that payment of the archived customer -> USD debt 500 | exp=500 act={"ok":true,"usd":500}
+PASS DA1-05 UI: in "Arxivlangan mijozlar" the sale button is disabled, the payment button stays enabled; no API errors | exp={"saleDisabled":true,"payEnabled":true} act={"disabled":true,"payEnabled":true,"bad":[]}
+PASS DA1-06 after restore the seller can sell again (1 g gram sale) | exp=3 act={"ok":true,"n":3}
+PASS DA2-01 seller cannot claim an unassigned customer, move or unassign his own (direct PATCH refused); owners unchanged | exp="refused" act={"claim":"Ruxsat etilmadi: mijozni sotuvchiga faqat direktor yoki menejer birikt","move":"Ruxsat etilmadi: mijozni sotuvchiga faqat direktor","unassign":"Ruxsat etilmadi: mijozni sotuvchiga faqat direktor"}
+PASS DA2-02 seller can still edit other fields of his own customer (name) | exp=1 act=1
+PASS DA2-03 selling to an unassigned customer still works (076 rule) and does not assign it | exp={"ok":true,"owner":null} act={"ok":true,"owner":null}
+PASS DA2-04 manager and director (equal rights) assign / move a customer | exp={"manager":"sellerb","director":"sellera"} act={"m":true,"d":true,"o1":true,"o2":true}
+PASS DA2-05 seller A cannot take seller B's customer (PATCH 0 rows / refused), nor archive it; another organization's seller cannot claim an unassigned customer | exp="refused" act={"take":0,"takeX":0,"owners":[true,true]}
+TOTAL 14/14

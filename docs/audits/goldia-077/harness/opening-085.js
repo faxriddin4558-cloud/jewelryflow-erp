@@ -12,7 +12,12 @@
 const fs = require('fs'); const path = require('path');
 const TARGET = process.env.GA_TARGET || 'local';
 if (TARGET !== 'local' && process.env.GA_ALLOW_RESTART !== '1') { console.error('refused: set GA_ALLOW_RESTART=1 for a non-local target'); process.exit(2); }
-const L = TARGET === 'staging' ? require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib') : require('/home/user/jewelryflow-erp/docs/audits/goldia-075-real-auth/harness/lib');
+const L = process.env.GA_LIB ? require(process.env.GA_LIB) : TARGET === 'staging' ? require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib') : require('/home/user/jewelryflow-erp/docs/audits/goldia-075-real-auth/harness/lib');
+// staging (PHASE D): the restart may only use backup verifications written by the release tooling (--backup-only
+// --verify-org) for THIS organization, unconsumed, < 24 h old, carrying the owner's backup SHA-256 (GA_BACKUP_SHA256).
+// The harness never writes a verification itself on staging.
+const REAL_BACKUP = TARGET === 'staging';
+if (REAL_BACKUP && !/^[0-9a-f]{64}$/.test(process.env.GA_BACKUP_SHA256 || '')) { console.error('refused: GA_BACKUP_SHA256 (the verified staging dump) is required on staging'); process.exit(2); }
 const OUT = process.env.GA_OUT || path.join(__dirname, '..', 'evidence', `${TARGET}-opening-085.json`);
 const BASE = TARGET === 'staging' ? 'https://jewelryflow-sales-staging.vercel.app' : 'http://127.0.0.1:3300';
 const N = (x) => Number(x || 0); const r4 = (x) => Math.round(N(x) * 1e4) / 1e4;
@@ -38,8 +43,14 @@ const T = (id, title, ok, exp, act) => { R.push({ id, title, ok: !!ok, expected:
   // OP-1
   const fake = await L.rpc('director', 'rpc_get_opening_state', {}); void fake;
   const denied = await L.uwrite('director', 'POST', 'financial_backup_verifications', { organization_id: L.ORG, backup_reference: 'fake', restore_verified: true });
-  const bv = await L.svc('POST', 'rest/v1/financial_backup_verifications', { organization_id: L.ORG, backup_reference: `local-backup-${run}.dump`, restore_verified: true }, { Prefer: 'return=representation' });
-  T('OP-1', 'backup verification: service role (release tooling) writes it; a signed-in director cannot', !denied.ok && bv.ok, 'service only', { director: denied.status, service: bv.status });
+  let bv; let realBv = [];
+  if (REAL_BACKUP) {
+    const since = new Date(Date.now() - 23.5 * 3600e3).toISOString();
+    realBv = await L.sel(`financial_backup_verifications?organization_id=eq.${L.ORG}&consumed_by_restart_id=is.null&restore_verified=is.true&backup_sha256=eq.${process.env.GA_BACKUP_SHA256}&verified_at=gte.${since}&order=verified_at&select=id,backup_reference,backup_sha256,verified_by`);
+    if (realBv.length < 2) { console.error(`STOPPED: ${realBv.length} tooling-written verification(s) with the given SHA-256 for this organization; 2 are needed - nothing was restarted`); process.exit(2); }
+    bv = { ok: true, status: 'tooling', data: [realBv[0]] };
+  } else bv = await L.svc('POST', 'rest/v1/financial_backup_verifications', { organization_id: L.ORG, backup_reference: `local-backup-${run}.dump`, restore_verified: true }, { Prefer: 'return=representation' });
+  T('OP-1', 'backup verification: written by the release tooling only (staging: the verified dump SHA-256); a signed-in director cannot write one', !denied.ok && bv.ok, 'tooling only', { director: denied.status, verification: bv.status, reference: REAL_BACKUP ? realBv[0].backup_reference : 'local', sha256: REAL_BACKUP ? realBv[0].backup_sha256.slice(0, 16) : '-' });
   const draftBefore = (await L.sel(`opening_periods?organization_id=eq.${L.ORG}&status=eq.draft&select=id`)).length;
   const ids0 = await idsOf();
 
@@ -142,7 +153,7 @@ const T = (id, title, ok, exp, act) => { R.push({ id, title, ok: !!ok, expected:
   // OP-10 race: a restart and 10 parallel ordinary writes at the same moment -> the restart serializes with them; afterwards
   // nothing ordinary is live in the new draft (each write either finished before and was archived, or was refused)
   {
-    const bv2 = await L.svc('POST', 'rest/v1/financial_backup_verifications', { organization_id: L.ORG, backup_reference: `local-backup-${run}-2.dump`, restore_verified: true }, { Prefer: 'return=representation' });
+    const bv2 = REAL_BACKUP ? { ok: true, data: [realBv[1]] } : await L.svc('POST', 'rest/v1/financial_backup_verifications', { organization_id: L.ORG, backup_reference: `local-backup-${run}-2.dump`, restore_verified: true }, { Prefer: 'return=representation' });
     const writes = [];
     for (let i = 0; i < 6; i++) writes.push(L.rpc('sellera', 'rpc_record_client_legacy_debt', { p_customer_id: cust, p_balance_type: 'debt', p_amount_585_g: 2 + i, p_as_of_date: L.tashkentToday(), p_idempotency_key: `op85-race-leg-${run}-${i}` }));
     for (let i = 0; i < 4; i++) writes.push(L.rpc('sellera', 'rpc_record_client_currency_settlement', { p_customer_id: cust, p_currency: 'USD', p_usd_amount: 5 + i, p_idempotency_key: `op85-race-cp-${run}-${i}` }));

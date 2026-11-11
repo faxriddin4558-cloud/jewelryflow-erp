@@ -1,0 +1,15 @@
+PASS CS-PAR-1 8 parallel currency sales with one idempotency key -> exactly one | exp=1 act=1
+PASS CS-PAR-2 8 parallel currency payments with one idempotency key -> exactly one, till +123 000 once | exp=1 act=1
+PASS CS-REC-01 customer currency balances: model = database for 40 customer/currency pairs | exp=0 act=[]
+PASS CS-REC-ST-sellerb sellerb gram stock: model = database = held pieces | exp=108.2423 act={"db":108.2423,"pieces":108.2423}
+PASS CS-REC-TILL-sellerb sellerb till UZS / USD / scrap 585 g: model = database (each payment counted once) | exp={"uzs":483440000,"usd":37071.87,"scrap":99.6402} act={"uzs":483440000,"usd":37071.87,"scrap":99.6402}
+PASS CS-REC-ST-sellerc sellerc gram stock: model = database = held pieces | exp=106.0145 act={"db":106.0145,"pieces":106.0145}
+PASS CS-REC-TILL-sellerc sellerc till UZS / USD / scrap 585 g: model = database (each payment counted once) | exp={"uzs":322524000,"usd":15761.66,"scrap":99.025} act={"uzs":322524000,"usd":15761.66,"scrap":99.025}
+PASS CS-REC-02 every currency payment: credited amount = independent conversion at the seller's rate | exp=0 act=[]
+PASS CS-REC-03 attack / duplicate / permission cases behaved (15) | exp=0 act=[]
+FAIL CS-REP-01 period report (today): USD / UZS sale amounts grew by exactly the model sales | exp={"usd":56935.68,"uzs":631466000} act={"usd":13202.11,"uzs":175582000}
+FAIL CS-REP-02 report closing currency debts = live organization balances | exp={"usd":151916.09,"uzs":2079904312.9} act={"seller_till_usd":163486.15,"seller_till_uzs":1729111000,"manager_cash_usd":600,"manager_cash_uzs":4943506500,"customer_debt_net_usd":140485.9,"customer_debt_net_uzs":2020351648.8,"customer_debt_net_g585":8071.5114,"seller_till_scrap_g585"
+PASS CS-REP-03 identity: opening + sum of period flows = closing (currency, grams, stock, manager cash) | exp=0 act=[]
+PASS CS-REP-04 INFO: balances not explained by documents in this organization (0 for a fully documented ledger) | exp="info" act=[["manager_cash_uzs",14800000],["seller_stock_physical_g",-1075.847],["factory_obligation_net_g585",-2436.6232]]
+COUNTS {"currency_sales":120,"gram_sales":40,"currency_payments":150,"reversed_payments":20,"reversed_sales":10,"attacks":15,"failures":0}
+TOTAL 11/13

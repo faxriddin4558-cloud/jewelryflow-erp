@@ -1,0 +1,15 @@
+{
+ "ok": true,
+ "till": {
+  "c": 900000,
+  "st": 0
+ },
+ "after": {
+  "c": 0,
+  "st": 1
+ },
+ "results": [
+  true,
+  "ERR_INSUFFICIENT_CASH_BALANCE: Sotuvchi kassasida yetarli naqd pul (UZS) mavjud emas (Kassada: 0.00 UZS, Talab: 900000.00 UZS)"
+ ]
+}

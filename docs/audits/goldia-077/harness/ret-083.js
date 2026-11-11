@@ -17,7 +17,7 @@
 const fs = require('fs'); const path = require('path');
 const TARGET = process.env.GA_TARGET || 'local';
 const L = TARGET === 'staging' ? require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib') : require('/home/user/jewelryflow-erp/docs/audits/goldia-075-real-auth/harness/lib');
-const OB = TARGET === 'staging' ? 'directorB' : 'director56';
+const OB = TARGET === 'staging' ? (process.env.GA_OTHER_DIRECTOR || 'directorB') : 'director56'; // PHASE D: another synthetic org (C), B stays read-only
 const OUT = process.env.GA_OUT || path.join(__dirname, '..', 'evidence', `${TARGET}-ret-083.json`);
 const N = (x) => Number(x || 0); const r4 = (x) => Math.round(N(x) * 1e4) / 1e4; const r2 = (x) => Math.round(N(x) * 100) / 100;
 const R = [];

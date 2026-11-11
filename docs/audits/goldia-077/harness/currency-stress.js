@@ -91,7 +91,7 @@ const s585 = (w, p) => r4(w * (p / 585));
   r = await L.rpc('sellerb', 'rpc_record_currency_sale', { p_customer_id: cb, p_currency: 'USD', p_amount: 10, p_weight_grams: r4(M.stock.sellerb + 1) }); A('currency sale above the stock', !r.ok, { error: r.error });
   r = await L.rpc('sellerb', 'rpc_reverse_client_currency_settlement', { p_settlement_id: pays[0].id, p_reason: 'x' }); A('seller reverses a currency payment', !r.ok, { error: r.error });
   r = await L.rpc('worker', 'rpc_record_currency_sale', { p_customer_id: cb, p_currency: 'USD', p_amount: 10, p_weight_grams: 0.5 }); A('worker sells', !r.ok, { error: r.error });
-  const OTHER = TARGET === 'staging' ? 'directorB' : 'director56';
+  const OTHER = TARGET === 'staging' ? (process.env.GA_OTHER_DIRECTOR || 'directorB') : 'director56';
   if (C[OTHER]) { r = await L.rpc(OTHER, 'rpc_record_client_currency_settlement', { p_customer_id: cb, p_currency: 'USD', p_usd_amount: 1, p_usd_rate: 12000 }); A('another organization pays for our customer', !r.ok, { error: r.error });
     const vis = await L.usel(OTHER, `client_currency_accounts?customer_id=eq.${cb}&select=customer_id`); A('another organization reads our currency balances', vis.ok && vis.data.length === 0); }
   const vis2 = await L.usel('sellerb', `client_currency_accounts?customer_id=eq.${cc}&select=customer_id`); A("seller reads another seller's currency balances", vis2.ok && vis2.data.length === 0);

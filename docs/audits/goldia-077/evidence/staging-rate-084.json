@@ -1,0 +1,186 @@
+{
+  "target": "staging",
+  "run": "mwchgdqo",
+  "results": [
+    {
+      "id": "RR-1",
+      "title": "seller pays 910 000 so'm without a rate -> his saved 910 000 is used and snapshotted (1.0000 g)",
+      "ok": true,
+      "expected": {
+        "rate": 910000,
+        "g": 1
+      },
+      "actual": {
+        "gold_rate_applied": 910000,
+        "applied_usd_rate": null,
+        "cash_equivalent_grams": 1,
+        "usd_equivalent_grams": 0,
+        "total_settled_grams": 1,
+        "handover_entered_lom_rate": null,
+        "recorded_by": "466db3f0-5af0-4d7a-9ff3-b08fdaf6b9b0",
+        "created_at": "2026-11-11T18:59:19.857491+00:00"
+      }
+    },
+    {
+      "id": "RR-2",
+      "title": "seller enters 920 000 (saved 910 000) -> accepted (was ERR_RATE_MISMATCH), snapshot 920 000, 1.0000 g",
+      "ok": true,
+      "expected": {
+        "rate": 920000,
+        "g": 1
+      },
+      "actual": {
+        "gold_rate_applied": 920000,
+        "applied_usd_rate": null,
+        "cash_equivalent_grams": 1,
+        "usd_equivalent_grams": 0,
+        "total_settled_grams": 1,
+        "handover_entered_lom_rate": null,
+        "recorded_by": "466db3f0-5af0-4d7a-9ff3-b08fdaf6b9b0",
+        "created_at": "2026-11-11T18:59:20.36298+00:00"
+      }
+    },
+    {
+      "id": "RR-3",
+      "title": "seller rate 1215000 (> 25 % from the official 900000) -> refused, nothing recorded",
+      "ok": true,
+      "expected": "refused",
+      "actual": "ERR_RATE_OUT_OF_RANGE: LOM kursi rasmiy 585 kursidan (900000.00 UZS/g) 25.00 foizdan ortiq farq qila olmaydi"
+    },
+    {
+      "id": "RR-4",
+      "title": "manager receives 10 USD without a USD rate -> ERR_RATE_REQUIRED (no 12 800 / CBU guess)",
+      "ok": true,
+      "expected": "refused",
+      "actual": "ERR_RATE_REQUIRED: Dollar (USD) to'lovi uchun USD kursini kiriting"
+    },
+    {
+      "id": "RR-4b",
+      "title": "manager enters 12 700 -> snapshot 12 700, grams = 10 x 12 700 / 900 000",
+      "ok": true,
+      "expected": 0.1411,
+      "actual": {
+        "gold_rate_applied": 900000,
+        "applied_usd_rate": 12700,
+        "cash_equivalent_grams": 0,
+        "usd_equivalent_grams": 0.1411,
+        "total_settled_grams": 0.1411,
+        "handover_entered_lom_rate": null,
+        "recorded_by": "f7fd6d6c-1a5e-4661-b95a-8db8c80179d5",
+        "created_at": "2026-11-11T18:59:21.725976+00:00"
+      }
+    },
+    {
+      "id": "RR-5",
+      "title": "seller pays a USD debt with 1 270 000 so'm at his entered 12 700 (saved 12 600) -> credited 100.00 USD, snapshot 12 700",
+      "ok": true,
+      "expected": {
+        "rate": 12700,
+        "credited": 100
+      },
+      "actual": {
+        "rate_usd_uzs": 12700,
+        "credited_amount": 100
+      }
+    },
+    {
+      "id": "RR-6",
+      "title": "manager scrap payment without a LOM rate -> default = official 900 000 (was \"required\"), credited 900 000 / 12 500 = 72.00 USD",
+      "ok": true,
+      "expected": {
+        "rate": 900000,
+        "credited": 72
+      },
+      "actual": {
+        "rate_lom_uzs": 900000,
+        "credited_amount": 72
+      }
+    },
+    {
+      "id": "RR-7",
+      "title": "handover 28030000 so'm: 27930000 valued (pool grams) + 100 000 unvalued at the entered 905 000 -> 31.1105 g",
+      "ok": true,
+      "expected": {
+        "grams": 31.1105,
+        "entered_lom_rate_snapshot": 905000,
+        "recorded_by": "sellera"
+      },
+      "actual": {
+        "gold_rate_applied": 900981.98,
+        "applied_usd_rate": null,
+        "cash_equivalent_grams": 31.1105,
+        "usd_equivalent_grams": 0,
+        "total_settled_grams": 31.1105,
+        "handover_entered_lom_rate": 905000,
+        "recorded_by": "466db3f0-5af0-4d7a-9ff3-b08fdaf6b9b0",
+        "created_at": "2026-11-11T18:59:24.047282+00:00"
+      }
+    },
+    {
+      "id": "RR-8",
+      "title": "after the saved rate changes, earlier payments keep 910 000 / 920 000 and their grams (no re-pricing)",
+      "ok": true,
+      "expected": [
+        910000,
+        920000
+      ],
+      "actual": [
+        910000,
+        920000
+      ]
+    },
+    {
+      "id": "RR-9",
+      "title": "profit summary lists customers' UZS / USD balances (debt and advance per currency = accounts)",
+      "ok": true,
+      "expected": {
+        "usdD": 140372.37,
+        "usdA": 13088.58,
+        "uzsD": 2080045947.9
+      },
+      "actual": {
+        "usdD": 140372.37,
+        "usdA": 13088.58,
+        "uzsD": 2080045947.9
+      }
+    },
+    {
+      "id": "RR-10",
+      "title": "without a USD rate: USD listed as not valued, no period result, no 12 800 anywhere",
+      "ok": true,
+      "expected": "not valued",
+      "actual": {
+        "usd_rate": null,
+        "result": null,
+        "not_valued": [
+          "USD baholanmadi (USD kursi berilmagan): kassa 164086.15, mijoz qarzi 140372.37, mijoz avansi 13088.58"
+        ]
+      }
+    },
+    {
+      "id": "RR-10b",
+      "title": "with USD 12 500: customer USD debt valued = debt x 12 500 / 900 000, included in assets",
+      "ok": true,
+      "expected": 1949.6163,
+      "actual": 1949.6163
+    },
+    {
+      "id": "RR-12",
+      "title": "review: manager sees the seller's typed 920 000 (saved 910 000 -> flagged, actor = seller) and the handover's entered 905 000; director sees the same rows; seller sees only his own, another seller's rates refused",
+      "ok": true,
+      "expected": "ok",
+      "actual": {
+        "typed": {
+          "lom": 920000,
+          "saved": 910000,
+          "flag": true
+        },
+        "handover": 905000,
+        "manager_rows": 2000,
+        "director_rows": 2000,
+        "seller_rows": 261,
+        "other": "Permission denied: sotuvchi faqat o'z operatsiyalari kurslarini ko'radi"
+      }
+    }
+  ]
+}

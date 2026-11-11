@@ -13,7 +13,7 @@ const { chromium } = require('/home/user/jewelryflow-erp/node_modules/playwright
 const TARGET = process.env.GA_TARGET || 'local';
 const L = TARGET === 'staging' ? require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib') : require('/home/user/jewelryflow-erp/docs/audits/goldia-075-real-auth/harness/lib');
 const BASE = TARGET === 'staging' ? 'https://jewelryflow-sales-staging.vercel.app' : 'http://127.0.0.1:3300';
-const OB = TARGET === 'staging' ? 'directorB' : 'director56';
+const OB = TARGET === 'staging' ? (process.env.GA_OTHER_DIRECTOR || 'directorB') : 'director56'; // PHASE D: another synthetic org (C), B stays read-only
 const EV = path.join(__dirname, '..', 'evidence', `${TARGET}-081`); fs.mkdirSync(EV, { recursive: true });
 const N = Number; const r4 = (x) => Math.round(N(x) * 1e4) / 1e4; const u4 = (x) => Math.round(N(x) * 1e4);
 const R = []; const OPS = [];

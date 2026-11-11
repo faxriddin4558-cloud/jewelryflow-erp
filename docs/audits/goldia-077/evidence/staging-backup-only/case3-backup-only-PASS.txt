@@ -1,0 +1,30 @@
+GOLDIA SALES — staging release <detected level> -> 085 (DRY RUN: staging is only read)
+
+started: 2026-11-11T17:44:18.796Z  mode: BACKUP ONLY (LOCAL REHEARSAL)
+[1/10] tools: /opt/goldia-audit/pg17root/wrap (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
+  checkout: 85 migration files, newest 085
+[2/10] connection
+  host=127.0.0.1 port=55437 user=postgres
+  server: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2), user postgres
+[3/10] identity and state gates (read only)
+  organizations=61 employees=200 auth.users=200 jewelry_sales=52
+  history: 85 rows, latest 20260101000085 (level 085)
+  repository: 85 migration files, newest 085
+  unrecorded repository versions below the level (gaps): none
+  recorded versions unknown to this checkout: none
+  history repair requested: none
+  migrations to apply: none (up to date)
+  staging is at 085: BACKUP ONLY - no migration will run
+[4/10] fresh backup (outside the repository)
+  full dump: attempt 1 ok (0 s, readable by pg_restore --list)
+  schemas: public, auth, storage, supabase_migrations; roles dump: ok
+  94ab79c40f9802ab28c1280dd11de7f65f56431389ad1a8b04d258856dc80c2f  staging-full.dump  1599001 bytes
+  4fb1e7828d613b7c324d4c9cf1b543280cf493bb8c24cf38615f5d9145afd9db  staging-roles.sql  1582 bytes
+  156a95b78e6a4295e16bdd027dad538a59bc6a9efe2bcee0bc8a2379cf8e3e68  staging-schema.sql  1323980 bytes
+[5/10] restore test into a disposable LOCAL PostgreSQL (staging untouched)
+  extensions not available locally (platform only): none
+  restored copy vs staging row counts: identical (77 tables)
+  BACKUP: VERIFIED
+  backup reference: goldia-staging-2026-11-11T17-44-18/staging-full.dump sha256=94ab79c40f9802ab28c1280dd11de7f65f56431389ad1a8b04d258856dc80c2f
+
+RESULT: BACKUP ONLY VERIFIED (085) - full backup, SHA256SUMS and restore test PASS; no migration was run. Report: /opt/goldia-audit/backuponly/goldia-staging-2026-11-11T17-44-18/STAGING-085-RESULT.txt

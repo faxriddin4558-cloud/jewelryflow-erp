@@ -11,7 +11,7 @@ const TARGET = process.env.GA_TARGET || 'local';
 const L = TARGET === 'staging' ? require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib') : require('/home/user/jewelryflow-erp/docs/audits/goldia-075-real-auth/harness/lib');
 const BASE = TARGET === 'staging' ? 'https://jewelryflow-sales-staging.vercel.app' : 'http://127.0.0.1:3300';
 const API_HOST = TARGET === 'staging' ? 'vouehtlmsunebracahon.supabase.co' : '127.0.0.1:54321';
-const OTHER_ORG = TARGET === 'staging' ? 'directorB' : 'director56';
+const OTHER_ORG = TARGET === 'staging' ? (process.env.GA_OTHER_DIRECTOR || 'directorB') : 'director56';
 const EV = path.join(__dirname, '..', 'evidence'); const SHOTS = path.join(EV, `${TARGET}-ui-078-screens`);
 const R = []; const T = (id, title, ok, exp, act) => { R.push({ id, title, ok: !!ok, expected: exp, actual: act }); console.log(`${ok ? 'PASS' : 'FAIL'} ${id} ${title} | exp=${JSON.stringify(exp)} act=${JSON.stringify(act).slice(0, 260)}`); };
 const N = Number;

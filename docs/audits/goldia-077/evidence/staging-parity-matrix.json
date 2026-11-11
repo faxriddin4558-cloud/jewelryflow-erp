@@ -1,6 +1,6 @@
 {
  "target": "staging",
- "at": "2026-11-05T16:53:34.827Z",
+ "at": "2026-11-11T19:03:22.310Z",
  "director_manager_mismatches": [],
  "missing_or_ambiguous": [],
  "matrix": {
@@ -14,14 +14,14 @@
     "e": "Mijoz topilmadi: 00000000-0000-0000-0000-000000000000"
    },
    "sellera": {
-    "c": "DENY",
-    "e": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+    "c": "PASSES",
+    "e": "Mijoz topilmadi: 00000000-0000-0000-0000-000000000000"
    },
    "worker": {
     "c": "DENY",
-    "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
+    "e": "Ruxsat etilmadi: mijozni arxivlash faqat direktor, menejer yoki mijozning sotuvchisi uchun"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Mijoz topilmadi: 00000000-0000-0000-0000-000000000000"
    }
@@ -43,7 +43,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Mijoz topilmadi: 00000000-0000-0000-0000-000000000000"
    }
@@ -65,7 +65,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Eski qarz yozuvi topilmadi: 00000000-0000-0000-0000-000000000000"
    }
@@ -87,7 +87,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, sales, seller,"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Mijoz (00000000-0000-0000-0000-000000000000) topilmadi"
    }
@@ -109,7 +109,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, sales, seller,"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Mijoz topilmadi (00000000-0000-0000-0000-000000000000)"
    }
@@ -131,7 +131,7 @@
     "c": "PASSES",
     "e": "Consignment (00000000-0000-0000-0000-000000000000) not found"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Consignment (00000000-0000-0000-0000-000000000000) not found"
    }
@@ -153,7 +153,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, sales, seller,"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Mijoz (00000000-0000-0000-0000-000000000000) topilmadi"
    }
@@ -175,7 +175,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "To'lov uchun lom vazni, naqd so'm yoki dollar summasi kiritilishi shart"
    }
@@ -197,7 +197,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Mijoz (00000000-0000-0000-0000-000000000000) topilmadi"
    }
@@ -219,7 +219,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Savdo hujjati topilmadi (00000000-0000-0000-0000-000000000000)"
    }
@@ -241,7 +241,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "To'lov yozuvi (00000000-0000-0000-0000-000000000000) topilmadi"
    }
@@ -263,7 +263,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "To'lov topilmadi (00000000-0000-0000-0000-000000000000)"
    }
@@ -285,7 +285,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Mijoz to'lovi topilmadi (id: 00000000-0000-0000-0000-000000000000)"
    }
@@ -307,7 +307,7 @@
     "c": "DENY",
     "e": "Ruxsat etilmadi: Sotuvchi yoki begona foydalanuvchi zavod tovar kirimini saqlay olmaydi (Rol: worker)"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Zavod kirimi fizik vazni 0 dan katta bo'lishi shart"
    }
@@ -329,7 +329,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, production_man"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Fabrika qabuli topilmadi (00000000-0000-0000-0000-000000000000)"
    }
@@ -351,7 +351,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, production_man"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Kamida 1 ta mahsulot dona skaner qilinishi shart"
    }
@@ -373,7 +373,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Consignment quantity must be greater than 0"
    }
@@ -395,7 +395,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Seller not found or does not belong to active organization"
    }
@@ -417,7 +417,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Konsignatsiya topilmadi (00000000-0000-0000-0000-000000000000)"
    }
@@ -439,7 +439,7 @@
     "c": "PASSES",
     "e": "Qaytariladigan mahsulot donasi topilmadi (00000000-0000-0000-0000-000000000000)"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Qaytariladigan mahsulot donasi topilmadi (00000000-0000-0000-0000-000000000000)"
    }
@@ -461,7 +461,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Settlement must include either scrap gold grams, UZS cash, or USD cash"
    }
@@ -483,7 +483,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Tushum kvitansiyasi topilmadi (00000000-0000-0000-0000-000000000000)"
    }
@@ -505,7 +505,7 @@
     "c": "DENY",
     "e": "Ruxsat etilmadi: Sotuvchi o'zining tushumini tasdiqlay olmaydi (Rol: worker)"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Invalid settlement: must provide at least scrap gold or cash"
    }
@@ -527,7 +527,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, production_man"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Invalid physical weight: must be > 0"
    }
@@ -549,7 +549,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, production_man"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Zavodga oltin topshirish hujjati topilmadi: 00000000-0000-0000-0000-000000000000"
    }
@@ -571,7 +571,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Invalid refining inputs: input scrap, melted weight and output fine gold must be > 0"
    }
@@ -593,7 +593,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Bekor qilinadigan afinaj partiyasi topilmadi (00000000-0000-0000-0000-000000000000)"
    }
@@ -615,7 +615,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Xarid uchun UZS yoki USD summasi kiritilishi shart (ikkalasi ham 0 bo'lishi mumkin emas)"
    }
@@ -637,7 +637,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, production_man"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Oltin xaridi topilmadi: 00000000-0000-0000-0000-000000000000"
    }
@@ -659,7 +659,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Tranzaksiya summasi yoki miqdori 0 dan katta bo'lishi shart"
    }
@@ -681,7 +681,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Bekor qilinadigan operatsiya topilmadi (00000000-0000-0000-0000-000000000000)"
    }
@@ -703,7 +703,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "Operatsiya topilmadi (00000000-0000-0000-0000-000000000000)"
    }
@@ -711,11 +711,11 @@
   "rpc_confirm_accounting_baseline": {
    "director": {
     "c": "PASSES",
-    "e": "ERR_USD_RATE_NOT_SET: Kassalarda dollar (USD) mavjud, boshlang'ich hisob uchun tasdiqlangan USD kursi kiritili"
+    "e": "ERR_DAILY_RATE_NOT_SET: Boshlang'ich hisobni tasdiqlash uchun bugungi (2026-11-12 sanadagi) tasdiqlangan 585 o"
    },
    "manager": {
     "c": "PASSES",
-    "e": "ERR_USD_RATE_NOT_SET: Kassalarda dollar (USD) mavjud, boshlang'ich hisob uchun tasdiqlangan USD kursi kiritili"
+    "e": "ERR_DAILY_RATE_NOT_SET: Boshlang'ich hisobni tasdiqlash uchun bugungi (2026-11-12 sanadagi) tasdiqlangan 585 o"
    },
    "sellera": {
     "c": "DENY",
@@ -725,9 +725,9 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
-    "e": "ERR_DAILY_RATE_NOT_SET: Boshlang'ich hisobni tasdiqlash uchun bugungi (2026-11-05 sanadagi) tasdiqlangan 585 o"
+    "e": "ERR_DAILY_RATE_NOT_SET: Boshlang'ich hisobni tasdiqlash uchun bugungi (2026-11-12 sanadagi) tasdiqlangan 585 o"
    }
   },
   "rpc_set_daily_gold_rate": {
@@ -747,7 +747,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, production_man"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }
@@ -769,7 +769,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }
@@ -791,7 +791,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }
@@ -813,7 +813,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }
@@ -835,7 +835,7 @@
     "c": "DENY",
     "e": "Ruxsat etilmadi: davriy hisobot faqat direktor va menejer uchun"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }
@@ -843,11 +843,11 @@
   "rpc_close_report_period": {
    "director": {
     "c": "PASSES",
-    "e": ""
+    "e": "Davr tugash sanasi bugundan keyin bo'lishi mumkin emas"
    },
    "manager": {
     "c": "PASSES",
-    "e": ""
+    "e": "Davr tugash sanasi bugundan keyin bo'lishi mumkin emas"
    },
    "sellera": {
     "c": "DENY",
@@ -857,9 +857,9 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, manager, produ"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
-    "e": ""
+    "e": "Davr tugash sanasi bugundan keyin bo'lishi mumkin emas"
    }
   },
   "rpc_get_director_sales_overview": {
@@ -879,7 +879,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": "column e.first_name does not exist"
    }
@@ -901,7 +901,7 @@
     "c": "PASSES",
     "e": ""
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }
@@ -923,7 +923,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }
@@ -945,7 +945,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }
@@ -967,7 +967,7 @@
     "c": "PASSES",
     "e": ""
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }
@@ -989,7 +989,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar, accountant, bu"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }
@@ -1011,7 +1011,7 @@
     "c": "DENY",
     "e": "Permission denied for role \"worker\" (required one of: admin, director, owner, direktor, rahbar)"
    },
-   "directorB": {
+   "c_director": {
     "c": "PASSES",
     "e": ""
    }

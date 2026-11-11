@@ -9,7 +9,7 @@ const TARGET = process.env.GA_TARGET || 'local';
 const L = TARGET === 'staging' ? require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib') : require('/home/user/jewelryflow-erp/docs/audits/goldia-075-real-auth/harness/lib');
 const Z = '00000000-0000-0000-0000-000000000000';
 const today = L.tashkentToday();
-const OTHER = TARGET === 'staging' ? 'directorB' : 'director56';
+const OTHER = TARGET === 'staging' ? (process.env.GA_OTHER_DIRECTOR || 'directorB') : 'director56';
 const ROLES = ['director', 'manager', 'sellera', 'worker', OTHER];
 const EXCEPT = new Set(['rpc_execute_full_test_reset', 'rpc_preview_full_test_reset', 'rpc_execute_selective_test_cleanup', 'rpc_preview_selective_test_cleanup']);
 const P = {

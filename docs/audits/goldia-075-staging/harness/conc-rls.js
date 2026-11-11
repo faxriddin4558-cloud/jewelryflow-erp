@@ -1,11 +1,14 @@
 // Concurrency + cross-organization RLS on STAGING (075) with real sessions. Write probes only ever target rows of the
 // synthetic organization B (filter organization_id = ORG_B), so even a leak could only touch synthetic data.
 const fs = require('fs');
-const { URL, KEY, ORG, ORG_B, creds, rpc, usel, uwrite, sel, R, T, tashkentToday } = require('./lib');
+const { URL, KEY, ORG, ORG_B: ORG_B_REAL, creds, rpc, usel, uwrite, sel, R, T, tashkentToday } = require('./lib');
+// PHASE D: GA_FOREIGN_ORG = the writable foreign synthetic org (C); org B is then only READ (B users read-probe, nobody writes B)
+const ORG_B = process.env.GA_FOREIGN_ORG || ORG_B_REAL;
+const FD = process.env.GA_OTHER_DIRECTOR || 'directorB'; const FM = process.env.GA_OTHER_MANAGER || 'managerB'; const FS = process.env.GA_OTHER_SELLER || 'sellerB1';
 (async () => {
   const C = creds();
   await rpc('director', 'rpc_set_daily_gold_rate', { p_rate_per_gram: 900000, p_rate_date: tashkentToday() });
-  await rpc('directorB', 'rpc_set_daily_gold_rate', { p_rate_per_gram: 900000, p_rate_date: tashkentToday() });
+  await rpc(FD, 'rpc_set_daily_gold_rate', { p_rate_per_gram: 900000, p_rate_date: tashkentToday() });
   const rc = (await rpc('manager', 'rpc_record_factory_receipt', { p_product_name: 'conc (sintetik)', p_original_physical_g: 40, p_factory_markup_pct: 8 })).data;
   const cons = (await rpc('manager', 'rpc_issue_barcode_consignment', { p_seller_id: C.sellera.id, p_factory_markup_pct: 8, p_seller_markup_pct: 15, p_factory_receipt_id: rc.receipt_id,
     p_pieces: [{ weight_grams: 5, model_code: 'CONC-1' }, { weight_grams: 6, model_code: 'CONC-2' }, { weight_grams: 4, model_code: 'CONC-3' }] })).data;
@@ -41,15 +44,15 @@ const { URL, KEY, ORG, ORG_B, creds, rpc, usel, uwrite, sel, R, T, tashkentToday
   const defs = spec.definitions || {};
   const orgTables = Object.keys(defs).filter((t) => defs[t].properties && defs[t].properties.organization_id);
   // make sure org B has rows in the main tables
-  const bc = (await rpc('managerB', 'rpc_record_factory_receipt', { p_product_name: 'B partiya (sintetik)', p_original_physical_g: 20, p_factory_markup_pct: 8 })).data;
-  const bcons = (await rpc('managerB', 'rpc_issue_barcode_consignment', { p_seller_id: C.sellerB1.id, p_factory_markup_pct: 8, p_seller_markup_pct: 10, p_factory_receipt_id: bc.receipt_id, p_pieces: [{ weight_grams: 5, model_code: 'B-1' }] })).data;
+  const bc = (await rpc(FM, 'rpc_record_factory_receipt', { p_product_name: 'B partiya (sintetik)', p_original_physical_g: 20, p_factory_markup_pct: 8 })).data;
+  const bcons = (await rpc(FM, 'rpc_issue_barcode_consignment', { p_seller_id: C[FS].id, p_factory_markup_pct: 8, p_seller_markup_pct: 10, p_factory_receipt_id: bc.receipt_id, p_pieces: [{ weight_grams: 5, model_code: 'B-1' }] })).data;
   const bcust = (await sel(`customers?organization_id=eq.${ORG_B}&select=id&limit=1`))[0].id;
-  await rpc('sellerB1', 'rpc_record_barcode_piece_sale', { p_customer_id: bcust, p_piece_id: bcons.pieces[0].id, p_client_markup_pct: 12 });
-  await rpc('sellerB1', 'rpc_set_my_seller_rates', { p_lom_rate_uzs: 900000, p_usd_rate_uzs: 12600, p_reason: 'B' });
-  await rpc('sellerB1', 'rpc_record_client_settlement', { p_customer_id: bcust, p_cash_amount: 900000 });
+  await rpc(FS, 'rpc_record_barcode_piece_sale', { p_customer_id: bcust, p_piece_id: bcons.pieces[0].id, p_client_markup_pct: 12 });
+  await rpc(FS, 'rpc_set_my_seller_rates', { p_lom_rate_uzs: 900000, p_usd_rate_uzs: 12600, p_reason: 'B' });
+  await rpc(FS, 'rpc_record_client_settlement', { p_customer_id: bcust, p_cash_amount: 900000 });
   const readLeaks = []; let reads = 0;
-  for (const tag of ['director', 'manager', 'sellera', 'sellerb', 'sellerc', 'worker', 'noemp', 'directorB', 'sellerB1']) {
-    const other = C[tag].org === ORG_B ? ORG : ORG_B;
+  for (const tag of ['director', 'manager', 'sellera', 'sellerb', 'sellerc', 'worker', 'noemp', ...new Set(['directorB', 'sellerB1', FD, FS])]) {
+    const other = (C[tag].org === ORG_B || C[tag].org === ORG_B_REAL) ? ORG : ORG_B;
     for (const t of orgTables) {
       const r = await usel(tag, `${t}?organization_id=eq.${other}&select=organization_id&limit=1`); reads++;
       if (r.ok && r.data.length) readLeaks.push(`${tag}:${t}`);
@@ -70,16 +73,19 @@ const { URL, KEY, ORG, ORG_B, creds, rpc, usel, uwrite, sel, R, T, tashkentToday
   const bRowsAfter = JSON.stringify(await Promise.all(['customers', 'jewelry_sales', 'gold_settlements', 'consignment_pieces', 'seller_gold_accounts', 'client_gold_accounts', 'factory_receipts', 'manager_vault_account', 'seller_rates'].map((t) => sel(`${t}?organization_id=eq.${ORG_B}&select=*&order=id`).catch(() => []))));
   T('RLS2', `no cross-org UPDATE/DELETE (${writableBase.length} tables x 3 org-A logins, aimed at synthetic org B); org B rows unchanged`, writeLeaks.length === 0 && bRowsBefore === bRowsAfter, 0, { writes, leaks: writeLeaks, orgB_unchanged: bRowsBefore === bRowsAfter });
   const ins = await uwrite('manager', 'POST', 'jewelry_models', { organization_id: ORG_B, model_code: 'XORG', name: 'xorg probe' });
-  const insR = await uwrite('sellera', 'POST', 'seller_rates', { organization_id: ORG_B, seller_id: C.sellerB1.id, lom_rate_uzs: 1, usd_rate_uzs: 1 });
+  const insR = await uwrite('sellera', 'POST', 'seller_rates', { organization_id: ORG_B, seller_id: C[FS].id, lom_rate_uzs: 1, usd_rate_uzs: 1 });
   T('RLS3', 'cross-org INSERT refused (jewelry_models, seller_rates)', !ins.ok && !insR.ok, 'refused', [ins.ok ? 'INSERTED' : ins.error.slice(0, 50), insR.ok ? 'INSERTED' : insR.error.slice(0, 50)]);
   const rpcs = {
-    'sellera rates of org B seller': await rpc('sellera', 'rpc_get_seller_rates', { p_seller_id: C.sellerB1.id }),
-    'director markup report of org B seller': await rpc('director', 'rpc_get_seller_markup_difference_report', { p_seller_id: C.sellerB1.id }),
-    'director handover for org B seller': await rpc('director', 'rpc_record_seller_to_manager_settlement', { p_seller_id: C.sellerB1.id, p_cash_paid_amount: 1 }),
-    'manager consign to org B seller': await rpc('manager', 'rpc_issue_barcode_consignment', { p_seller_id: C.sellerB1.id, p_factory_markup_pct: 8, p_seller_markup_pct: 10, p_pieces: [{ weight_grams: 1 }] }),
+    'sellera rates of org B seller': await rpc('sellera', 'rpc_get_seller_rates', { p_seller_id: C[FS].id }),
+    'director markup report of org B seller': await rpc('director', 'rpc_get_seller_markup_difference_report', { p_seller_id: C[FS].id }),
+    'director handover for org B seller': await rpc('director', 'rpc_record_seller_to_manager_settlement', { p_seller_id: C[FS].id, p_cash_paid_amount: 1 }),
+    'manager consign to org B seller': await rpc('manager', 'rpc_issue_barcode_consignment', { p_seller_id: C[FS].id, p_factory_markup_pct: 8, p_seller_markup_pct: 10, p_pieces: [{ weight_grams: 1 }] }),
     'sellera sale to org B customer': await rpc('sellera', 'rpc_record_client_settlement', { p_customer_id: bcust, p_cash_amount: 1000 }),
   };
-  const leaked = Object.entries(rpcs).filter(([, r]) => r.ok && r.data && !(Array.isArray(r.data.sellers) && r.data.sellers.length === 0) && JSON.stringify(r.data) !== '{}');
+  // a leak = foreign rows or non-zero foreign totals in the answer; an empty report (no entries, all totals 0) is a refusal by content
+  const emptyAnswer = (d) => (Array.isArray(d.sellers) && d.sellers.length === 0) || JSON.stringify(d) === '{}'
+    || (Array.isArray(d.entries) && d.entries.length === 0 && (!d.by_seller || d.by_seller.length === 0) && Number(d.total_difference_g || 0) === 0 && Number(d.active_sales || 0) === 0);
+  const leaked = Object.entries(rpcs).filter(([, r]) => r.ok && r.data && !emptyAnswer(r.data));
   T('RLS4', 'RPCs refuse to act on another organization (rates, reports, handover, consignment, payment)', leaked.length === 0, 'refused', Object.fromEntries(Object.entries(rpcs).map(([k, r]) => [k, r.ok ? 'OK:' + JSON.stringify(r.data).slice(0, 60) : r.error.slice(0, 50)])));
   fs.writeFileSync(__dirname + '/../evidence/concurrency-rls.json', JSON.stringify(R, null, 1));
   console.log('RESULT', R.filter((x) => x.ok).length, '/', R.length);

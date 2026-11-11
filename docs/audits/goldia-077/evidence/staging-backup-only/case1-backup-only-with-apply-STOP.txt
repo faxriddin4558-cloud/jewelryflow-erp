@@ -1,0 +1,1 @@
+STOP: --backup-only cannot be combined with --apply

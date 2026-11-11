@@ -1,0 +1,22 @@
+PASS U77-01 manager main screen: simple panel with key balances + action links; detailed part folded under "Batafsil" | exp={"panel":true,"cards":">=7","detailsOpen":false} act={"panel":true,"cards":10,"detailsOpen":false}
+PASS U77-02 manager sees the capital / expense button again (076 had hidden it) | exp=">0" act=1
+PASS U77-03 manager records 3 000 000 UZS capital in the UI; manager cash +3 000 000 exactly once | exp=3000000 act={"delta":3000000,"tx":{"amount_num":3000000,"source_till":"manager_uzs","currency":"UZS"}}
+PASS U77-04 manager has the markup preset buttons (director = manager) | exp=2 act=2
+PASS U77-05 no API 4xx/5xx in the manager session | exp=[] act=[]
+PASS U77-10 seller sells 20 g for $2000 in the UI (double click -> one sale); no markup field for a price sale | exp={"sales":1,"currency":"USD","amount":2000} act={"sales":1,"row":{"id":"f79e899c-aa15-47bd-ba40-7c39bc9a0c7c","sale_currency":"USD","sale_amount":2000,"base_weight_grams":20,"client_gold_due_grams":0},"markupHidden":true}
+PASS U77-11 seller stock -20 g; the 33 g (30 g x 1.10) obligation is unchanged by the sale | exp={"stock":-20,"obligation":"same"} act={"stock":-20,"o0":2695.8894,"o1":2695.8894}
+PASS U77-12 customer owes 2000 USD; 585 gram debt untouched (0) | exp=2000 act={"d":2000,"a":0}
+PASS U77-13 seller takes 500 USD in the UI (double click -> once): USD debt 1500, till +500 USD | exp={"debt":1500,"till":500} act={"debt":1500,"till":500}
+PASS U77-14 seller pays a USD debt with 1 250 000 so'm at his saved 12 500 rate (prefilled default, editable since 084) -> 100 USD; till +1 250 000 so'm | exp={"debt":1400,"tillUzs":1250000} act={"debt":1400,"till":1250000,"rateValue":"12500","ownRatesShown":"Saqlangan kurslaringiz (shu to'lov uchun o'zgartirish mumkin): USD 12 500 so'm, LOM 900 000 so'm/g","preview":"Qarzga yoziladi: 100 USD\nHozirgi USD qarz: 
+PASS U77-15 seller on a 390 px phone sells 2.5 g for 3 100 000 so'm; no horizontal overflow | exp={"debt":3100000,"overflow":0} act={"debt":3100000,"ov":0}
+PASS U77-16 seller is kept out of the period report (page + server) | exp="redirected + 42501" act={"path":"/sales/app","rpc":"Ruxsat etilmadi: davriy hisobot faqat direktor va "}
+PASS U77-17 no API 4xx/5xx in the seller sessions except the deliberate report probe | exp=[] act=[]
+PASS U77-20 manager reverses the latest currency payment (100 USD) in the UI -> USD debt 1500 | exp=1500 act={"button":1,"debt":1500}
+PASS U77-21 period report shows UZS and USD sales separately; the page equals the server report (count, amount, physical g) | exp={"usd":102669.25,"uzs":1090450000} act={"flowUsd":"Savdo: aniq USD narxda\t114\t266,4677 g\t0,0000 g\t$102 669,25\t—\t—\t—","flowUzs":"Savdo: aniq UZS narxda\t100\t216,8523 g\t0,0000 g\t1 090 450 000 so'm\t—\t—\t—"}
+PASS U77-22 report closing USD customer debt = live USD balances of the organization | exp=178048.39 act="$178 048,39"
+PASS U77-23 CSV export downloads with balances and the USD sale flows | exp=true act="﻿\"bo'lim\",\"ko'rsatkich\",\"birlik\",\"davr boshi\",\"davr oxiri / qiymat\" | \"qoldiq\",\"Mijozlar qarzi (585 "
+PASS U77-24 "Yangi davrni boshlash" stores the period, says so; debts, stock, tills, vault unchanged | exp={"stored":"2026-11-11","unchanged":true} act={"msg":"Davr 2026-11-11 — 2026-11-11 saqlandi. Keyingi davr 2026-11-12 dan boshlanadi. Q","periods":5,"unchanged":true}
+PASS U77-25 a closed period can be opened again from the list (report kept) | exp="shown" act="Saqlangan davr hisoboti (2026-11-11 — 2026-11-11) ko'rsatilmoqda."
+PASS U77-26 no API 4xx/5xx in the manager session | exp=[] act=[]
+PASS U77-27 manager on a 390 px phone: period report and main screen without horizontal overflow | exp=0 act={"report":0,"main":0}
+TOTAL 21/21
