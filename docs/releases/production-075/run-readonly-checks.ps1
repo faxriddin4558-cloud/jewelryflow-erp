@@ -233,6 +233,9 @@ if ($Target -eq "production-drift-audit") {
   if (Test-Path -LiteralPath (Join-Path $repo $pf)) { $extra += @{ Name = ("function_body_parity_" + $lv); File = $pf; Kind = $(if ($pf -like "*_full_*") { "fnparity" } else { "parity" }) } }
   else { Write-Host ("  no function-body parity file for level " + $lv + " in this checkout") -ForegroundColor Yellow }
   $extra += @{ Name = "rls_isolation"; File = "docs/releases/production-075/03_rls_isolation_readonly.sql"; Kind = "rls" }
+  # PHASE E (2026-11-12): the pre-release business baseline (balances, debts, stock, tills, vault, factory obligation, row
+  # counts) of the VERIFIED level, read only - production-post compares every business line with it after a release
+  $extra += @{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" }
   foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
   $checks = @($checks) + $extra
 }
