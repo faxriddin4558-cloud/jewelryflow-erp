@@ -1,0 +1,15 @@
+{
+  "backup": true,
+  "baseline": true,
+  "recovery": true,
+  "migration064": true,
+  "preflight": true,
+  "accounting": true,
+  "compat": true,
+  "chainTo": true,
+  "ready": true,
+  "target": "081",
+  "chainToTarget": "085",
+  "chainToPass": true,
+  "backupDir": "/opt/goldia-audit/prod085crlf2/goldia-prod-2026-11-12T10-01-07"
+}

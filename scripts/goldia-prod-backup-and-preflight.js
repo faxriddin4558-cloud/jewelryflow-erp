@@ -675,6 +675,12 @@ async function main() {
       const TO = String(args["chain-to"]).padStart(3, "0");
       log(`[8c/9] Chain ${TARGET} -> ${TO} on the restored LOCAL copy with the production chain SQL, emergency rollback to ${PREVIOUS}, re-apply (production untouched)`);
       const SIG = fs.readFileSync(path.join(REPO, "supabase/release/staging-073/signature.sql"), "utf8").replace(/\r\n/g, "\n").replace(/^\s*--.*$/gm, "").trim().replace(/;\s*$/, "");
+      // 2026-11-12 (PHASE E): the same signature with CR-tolerant body hashes. Production keeps function bodies created from a
+      // Windows checkout with \r\n; an emergency rollback restores the repository (LF) text, so the raw md5 of those bodies
+      // differs although the code is identical. The "back at PREVIOUS" gate compares H lines on this LF hash (only CR may differ),
+      // every other line (F / C / P / T / R) byte for byte.
+      const SIG_LF = SIG.replace("md5(p.prosrc)", "md5(replace(p.prosrc, chr(13), ''))");
+      if (SIG_LF === SIG) throw new Error("signature.sql changed: CR-tolerant body hash not built");
       const KEPT_BY_ROLLBACK_077 = ["C financial_transactions.reclassified_at timestamp with time zone", "C financial_transactions.reclassified_from_amount numeric(18,2)",
         "C financial_transactions.reclassified_from_currency text", "C financial_transactions.reclassified_from_till text"];
       // every SQL file of this step runs from an LF copy (a Windows checkout has CRLF files; CR would end up in the
@@ -694,7 +700,7 @@ async function main() {
       let ok = m.status === 0 && Number(TO) >= Number(TARGET);   // a chain of one migration (e.g. 080 -> 081) is allowed
       // step 8 left TARGET applied without its history row: back to an exact PREVIOUS copy first (LF rollback)
       if (ok) ok = psql(localEnv, chainLib.lfCopy(FILES.rollback065, LFDIR), { file: true, tuples: false, singleTx: true }).status === 0;
-      const sigPrev = ok ? lines(q(SIG)) : []; const fpPrev = ok ? fpNow() : "";
+      const sigPrev = ok ? lines(q(SIG)) : []; const sigPrevLf = ok ? lines(q(SIG_LF)) : []; const fpPrev = ok ? fpNow() : "";
       if (ok) fs.writeFileSync(path.join(outDir, "fingerprint-before-chain.txt"), lines(fpPrev).join(os.EOL) + os.EOL);
       note(`chain-to: copy back at ${PREVIOUS} before the chain`, ok && latestV() === chainLib.V(PREVIOUS) ? "yes" : "NO");
       note(`chain-to: business fingerprint before the chain`, `${lines(fpPrev).length} categories (fingerprint-before-chain.txt)`);
@@ -742,9 +748,13 @@ async function main() {
         note(`chain-to: emergency rollback ${v} on the copy`, ok ? "ok" : `FAILED ${String(rb2.stderr || "").split(/\r?\n/).find((l) => /ERROR/.test(l)) || ""}`);
       }
       if (ok) {
-        const prevLines = new Set(sigPrev); const backLines = new Set(lines(q(SIG)));
+        const sigBack = lines(q(SIG)); const sigBackLf = lines(q(SIG_LF));
+        const prevLines = new Set([...sigPrev.filter((l) => !l.startsWith("H ")), ...sigPrevLf.filter((l) => l.startsWith("H "))]);
+        const backLines = new Set([...sigBack.filter((l) => !l.startsWith("H ")), ...sigBackLf.filter((l) => l.startsWith("H "))]);
         const lost = [...prevLines].filter((l) => !backLines.has(l)); const extra = [...backLines].filter((l) => !prevLines.has(l) && !KEPT_BY_ROLLBACK_077.includes(l));
-        fs.writeFileSync(path.join(outDir, "signature-diff-after-rollback.txt"), ["LOST", ...lost, "EXTRA", ...extra].join(os.EOL) + os.EOL);
+        const rawPrev = new Set(sigPrev.filter((l) => l.startsWith("H "))); const crOnly = sigBack.filter((l) => l.startsWith("H ") && !rawPrev.has(l)).length;
+        fs.writeFileSync(path.join(outDir, "signature-diff-after-rollback.txt"), ["LOST", ...lost, "EXTRA", ...extra, `CR_ONLY_BODIES ${crOnly - extra.filter((l) => l.startsWith("H ")).length}`].join(os.EOL) + os.EOL);
+        note("chain-to: function bodies that differ only by carriage returns after the rollback (Windows CRLF on the source, LF from the repository)", String(Math.max(0, crOnly - extra.filter((l) => l.startsWith("H ")).length)));
         const d = fpCheck("after-rollback", fpPrev);
         const same = latestV() === chainLib.V(PREVIOUS) && !lost.length && !extra.length && !d.length;
         note(`chain-to: after the emergency rollbacks the copy is ${PREVIOUS} again (schema + business fingerprint; 077 keeps 4 reclassification-history columns on purpose)`, same ? "yes" : `NO lost=${lost.length} extra=${extra.length} fingerprint=${diffText(d) || "same"}`);

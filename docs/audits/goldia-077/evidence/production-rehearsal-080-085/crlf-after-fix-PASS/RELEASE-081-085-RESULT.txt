@@ -1,0 +1,45 @@
+started: 2026-11-12T10:01:14.041Z  mode: CHAIN 080 -> 085 (LOCAL REHEARSAL)
+[1/5] backup folder /opt/goldia-audit/prod085crlf2/goldia-prod-2026-11-12T10-01-07: {"backup":true,"baseline":true,"recovery":true,"migration064":true,"preflight":true,"accounting":true,"compat":true,"chainTo":true,"ready":true,"target":"081","chainToTarget":"085","chainToPass":true,"backupDir":"/opt/goldia-audit/prod085crlf2/goldia-prod-2026-11-12T10-01-07"}
+[2/5] production gates (read only)
+  080 recorded=t; chain versions recorded=0; latest=20260101000080
+  history: level 080, gaps none, unknown none
+  RESULT|prelaunch_081|OK
+  function-body parity 080: crlf_only|58 identical|110
+  RLS isolation before: RLS_ISOLATION|PASS|users=200|orgs=60|checks=9829
+[3/5] chain 081..085 (ONE transaction; per-migration postflight + business fingerprint gates)
+  balances before: customer_advance_g=0.0000,customer_debt_g=570.6424,factory_obligation_g=3389.0400,seller_owes_g=1077.7941,seller_stock_g=416.5000,vault_cash_uzs=8100000.00,vault_usd=0.00
+  [chain] 081 goldia_seller_legacy_advance
+  [chain] 081 postflight + business fingerprint: ok
+  [chain] 082 goldia_monthly_report_signed_balance
+  [chain] 082 postflight + business fingerprint: ok
+  [chain] 083 goldia_partial_sale_returns
+  [chain] 083 postflight + business fingerprint: ok
+  [chain] 084 goldia_operation_rates_and_currency_valuation
+  [chain] 084 postflight + business fingerprint: ok
+  [chain] 085 goldia_financial_restart_and_opening_accounting
+  [chain] 085 postflight + business fingerprint: ok
+  CHAIN: applied and recorded in one transaction
+[4/5] postflight (read only)
+  history rows 081..085: 5/5
+  073 postflight: all true
+  074 postflight: all true
+  075 postflight: all true
+  076 postflight: all true
+  077 postflight: all true
+  078 postflight: all true
+  079 postflight: all true
+  080 postflight: all true
+  081 postflight: all true
+  082 postflight: all true
+  083 postflight: all true
+  084 postflight: all true
+  085 postflight: all true
+  row counts unchanged: yes
+  balances unchanged: yes
+  business fingerprint unchanged (79 categories, value per category): yes
+  function bodies (all public functions, CR-tolerant): OK identical=129 crlf_only=53 different=0 missing=0 extra=0
+  RLS isolation after: RLS_ISOLATION|PASS|users=200|orgs=60|checks=10835
+  POSTFLIGHT: PASS
+[5/5] next: production frontend (production-frontend.ps1 -Apply -ReleaseCandidate <sha>), then run-readonly-checks.ps1 -Target production-post, then run-production-smoke.ps1
+
+RESULT: CHAIN 081..085 APPLIED, POSTFLIGHT PASS. Report: /opt/goldia-audit/prod085crlf2/goldia-prod-2026-11-12T10-01-07/RELEASE-081-085-RESULT.txt

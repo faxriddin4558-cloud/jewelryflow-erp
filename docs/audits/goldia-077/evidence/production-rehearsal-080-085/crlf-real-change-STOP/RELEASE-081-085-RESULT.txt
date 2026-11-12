@@ -1,0 +1,5 @@
+started: 2026-11-12T10:04:35.466Z  mode: CHAIN 080 -> 085 (LOCAL REHEARSAL)
+[1/5] backup folder /opt/goldia-audit/prod085neg/goldia-prod-2026-11-12T10-04-29: {"backup":true,"baseline":true,"recovery":true,"migration064":true,"preflight":true,"accounting":true,"compat":true,"chainTo":false,"ready":false,"target":"081","chainToTarget":"085","chainToPass":false,"backupDir":"/opt/goldia-audit/prod085neg/goldia-prod-2026-11-12T10-04-29"}
+
+STOPPED: a backup / restore / copy-chain / rollback gate failed (see SUMMARY.txt in that folder)
+Production database was not changed (the chain runs in one transaction; nothing was committed).
