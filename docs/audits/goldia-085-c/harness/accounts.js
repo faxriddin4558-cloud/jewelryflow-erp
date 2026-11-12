@@ -16,10 +16,13 @@ const ALL_TAGS = [...RUN_TAGS, 'managerB'];
   }
   const L = require('/home/user/jewelryflow-erp/docs/audits/goldia-075-staging/harness/lib');
   const m = JSON.parse(fs.readFileSync(MERGED));
-  const tags = cmd === 'unban' ? RUN_TAGS : ALL_TAGS;
+  const C_TAGS = ['c_director', 'c_manager', 'c_sellera', 'c_sellerb'];
+  const tags = { unban: RUN_TAGS, ban: ALL_TAGS, 'unban-c': C_TAGS, 'ban-c': C_TAGS, 'ban-non-c': ALL_TAGS.filter((t) => !C_TAGS.includes(t)) }[cmd];
+  if (!tags) { console.log('usage: merge | unban | ban | unban-c | ban-c | ban-non-c'); process.exit(1); }
+  const banning = cmd.startsWith('ban');
   for (const t of tags) {
     const u = m[t]; if (!u || !/@goldia-audit\.test$/.test(u.email)) { console.log(t, 'SKIPPED (not a synthetic account)'); continue; }
-    const r = await L.svc('PUT', `auth/v1/admin/users/${u.id}`, { ban_duration: cmd === 'unban' ? 'none' : '876000h' });
-    console.log(t, r.ok ? (cmd === 'unban' ? 'unbanned' : 'banned') : 'FAILED ' + r.status);
+    const r = await L.svc('PUT', `auth/v1/admin/users/${u.id}`, { ban_duration: banning ? '876000h' : 'none' });
+    console.log(t, r.ok ? (banning ? 'banned' : 'unbanned') : 'FAILED ' + r.status);
   }
 })().catch((e) => { console.error('STOPPED', e.message); process.exit(1); });

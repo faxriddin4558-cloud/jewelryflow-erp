@@ -1,0 +1,40 @@
+{
+ "period": {
+  "status": "locked",
+  "no": "OPN-20261112-1410-7E12C0"
+ },
+ "checks": {
+  "seller_tills_empty": true,
+  "customer_585_equals_documents": true,
+  "customer_usd_equals_documents": false,
+  "customer_uzs_equals_documents": false,
+  "seller_stock_equals_held_pieces": true,
+  "inventory_equals_opening_receipts": true,
+  "factory_obligation_equals_documents": false,
+  "non_opening_documents_after_restart": 7
+ },
+ "totals": {
+  "manager_usd": 150,
+  "manager_uzs": 8600000,
+  "manager_stock_g": 50,
+  "sellers_stock_g": 50,
+  "factory_advance_g": 0,
+  "customers_usd_debt": 0,
+  "customers_uzs_debt": 0,
+  "manager_fine_585_g": 17.0769,
+  "other_assets_585_g": 0,
+  "manager_scrap_585_g": 12.8205,
+  "customers_585_debt_g": 0,
+  "factory_obligation_g": 90.9231,
+  "sellers_obligation_g": 56,
+  "customers_usd_advance": 50,
+  "customers_uzs_advance": 0,
+  "customers_585_advance_g": 0,
+  "other_liabilities_585_g": 0,
+  "manager_scrap_physical_g": 10,
+  "factory_advance_documents_g": 0,
+  "opening_receipts_physical_g": 100,
+  "factory_obligation_from_goods_g": 108,
+  "factory_obligation_without_goods_g": 0
+ }
+}

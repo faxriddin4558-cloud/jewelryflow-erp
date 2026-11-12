@@ -1,0 +1,123 @@
+{
+ "run": "mwdbwz0c",
+ "results": [
+  {
+   "id": "D-4",
+   "title": "draft: 9 ordinary writes (seller / manager / director) refused ERR_OPENING_DRAFT, old reset ERR_USE_FINANCIAL_RESTART, opening documents still work, no other document",
+   "ok": true,
+   "expected": {
+    "refused": 9,
+    "reset": "ERR_USE_FINANCIAL_RESTART",
+    "scrap": "ok",
+    "other": 0
+   },
+   "actual": {
+    "refused": 9,
+    "reset": "ERR_USE_FINANCIAL_RESTART: bu tashkilotd",
+    "scrap": true,
+    "other": 0,
+    "errs": [
+     "ERR_OPENING_DRAFT: boshlang'ic"
+    ]
+   }
+  },
+  {
+   "id": "D-6",
+   "title": "opening fine gold 20 g @999 = 34.1538 g (585) / 19.98 g fine; after the baseline lock a 10 g @999 factory payment lowers refined gold and factory obligation by 17.0769 g",
+   "ok": true,
+   "expected": {
+    "g": 34.1538,
+    "f": 19.98,
+    "g_after": 17.0769,
+    "fo_after": 90.9231
+   },
+   "actual": {
+    "g": 34.1538,
+    "f": 19.98,
+    "lock": true,
+    "fh": true,
+    "g_after": 17.0769,
+    "fo_after": 90.9231
+   }
+  },
+  {
+   "id": "D-2 UZS",
+   "title": "opening debt 8 600 000 @860 000 (10 g) paid: snapshot 10 g, debt 0, obligation untouched; handover at 900 000 -> obligation -10 g, company difference 0.4444 g; reversal restores both exactly; redo -10 g once",
+   "ok": true,
+   "expected": {
+    "snap": 10,
+    "debt": 0,
+    "d1": 10,
+    "diff": 0.4444,
+    "afterRev": 67.4,
+    "diff2": 0,
+    "d2": 10
+   },
+   "actual": {
+    "snap": 10,
+    "debt": 0,
+    "d1": 10,
+    "diff": 0.4444,
+    "ps": 0.4444,
+    "rev": true,
+    "afterRev": 67.4,
+    "diff2": 0,
+    "d2": 10
+   }
+  },
+  {
+   "id": "D-2 USD",
+   "title": "100 USD opening debt (12 600 / 900 000 = 1.4 g): reversed payment takes its pool share with it (pool 0, till 0, debt 100); paid again + handover at 12 500 -> obligation -1.4 g, difference 0.0111 g",
+   "ok": true,
+   "expected": {
+    "snap": 1.4,
+    "pool": [
+     0,
+     0,
+     0
+    ],
+    "debt": 100,
+    "d": 1.4,
+    "diff": 0.0111
+   },
+   "actual": {
+    "snap": 1.4,
+    "rev": true,
+    "pool": [
+     0,
+     0,
+     0
+    ],
+    "debt": 100,
+    "d": 1.4,
+    "diff": 0.0111
+   }
+  },
+  {
+   "id": "D-3",
+   "title": "USD 50 advance: no obligation change at payment or handover; accounting result unchanged; liability = 50 x 12 500 / 900 000 g",
+   "ok": true,
+   "expected": {
+    "adv": 50,
+    "owes": 56,
+    "result": 0,
+    "liability": 0.6944
+   },
+   "actual": {
+    "adv": 50,
+    "o1": 56,
+    "o2": 56,
+    "mid": 0,
+    "after": 0,
+    "liability": 0.6944
+   }
+  },
+  {
+   "id": "D-1",
+   "title": "factory obligation = 100 g @8 % = 108 minus the factory payment only (manager -> seller transfer and all customer flows did not touch it)",
+   "ok": true,
+   "expected": 90.9231,
+   "actual": 90.9231
+  }
+ ]
+}
