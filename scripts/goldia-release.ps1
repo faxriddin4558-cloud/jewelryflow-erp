@@ -43,6 +43,11 @@
   the restored copy that schema + every function body (CR-tolerant) equal the repository at the recorded level, and the
   history rows are written in the same transaction as the chain. Production history is never repaired by a script.
   -ExpectProductionLevel 076: optional; production STOPs when its real level is different.
+  -TestedCommit <sha>: production only, optional. Lets -ApprovedCommit be a commit that only adds release tooling /
+  documents on top of the commit staging runs and was tested on. STOPs unless TestedCommit is an ancestor of the approved
+  commit, staging /api/version serves exactly TestedCommit (build), every changed path matches the non-runtime allow-list
+  (docs/, supabase/release/, scripts/goldia-*.js|ps1, scripts/lib/goldia-*.js) and the git trees of src, public,
+  supabase/migrations, supabase/rollback, package files and the Next / TS / Tailwind / PostCSS / Vercel config are identical.
   There is no "skip" switch: when a database already has the newest migration its script reports UP TO DATE.
 #>
 param(
@@ -51,7 +56,12 @@ param(
   [string]$ApprovedCommit = "",
   [string]$WorktreeRoot = "",
   [string]$RepairStagingHistory = "",
-  [string]$ExpectProductionLevel = ""
+  [string]$ExpectProductionLevel = "",
+  # 2026-11-12 (PHASE E): the commit that staging RUNS and was tested on, when -ApprovedCommit only adds release tooling /
+  # documents on top of it. Accepted only when TestedCommit is an ancestor of the approved commit, staging serves exactly
+  # TestedCommit (build), every changed path is on the non-runtime allow-list below, and every runtime input (src, public,
+  # supabase/migrations, supabase/rollback, package files, Next / TS / Tailwind / Vercel config) has the identical git tree.
+  [string]$TestedCommit = ""
 )
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Continue"
@@ -84,6 +94,8 @@ function Run-Ps1([string]$File, [string[]]$PsArgs, [string]$What, [int[]]$OkCode
 if ($Target -eq "production" -and $RepairStagingHistory) { Stop-Release "-RepairStagingHistory is a staging-only switch; production history is never repaired by a script" }
 if ($ExpectProductionLevel -and $ExpectProductionLevel -notmatch '^\d{3}$') { Stop-Release "-ExpectProductionLevel must be three digits, e.g. 076" }
 if ($RepairStagingHistory -and $RepairStagingHistory -notmatch '^\d{3}(,\d{3})*$') { Stop-Release "-RepairStagingHistory must be a comma list of three-digit numbers, e.g. 057,058" }
+if ($TestedCommit -and $Target -ne "production") { Stop-Release "-TestedCommit is a production-only switch" }
+if ($TestedCommit -and $TestedCommit -notmatch '^[0-9a-fA-F]{7,40}$') { Stop-Release "-TestedCommit must be a commit sha" }
 if ($Target -eq "production" -and -not $ApprovedCommit) { Stop-Release "-ApprovedCommit <sha> is required for production (the owner's written approval names the commit)" }
 $git = Get-Command git -ErrorAction SilentlyContinue; if (-not $git) { Stop-Release "git not found" }
 $node = Get-Command node -ErrorAction SilentlyContinue; if (-not $node) { Stop-Release "Node.js 20+ not found" }
@@ -159,10 +171,29 @@ if ($Target -eq "staging") {
 }
 
 # ---------------------------------------------------------------- production
-Step "0/5 approval: the commit must be live on staging"
+Step "0/5 approval: the commit (or a runtime-identical tested commit) must be live on staging"
+$liveOnStaging = $head
+if ($TestedCommit) {
+  $tested = Run-Git @("rev-parse", ($TestedCommit.Trim() + "^{commit}"))
+  & git merge-base --is-ancestor $tested $head
+  if ($LASTEXITCODE -ne 0) { Pop-Location; Stop-Release ("-TestedCommit " + $tested + " is not an ancestor of the approved commit " + $head) }
+  # every changed path must be release tooling / documents / read-only check SQL - anything else is runtime and needs its own staging release
+  $allow = @('^docs/', '^supabase/release/', '^scripts/goldia-[A-Za-z0-9._-]+\.(js|ps1)$', '^scripts/lib/goldia-[A-Za-z0-9._-]+\.js$')
+  $changed = @((Run-Git @("diff", "--name-only", $tested, $head)) -split "`r?`n" | Where-Object { $_ })
+  $runtime = @($changed | Where-Object { $p = $_; -not (@($allow | Where-Object { $p -match $_ }).Count) })
+  if ($runtime.Count) { Pop-Location; Stop-Release ("paths outside the non-runtime allow-list changed since the tested commit (release them on staging first):`n  " + ($runtime -join "`n  ")) }
+  # independent second proof: the git tree of every runtime input is identical
+  $inputs = @("src", "public", "supabase/migrations", "supabase/rollback", "package.json", "package-lock.json", "next.config.mjs", "next-env.d.ts", "tsconfig.json", "tailwind.config.ts", "postcss.config.js", "components.json", ".vercelignore")
+  foreach ($i in $inputs) {
+    $a = (& git rev-parse -q --verify ($tested + ":" + $i) 2>$null); $b = (& git rev-parse -q --verify ($head + ":" + $i) 2>$null)
+    if ("$a" -ne "$b") { Pop-Location; Stop-Release ("runtime input " + $i + " differs between " + $tested + " and " + $head) }
+  }
+  Write-Host ("  " + $changed.Count + " changed path(s) since " + $tested.Substring(0, 7) + ", all release tooling / documents; runtime inputs identical (" + $inputs.Count + " trees checked)") -ForegroundColor Green
+  $liveOnStaging = $tested
+}
 try { $sv = Invoke-RestMethod -Uri ($StagingUrl + "/api/version") -UseBasicParsing -TimeoutSec 30 } catch { $sv = $null }
-if (-not $sv -or $sv.full_commit -ne $head -or $sv.supabase_ref -ne $StagingRef -or $sv.sha_source -ne "build") { Pop-Location; Stop-Release ("staging does not run " + $head + " (staging /api/version: " + $(if ($sv) { $sv.full_commit } else { "unreachable" }) + ") - release it on staging first") }
-Write-Host ("  staging runs " + $head + " (build)") -ForegroundColor Green
+if (-not $sv -or $sv.full_commit -ne $liveOnStaging -or $sv.supabase_ref -ne $StagingRef -or $sv.sha_source -ne "build") { Pop-Location; Stop-Release ("staging does not run " + $liveOnStaging + " (staging /api/version: " + $(if ($sv) { $sv.full_commit } else { "unreachable" }) + ") - release it on staging first") }
+Write-Host ("  staging runs " + $liveOnStaging + " (build)" + $(if ($TestedCommit) { "; the production frontend is built from " + $head + " with the identical runtime trees" } else { "" })) -ForegroundColor Green
 $typed = Read-Host ("Type PRODUCTION " + $sha7 + " to release every missing migration up to " + $Newest + " (production level is read and shown next) and the frontend to production")
 if ($typed.Trim() -ne ("PRODUCTION " + $sha7)) { Pop-Location; Stop-Release "confirmation did not match" }
 $ro = Join-Path $wt "docs\releases\production-075\run-readonly-checks.ps1"
