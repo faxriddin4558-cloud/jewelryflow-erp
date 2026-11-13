@@ -12,6 +12,8 @@ describe("Goldia 085 — financial restart + opening accounting", () => {
   let t: Awaited<ReturnType<typeof createGoldiaDb>>;
   const org = "00000000-0000-0000-0000-0000000008a5";
   const org2 = "00000000-0000-0000-0000-0000000008b5";
+  // 086: T0 must be within the last 24 h and the restart needs an active write freeze
+  const T0 = new Date(Date.now() - 60_000).toISOString();
   const RATE = 900000;
   type U = { userId: string; employeeId: string };
   let dir: U, mgr: U, A: U, B: U, dir2: U, s2: U;
@@ -80,6 +82,8 @@ describe("Goldia 085 — financial restart + opening accounting", () => {
     await t.rpc(`public.rpc_record_financial_transaction(p_transaction_type := 'capital_contribution', p_source_till := 'manager_uzs', p_amount := 5000000, p_currency := 'UZS', p_gold_rate := ${RATE}, p_idempotency_key := 'old-cap')`);
     await as(A);
     await t.rpc(`public.rpc_record_seller_to_manager_settlement(p_seller_id := '${A.employeeId}', p_cash_paid_amount := 900000, p_idempotency_key := 'old-h')`);
+    // 086: the backup -> restart window is frozen on the server (release tooling)
+    await ex(`SELECT public._goldia_financial_freeze('${org}', 'test restart window', true)`);
   }, 180000);
 
   it("R1 guards: only the director, exact confirmation, reason, T0, key and a fresh unused restore-verified backup", async () => {
@@ -137,11 +141,11 @@ describe("Goldia 085 — financial restart + opening accounting", () => {
     const org2Before = await one(`SELECT string_agg(customer_id::text || ':' || debt_amount::text, ',') v FROM public.client_currency_accounts WHERE organization_id = '${org2}'`);
     const v = await verify();
     await as(dir);
-    const r = await t.rpc(`public.rpc_financial_restart('MOLIYAVIY HISOBNI QAYTA BOSHLASH', 'Production restart sinovi', '2026-11-11 08:00:00+05', '${v}', 'restart-1')`);
+    const r = await t.rpc(`public.rpc_financial_restart('MOLIYAVIY HISOBNI QAYTA BOSHLASH', 'Production restart sinovi', '${T0}', '${v}', 'restart-1')`);
     restartId = r.restart_id as string;
     expect(r.status).toBe("ok");
     // replay of the same request returns the same result, does nothing again
-    const r2 = await t.rpc(`public.rpc_financial_restart('MOLIYAVIY HISOBNI QAYTA BOSHLASH', 'Production restart sinovi', '2026-11-11 08:00:00+05', '${v}', 'restart-1')`);
+    const r2 = await t.rpc(`public.rpc_financial_restart('MOLIYAVIY HISOBNI QAYTA BOSHLASH', 'Production restart sinovi', '${T0}', '${v}', 'restart-1')`);
     expect(r2.restart_id).toBe(restartId);
     const ids2 = await one(`SELECT (SELECT string_agg(concat_ws(':', id, contact_name, phone, seller_id), ',' ORDER BY id) FROM public.customers WHERE organization_id = '${org}') c,
                                    (SELECT string_agg(concat_ws(':', id, user_id, role), ',' ORDER BY id) FROM public.employees WHERE organization_id = '${org}') e`);

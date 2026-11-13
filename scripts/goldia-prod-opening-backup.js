@@ -54,7 +54,8 @@ const T = {
 const ORG = String(args.org || "");
 const QUIET_MIN = Number(args["quiet-minutes"] || 15);
 const MIN = 60 * 1000;
-const EXPECT_LEVEL = "20260101000085";
+// 086 (server-side write freeze) is required: the backup -> restart window is protected by the database, not by procedure
+const EXPECT_LEVEL = "20260101000086";
 
 const lines = []; let outDir = null; let resultFile = null; let written = false;
 function out(l = "") { console.log(l); lines.push(l); if (resultFile) fs.writeFileSync(resultFile, lines.join(os.EOL) + os.EOL); }
@@ -71,6 +72,8 @@ for (const [ref, label] of Object.entries(FORBIDDEN)) if (joined.includes(ref)) 
 if (REHEARSAL && !/^(127\.0\.0\.1|localhost)$/.test(T.host)) stop("--local-rehearsal only with a local --host");
 if (!REHEARSAL && !(/^aws-[0-9]-[a-z0-9-]+\.pooler\.supabase\.com$/.test(T.host))) stop(`unexpected host ${T.host}`);
 if (args["write-verification"] && !args.backup) stop("--write-verification needs --backup (a verification is written only after a restore-verified backup)");
+if (args.freeze && args["release-freeze"]) stop("--freeze and --release-freeze together make no sense");
+if ((args.freeze || args["release-freeze"]) && (args.backup || args.watch)) stop("--freeze / --release-freeze run alone (then the backup in the next call)");
 if (args.yes && !REHEARSAL) stop("--yes is accepted only with --local-rehearsal");
 
 const NEED = ["psql", "pg_dump", "pg_restore", "initdb", "pg_ctl"];
@@ -126,7 +129,7 @@ function prompt(question, { hidden = false } = {}) {
 const FIN_TABLES = ["client_gold_accounts", "client_currency_accounts", "seller_gold_accounts", "manager_vault_account", "customers", "employees", "jewelry_sales",
   "jewelry_sale_returns", "gold_settlements", "client_currency_settlements", "client_legacy_debts", "seller_consignments", "consignment_pieces", "factory_receipts",
   "factory_gold_handovers", "refining_batches", "financial_transactions", "gold_purchases", "accounting_baselines", "opening_periods", "opening_documents",
-  "financial_restarts", "financial_backup_verifications", "daily_gold_rates"];
+  "financial_restarts", "financial_backup_verifications", "daily_gold_rates", "financial_write_freezes"];
 const FP_SQL = `select md5(coalesce(string_agg(t || ':' || n || ':' || h, ';' order by t), '')) || '|' || coalesce(sum(n), 0) from (
   ${FIN_TABLES.map((t) => `select '${t}' t, count(*) n, md5(coalesce(string_agg(to_jsonb(r)::text, ';' order by to_jsonb(r)::text), '')) h from public.${t} r`).join(" union all ")}) x`;
 const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::bigint, 999999) from (
@@ -141,7 +144,7 @@ const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::b
   outDir = path.join(outRoot, `goldia-prod-opening-${stamp}`); fs.mkdirSync(outDir, { recursive: true });
   resultFile = path.join(outDir, "OPENING-BACKUP-RESULT.txt");
   out(`GOLDIA production backup verification for the 085 restart - ${REHEARSAL ? "LOCAL REHEARSAL " : ""}${T.host} as ${T.user}, organization ${ORG}`);
-  out(`mode: ${args.watch ? "WATCH (read only)" : args["write-verification"] ? "BACKUP + VERIFICATION ROW" : args.backup ? "BACKUP (production only read)" : "CHECK ONLY (read only)"}`);
+  out(`mode: ${args.freeze ? "FREEZE ON (one write)" : args["release-freeze"] ? "FREEZE OFF (one write)" : args.watch ? "WATCH (read only)" : args["write-verification"] ? "BACKUP + VERIFICATION ROW" : args.backup ? "BACKUP (production only read)" : "CHECK ONLY (read only)"}`);
   if (!REHEARSAL) password = process.env.PGPASSWORD || await prompt(`Production DB password for ${T.user} (hidden): `, { hidden: true });
 
   // 1. identity
@@ -156,8 +159,32 @@ const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::b
   out(`  PostgreSQL ${ver}; not JFS demo ${notJfs}; history latest ${level}; organization "${orgName.split("#")[0]}" (${orgName.split("#")[1] || "-"}), active employees ${emps}`);
   if (Math.floor(Number(ver) / 10000) !== 17) stop("PostgreSQL 17 expected");
   if (notJfs !== "true") stop("deployment_environment() exists: this is a JewelryFlow SaaS demo database");
-  if (level !== EXPECT_LEVEL) stop(`migration history must be at 085, found ${level}`);
+  if (level !== EXPECT_LEVEL) stop(`migration history must be at 086 (server-side write freeze), found ${level}`);
   if (!orgName) stop("organization not found");
+  const frozenAt = q(remoteEnv, `select coalesce(public._goldia_active_freeze('${ORG}')::text, '')`);
+  out(`  server-side write freeze: ${frozenAt ? `ACTIVE since ${frozenAt}` : "not active"}`);
+  const code0 = orgName.split("#")[1] || "";
+  // freeze on / off: typed production ref + organization code, then ONE call of the release-tooling function
+  if (args.freeze || args["release-freeze"]) {
+    const on = !!args.freeze;
+    if (on && frozenAt) { out("\nRESULT: FREEZE ALREADY ACTIVE (nothing changed)"); process.exit(0); }
+    if (!on && !frozenAt) { out("\nRESULT: NO ACTIVE FREEZE (nothing changed)"); process.exit(0); }
+    if (on && Number(drafts) > 0) stop("an opening is already in draft - the draft guard already refuses ordinary writes");
+    if (!(REHEARSAL && args.yes)) {
+      const t1 = await prompt(`Type the production project ref (${PROD_REF}) to turn the freeze ${on ? "ON" : "OFF"}: `);
+      if (t1.trim() !== PROD_REF) stop("confirmation did not match");
+      const t2 = await prompt(`Type the organization code (${code0}): `);
+      if (t2.trim() !== code0 || !code0) stop("organization confirmation did not match");
+    }
+    const reason = String(args.reason || (on ? "backup -> restart window" : "freeze released by the owner")).replace(/'/g, "");
+    const f = psql(remoteEnv, `select public._goldia_financial_freeze('${ORG}', '${reason}', ${on})::text`, { singleTx: true });
+    if (f.status !== 0) stop(`freeze ${on ? "on" : "off"} failed: ${firstError(f)}${/lock timeout/i.test(firstError(f)) ? " - a long write is still running; re-run in a minute" : ""}`);
+    written = true;
+    out(`  ${String(f.stdout).trim()}`);
+    out(on ? "\nRESULT: FREEZE ON - every ordinary financial write of the organization is now refused by the database. Next: --backup --write-verification."
+           : "\nRESULT: FREEZE OFF - ordinary work may resume.");
+    process.exit(0);
+  }
   if (Number(drafts) > 0) stop("the organization already has an opening in draft (a restart was already done)");
 
   if (args.watch) {
@@ -177,6 +204,7 @@ const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::b
     }
   }
   if (Number(unused) > 0 && args["write-verification"]) stop(`an unused verification younger than 24 h already exists for this organization (${unused}); use it or let it expire`);
+  if (args.backup && !frozenAt) stop("turn the server-side write freeze ON first (--freeze): the backup must be taken inside it");
 
   // 2. quiet window
   out("[2] quiet window (read only)");
@@ -189,8 +217,11 @@ const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::b
   out(`  last business write (any organization): ${quietS >= 999999 ? "never" : `${Math.round(quietS / 60)} min ago`}; required quiet: ${QUIET_MIN} min`);
   out(`  other open transactions of the application roles: ${openTx[0]} (oldest ${openTx[1]} s)`);
   out(`  seller tills of the organization (must be handed over to the manager before T0; the restart archives the recorded values): UZS ${tills[0]}, USD ${tills[1]}, LOM ${tills[2]} g`);
-  if (quietS < QUIET_MIN * 60) stop(`a business write happened ${Math.round(quietS / 60)} min ago - stop all work (sales, payments, handovers) and re-run after ${QUIET_MIN} quiet minutes`);
-  if (Number(openTx[0]) > 0) stop("another application transaction is open - wait until it ends (or the users are logged out) and re-run");
+  // with the 086 freeze active the database itself refuses every ordinary financial write of the organization (the freeze
+  // waited for the writers that were in flight), so the quiet window is information only
+  if (!frozenAt && quietS < QUIET_MIN * 60) stop(`a business write happened ${Math.round(quietS / 60)} min ago - stop all work (sales, payments, handovers) and re-run after ${QUIET_MIN} quiet minutes`);
+  if (!frozenAt && Number(openTx[0]) > 0) stop("another application transaction is open - wait until it ends (or the users are logged out) and re-run");
+  if (frozenAt) out("  the freeze is active: ordinary financial writes of the organization are refused by the database");
   if (!args.backup) { out("\nRESULT: CHECK PASS (read only). Next: the same command with --backup."); process.exit(0); }
 
   // 3. backup

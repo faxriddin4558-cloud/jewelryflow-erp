@@ -91,15 +91,23 @@ export function OpeningAccountingSection() {
 
   // ---------------------------------------------------------------- restart (director)
   const [rT0, setRT0] = useState("");
+  // 086: the server-side write freeze of the backup -> restart window (set by the release tooling, read via RLS)
+  const [freezeAt, setFreezeAt] = useState<string | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase.from("financial_write_freezes").select("frozen_at").is("released_at", null).order("frozen_at", { ascending: false }).limit(1);
+      setFreezeAt(data && data.length ? String((data[0] as { frozen_at: string }).frozen_at) : null);
+    })();
+  }, [st]);
   const [rReason, setRReason] = useState("");
   const [rBackup, setRBackup] = useState("");
   const [rConfirm, setRConfirm] = useState("");
   const [rKey, setRKey] = useState(newKey);
   // T0 is a Tashkent wall-clock time: sent as +05:00 whatever the browser's time zone is (PHASE F2)
   const t0Iso = tashkentWallClockToIso(rT0);
-  const t0Problem = rT0 ? openingT0Problem(t0Iso) : null;
+  const t0Problem = rT0 ? openingT0Problem(t0Iso, new Date(), 24, freezeAt) : null;
   const restart = async () => {
-    if (busy || rConfirm !== CONFIRM_TEXT || !rReason.trim() || !t0Iso || t0Problem || !rBackup) return;
+    if (busy || rConfirm !== CONFIRM_TEXT || !rReason.trim() || !t0Iso || t0Problem || !rBackup || !freezeAt) return;
     setBusy(true); setErr(null); setMsg(null);
     const { data, error } = await supabase.rpc("rpc_financial_restart", {
       p_confirmation: rConfirm, p_reason: rReason.trim(), p_t0: t0Iso, p_backup_verification_id: rBackup, p_idempotency_key: rKey,
@@ -200,6 +208,9 @@ export function OpeningAccountingSection() {
             Barcha moliyaviy hujjatlar arxivga o&apos;tadi (o&apos;chirilmaydi), barcha qoldiqlar 0 bo&apos;ladi. Mijozlar, telefonlar, sotuvchiga
             biriktirish, xodimlar, modellar va sozlamalar saqlanadi. Avval backup olinib, alohida nusxaga tiklab sinalgan bo&apos;lishi shart.
           </p>
+          {freezeAt
+            ? <div className="text-xs text-emerald-300" data-testid="restart-freeze">Moliyaviy yozuvlar serverda muzlatilgan: {formatTashkent(freezeAt)} (Toshkent) dan beri</div>
+            : <div className="text-xs text-amber-300" data-testid="restart-no-freeze">Moliyaviy yozuvlar muzlatilmagan: avval release vositasi bilan muzlatish va backup kerak (server boshqacha qayta boshlashni rad etadi).</div>}
           <label className="block text-xs">T0 sana va vaqti (Toshkent vaqti)
             <input type="datetime-local" className={inputCls} value={rT0} onChange={(e) => setRT0(e.target.value)} data-testid="restart-t0" /></label>
           {rT0 && (t0Problem
@@ -218,7 +229,7 @@ export function OpeningAccountingSection() {
           <label className="block text-xs">Tasdiqlash uchun aynan yozing: <b>{CONFIRM_TEXT}</b>
             <input className={inputCls} value={rConfirm} onChange={(e) => setRConfirm(e.target.value)} data-testid="restart-confirm" /></label>
           <button type="button" onClick={() => void restart()} data-testid="restart-submit"
-            disabled={busy || rConfirm !== CONFIRM_TEXT || !rReason.trim() || !t0Iso || !!t0Problem || !rBackup}
+            disabled={busy || rConfirm !== CONFIRM_TEXT || !rReason.trim() || !t0Iso || !!t0Problem || !rBackup || !freezeAt}
             className="min-h-[44px] px-4 rounded-xl bg-rose-700 font-bold disabled:opacity-40">Qayta boshlash</button>
         </div>
       )}

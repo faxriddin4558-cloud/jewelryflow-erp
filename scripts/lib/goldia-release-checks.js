@@ -72,6 +72,7 @@ const POSTFLIGHT_CHECKS = {
   "083": [["all_083_checks", allColumnsTrue(pf("083"))], ["082_still_true", allColumnsTrue(pf("082"))], ["080_still_true", allColumnsTrue(pf("080"))], ["077_still_true", allColumnsTrue(pf("077"))]],
   "084": [["all_084_checks", allColumnsTrue(pf("084"))], ["083_still_true", allColumnsTrue(pf("083"))], ["081_still_true", allColumnsTrue(pf("081"))], ["077_still_true", allColumnsTrue(pf("077"))]],
   "085": [["all_085_checks", allColumnsTrue(pf("085"))], ["084_still_true", allColumnsTrue(pf("084"))], ["083_still_true", allColumnsTrue(pf("083"))], ["077_still_true", allColumnsTrue(pf("077"))]],
+  "086": [["all_086_checks", allColumnsTrue(pf("086"))], ["085_still_true", allColumnsTrue(pf("085"))], ["084_still_true", allColumnsTrue(pf("084"))], ["077_still_true", allColumnsTrue(pf("077"))]],
 };
 
 // Balances a migration is allowed to change (anything else must stay identical).

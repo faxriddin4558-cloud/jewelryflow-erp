@@ -43,5 +43,8 @@ describe("PHASE F2 opening T0 in Tashkent (independent of the browser time zone)
     expect(openingT0Problem("2026-11-13T11:00:00+05:00", now)).toMatch(/kelajakda/);
     expect(openingT0Problem("2026-11-12T09:00:00+05:00", now)).toMatch(/24 soatdan/);
     expect(openingT0Problem(null, now)).toMatch(/to'liq/);
+    // 086: not more than 1 h before the server-side freeze (a browser in another zone sends a wrong instant)
+    expect(openingT0Problem("2026-11-13T09:30:00+05:00", now, 24, "2026-11-13T04:20:00Z")).toBeNull();
+    expect(openingT0Problem("2026-11-13T08:00:00+05:00", now, 24, "2026-11-13T04:20:00Z")).toMatch(/muzlatishdan/);
   });
 });

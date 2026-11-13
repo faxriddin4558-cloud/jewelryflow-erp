@@ -209,7 +209,7 @@ Add-Content -Path $script:SummaryFile -Value $idLine -Encoding ASCII
 if ($pp[1] -ne "on") { Finish "FAIL" "the explicit read-only transaction is not read-only (transaction_read_only=" + $pp[1] + ")" }
 if ($pp[3] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
 if ($Target -like "staging-function-parity-*" -and $pp[4] -ne ("20260101000" + $Target.Substring($Target.Length - 3))) { Finish "FAIL" ($Target + " expects migration history at 20260101000" + $Target.Substring($Target.Length - 3) + ", found " + $pp[4]) }
-if ($Target -eq "production-opening-recon" -and $pp[4] -ne "20260101000085") { Finish "FAIL" ("production-opening-recon expects migration history at 085, found " + $pp[4]) }
+if ($Target -eq "production-opening-recon" -and @("20260101000085", "20260101000086") -notcontains $pp[4]) { Finish "FAIL" ("production-opening-recon expects migration history at 085 or 086, found " + $pp[4]) }
 if ($Target -eq "production-prelaunch" -and @("20260101000075", "20260101000076", "20260101000080") -notcontains $pp[4]) { Finish "FAIL" ("production-prelaunch expects migration history at 075 (before 076), 076 (before 077..080) or 080 (before 081), found " + $pp[4]) }
 if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000080") {
   # before 081: the 081 pre-release check, the CR-tolerant parity of ALL functions at 080 and the pre-release baseline

@@ -1,0 +1,8 @@
+GOLDIA production backup verification for the 085 restart - LOCAL REHEARSAL 127.0.0.1 as postgres, organization 00000000-0000-0000-0000-000000000003
+mode: FREEZE ON (one write)
+[1] identity and state (read only)
+  PostgreSQL 170011; not JFS demo true; history latest 20260101000086; organization "Sintetik tashkilot 3" (org3), active employees 4
+  server-side write freeze: not active
+  {"status": "frozen", "freeze_id": "b79a9c6e-3363-4fbf-b457-2e65cfb18f39", "frozen_at": "2026-11-13T09:40:38.884576+00:00"}
+
+RESULT: FREEZE ON - every ordinary financial write of the organization is now refused by the database. Next: --backup --write-verification.

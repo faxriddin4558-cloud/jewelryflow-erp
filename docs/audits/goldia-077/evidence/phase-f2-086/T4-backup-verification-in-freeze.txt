@@ -1,0 +1,23 @@
+GOLDIA production backup verification for the 085 restart - LOCAL REHEARSAL 127.0.0.1 as postgres, organization 00000000-0000-0000-0000-000000000002
+mode: BACKUP + VERIFICATION ROW
+[1] identity and state (read only)
+  PostgreSQL 170011; not JFS demo true; history latest 20260101000086; organization "Sintetik tashkilot 2" (org2), active employees 3
+  server-side write freeze: ACTIVE since 2026-11-13 09:37:15.516025+00
+[2] quiet window (read only)
+  last business write (any organization): 1 min ago; required quiet: 15 min
+  other open transactions of the application roles: 0 (oldest 0 s)
+  seller tills of the organization (must be handed over to the manager before T0; the restart archives the recorded values): UZS 1020000.00, USD 100.00, LOM 0.0000 g
+  the freeze is active: ordinary financial writes of the organization are refused by the database
+[3] full backup (outside the repository)
+  full dump: attempt 1 ok (0 s)
+  1a4c761283a7ab0d5da8315cbd82a4aa3550bf485657165cf7eb71b0c4ede70b  production-full.dump  1614561 bytes
+  business fingerprint before / after the dump: bcd3d4645396367aad921608a0d53748|795 / bcd3d4645396367aad921608a0d53748|795
+[4] restore test into a disposable LOCAL PostgreSQL (production untouched)
+  row counts production = restored copy: identical (78 tables)
+  business fingerprint production = restored copy: identical
+  BACKUP: VERIFIED (production-full.dump sha256=1a4c761283a7ab0d5da8315cbd82a4aa3550bf485657165cf7eb71b0c4ede70b)
+[5] backup verification row (the only write)
+  verification b0efb430-5f12-44ab-8bcc-e75f769220c7: goldia-prod-opening-2026-11-13T09-37-15/production-full.dump sha256=1a4c761283a7ab0d5da8315cbd82a4aa3550bf485657165cf7eb71b0c4ede70b (valid 24 h, one restart)
+
+RESULT: BACKUP VERIFIED + VERIFICATION WRITTEN. Next, AT ONCE: the director starts the restart on /sales/app/opening and selects this backup;
+        in a second window, until the restart: node scripts\goldia-prod-opening-backup.js --org 00000000-0000-0000-0000-000000000002 --watch --expect 554bc40a3415b3e749dc407f6efc53da|796

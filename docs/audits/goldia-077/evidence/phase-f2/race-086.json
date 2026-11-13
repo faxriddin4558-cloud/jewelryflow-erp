@@ -1,0 +1,56 @@
+[
+ {
+  "id": "RACE-1",
+  "title": "writer inside its transaction while freezing: freeze waits until it commits; the next write is refused",
+  "ok": true,
+  "actual": {
+   "writer": {
+    "ok": true,
+    "ms": 2540,
+    "at": 1794562159567
+   },
+   "freezeMs": 2142,
+   "freezeAfterWriter": true,
+   "next": "ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqtincha to'xtatil"
+  }
+ },
+ {
+  "id": "RACE-2",
+  "title": "20 parallel writes around the freeze: each committed before the freeze moment or refused; no committed ordinary row younger than frozen_at",
+  "ok": true,
+  "actual": {
+   "committed": 1,
+   "refused": 19,
+   "otherErrors": [],
+   "youngerThanFreeze": 0
+  }
+ },
+ {
+  "id": "RACE-3",
+  "title": "restart inside the freeze passes; 8 parallel ordinary writes refused; another organization keeps working",
+  "ok": true,
+  "actual": {
+   "restart": {
+    "ok": true,
+    "r": "ok"
+   },
+   "refused": 8,
+   "errors": [
+    "ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqtincha to'xtatil",
+    "ERR_OPENING_DRAFT: moliyaviy hisob hozir qayta boshlanmoqda "
+   ],
+   "otherOrg": true
+  }
+ },
+ {
+  "id": "RACE-4",
+  "title": "a writer longer than lock_timeout (30 s): the freeze fails with a lock timeout and leaves nothing; a retry after it succeeds",
+  "ok": true,
+  "actual": {
+   "first": "canceling statement due to lock timeout",
+   "frozenRowsAfterFail": 0,
+   "writer": true,
+   "retry": "frozen"
+  }
+ }
+]

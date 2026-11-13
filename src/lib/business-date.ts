@@ -36,11 +36,13 @@ export function formatTashkent(at: Date | string | number): string {
   return `${g("day")}.${g("month")}.${g("year")} ${g("hour") === "24" ? "00" : g("hour")}:${g("minute")}`;
 }
 
-/** Opening T0 rule: not in the future and not older than `maxAgeHours` (default 24). Returns an error text or null. */
-export function openingT0Problem(iso: string | null, now: Date = new Date(), maxAgeHours = 24): string | null {
+/** Opening T0 rule (the same as the 086 server check): not in the future, not older than `maxAgeHours` (default 24),
+ *  and - when the write freeze is known - not more than 1 hour before the freeze started. Error text or null. */
+export function openingT0Problem(iso: string | null, now: Date = new Date(), maxAgeHours = 24, frozenAt?: string | null): string | null {
   if (!iso) return "T0 sana va vaqtini to'liq kiriting (Toshkent vaqti)";
   const t = new Date(iso).getTime();
   if (t > now.getTime() + 60_000) return "T0 kelajakda bo'lishi mumkin emas";
   if (t < now.getTime() - maxAgeHours * 3_600_000) return `T0 ${maxAgeHours} soatdan eski bo'lishi mumkin emas`;
+  if (frozenAt && t < new Date(frozenAt).getTime() - 3_600_000) return `T0 muzlatishdan (${formatTashkent(frozenAt)}) 1 soatdan ko'p oldin bo'lishi mumkin emas`;
   return null;
 }

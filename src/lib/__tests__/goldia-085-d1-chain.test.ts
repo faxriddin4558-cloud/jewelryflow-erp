@@ -39,7 +39,11 @@ describe("Goldia 085 / D-1 — factory -> manager -> seller chain at the opening
                      VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true)`);
     const bv = (await one(`INSERT INTO public.financial_backup_verifications (organization_id, backup_reference, restore_verified) VALUES ('${org}', 'd1.dump', true) RETURNING id`)).id;
     await t.asUser(dir.userId);
-    await t.rpc(`public.rpc_financial_restart('MOLIYAVIY HISOBNI QAYTA BOSHLASH', 'D-1 sinovi', '2026-11-11 08:00:00+05', '${bv}', 'd1-restart')`);
+    // 086: the restart needs an active write freeze (release tooling) and a T0 within the last 24 h
+    await t.asAdmin();
+    await t.db.query(`SELECT public._goldia_financial_freeze(organization_id, 'test restart window', true) FROM public.financial_backup_verifications WHERE id = '${bv}'`);
+    await t.asUser(dir.userId);
+    await t.rpc(`public.rpc_financial_restart('MOLIYAVIY HISOBNI QAYTA BOSHLASH', 'D-1 sinovi', '${new Date(Date.now() - 60_000).toISOString()}', '${bv}', 'd1-restart')`);
   }, 180000);
 
   it("D1-1 the owner's example: factory 100 g @8 %, 60 g of it to the seller @12 % -> manager 40, seller 60, factory 108, seller 67.2 (markups on the original grams)", async () => {
