@@ -1,0 +1,233 @@
+{
+ "run": "mwep461l",
+ "old_balances": {
+  "cust_debt_g": "14.5000",
+  "cust_adv_g": "0.0000",
+  "cust_uzs": "0",
+  "cust_usd_debt": "150.00",
+  "cust_usd_adv": "0.00",
+  "seller_owes_g": "23.7200",
+  "seller_stock_g": "0.0000",
+  "seller_till_uzs": "0.00",
+  "seller_till_usd": "100.00",
+  "mgr_stock_g": "12.5000",
+  "mgr_uzs": "0.00",
+  "mgr_usd": "0.00",
+  "factory_g": "33.4800"
+ },
+ "after_restart": {
+  "cust_debt_g": "0.0000",
+  "cust_adv_g": "0.0000",
+  "cust_uzs": "0",
+  "cust_usd_debt": "0.00",
+  "cust_usd_adv": "0.00",
+  "seller_owes_g": "0.0000",
+  "seller_stock_g": "0.0000",
+  "seller_till_uzs": "0.00",
+  "seller_till_usd": "0.00",
+  "mgr_stock_g": "0.0000",
+  "mgr_uzs": "0.00",
+  "mgr_usd": "0.00",
+  "factory_g": "0.0000"
+ },
+ "documents": {
+  "A manager_inventory 100 g @8%": "OPD-20261113-1B5B321D | 100.0000 g x (1 + 8 %) = 108.0000 g zavod majburiyati",
+  "B seller_inventory 60 g @12% from A": "OPD-20261113-F3094589 | 60.0000 g x (1 + 12 %) = 67.2000 g sotuvchi majburiyati",
+  "C factory_obligation 15 g (sold, not paid)": "OPD-20261113-8733365B",
+  "E customer_gram debt 10 g": "OPD-20261113-1A0A762D",
+  "F customer_currency UZS 8 600 000 @860 000": "OPD-20261113-7B546CF0 | 8600000.0000 so'm / 860000 = 10.0000 g",
+  "F customer_currency USD debt 100 @12 600 / 900 000": "OPD-20261113-F58C50E0 | 100.0000 USD x 12600 / 900000 = 1.4000 g",
+  "F customer_currency USD advance 50 @12 600 / 900 000": "OPD-20261113-FD9BF8CC",
+  "G manager_cash UZS 5 000 000": "OPD-20261113-DBBF6435",
+  "G manager_cash USD 300": "OPD-20261113-4C57F08A",
+  "H manager_scrap LOM 10 g @750": "OPD-20261113-DC4752CE | 10.0000 g x 750.00 / 585 = 12.8205 g (585)",
+  "I manager_fine_gold 20 g @999": "OPD-20261113-C86E09DA | 20.0000 g x 999.00 / 585 = 34.1538 g (585)",
+  "J other liability 2 g (585)": "OPD-20261113-E2AA38D6 | 2.0000 G585 = 2.0000 g (585)",
+  "mistake manager_cash UZS 999": "OPD-20261113-D29E4DB3"
+ },
+ "totals": {
+  "manager_usd": 300,
+  "manager_uzs": 5000000,
+  "manager_stock_g": 40,
+  "sellers_stock_g": 60,
+  "factory_advance_g": 0,
+  "customers_usd_debt": 100,
+  "customers_uzs_debt": 8600000,
+  "manager_fine_585_g": 34.1538,
+  "other_assets_585_g": 0,
+  "manager_scrap_585_g": 12.8205,
+  "customers_585_debt_g": 10,
+  "factory_obligation_g": 123,
+  "sellers_obligation_g": 88.6,
+  "customers_usd_advance": 50,
+  "customers_uzs_advance": 0,
+  "customers_585_advance_g": 0,
+  "other_liabilities_585_g": 2,
+  "manager_scrap_physical_g": 10,
+  "factory_advance_documents_g": 0,
+  "opening_receipts_physical_g": 100,
+  "factory_obligation_from_goods_g": 108,
+  "factory_obligation_without_goods_g": 15
+ },
+ "checks": {
+  "seller_tills_empty": true,
+  "customer_585_equals_documents": true,
+  "customer_usd_equals_documents": true,
+  "customer_uzs_equals_documents": true,
+  "seller_stock_equals_held_pieces": true,
+  "inventory_equals_opening_receipts": true,
+  "factory_obligation_equals_documents": true,
+  "non_opening_documents_after_restart": 0
+ },
+ "results": [
+  {
+   "id": "F1-1",
+   "title": "restart: wrong phrase refused, manager refused (director only), director with the exact phrase -> old balances archived to 0; customers / phones / seller assignment / employees kept",
+   "ok": true,
+   "expected": {
+    "zero": true,
+    "ids_kept": true
+   },
+   "actual": {
+    "wrong": "ERR_CONFIRMATION: tasdiqlash matni noto'g'ri (talab: MOLIYAVIY HISOBNI QAYTA BOSHLASH)",
+    "notDir": "Permission denied: moliyaviy hisobni qayta boshlashni faqat direktor bajaradi",
+    "restart": {
+     "t0": "2026-11-13T08:08:16.209+00:00",
+     "status": "ok",
+     "archived": {
+      "sales": 2,
+      "pieces": 2,
+      "refining": 0,
+      "purchases": 0,
+      "settlements": 0,
+      "consignments": 1,
+      "sale_returns": 0,
+      "legacy_entries": 1,
+      "factory_receipts": 1,
+      "factory_handovers": 0,
+      "opening_documents": 0,
+      "baselines_archived": 0,
+      "currency_settlements": 1,
+      "financial_transactions": 0
+     },
+     "restart_id": "811b266a-8f61-427b-b646-a6e70361e95f",
+     "restart_no": "RST-20261113-1309-63F496",
+     "opening_period_id": "5fa7d2c1-c470-49d2-93d4-c7f25e1d1e5a"
+    },
+    "after": {
+     "cust_debt_g": "0.0000",
+     "cust_adv_g": "0.0000",
+     "cust_uzs": "0",
+     "cust_usd_debt": "0.00",
+     "cust_usd_adv": "0.00",
+     "seller_owes_g": "0.0000",
+     "seller_stock_g": "0.0000",
+     "seller_till_uzs": "0.00",
+     "seller_till_usd": "0.00",
+     "mgr_stock_g": "0.0000",
+     "mgr_uzs": "0.00",
+     "mgr_usd": "0.00",
+     "factory_g": "0.0000"
+    },
+    "ids_kept": true
+   }
+  },
+  {
+   "id": "F1-2",
+   "title": "opening documents: manager 100 g @8% -> 40 g after 60 g to the seller; factory 108 + 15 (sold, unpaid) = 123; seller stock 60; cash, LOM, fine gold, customer 585 / UZS / USD debt and advance as entered",
+   "ok": true,
+   "expected": {
+    "mgr_stock": 40,
+    "seller_stock": 60,
+    "factory": 123,
+    "seller_inventory_obligation": 67.2,
+    "mgr_uzs": 5000000,
+    "mgr_usd": 300,
+    "cust_uzs": 8600000,
+    "cust_usd_debt": 100,
+    "cust_usd_adv": 50,
+    "cust_g": 10,
+    "scrap585": 12.8205,
+    "fine585": 34.1538,
+    "fine": 19.98
+   },
+   "actual": {
+    "cust_debt_g": "10.0000",
+    "cust_adv_g": "0.0000",
+    "cust_uzs": "8600000.00",
+    "cust_usd_debt": "100.00",
+    "cust_usd_adv": "50.00",
+    "seller_owes_g": "88.6000",
+    "seller_stock_g": "60.0000",
+    "seller_till_uzs": "0.00",
+    "seller_till_usd": "0.00",
+    "mgr_stock_g": "40.0000",
+    "mgr_uzs": "5000000.00",
+    "mgr_usd": "300.00",
+    "factory_g": "123.0000",
+    "scrap": "12.8205",
+    "fine585": "34.1538",
+    "fine": "19.9800",
+    "cust_g": "10.0000"
+   }
+  },
+  {
+   "id": "F1-3",
+   "title": "seller obligation = inventory 60 g @12% (67.2 g) + snapshots of the debts of HIS customers (10 g 585, 8.6 M / 860 000 = 10 g, 100 USD x 12 600 / 900 000 = 1.4 g); the advance does not lower it",
+   "ok": true,
+   "expected": 88.6,
+   "actual": 88.6
+  },
+  {
+   "id": "F1-4",
+   "title": "cancel / guards: the mistaken entry cancelled (cash back to 5 000 000), the same customer 585 debt twice refused, a seller cannot enter openings, ordinary operations refused in the draft",
+   "ok": true,
+   "expected": "ok",
+   "actual": {
+    "cancel": true,
+    "dup": "ERR_OPENING_DUPLICATE: bu mijozning G585 boshlang'ich qoldig'i allaqachon kiritilgan (avval uni bekor qiling)",
+    "seller": "Permission denied for role \"seller\" (required one of: admin, director, owner, direktor, rahbar, manager, production_manager, boshqaruvchi)",
+    "ordinary": "ERR_OPENING_DRAFT: boshlang'ich hisob tasdiqlanmagan - oddiy moliyaviy amallar qulflangan (avval boshlang'ich hisobni yakunlang)"
+   }
+  },
+  {
+   "id": "F1-5",
+   "title": "reconciliation: every check green before the lock (tills empty, stock = pieces, customers = documents, inventory = receipts, factory = documents, 0 ordinary documents)",
+   "ok": true,
+   "expected": "all green",
+   "actual": {
+    "seller_tills_empty": true,
+    "customer_585_equals_documents": true,
+    "customer_usd_equals_documents": true,
+    "customer_uzs_equals_documents": true,
+    "seller_stock_equals_held_pieces": true,
+    "inventory_equals_opening_receipts": true,
+    "factory_obligation_equals_documents": true,
+    "non_opening_documents_after_restart": 0
+   }
+  },
+  {
+   "id": "F1-6",
+   "title": "lock: baseline confirmed, period locked, later opening entries refused, ordinary work allowed again",
+   "ok": true,
+   "expected": {
+    "locked": true,
+    "late": "ERR_OPENING_LOCKED",
+    "ordinary": "ok"
+   },
+   "actual": {
+    "lock": true,
+    "period": "locked",
+    "late": "ERR_OPENING_LOCKED: boshlang'ich hisob tasdiqlangan va qulflangan",
+    "ordinary": true
+   }
+  },
+  {
+   "id": "F1-7",
+   "title": "no other organization touched (no opening period anywhere else)",
+   "ok": true,
+   "expected": 0,
+   "actual": "0"
+  }
+ ]
+}
