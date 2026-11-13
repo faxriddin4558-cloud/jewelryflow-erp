@@ -21,7 +21,9 @@ select
   (select position('pg_try_advisory_xact_lock_shared' in prosrc) > 0 and position('ERR_OPENING_DRAFT' in prosrc) > 0
           and position('ERR_FINANCIAL_FREEZE' in prosrc) > 0 and position('goldia.opening_write' in prosrc) > 0
      from pg_proc where oid = 'public._goldia_guard_opening_draft()'::regprocedure)
-    and (select count(distinct c.relname) = 12 from pg_trigger tg join pg_class c on c.oid = tg.tgrelid where tg.tgname = 'trg_goldia_opening_draft_guard' and not tg.tgisinternal) as guard_refuses_frozen_writes,
+    and (select count(distinct c.relname) = 12 from pg_trigger tg join pg_class c on c.oid = tg.tgrelid where tg.tgname = 'trg_goldia_opening_draft_guard' and not tg.tgisinternal)
+    -- F3 audit: a baseline during a freeze only to lock the restart's opening
+    and exists (select 1 from pg_trigger where tgname = 'trg_goldia_baseline_freeze' and tgrelid = 'public.accounting_baselines'::regclass and not tgisinternal) as guard_refuses_frozen_writes,
   -- a restart needs an active freeze and a server-checked T0
   exists (select 1 from pg_trigger where tgname = 'trg_goldia_restart_freeze_t0' and tgrelid = 'public.financial_restarts'::regclass and not tgisinternal)
     and (select position('ERR_FREEZE_REQUIRED' in prosrc) > 0 and position('ERR_T0_FUTURE' in prosrc) > 0 and position('ERR_T0_TOO_OLD' in prosrc) > 0

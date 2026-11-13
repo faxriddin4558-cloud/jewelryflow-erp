@@ -7,6 +7,8 @@ do $g$ begin
 
 drop trigger if exists trg_goldia_restart_freeze_t0 on public.financial_restarts;
 drop function if exists public._goldia_guard_restart_t0();
+drop trigger if exists trg_goldia_baseline_freeze on public.accounting_baselines;
+drop function if exists public._goldia_guard_baseline_freeze();
 
 -- ===== _goldia_guard_opening_draft (restore the body of 20260101000085_goldia_financial_restart_and_opening_accounting.sql)
 create or replace function public._goldia_guard_opening_draft()

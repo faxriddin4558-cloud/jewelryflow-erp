@@ -1,0 +1,17 @@
+started: 2026-11-13T09:56:28.135Z  mode: DRY RUN (LOCAL REHEARSAL)
+[1/10] tools: /opt/goldia-audit/pgwin (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
+  checkout: 86 migration files, newest 086
+[2/10] connection
+  host=127.0.0.1 port=55437 user=postgres
+  server: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2), user postgres
+[3/10] identity and state gates (read only)
+  organizations=60 employees=200 auth.users=200 jewelry_sales=55
+  history: 86 rows, latest 20260101000086 (level 086)
+  repository: 86 migration files, newest 086
+  unrecorded repository versions below the level (gaps): none
+  recorded versions unknown to this checkout: none
+  history repair requested: none
+  migrations to apply: none (up to date)
+  staging is already at the newest migration of this checkout (086); nothing to apply.
+
+RESULT: UP TO DATE (086) — staging was only read. Report: /opt/goldia-audit/stg086/goldia-staging-2026-11-13T09-56-28/STAGING-086-RESULT.txt

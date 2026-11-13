@@ -38,6 +38,7 @@ with expected(sig, h) as (values
   ('_goldia_customer_open_balances(uuid)', '2da40bac19349a07a7dc481487a3d1ee'),
   ('_goldia_financial_freeze(uuid,text,boolean)', '0f3cd668a36a2cd1f98eade2fa8cae3f'),
   ('_goldia_fin_cash_effect(text,text,numeric)', '26f573f4955ecdf9dd63be4dacd24c38'),
+  ('_goldia_guard_baseline_freeze()', 'bd681a57da938bc97a6f23c96908f253'),
   ('_goldia_guard_customer_archive()', '9d5f037a0147e294d4a0c8ab632dd9cd'),
   ('_goldia_guard_customer_assignment()', '8f98a0f96b82a9a5abbc04dba6b9ee06'),
   ('_goldia_guard_customer_code()', 'bfb3283e9fb88a12cacc9801c602eba0'),

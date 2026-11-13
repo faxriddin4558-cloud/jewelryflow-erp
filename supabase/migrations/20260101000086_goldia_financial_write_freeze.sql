@@ -116,6 +116,28 @@ begin
 end $f$;
 revoke all on function public._goldia_guard_opening_draft() from public, anon, authenticated;
 
+-- 086 (F3 audit): rpc_record_manager_seller_settlement is the only RPC that writes seller / manager balances outside
+-- the 12 guarded tables; its table public.manager_seller_settlements does not exist in this schema (not created by any
+-- migration), so every call fails and rolls back - no write path. Proved by test F7; nothing to guard.
+
+-- 086 (F3 audit): during a freeze a baseline may only be confirmed to LOCK the opening of the restart (draft period);
+-- a baseline confirmed between the backup and the restart would be a write the backup does not contain
+create or replace function public._goldia_guard_baseline_freeze()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $f$
+begin
+  if current_setting('goldia.opening_write', true) is not distinct from txid_current()::text then return new; end if;
+  if public._goldia_active_freeze(new.organization_id) is not null
+     and not exists (select 1 from public.opening_periods where organization_id = new.organization_id and status = 'draft') then
+    raise exception 'ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar to''xtatilgan - baseline faqat qayta boshlashdan keyingi boshlang''ich hisobni qulflash uchun'
+      using errcode = '55000';
+  end if;
+  return new;
+end $f$;
+revoke all on function public._goldia_guard_baseline_freeze() from public, anon, authenticated;
+drop trigger if exists trg_goldia_baseline_freeze on public.accounting_baselines;
+create trigger trg_goldia_baseline_freeze before insert on public.accounting_baselines
+  for each row execute function public._goldia_guard_baseline_freeze();
+
 -- 086: a restart only inside an active freeze, with a T0 the server accepts
 create or replace function public._goldia_guard_restart_t0()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $f$

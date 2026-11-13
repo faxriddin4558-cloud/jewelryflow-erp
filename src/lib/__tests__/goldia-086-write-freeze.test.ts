@@ -108,6 +108,26 @@ describe("Goldia 086 — financial write freeze + T0 on the server", () => {
     expect(await t.rpc(legacy(c1))).toBeTruthy();
   });
 
+  it("F7 audit: rpc_record_manager_seller_settlement (the only RPC writing balances outside the 12 guarded tables) cannot write - its table does not exist, the call rolls back", async () => {
+    const bal = async () => JSON.stringify([
+      await one(`SELECT total_settled_to_manager_g, seller_owes_manager_g, seller_till_scrap_grams FROM public.seller_gold_accounts WHERE seller_id = '${S.employeeId}'`),
+      await one(`SELECT manager_cash_amount, manager_scrap_grams FROM public.manager_vault_account WHERE organization_id = '${org}'`)]);
+    expect(await one(`SELECT to_regclass('public.manager_seller_settlements') r`)).toEqual({ r: null });
+    const b0 = await bal();
+    await t.asUser(mgr.userId);
+    let failed = false;
+    try { await t.db.query(`SELECT public.rpc_record_manager_seller_settlement('${S.employeeId}', 1, 585, 0, 'x', 0, 'f7', null)`); } catch { failed = true; }
+    expect(failed).toBe(true);
+    expect(await bal()).toBe(b0);
+  });
+
+  it("F8 audit: during a freeze a baseline can only lock the restart's draft opening (no baseline between backup and restart)", async () => {
+    expect((await freeze(org, true)).status).toBe("frozen");
+    await t.asUser(mgr.userId);
+    await t.expectError(`SELECT public.rpc_confirm_accounting_baseline(p_notes := 'between backup and restart', p_idempotency_key := '${key("b2")}', p_usd_rate := 12500)`, "ERR_FINANCIAL_FREEZE");
+    expect((await freeze(org, false)).status).toBe("released");
+  });
+
   it("F6 explicit release (abort before a restart): writes resume; the freeze history is kept and audited", async () => {
     expect((await freeze(org2, true)).status).toBe("frozen");
     await t.asUser(S2.userId);

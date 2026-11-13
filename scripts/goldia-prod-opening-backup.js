@@ -131,7 +131,8 @@ const FIN_TABLES = ["client_gold_accounts", "client_currency_accounts", "seller_
   "factory_gold_handovers", "refining_batches", "financial_transactions", "gold_purchases", "accounting_baselines", "opening_periods", "opening_documents",
   "financial_restarts", "financial_backup_verifications", "daily_gold_rates", "financial_write_freezes"];
 const FP_SQL = `select md5(coalesce(string_agg(t || ':' || n || ':' || h, ';' order by t), '')) || '|' || coalesce(sum(n), 0) from (
-  ${FIN_TABLES.map((t) => `select '${t}' t, count(*) n, md5(coalesce(string_agg(to_jsonb(r)::text, ';' order by to_jsonb(r)::text), '')) h from public.${t} r`).join(" union all ")}) x`;
+  ${FIN_TABLES.map((t) => `select '${t}' t, count(*) n, md5(coalesce(string_agg((to_jsonb(r) - 'updated_at')::text, ';' order by (to_jsonb(r) - 'updated_at')::text), '')) h from public.${t} r`).join(" union all ")}) x`;
+// (updated_at is left out: read pages recompute derived balances - same values, a new timestamp - which is no business write)
 const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::bigint, 999999) from (
   ${["jewelry_sales", "gold_settlements", "client_currency_settlements", "client_legacy_debts", "seller_consignments", "factory_receipts", "factory_gold_handovers",
     "refining_batches", "financial_transactions", "gold_purchases", "jewelry_sale_returns", "opening_documents"].map((t) => `select max(created_at) ts from public.${t}`).join(" union all ")}) x`;

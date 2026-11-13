@@ -1,0 +1,37 @@
+started: 2026-11-13T09:59:16.305Z  mode: CHAIN 085 -> 086 (LOCAL REHEARSAL)
+[1/5] backup folder /opt/goldia-audit/prod086f3/goldia-prod-2026-11-13T09-59-10: {"backup":true,"baseline":true,"recovery":true,"migration064":true,"preflight":true,"accounting":true,"compat":true,"chainTo":true,"ready":true,"target":"086","chainToTarget":"086","chainToPass":true,"backupDir":"/opt/goldia-audit/prod086f3/goldia-prod-2026-11-13T09-59-10"}
+[2/5] production gates (read only)
+  085 recorded=t; chain versions recorded=0; latest=20260101000085
+  history: level 085, gaps none, unknown none
+  function-body parity 085: crlf_only|58 identical|124
+  RLS isolation before: RLS_ISOLATION|PASS|users=200|orgs=60|checks=10835
+[3/5] chain 086..086 (ONE transaction; per-migration postflight + business fingerprint gates)
+  balances before: customer_advance_g=0.0000,customer_debt_g=570.6424,factory_obligation_g=3389.0400,seller_owes_g=1077.7941,seller_stock_g=416.5000,vault_cash_uzs=8100000.00,vault_usd=0.00
+  [chain] 086 goldia_financial_write_freeze
+  [chain] 086 postflight + business fingerprint: ok
+  CHAIN: applied and recorded in one transaction
+[4/5] postflight (read only)
+  history rows 086..086: 1/1
+  073 postflight: all true
+  074 postflight: all true
+  075 postflight: all true
+  076 postflight: all true
+  077 postflight: all true
+  078 postflight: all true
+  079 postflight: all true
+  080 postflight: all true
+  081 postflight: all true
+  082 postflight: all true
+  083 postflight: all true
+  084 postflight: all true
+  085 postflight: all true
+  086 postflight: all true
+  row counts unchanged: yes
+  balances unchanged: yes
+  business fingerprint unchanged (85 categories, value per category): yes
+  function bodies (all public functions, CR-tolerant): OK identical=128 crlf_only=58 different=0 missing=0 extra=0
+  RLS isolation after: RLS_ISOLATION|PASS|users=200|orgs=60|checks=11036
+  POSTFLIGHT: PASS
+[5/5] next: production frontend (production-frontend.ps1 -Apply -ReleaseCandidate <sha>), then run-readonly-checks.ps1 -Target production-post, then run-production-smoke.ps1
+
+RESULT: CHAIN 086..086 APPLIED, POSTFLIGHT PASS. Report: /opt/goldia-audit/prod086f3/goldia-prod-2026-11-13T09-59-10/RELEASE-086-086-RESULT.txt

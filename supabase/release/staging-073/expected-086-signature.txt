@@ -1267,6 +1267,7 @@ F _goldia_currency_account_add(uuid,uuid,uuid,text,numeric) -> void SECDEF
 F _goldia_customer_open_balances(uuid) -> jsonb SECDEF
 F _goldia_fin_cash_effect(text,text,numeric) -> TABLE(till_uzs numeric, till_usd numeric, mgr_uzs numeric, mgr_usd numeric)
 F _goldia_financial_freeze(uuid,text,boolean) -> jsonb SECDEF
+F _goldia_guard_baseline_freeze() -> trigger SECDEF
 F _goldia_guard_customer_archive() -> trigger
 F _goldia_guard_customer_assignment() -> trigger
 F _goldia_guard_customer_code() -> trigger
@@ -1452,6 +1453,7 @@ H _goldia_currency_account_add(uuid,uuid,uuid,text,numeric) 8204ea945e0fb223ee55
 H _goldia_customer_open_balances(uuid) 2da40bac19349a07a7dc481487a3d1ee
 H _goldia_fin_cash_effect(text,text,numeric) 26f573f4955ecdf9dd63be4dacd24c38
 H _goldia_financial_freeze(uuid,text,boolean) 0f3cd668a36a2cd1f98eade2fa8cae3f
+H _goldia_guard_baseline_freeze() bd681a57da938bc97a6f23c96908f253
 H _goldia_guard_customer_archive() 9d5f037a0147e294d4a0c8ab632dd9cd
 H _goldia_guard_customer_assignment() 8f98a0f96b82a9a5abbc04dba6b9ee06
 H _goldia_guard_customer_code() bfb3283e9fb88a12cacc9801c602eba0
@@ -1832,6 +1834,7 @@ R two_party_handovers
 R weight_sale_allocations
 R workflow_stages
 T accounting_baselines trg_accounting_baselines_immutable
+T accounting_baselines trg_goldia_baseline_freeze
 T affinaj_records audit_affinaj_records
 T affinaj_records trg_immutable_affinaj_records
 T audit_log trg_immutable_audit_log
