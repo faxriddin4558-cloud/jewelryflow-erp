@@ -1,0 +1,8 @@
+GOLDIA production backup verification for the 085 restart - LOCAL REHEARSAL 127.0.0.1 as postgres, organization 00000000-0000-0000-0000-000000000005
+mode: WATCH (read only)
+[1] identity and state (read only)
+  PostgreSQL 170011; not JFS demo true; history latest 20260101000085; organization "Sintetik tashkilot 5" (org5), active employees 3
+[watch] business fingerprint now 8233172c4dffde2974acecd16f5dddfc|840; checking every 3 s until a restart of the organization is recorded
+  restart recorded. Business writes between the dump and the restart: none
+RESULT: WATCH DONE - CLEAN
+exit=0

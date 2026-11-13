@@ -1,0 +1,8 @@
+GOLDIA production backup verification for the 085 restart - LOCAL REHEARSAL 127.0.0.1 as postgres, organization 00000000-0000-0000-0000-000000000002
+mode: BACKUP + VERIFICATION ROW
+[1] identity and state (read only)
+  PostgreSQL 170011; not JFS demo true; history latest 20260101000085; organization "Sintetik tashkilot 2" (org2), active employees 3
+
+STOP: an unused verification younger than 24 h already exists for this organization (1); use it or let it expire
+Production was NOT changed.
+RESULT: STOP

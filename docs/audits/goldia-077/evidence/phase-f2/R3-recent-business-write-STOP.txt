@@ -1,0 +1,12 @@
+GOLDIA production backup verification for the 085 restart - LOCAL REHEARSAL 127.0.0.1 as postgres, organization 00000000-0000-0000-0000-000000000002
+mode: CHECK ONLY (read only)
+[1] identity and state (read only)
+  PostgreSQL 170011; not JFS demo true; history latest 20260101000085; organization "Sintetik tashkilot 2" (org2), active employees 3
+[2] quiet window (read only)
+  last business write (any organization): 0 min ago; required quiet: 15 min
+  other open transactions of the application roles: 0 (oldest 0 s)
+  seller tills of the organization (must be handed over to the manager before T0; the restart archives the recorded values): UZS 1020000.00, USD 100.00, LOM 0.0000 g
+
+STOP: a business write happened 0 min ago - stop all work (sales, payments, handovers) and re-run after 15 quiet minutes
+Production was NOT changed.
+RESULT: STOP

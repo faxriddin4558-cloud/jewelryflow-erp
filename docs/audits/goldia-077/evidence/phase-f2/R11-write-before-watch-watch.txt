@@ -1,0 +1,9 @@
+GOLDIA production backup verification for the 085 restart - LOCAL REHEARSAL 127.0.0.1 as postgres, organization 00000000-0000-0000-0000-000000000006
+mode: WATCH (read only)
+[1] identity and state (read only)
+  PostgreSQL 170011; not JFS demo true; history latest 20260101000085; organization "Sintetik tashkilot 6" (org6), active employees 4
+[watch] business fingerprint now d0f4ec4d7c59e67224ce6efd63dc231a|843; checking every 3 s until a restart of the organization is recorded
+  BUSINESS WRITE since the dump: expected 0512416cb6fd94fc6e68588397895313|843, now d0f4ec4d7c59e67224ce6efd63dc231a|843 - the backup does not contain it
+  restart recorded. Business writes between the dump and the restart: YES (see above)
+RESULT: WATCH DONE - WRITES SEEN (the backup lacks them)
+exit=2

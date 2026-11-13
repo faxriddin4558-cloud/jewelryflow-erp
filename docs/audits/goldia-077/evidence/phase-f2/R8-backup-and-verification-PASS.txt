@@ -1,0 +1,21 @@
+GOLDIA production backup verification for the 085 restart - LOCAL REHEARSAL 127.0.0.1 as postgres, organization 00000000-0000-0000-0000-000000000002
+mode: BACKUP + VERIFICATION ROW
+[1] identity and state (read only)
+  PostgreSQL 170011; not JFS demo true; history latest 20260101000085; organization "Sintetik tashkilot 2" (org2), active employees 3
+[2] quiet window (read only)
+  last business write (any organization): 3 min ago; required quiet: 0 min
+  other open transactions of the application roles: 0 (oldest 0 s)
+  seller tills of the organization (must be handed over to the manager before T0; the restart archives the recorded values): UZS 1020000.00, USD 100.00, LOM 0.0000 g
+[3] full backup (outside the repository)
+  full dump: attempt 1 ok (0 s)
+  e146d4b8cf70d37efea44b77fd3214076dfdc95932bc9b46a5e6f15912b41c85  production-full.dump  1610644 bytes
+  business fingerprint before / after the dump: 37ded16146e7764faf0e5d03555ee483|829 / 37ded16146e7764faf0e5d03555ee483|829
+[4] restore test into a disposable LOCAL PostgreSQL (production untouched)
+  row counts production = restored copy: identical (77 tables)
+  business fingerprint production = restored copy: identical
+  BACKUP: VERIFIED (production-full.dump sha256=e146d4b8cf70d37efea44b77fd3214076dfdc95932bc9b46a5e6f15912b41c85)
+[5] backup verification row (the only write)
+  verification 3ba8cb0b-71c4-42b2-8226-3dcabc7c332f: goldia-prod-opening-2026-11-13T08-58-33/production-full.dump sha256=e146d4b8cf70d37efea44b77fd3214076dfdc95932bc9b46a5e6f15912b41c85 (valid 24 h, one restart)
+
+RESULT: BACKUP VERIFIED + VERIFICATION WRITTEN. Next, AT ONCE: the director starts the restart on /sales/app/opening and selects this backup;
+        keep `--watch` running in a second window to prove no business write happens until the restart.

@@ -14,13 +14,17 @@ H = Font(bold=True, color="FFFFFF"); FILL = PatternFill("solid", fgColor="1F2937
 ROWS = 200
 
 
-def sheet(title, note, cols, calc=None, first=False):
+TRACK = ["Hujjat raqami (sahifada kiritilgandan keyin)", "Sanadi / tasdiqladi (ism, imzo)"]
+
+
+def sheet(title, note, cols, calc=None, first=False, track=True):
     ws = wb.active if first else wb.create_sheet()
     ws.title = title
     ws["A1"] = note; ws["A1"].font = Font(bold=True); ws["A1"].alignment = Alignment(wrap_text=True)
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(cols) + len(calc or []))
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(cols) + len(calc or []) + (len(TRACK) if track else 0))
     ws.row_dimensions[1].height = 48
-    for i, c in enumerate(cols + [c for c, _ in (calc or [])], start=1):
+    heads = cols + [c for c, _ in (calc or [])] + (TRACK if track else [])
+    for i, c in enumerate(heads, start=1):
         cell = ws.cell(row=2, column=i, value=c); cell.font = H; cell.fill = FILL
         ws.column_dimensions[cell.column_letter].width = max(14, len(c) + 2)
     for j, (_, f) in enumerate(calc or [], start=len(cols) + 1):
@@ -36,14 +40,14 @@ def choice(ws, col, values):
 
 
 ws = sheet("T0", "T0 = barcha tuzatishlar tugagan, haqiqiy savdo boshlanishidan OLDINGI vaqt (Asia/Tashkent). Sotuvchilarning pul va LOM'i T0 dan oldin menejerga topshirilgan bo'lishi shart.",
-           ["Maydon", "Qiymat"], first=True)
+           ["Maydon", "Qiymat"], first=True, track=False)
 for i, (k, v) in enumerate([("T0 sana (YYYY-MM-DD)", ""), ("T0 vaqt (HH:MM, Toshkent)", ""), ("585 kursi (so'm / g) - qulflash kuni", ""), ("USD kursi (so'm) - qulflash kuni", ""),
                             ("Sotuvchilar kassasi T0 da bo'sh (ha / yo'q)", ""), ("Tayyorladi", ""), ("Tekshirdi", "")], start=3):
     ws.cell(row=i, column=1, value=k); ws.cell(row=i, column=2, value=v)
 
-ws = sheet("A Menejer ombori", "A. Menejerdagi zavoddan qarzga olingan tayyor mahsulot. Zavod majburiyati = fizik g x (1 + zavod %). Foiz ASL fizik grammga, compounded emas.",
+ws = sheet("A Menejer ombori", "A. Menejerdagi zavoddan qarzga olingan tayyor mahsulot (585 proba; boshqa proba -> H / I / J). Zavod majburiyati = fizik g x (1 + zavod %). Foiz ASL fizik grammga, compounded emas.",
            ["Partiya / mahsulot nomi", "Fizik vazn (g)", "Zavod ustamasi (%)", "Izoh"], [("Zavod majburiyati (g) [hisob]", "=IF(B{r}=\"\",\"\",ROUND(B{r}*(1+C{r}/100),4))")])
-ws = sheet("B Sotuvchi ombori", "B. Har bir sotuvchining qo'lidagi mahsulot (zavoddan menejer orqali). Manba = A dagi partiya bo'lsa menejer omboridan ayriladi va zavod majburiyati O'ZGARMAYDI. Sotuvchi majburiyati = fizik g x (1 + sotuvchi %).",
+ws = sheet("B Sotuvchi ombori", "B. Har bir sotuvchining qo'lidagi mahsulot (585 proba, zavoddan menejer orqali). Manba = A dagi partiya bo'lsa menejer omboridan ayriladi va zavod majburiyati O'ZGARMAYDI. Sotuvchi majburiyati = fizik g x (1 + sotuvchi %).",
            ["Sotuvchi (ism)", "Dona vaznlari (bo'shliq bilan: 14.52 8.3 10)", "Jami fizik vazn (g)", "Sotuvchi ustamasi (%)", "Manba: A dagi partiya nomi (bo'sh = faqat sotuvchida)", "Zavod ustamasi (%) - manba bo'sh bo'lsa", "Izoh"],
            [("Sotuvchi majburiyati (g) [hisob]", "=IF(C{r}=\"\",\"\",ROUND(C{r}*(1+D{r}/100),4))"),
             ("Qo'shimcha zavod majburiyati (g) [manba bo'sh]", "=IF(OR(C{r}=\"\",E{r}<>\"\"),\"\",ROUND(C{r}*(1+F{r}/100),4))")])
@@ -70,7 +74,7 @@ ws = sheet("J Boshqa", "J. Boshqa aktiv (bizga qarz) yoki majburiyat (bizning qa
 choice(ws, "A", ["aktiv", "majburiyat"]); choice(ws, "B", ["UZS", "USD", "585 g", "oltin"])
 
 ws = sheet("Jamlama", "Jamlama: shu qiymatlar /sales/app/opening sahifasidagi 'Solishtirish' (reconciliation) jami bilan qulflashdan OLDIN bir xil bo'lishi kerak.",
-           ["Ko'rsatkich", "Jadval bo'yicha", "Sahifada (qo'lda yozing)", "Farq"])
+           ["Ko'rsatkich", "Jadval bo'yicha", "Sahifada (qo'lda yozing)", "Farq"], track=False)
 lines = [
     ("Menejer ombori (g) = A - B (manbali)", "=SUM('A Menejer ombori'!B3:B202)-SUMIF('B Sotuvchi ombori'!E3:E202,\"<>\",'B Sotuvchi ombori'!C3:C202)"),
     ("Sotuvchilar ombori (g)", "=SUM('B Sotuvchi ombori'!C3:C202)"),

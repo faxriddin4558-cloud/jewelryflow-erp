@@ -16,5 +16,8 @@ process.stdin.on("end", () => {
   if (/goldia-prod-release\.js/.test(cmd) && !/--local-rehearsal/.test(cmd)) {
     process.stderr.write("BLOCKED: goldia-prod-release.js only with --local-rehearsal from Claude sessions.\n"); process.exit(2);
   }
+  if (/goldia-prod-opening-backup\.js/.test(cmd) && !/--local-rehearsal/.test(cmd)) {
+    process.stderr.write("BLOCKED: goldia-prod-opening-backup.js only with --local-rehearsal from Claude sessions.\n"); process.exit(2);
+  }
   process.exit(0);
 });

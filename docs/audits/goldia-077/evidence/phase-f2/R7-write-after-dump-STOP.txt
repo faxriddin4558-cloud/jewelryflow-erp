@@ -1,0 +1,21 @@
+GOLDIA production backup verification for the 085 restart - LOCAL REHEARSAL 127.0.0.1 as postgres, organization 00000000-0000-0000-0000-000000000002
+mode: BACKUP + VERIFICATION ROW
+[1] identity and state (read only)
+  PostgreSQL 170011; not JFS demo true; history latest 20260101000085; organization "Sintetik tashkilot 2" (org2), active employees 3
+[2] quiet window (read only)
+  last business write (any organization): 3 min ago; required quiet: 0 min
+  other open transactions of the application roles: 0 (oldest 0 s)
+  seller tills of the organization (must be handed over to the manager before T0; the restart archives the recorded values): UZS 1020000.00, USD 100.00, LOM 0.0000 g
+[3] full backup (outside the repository)
+  full dump: attempt 1 ok (0 s)
+  c49d526af7726d30ae4797eea39225ad053e7d5fae194734551cce683a387103  production-full.dump  1610620 bytes
+  business fingerprint before / after the dump: d199432e7ca5c3411a3ae35bac92c537|829 / d199432e7ca5c3411a3ae35bac92c537|829
+[4] restore test into a disposable LOCAL PostgreSQL (production untouched)
+  row counts production = restored copy: identical (77 tables)
+  business fingerprint production = restored copy: identical
+  BACKUP: VERIFIED (production-full.dump sha256=c49d526af7726d30ae4797eea39225ad053e7d5fae194734551cce683a387103)
+[5] backup verification row (the only write)
+
+STOP: production changed after the dump - the backup no longer contains everything; stop all work and re-run
+Production was NOT changed.
+RESULT: STOP

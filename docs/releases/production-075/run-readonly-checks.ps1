@@ -35,7 +35,7 @@
   file through the same read-only wrapper, used to prove that a write attempt fails).
 #>
 param(
-  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging", "staging-function-parity-080", "staging-function-parity-081", "production-drift-audit")][string]$Target,
+  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging", "staging-function-parity-080", "staging-function-parity-081", "production-drift-audit", "production-opening-recon")][string]$Target,
   [string]$PoolerHost = "",
   [int]$Port = 5432,
   [string]$PgBin = "C:\Program Files\PostgreSQL\17\bin",
@@ -51,7 +51,7 @@ $script:SummaryFile = $null
 
 $Refs = @{ production = "vrozlllcaxinavzxueif"; staging = "vouehtlmsunebracahon" }
 $Never = @("yvvbdoqncubtwlzskgml", "hbbuskyifxkowlozsaym", "vrozlilcaxinavzxueif")   # JFS demo, ERP, typo of prod ref
-$RefKey = $Target; if ($Target -eq "production-post" -or $Target -eq "production-prelaunch" -or $Target -eq "production-drift-audit") { $RefKey = "production" }
+$RefKey = $Target; if ($Target -eq "production-post" -or $Target -eq "production-prelaunch" -or $Target -eq "production-drift-audit" -or $Target -eq "production-opening-recon") { $RefKey = "production" }
 if ($Target -like "staging-function-parity-*") { $RefKey = "staging" }
 $Ref = $Refs[$RefKey]
 
@@ -111,6 +111,13 @@ if ($Target -eq "production") {
   # 2026-11-09 version drift audit (frontend 2b48df9 vs the real DB): the drift kit first; level-dependent postflights and
   # the function-body parity of the detected level are added after the identity probe. Read only, any level 075..085.
   $checks = @(@{ Name = "08_drift_audit"; File = "docs/releases/production-075/08_drift_audit_readonly.sql"; Kind = "drift" })
+} elseif ($Target -eq "production-opening-recon") {
+  # PHASE F2 (read only, history must be 085): independent breakdown of the old seller / customer / factory balances
+  # before the restart + the business baseline of that moment
+  $checks = @(
+    @{ Name = "opening_old_balances_recon"; File = "supabase/release/opening_old_balances_recon_readonly.sql"; Kind = "recon" },
+    @{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" }
+  )
 } elseif ($Target -like "staging-function-parity-*") {
   # read-only: one SQL file through the same wrapper (explicit BEGIN TRANSACTION READ ONLY + guard + ROLLBACK)
   $lvl = $Target.Substring($Target.Length - 3)
@@ -202,6 +209,7 @@ Add-Content -Path $script:SummaryFile -Value $idLine -Encoding ASCII
 if ($pp[1] -ne "on") { Finish "FAIL" "the explicit read-only transaction is not read-only (transaction_read_only=" + $pp[1] + ")" }
 if ($pp[3] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
 if ($Target -like "staging-function-parity-*" -and $pp[4] -ne ("20260101000" + $Target.Substring($Target.Length - 3))) { Finish "FAIL" ($Target + " expects migration history at 20260101000" + $Target.Substring($Target.Length - 3) + ", found " + $pp[4]) }
+if ($Target -eq "production-opening-recon" -and $pp[4] -ne "20260101000085") { Finish "FAIL" ("production-opening-recon expects migration history at 085, found " + $pp[4]) }
 if ($Target -eq "production-prelaunch" -and @("20260101000075", "20260101000076", "20260101000080") -notcontains $pp[4]) { Finish "FAIL" ("production-prelaunch expects migration history at 075 (before 076), 076 (before 077..080) or 080 (before 081), found " + $pp[4]) }
 if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000080") {
   # before 081: the 081 pre-release check, the CR-tolerant parity of ALL functions at 080 and the pre-release baseline
@@ -422,6 +430,13 @@ foreach ($c in $checks) {
         $verdict = "FAIL"; $sum = @($all | Where-Object { $_ -match '^RLS_ISOLATION\|' })
         if ($sum.Count -gt 0) { $detail = $sum[0] } else { $detail = "no RLS_ISOLATION line" }
       } else { $detail = $pass[0] }
+    }
+    "recon" {
+      $res = @($lines | Where-Object { $_ -match '^RESULT\|opening_recon\|' })
+      foreach ($g in @($lines | Where-Object { $_ -match '^RECON\|(total|factory|risk)\|' })) { Write-Host ("    " + $g) -ForegroundColor Gray }
+      if ($res.Count -ne 1) { $verdict = "FAIL"; $detail = "no RESULT line" }
+      elseif ($res[0] -match '\|OK$') { $detail = $res[0] }
+      else { $verdict = "REVIEW"; $detail = $res[0] + " (a stored seller obligation differs from the independent recomputation)" }
     }
     "drift" {
       $res = @($lines | Where-Object { $_ -match '^RESULT\|drift_audit\|' })

@@ -26,3 +26,22 @@ describe("tashkentBusinessDate", () => {
   });
   it("accepts ISO strings (created_at)", () => expect(tashkentBusinessDate("2026-11-30T19:30:00+00:00")).toBe("2026-12-01"));
 });
+
+describe("PHASE F2 opening T0 in Tashkent (independent of the browser time zone)", () => {
+  it("a datetime-local value is read as Tashkent wall clock (+05:00), never in the browser zone", async () => {
+    const { tashkentWallClockToIso, formatTashkent } = await import("../business-date");
+    expect(tashkentWallClockToIso("2026-11-13T09:00")).toBe("2026-11-13T09:00:00+05:00");
+    expect(new Date(tashkentWallClockToIso("2026-11-13T00:30")!).toISOString()).toBe("2026-11-12T19:30:00.000Z");
+    expect(tashkentWallClockToIso("13.11.2026 09:00")).toBeNull();
+    expect(tashkentWallClockToIso("")).toBeNull();
+    expect(formatTashkent("2026-11-12T19:30:00Z")).toBe("13.11.2026 00:30");
+  });
+  it("T0 may not be in the future nor older than 24 h", async () => {
+    const { openingT0Problem } = await import("../business-date");
+    const now = new Date("2026-11-13T05:00:00Z"); // 10:00 Tashkent
+    expect(openingT0Problem("2026-11-13T09:30:00+05:00", now)).toBeNull();
+    expect(openingT0Problem("2026-11-13T11:00:00+05:00", now)).toMatch(/kelajakda/);
+    expect(openingT0Problem("2026-11-12T09:00:00+05:00", now)).toMatch(/24 soatdan/);
+    expect(openingT0Problem(null, now)).toMatch(/to'liq/);
+  });
+});

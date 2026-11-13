@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/erp-engine";
 import { parseErrorMessage } from "@/lib/error-utils";
 import { isDirectorUiRole, isManagementUiRole } from "@/lib/sales-role-access";
+import { formatTashkent, openingT0Problem, tashkentWallClockToIso } from "@/lib/business-date";
 
 const CONFIRM_TEXT = "MOLIYAVIY HISOBNI QAYTA BOSHLASH";
 const newKey = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `k-${Date.now()}-${Math.random()}`);
@@ -94,11 +95,14 @@ export function OpeningAccountingSection() {
   const [rBackup, setRBackup] = useState("");
   const [rConfirm, setRConfirm] = useState("");
   const [rKey, setRKey] = useState(newKey);
+  // T0 is a Tashkent wall-clock time: sent as +05:00 whatever the browser's time zone is (PHASE F2)
+  const t0Iso = tashkentWallClockToIso(rT0);
+  const t0Problem = rT0 ? openingT0Problem(t0Iso) : null;
   const restart = async () => {
-    if (busy || rConfirm !== CONFIRM_TEXT || !rReason.trim() || !rT0 || !rBackup) return;
+    if (busy || rConfirm !== CONFIRM_TEXT || !rReason.trim() || !t0Iso || t0Problem || !rBackup) return;
     setBusy(true); setErr(null); setMsg(null);
     const { data, error } = await supabase.rpc("rpc_financial_restart", {
-      p_confirmation: rConfirm, p_reason: rReason.trim(), p_t0: new Date(rT0).toISOString(), p_backup_verification_id: rBackup, p_idempotency_key: rKey,
+      p_confirmation: rConfirm, p_reason: rReason.trim(), p_t0: t0Iso, p_backup_verification_id: rBackup, p_idempotency_key: rKey,
     });
     setBusy(false);
     if (error) { setErr(parseErrorMessage(error)); return; }
@@ -182,7 +186,7 @@ export function OpeningAccountingSection() {
         </p>
         <div className="text-sm" data-testid="opening-period">
           {st?.period
-            ? <>Davr: <b>{st.period.period_no}</b> · T0: <b>{new Date(st.period.t0).toLocaleString("ru-RU")}</b> · Holat: <b className={draft ? "text-amber-300" : "text-emerald-300"}>{draft ? "qoralama" : "tasdiqlangan (qulflangan)"}</b></>
+            ? <>Davr: <b>{st.period.period_no}</b> · T0: <b>{formatTashkent(st.period.t0)}</b> (Toshkent) · Holat: <b className={draft ? "text-amber-300" : "text-emerald-300"}>{draft ? "qoralama" : "tasdiqlangan (qulflangan)"}</b></>
             : <span className="text-slate-400">Ochiq boshlang&apos;ich davr yo&apos;q.</span>}
         </div>
       </div>
@@ -196,22 +200,25 @@ export function OpeningAccountingSection() {
             Barcha moliyaviy hujjatlar arxivga o&apos;tadi (o&apos;chirilmaydi), barcha qoldiqlar 0 bo&apos;ladi. Mijozlar, telefonlar, sotuvchiga
             biriktirish, xodimlar, modellar va sozlamalar saqlanadi. Avval backup olinib, alohida nusxaga tiklab sinalgan bo&apos;lishi shart.
           </p>
-          <label className="block text-xs">T0 sana va vaqti
+          <label className="block text-xs">T0 sana va vaqti (Toshkent vaqti)
             <input type="datetime-local" className={inputCls} value={rT0} onChange={(e) => setRT0(e.target.value)} data-testid="restart-t0" /></label>
+          {rT0 && (t0Problem
+            ? <div className="text-xs text-rose-300" data-testid="restart-t0-problem">{t0Problem}</div>
+            : <div className="text-xs text-slate-300" data-testid="restart-t0-tashkent">T0 = <b>{t0Iso ? formatTashkent(t0Iso) : ""}</b> (Toshkent, UTC+5)</div>)}
           <label className="block text-xs">Sabab
             <input className={inputCls} value={rReason} onChange={(e) => setRReason(e.target.value)} data-testid="restart-reason" /></label>
           <label className="block text-xs">Tiklab sinalgan backup
             <select className={inputCls} value={rBackup} onChange={(e) => setRBackup(e.target.value)} data-testid="restart-backup">
               <option value="">— tanlang —</option>
               {(st?.backup_verifications ?? []).filter((b) => b.usable).map((b) => (
-                <option key={b.id} value={b.id}>{b.backup_reference} · {new Date(b.verified_at).toLocaleString("ru-RU")}</option>))}
+                <option key={b.id} value={b.id}>{b.backup_reference} · {formatTashkent(b.verified_at)}</option>))}
             </select></label>
           {(st?.backup_verifications ?? []).filter((b) => b.usable).length === 0 && (
             <div className="text-xs text-amber-300">Yaroqli backup tasdig&apos;i yo&apos;q (24 soat ichida, ishlatilmagan). Uni release vositasi backup + tiklash sinovidan keyin yozadi.</div>)}
           <label className="block text-xs">Tasdiqlash uchun aynan yozing: <b>{CONFIRM_TEXT}</b>
             <input className={inputCls} value={rConfirm} onChange={(e) => setRConfirm(e.target.value)} data-testid="restart-confirm" /></label>
           <button type="button" onClick={() => void restart()} data-testid="restart-submit"
-            disabled={busy || rConfirm !== CONFIRM_TEXT || !rReason.trim() || !rT0 || !rBackup}
+            disabled={busy || rConfirm !== CONFIRM_TEXT || !rReason.trim() || !t0Iso || !!t0Problem || !rBackup}
             className="min-h-[44px] px-4 rounded-xl bg-rose-700 font-bold disabled:opacity-40">Qayta boshlash</button>
         </div>
       )}
