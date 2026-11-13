@@ -1,0 +1,2 @@
+BASELINE | org 00000000-0000-4001-8001-000000000001 | cust=70 debt_g=0.0000 adv_g=0.0000 sel_obl_g=0.0000 sel_owes_g=0.0000 sel_stock_g=0.0000 till_uzs=0.00 till_usd=0.00 till_scrap_g=0.0000 till_valued_g=0.000000 mgr_stock_g=100.0000 mgr_uzs=0.00 mgr_usd=0.00 fac_obl_g=108.0000 fac_recv_g=100.0000 sales=0 settl=86 rcpt=1 held=0 held_g=0
+BASELINE | history latest | 20260101000086

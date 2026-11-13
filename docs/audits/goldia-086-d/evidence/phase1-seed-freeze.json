@@ -1,0 +1,143 @@
+{
+ "run": "mwexinsv",
+ "frozenAt": "2026-11-13T12:04:38.909875+00:00",
+ "old": {
+  "sellers": [
+   {
+    "seller_id": "abe57df0-9cdd-4617-98c4-51b044aeedb2",
+    "current_physical_stock_g": 8,
+    "seller_owes_manager_g": 25.04,
+    "total_seller_obligation_g": 25.04,
+    "seller_till_cash_amount": 900000,
+    "seller_till_usd_amount": 100
+   },
+   {
+    "seller_id": "f5b974f2-25dd-47ac-b0d8-fa918bd2ca41",
+    "current_physical_stock_g": 4,
+    "seller_owes_manager_g": 12.26,
+    "total_seller_obligation_g": 12.26,
+    "seller_till_cash_amount": 1000000,
+    "seller_till_usd_amount": 0
+   }
+  ],
+  "vault": {
+   "manager_physical_stock_g": 30,
+   "current_factory_obligation_g": 64.8,
+   "manager_cash_amount": 0,
+   "manager_usd_amount": 0
+  },
+  "client_gold": [
+   {
+    "customer_id": "2dc4b6c8-cc41-4580-8998-82130d176c99",
+    "current_debt_grams": 6.6,
+    "advance_balance_grams": 0
+   },
+   {
+    "customer_id": "a62563e3-3871-472c-991f-75db6d502c63",
+    "current_debt_grams": 1.04,
+    "advance_balance_grams": 0
+   },
+   {
+    "customer_id": "f73203e8-5638-4ea0-95c6-689bd4098148",
+    "current_debt_grams": 1.06,
+    "advance_balance_grams": 0
+   }
+  ],
+  "client_currency": [
+   {
+    "customer_id": "a62563e3-3871-472c-991f-75db6d502c63",
+    "currency": "USD",
+    "debt_amount": 200,
+    "advance_amount": 0
+   },
+   {
+    "customer_id": "f73203e8-5638-4ea0-95c6-689bd4098148",
+    "currency": "UZS",
+    "debt_amount": 5000000,
+    "advance_amount": 0
+   }
+  ],
+  "held": [
+   {
+    "id": "26420450-0a26-4409-a201-ae3d4eef9d3f",
+    "weight_grams": 8,
+    "consignment_id": "c4e4365b-f373-4805-bd69-df40aab7113a"
+   },
+   {
+    "id": "fc74d785-8630-484f-9b1d-660a91412b61",
+    "weight_grams": 4,
+    "consignment_id": "b546ad8f-c5a5-4b65-b7ba-b0cf74b5c948"
+   }
+  ]
+ },
+ "results": [
+  {
+   "id": "FZ-0",
+   "title": "freeze set by the release tooling while 20 parallel ordinary writes run: each write committed before the freeze moment or refused; 0 committed rows younger than frozen_at",
+   "ok": true,
+   "expected": {
+    "younger": 0,
+    "otherErrors": 0
+   },
+   "actual": {
+    "status": "frozen",
+    "committed": 12,
+    "refused": 8,
+    "otherErrors": [],
+    "younger": 0,
+    "frozenAt": "2026-11-13T12:04:38.909875+00:00"
+   }
+  },
+  {
+   "id": "FZ-1",
+   "title": "direct RPC writes during the freeze (seller A / B, manager, director; sales, payments, legacy, handover, capital, receipt, consignment, factory payment, baseline): all 15 refused ERR_FINANCIAL_FREEZE",
+   "ok": false,
+   "expected": 15,
+   "actual": {
+    "refused": 14,
+    "other": [
+     "rpc_record_factory_gold_handover: ERR_INSUFFICIENT_VAULT_REFINED: Boshqaruvchi seyfi"
+    ]
+   }
+  },
+  {
+   "id": "FZ-2",
+   "title": "bypass attempts by signed-in users (unfreeze, private functions, set_config, edit / delete the freeze row, direct table insert, fake backup verification, manager restart, restart with a fake backup, seller / manager opening without a restart, old test reset): all refused, freeze still active",
+   "ok": true,
+   "expected": "all refused, 1 active freeze",
+   "actual": {
+    "stillFrozen": 1,
+    "patchedRows": 0,
+    "deletedRows": 0,
+    "results": {
+     "unfreeze": "403 permission denied for function _goldia_financ",
+     "activeFn": "403 permission denied for function _goldia_active",
+     "guardFn": "404 Could not find the function public._goldia_gu",
+     "setConfig": "404 Could not find the function public.set_config",
+     "patchFreeze": "403 permission denied for table financial_write_f",
+     "deleteFreeze": "403 permission denied for table financial_write_f",
+     "insertDebt": "500 ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqt",
+     "writeVerification": "403 permission denied for table financial_backup_",
+     "managerRestart": "403 Permission denied: moliyaviy hisobni qayta bo",
+     "directorFakeBackup": "500 ERR_BACKUP_NOT_VERIFIED: so'nggi 24 soatdagi ",
+     "sellerOpening": "403 Permission denied for role \"seller\" (required",
+     "managerOpeningNoDraft": "500 ERR_NO_OPENING_PERIOD: avval direktor moliyav",
+     "oldReset": "500 ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqt"
+    }
+   }
+  },
+  {
+   "id": "FZ-3",
+   "title": "director reads only the own organization freeze row; organization D unchanged by every refused attempt (fingerprint after freeze = now)",
+   "ok": true,
+   "expected": {
+    "rows": 1,
+    "same": true
+   },
+   "actual": {
+    "rows": 1,
+    "same": true
+   }
+  }
+ ]
+}
