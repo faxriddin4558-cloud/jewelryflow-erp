@@ -1,0 +1,87 @@
+{
+ "run": "mwgdwbg7",
+ "results": [
+  {
+   "id": "P6a",
+   "title": "director confirms today's 585 rate (not a guarded financial table; needed by the baseline)",
+   "ok": true,
+   "expected": "ok",
+   "actual": true
+  },
+  {
+   "id": "P6",
+   "title": "lock with the baseline: period locked, the freeze ends automatically (no release step), a late opening entry refused, an ordinary sale works again",
+   "ok": true,
+   "expected": "locked + unfrozen",
+   "actual": {
+    "lock": true,
+    "period": "locked",
+    "freezeRowReleasedAt": null,
+    "late": "ERR_OPENING_LOCKED: boshlang'i",
+    "sale": true
+   }
+  },
+  {
+   "id": "D-2",
+   "title": "seller B customer pays the opening UZS debt 5 000 000: snapshot 5.5556 g, obligation unchanged at payment, -5.5556 g at the handover (own seller's obligation)",
+   "ok": true,
+   "expected": {
+    "snap": 5.5556,
+    "d": 5.5556
+   },
+   "actual": {
+    "snap": 5.5556,
+    "oB0": 11.1489,
+    "oB1": 11.1489,
+    "oB2": 5.5933,
+    "diff": 0
+   }
+  },
+  {
+   "id": "D-3",
+   "title": "USD 50 advance (new customer of seller A): advance 50, seller A obligation unchanged",
+   "ok": true,
+   "expected": {
+    "adv": 50,
+    "owes": 22.64
+   },
+   "actual": {
+    "adv": 50,
+    "owes": 22.64
+   }
+  },
+  {
+   "id": "REG",
+   "title": "077-085 regression in D after the opening: partial return 2 g (083), USD payment with its own rate 12 500 (084, snapshot 1.4 g), manager capital (077 parity), period report (080), profit summary",
+   "ok": false,
+   "expected": "all ok",
+   "actual": {
+    "ret": "Barcode (dona) savdo faqat butun dona sifatida qaytariladi: 8.0000 g",
+    "usd": 1.4,
+    "cap": true,
+    "rep": true,
+    "ps": true
+   }
+  },
+  {
+   "id": "D-1/D-5",
+   "title": "factory obligation unchanged by the sale, return, payments, handover and advance (64.8); the other asset (J) stays separate (0.5556 g, not in any seller / customer / factory balance)",
+   "ok": true,
+   "expected": {
+    "factory": 64.8,
+    "other": 0.5556
+   },
+   "actual": {
+    "factory": 64.8,
+    "other": 0.5556
+   }
+  },
+  {
+   "id": "P8",
+   "title": "opening page on a 390 px phone: no horizontal overflow",
+   "ok": true,
+   "expected": 0,
+   "actual": 0
+  }
+ ]
+}

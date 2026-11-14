@@ -19,10 +19,11 @@ Applying 087 freezes nothing and writes no business row: daily work continues.
 | O-3 | owner | Backup inside the freeze + restore test + ONE verification row | `node scripts\goldia-prod-opening-backup.js --org <org uuid> --backup --write-verification` (keep the printed `--watch` command running in a 2nd window) |
 | O-4 | director | `/sales/app/opening`: T0 = Tashkent time (a few minutes ago), choose the backup, type `MOLIYAVIY HISOBNI QAYTA BOSHLASH` | app |
 | O-5 | manager | Enter A..J exactly from the template; every reconciliation line green; the totals equal the "Jamlama" sheet | app, `/sales/app/opening` |
-| O-6 | manager | Lock (baseline, USD rate of the day). The freeze ends by itself; normal work resumes | app |
+| O-6 | director | Confirm TODAY's 585 rate (the lock refuses without it: ERR_DAILY_RATE_NOT_SET) | app, rates |
+| O-7 | manager | Lock (baseline, USD rate of the day). The freeze ends by itself; normal work resumes | app |
 
 Abort at any time BEFORE O-4: `node scripts\goldia-prod-opening-backup.js --org <org uuid> --release-freeze` (nothing else changes).
-After O-4 there is no abort: finish O-5 and O-6 (the draft blocks ordinary work until the lock).
+After O-4 there is no abort: finish O-5 to O-7 (the draft blocks ordinary work until the lock).
 
 ## What the server enforces (you cannot get these wrong)
 * no restart without a freeze; no ordinary write during the freeze or the draft;

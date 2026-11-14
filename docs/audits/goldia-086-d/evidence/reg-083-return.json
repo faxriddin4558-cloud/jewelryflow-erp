@@ -1,0 +1,12 @@
+{
+ "id": "REG-083",
+ "title": "083 return of the whole 8 g piece (to the seller): stock +8 g, customer debt -8.96 g (8 g x 1.12)",
+ "ok": true,
+ "actual": {
+  "ret": true,
+  "s0": 0,
+  "s1": 8,
+  "d0": 15.56,
+  "d1": 6.6
+ }
+}
