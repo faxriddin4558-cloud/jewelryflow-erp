@@ -1,0 +1,22 @@
+[
+ {
+  "id": "GAP-086",
+  "t": "at 20260101000086: a verification written BEFORE the freeze (an ordinary write follows it) is ACCEPTED - the gap",
+  "ok": true
+ },
+ {
+  "id": "PF-086",
+  "t": "086 postflight stays true while a freeze / restart exists (freeze_rows_consistent)",
+  "ok": true
+ },
+ {
+  "id": "FIX-087",
+  "t": "at 20260101000087: the same sequence is REFUSED with ERR_BACKUP_BEFORE_FREEZE; nothing restarted",
+  "ok": true
+ },
+ {
+  "id": "PF-087",
+  "t": "087 + 086 + 085 postflights true with a freeze and a restart present",
+  "ok": true
+ }
+]

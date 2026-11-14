@@ -1,5 +1,5 @@
 -- POSTFLIGHT for migration 086 (financial write freeze + server-side T0) - READ ONLY. Every column must be true.
--- The migration creates schema and functions only: right after it no freeze exists and nothing is frozen.
+-- The migration creates schema and functions only (a freeze may exist later: only the consistency of its rows is checked).
 begin transaction read only;
 
 select
@@ -29,7 +29,10 @@ select
     and (select position('ERR_FREEZE_REQUIRED' in prosrc) > 0 and position('ERR_T0_FUTURE' in prosrc) > 0 and position('ERR_T0_TOO_OLD' in prosrc) > 0
                 and position('ERR_T0_BEFORE_FREEZE' in prosrc) > 0 and position('Asia/Tashkent' in prosrc) > 0
            from pg_proc where oid = 'public._goldia_guard_restart_t0()'::regprocedure) as restart_needs_freeze_and_t0,
-  -- right after the migration nothing is frozen
-  not exists (select 1 from public.financial_write_freezes) as nothing_frozen;
+  -- freeze rows consistent (F3: a freeze may be active after the release, e.g. during a restart window; checked instead:
+  -- at most one active freeze per organization, every release after its start, every row of an existing organization)
+  not exists (select 1 from public.financial_write_freezes f where f.released_at is not null and f.released_at < f.frozen_at)
+    and not exists (select 1 from public.financial_write_freezes f group by f.organization_id having count(*) filter (where f.released_at is null) > 1)
+    and not exists (select 1 from public.financial_write_freezes f where not exists (select 1 from public.organizations o where o.id = f.organization_id)) as freeze_rows_consistent;
 
 rollback;

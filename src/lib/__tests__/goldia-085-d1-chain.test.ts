@@ -37,11 +37,11 @@ describe("Goldia 085 / D-1 — factory -> manager -> seller chain at the opening
     await t.asAdmin();
     await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed)
                      VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true)`);
-    const bv = (await one(`INSERT INTO public.financial_backup_verifications (organization_id, backup_reference, restore_verified) VALUES ('${org}', 'd1.dump', true) RETURNING id`)).id;
-    await t.asUser(dir.userId);
-    // 086: the restart needs an active write freeze (release tooling) and a T0 within the last 24 h
+    // 086 / 087: the release tooling freezes first, then takes the backup and writes its verification inside the freeze;
+    // the restart needs that verification and a T0 within the last 24 h
     await t.asAdmin();
-    await t.db.query(`SELECT public._goldia_financial_freeze(organization_id, 'test restart window', true) FROM public.financial_backup_verifications WHERE id = '${bv}'`);
+    await t.db.query(`SELECT public._goldia_financial_freeze('${org}', 'test restart window', true)`);
+    const bv = (await one(`INSERT INTO public.financial_backup_verifications (organization_id, backup_reference, restore_verified) VALUES ('${org}', 'd1.dump', true) RETURNING id`)).id;
     await t.asUser(dir.userId);
     await t.rpc(`public.rpc_financial_restart('MOLIYAVIY HISOBNI QAYTA BOSHLASH', 'D-1 sinovi', '${new Date(Date.now() - 60_000).toISOString()}', '${bv}', 'd1-restart')`);
   }, 180000);

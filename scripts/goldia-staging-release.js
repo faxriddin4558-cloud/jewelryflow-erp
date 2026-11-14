@@ -44,8 +44,9 @@
  *
  * --backup-only (2026-11-11, PHASE D): staging must already be at the newest migration of this checkout. Steps 1-5 only
  *   (full backup + SHA256SUMS + restore test on a disposable LOCAL cluster); no migration, nothing else is run.
- *   --verify-org <uuid> [--verify-count N] (only with --backup-only, after BACKUP: VERIFIED): the tooling writes N rows
- *   (default 1, max 3) into public.financial_backup_verifications for that organization (backup_reference = folder/dump,
+ *   --verify-org <uuid> (only with --backup-only, after BACKUP: VERIFIED): the tooling writes ONE row (2026-11-14, F3:
+ *   one backup = one verification = one restart; the organization must be FROZEN before the dump starts and the same
+ *   freeze must still be active when the row is written) into public.financial_backup_verifications for that organization (backup_reference = folder/dump,
  *   backup_sha256 = the dump's SHA-256). Only an organization whose name ends with "(sintetik)" is accepted, and you type
  *   the organization code to confirm. This is the only staging write of this mode.
  */
@@ -90,7 +91,9 @@ if (args["verify-org"] && !BACKUP_ONLY) { console.error("STOP: --verify-org is a
 const VERIFY_ORG = args["verify-org"] ? String(args["verify-org"]) : null;
 if (VERIFY_ORG && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(VERIFY_ORG)) { console.error("STOP: --verify-org must be an organization uuid"); process.exit(1); }
 const VERIFY_COUNT = args["verify-count"] ? Number(args["verify-count"]) : 1;
-if (!(Number.isInteger(VERIFY_COUNT) && VERIFY_COUNT >= 1 && VERIFY_COUNT <= 3)) { console.error("STOP: --verify-count must be 1, 2 or 3"); process.exit(1); }
+// F3 (2026-11-14): a second verification of the same backup could serve a later restart that the backup no longer covers
+if (VERIFY_COUNT !== 1) { console.error("STOP: --verify-count: exactly one verification per backup (one backup = one restart)"); process.exit(1); }
+let VERIFY_FREEZE = null; // "<freeze id>|<frozen_at>" of the organization, read BEFORE the dump
 const TARGET = {
   host: args.host || null,
   port: String(args.port || 5432),
@@ -437,7 +440,10 @@ async function main() {
     const o = q(remoteEnv, `select coalesce((select name || '|' || coalesce(code, '') from public.organizations where id = '${VERIFY_ORG}'), '')`);
     if (!o) stop(`--verify-org ${VERIFY_ORG}: organization not found on staging`);
     if (!/\(sintetik\)$/.test(o.split("|")[0])) stop(`--verify-org: "${o.split("|")[0]}" is not a synthetic organization - refused`);
-    out(`  backup verification will be written for: ${o.split("|")[0]} (${o.split("|")[1]}), ${VERIFY_COUNT} row(s), after BACKUP: VERIFIED`);
+    // the freeze must be active BEFORE the dump starts: then the dump contains every committed ordinary write
+    VERIFY_FREEZE = q(remoteEnv, `select coalesce((select f.id || '|' || f.frozen_at from public.financial_write_freezes f where f.organization_id = '${VERIFY_ORG}' and f.released_at is null and public._goldia_active_freeze(f.organization_id) is not null), '')`);
+    if (!VERIFY_FREEZE) stop(`--verify-org: the organization is not frozen - freeze it first (the backup must be taken inside the freeze); nothing was written`);
+    out(`  backup verification will be written for: ${o.split("|")[0]} (${o.split("|")[1]}), 1 row, after BACKUP: VERIFIED; active freeze since ${VERIFY_FREEZE.split("|")[1]}`);
   }
   if (BACKUP_ONLY) {
     out(`  staging is at ${TO}: BACKUP ONLY - no migration will run`);
@@ -563,7 +569,9 @@ async function main() {
     out(`  backup reference: ${path.basename(outDir)}/staging-full.dump sha256=${dumpSha}`);
     if (VERIFY_ORG) {
       const code = q(remoteEnv, `select coalesce(code, '') from public.organizations where id = '${VERIFY_ORG}'`);
-      const typed = REHEARSAL && args.yes ? code : await promptLine(`Type the organization code (${code}) to record ${VERIFY_COUNT} backup verification row(s): `);
+      const freezeNow = q(remoteEnv, `select coalesce((select f.id || '|' || f.frozen_at from public.financial_write_freezes f where f.organization_id = '${VERIFY_ORG}' and f.released_at is null and public._goldia_active_freeze(f.organization_id) is not null), '')`);
+      if (!freezeNow || freezeNow !== VERIFY_FREEZE) stop("the freeze of the organization ended or changed during the backup - this backup cannot serve a restart; nothing was written");
+      const typed = REHEARSAL && args.yes ? code : await promptLine(`Type the organization code (${code}) to record 1 backup verification row: `);
       if (typed.trim() !== code || !code) stop("confirmation did not match - no verification was written");
       const ref = `${path.basename(outDir)}/staging-full.dump`.replace(/'/g, "");
       const ins = psql(remoteEnv, `insert into public.financial_backup_verifications (organization_id, backup_reference, backup_sha256, restore_verified)

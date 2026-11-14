@@ -54,8 +54,9 @@ const T = {
 const ORG = String(args.org || "");
 const QUIET_MIN = Number(args["quiet-minutes"] || 15);
 const MIN = 60 * 1000;
-// 086 (server-side write freeze) is required: the backup -> restart window is protected by the database, not by procedure
-const EXPECT_LEVEL = "20260101000086";
+// 086 (server-side write freeze) + 087 (the restart accepts only a verification written inside the active freeze, one
+// restart per freeze) are required: the backup -> restart window is protected by the database, not by procedure
+const EXPECT_LEVEL = "20260101000087";
 
 const lines = []; let outDir = null; let resultFile = null; let written = false;
 function out(l = "") { console.log(l); lines.push(l); if (resultFile) fs.writeFileSync(resultFile, lines.join(os.EOL) + os.EOL); }
@@ -160,7 +161,7 @@ const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::b
   out(`  PostgreSQL ${ver}; not JFS demo ${notJfs}; history latest ${level}; organization "${orgName.split("#")[0]}" (${orgName.split("#")[1] || "-"}), active employees ${emps}`);
   if (Math.floor(Number(ver) / 10000) !== 17) stop("PostgreSQL 17 expected");
   if (notJfs !== "true") stop("deployment_environment() exists: this is a JewelryFlow SaaS demo database");
-  if (level !== EXPECT_LEVEL) stop(`migration history must be at 086 (server-side write freeze), found ${level}`);
+  if (level !== EXPECT_LEVEL) stop(`migration history must be at 087 (server-side write freeze + backup inside the freeze), found ${level}`);
   if (!orgName) stop("organization not found");
   const frozenAt = q(remoteEnv, `select coalesce(public._goldia_active_freeze('${ORG}')::text, '')`);
   out(`  server-side write freeze: ${frozenAt ? `ACTIVE since ${frozenAt}` : "not active"}`);

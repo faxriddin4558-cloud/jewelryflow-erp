@@ -1,0 +1,9 @@
+GOLDIA production backup verification for the 085 restart - LOCAL REHEARSAL 127.0.0.1 as postgres, organization 00000000-0000-0000-0000-000000000002
+mode: BACKUP (production only read)
+[1] identity and state (read only)
+  PostgreSQL 170011; not JFS demo true; history latest 20260101000087; organization "Sintetik tashkilot 2" (org2), active employees 3
+  server-side write freeze: not active
+
+STOP: turn the server-side write freeze ON first (--freeze): the backup must be taken inside it
+Production was NOT changed.
+RESULT: STOP
