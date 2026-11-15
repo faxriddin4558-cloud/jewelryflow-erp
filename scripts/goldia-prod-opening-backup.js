@@ -102,9 +102,14 @@ function psql(envFn, sql, { tuples = true, singleTx = false } = {}) {
   const a = ["-X", "-q", "-w", "-v", "ON_ERROR_STOP=1"]; if (tuples) a.push("-t", "-A", "-F", "|"); if (singleTx) a.push("--single-transaction"); a.push("-c", sql);
   return run("psql", a, { env: envFn(), timeoutMs: 15 * MIN });
 }
-// every read: explicit read-only transaction with a guard (the Supabase pooler ignores PGOPTIONS)
+// every read: explicit read-only transaction with a guard (the Supabase pooler ignores PGOPTIONS). The text form of a row
+// (to_jsonb(r)::text) depends on the SESSION: timestamptz values are printed in the session TimeZone and intervals in the
+// IntervalStyle. Production (Supabase) runs UTC, a local Windows restore cluster takes the computer's zone, so the same rows
+// hashed differently (2026-11-15 production STOP "fingerprint production = restored copy: DIFFERENT" with identical rows).
+// Both sides now read with the same session settings.
 function q(envFn, sql) {
   const a = ["-X", "-q", "-w", "-t", "-A", "-F", "|", "-v", "ON_ERROR_STOP=1", "-c", "begin transaction read only",
+    "-c", "set local timezone to 'UTC'", "-c", "set local intervalstyle to 'postgres'",
     "-c", "do $$ begin if current_setting('transaction_read_only') <> 'on' then raise exception 'not read only'; end if; end $$", "-c", sql, "-c", "rollback"];
   const r = run("psql", a, { env: envFn(), timeoutMs: 15 * MIN });
   if (r.status !== 0) stop(`query failed: ${firstError(r)}`);
@@ -131,8 +136,28 @@ const FIN_TABLES = ["client_gold_accounts", "client_currency_accounts", "seller_
   "jewelry_sale_returns", "gold_settlements", "client_currency_settlements", "client_legacy_debts", "seller_consignments", "consignment_pieces", "factory_receipts",
   "factory_gold_handovers", "refining_batches", "financial_transactions", "gold_purchases", "accounting_baselines", "opening_periods", "opening_documents",
   "financial_restarts", "financial_backup_verifications", "daily_gold_rates", "financial_write_freezes"];
-const FP_SQL = `select md5(coalesce(string_agg(t || ':' || n || ':' || h, ';' order by t), '')) || '|' || coalesce(sum(n), 0) from (
-  ${FIN_TABLES.map((t) => `select '${t}' t, count(*) n, md5(coalesce(string_agg((to_jsonb(r) - 'updated_at')::text, ';' order by (to_jsonb(r) - 'updated_at')::text), '')) h from public.${t} r`).join(" union all ")}) x`;
+// ordering with COLLATE "C": production (ICU en_US) and the local copy (initdb --no-locale) must sort the same way
+const PER_TABLE_FP_SQL = `select t || '=' || n || ':' || h from (
+  ${FIN_TABLES.map((t) => `select '${t}' t, count(*) n, md5(coalesce(string_agg((to_jsonb(r) - 'updated_at')::text, ';' order by (to_jsonb(r) - 'updated_at')::text collate "C"), '')) h from public.${t} r`).join(" union all ")}) x order by t collate "C"`;
+const FP_SQL = `select md5(coalesce(string_agg(t || ':' || n || ':' || h, ';' order by t collate "C"), '')) || '|' || coalesce(sum(n), 0) from (
+  ${FIN_TABLES.map((t) => `select '${t}' t, count(*) n, md5(coalesce(string_agg((to_jsonb(r) - 'updated_at')::text, ';' order by (to_jsonb(r) - 'updated_at')::text collate "C"), '')) h from public.${t} r`).join(" union all ")}) x`;
+// diagnosis only (names, never values): per column of one table, a hash over that column in row-id order
+const columnFpSql = (t) => `select string_agg(k || ':' || h, ',' order by k collate "C") from (
+  select e.key k, md5(coalesce(string_agg(e.value::text, ';' order by coalesce(to_jsonb(r) ->> 'id', to_jsonb(r) ->> 'seller_id', to_jsonb(r) ->> 'customer_id', to_jsonb(r) ->> 'organization_id') collate "C",
+      coalesce(to_jsonb(r) ->> 'currency', to_jsonb(r) ->> 'rate_date', '') collate "C"), '')) h
+    from public.${t} r, jsonb_each(to_jsonb(r) - 'updated_at') e group by e.key) x`;
+function explainFingerprintDiff(envA, envB) {
+  const a = new Map(q(envA, PER_TABLE_FP_SQL).split(/\r?\n/).filter(Boolean).map((l) => l.split("=")));
+  const b = new Map(q(envB, PER_TABLE_FP_SQL).split(/\r?\n/).filter(Boolean).map((l) => l.split("=")));
+  const tables = FIN_TABLES.filter((t) => a.get(t) !== b.get(t));
+  for (const t of tables) {
+    const ca = new Map(q(envA, columnFpSql(t)).split(",").filter(Boolean).map((x) => x.split(":")));
+    const cb = new Map(q(envB, columnFpSql(t)).split(",").filter(Boolean).map((x) => x.split(":")));
+    const cols = [...new Set([...ca.keys(), ...cb.keys()])].filter((k) => ca.get(k) !== cb.get(k));
+    out(`  DIFFERENT table ${t} (rows ${String(a.get(t) || "-").split(":")[0]} / ${String(b.get(t) || "-").split(":")[0]}): columns ${cols.join(", ") || "(row order only)"}`);
+  }
+  return tables;
+}
 // (updated_at is left out: read pages recompute derived balances - same values, a new timestamp - which is no business write)
 const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::bigint, 999999) from (
   ${["jewelry_sales", "gold_settlements", "client_currency_settlements", "client_legacy_debts", "seller_consignments", "factory_receipts", "factory_gold_handovers",
@@ -271,6 +296,7 @@ const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::b
   const cProd = q(remoteEnv, COUNTS); const cCopy = q(localEnv, COUNTS); const fpCopy = q(localEnv, FP_SQL);
   out(`  row counts production = restored copy: ${cProd === cCopy ? "identical" : "DIFFERENT"} (${cProd.split(",").length} tables)`);
   out(`  business fingerprint production = restored copy: ${fpCopy === fpAfterDump ? "identical" : `DIFFERENT (${fpCopy})`}`);
+  if (fpCopy !== fpAfterDump) explainFingerprintDiff(remoteEnv, localEnv);
   if (cProd !== cCopy || fpCopy !== fpAfterDump) stop("restore test failed: the restored copy differs from production");
   out(`  BACKUP: VERIFIED (production-full.dump sha256=${dumpSha})`);
   down();
