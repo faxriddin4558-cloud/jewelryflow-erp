@@ -215,18 +215,41 @@ const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::b
   if (Number(drafts) > 0) stop("the organization already has an opening in draft (a restart was already done)");
 
   if (args.watch) {
-    const every = Number(args.every || 20); const fp0 = q(remoteEnv, FP_SQL); out(`[watch] business fingerprint now ${fp0}; checking every ${every} s until a restart of the organization is recorded`);
-    let last = fp0;
+    // 2026-11-15 (production): the pooler can drop a connection between two reads ("SSL SYSCALL error: EOF detected");
+    // a transient connection error is retried (bounded), never counted as clean: after the retries the watch STOPs
+    const TRANSIENT = /SSL SYSCALL|EOF detected|server closed the connection|could not connect|connection to server|Connection reset|timeout expired|terminating connection|no connection to the server/i;
+    const qWatch = (sql) => {
+      for (let attempt = 1; ; attempt++) {
+        const a = ["-X", "-q", "-w", "-t", "-A", "-F", "|", "-v", "ON_ERROR_STOP=1", "-c", "begin transaction read only",
+          "-c", "set local timezone to 'UTC'", "-c", "set local intervalstyle to 'postgres'",
+          "-c", "do $$ begin if current_setting('transaction_read_only') <> 'on' then raise exception 'not read only'; end if; end $$", "-c", sql, "-c", "rollback"];
+        const r = run("psql", a, { env: remoteEnv(), timeoutMs: 15 * MIN });
+        if (r.status === 0) return String(r.stdout).trim();
+        const e = firstError(r);
+        if (!TRANSIENT.test(`${e} ${r.stderr || ""}`) || attempt >= 5) stop(`watch read failed${attempt > 1 ? ` after ${attempt} attempts` : ""}: ${e} - the watch cannot confirm the window; re-run the same --watch command`);
+        out(`  ${new Date().toISOString()} connection lost (${e.slice(0, 60)}); retry ${attempt}/4 in ${attempt * 5} s`);
+        sleep(attempt * 5);
+      }
+    };
+    // compare fingerprints by value only: "<32 hex>|<rows>" (a pasted --expect may carry quotes, spaces or a carriage return)
+    const norm = (s) => { const m = /([0-9a-f]{32})\|(\d+)/i.exec(String(s || "")); return m ? `${m[1].toLowerCase()}|${m[2]}` : null; };
+    const expect = args.expect === undefined ? null : norm(args.expect);
+    if (args.expect !== undefined && !expect) stop(`--expect: not a fingerprint (expected <32 hex>|<rows>, got ${JSON.stringify(String(args.expect))})`);
+    const restarted = () => Number(qWatch(`select count(*) from public.financial_restarts where organization_id = '${ORG}' and created_at > now() - interval '24 hours'`)) > 0;
+    const every = Number(args.every || 20); const fp0 = norm(qWatch(FP_SQL));
+    if (!fp0) stop("watch: unexpected fingerprint output");
+    out(`[watch] business fingerprint now ${fp0}${expect ? ` (expected ${expect}: ${expect === fp0 ? "equal" : "DIFFERENT"})` : ""}; checking every ${every} s until a restart of the organization is recorded`);
+    let changed = false;
     // --expect <fingerprint printed by the verification step>: a write between the dump and the start of the watch counts too
-    if (args.expect && String(args.expect) !== fp0) { out(`  BUSINESS WRITE since the dump: expected ${args.expect}, now ${fp0} - the backup does not contain it`); last = "changed"; }
+    if (expect && expect !== fp0) { out(`  BUSINESS WRITE since the dump: expected ${expect}, now ${fp0} - the backup does not contain it`); changed = true; }
+    let last = fp0;
     for (;;) {
-      const r = q(remoteEnv, `select count(*) from public.financial_restarts where organization_id = '${ORG}' and created_at > now() - interval '24 hours'`);
-      if (Number(r) > 0) { const clean = last === fp0 && !(args.expect && String(args.expect) !== fp0); out(`  restart recorded. Business writes between ${args.expect ? "the dump" : "the start of the watch"} and the restart: ${clean ? "none" : "YES (see above)"}`); out(clean ? "RESULT: WATCH DONE - CLEAN" : "RESULT: WATCH DONE - WRITES SEEN (the backup lacks them)"); process.exit(clean ? 0 : 2); }
-      const fp = q(remoteEnv, FP_SQL);
+      if (restarted()) { const clean = !changed; out(`  restart recorded. Business writes between ${expect ? "the dump" : "the start of the watch"} and the restart: ${clean ? "none" : "YES (see above)"}`); out(clean ? "RESULT: WATCH DONE - CLEAN" : "RESULT: WATCH DONE - WRITES SEEN (the backup lacks them)"); process.exit(clean ? 0 : 2); }
+      const fp = norm(qWatch(FP_SQL));
+      if (!fp) stop("watch: unexpected fingerprint output");
       // the restart itself changes the fingerprint: a change that comes with a new restart row is not counted as a write
-      const restartedNow = Number(q(remoteEnv, `select count(*) from public.financial_restarts where organization_id = '${ORG}' and created_at > now() - interval '24 hours'`)) > 0;
-      if (restartedNow) continue;
-      if (fp !== last && !(last === "changed" && fp === fp0)) { out(`  ${new Date().toISOString()} BUSINESS WRITE detected (fingerprint ${fp}) - the backup does not contain it`); last = fp; }
+      if (fp !== last && restarted()) continue;
+      if (fp !== last) { out(`  ${new Date().toISOString()} BUSINESS WRITE detected (fingerprint ${fp}) - the backup does not contain it`); changed = true; last = fp; }
       sleep(every);
     }
   }
