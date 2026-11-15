@@ -171,7 +171,7 @@ const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::b
   outDir = path.join(outRoot, `goldia-prod-opening-${stamp}`); fs.mkdirSync(outDir, { recursive: true });
   resultFile = path.join(outDir, "OPENING-BACKUP-RESULT.txt");
   out(`GOLDIA production backup verification for the 085 restart - ${REHEARSAL ? "LOCAL REHEARSAL " : ""}${T.host} as ${T.user}, organization ${ORG}`);
-  out(`mode: ${args.freeze ? "FREEZE ON (one write)" : args["release-freeze"] ? "FREEZE OFF (one write)" : args.watch ? "WATCH (read only)" : args["write-verification"] ? "BACKUP + VERIFICATION ROW" : args.backup ? "BACKUP (production only read)" : "CHECK ONLY (read only)"}`);
+  out(`mode: ${args.freeze ? "FREEZE ON (one write)" : args["release-freeze"] ? "FREEZE OFF (one write)" : args.watch ? "WATCH (read only)" : args["diff-dump"] ? "DIFF DUMP vs PRODUCTION (read only)" : args["write-verification"] ? "BACKUP + VERIFICATION ROW" : args.backup ? "BACKUP (production only read)" : "CHECK ONLY (read only)"}`);
   if (!REHEARSAL) password = process.env.PGPASSWORD || await prompt(`Production DB password for ${T.user} (hidden): `, { hidden: true });
 
   // 1. identity
@@ -252,6 +252,47 @@ const LAST_WRITE_SQL = `select coalesce(extract(epoch from (now() - max(ts)))::b
       if (fp !== last) { out(`  ${new Date().toISOString()} BUSINESS WRITE detected (fingerprint ${fp}) - the backup does not contain it`); changed = true; last = fp; }
       sleep(every);
     }
+  }
+  // --diff-dump <production-full.dump of the verification step>: READ ONLY diagnosis of a watch "DIFFERENT". The dump is
+  // restored into a disposable LOCAL cluster and compared with production now, per table / column / row id (names and
+  // ids only, never values). Expected difference: financial_backup_verifications (the verification row is written after
+  // the dump). Anything else is a write the backup does not contain.
+  if (args["diff-dump"]) {
+    const dump = path.resolve(String(args["diff-dump"]));
+    if (!fs.existsSync(dump)) stop(`--diff-dump: file not found: ${dump}`);
+    out(`[diff] restoring ${dump} into a disposable LOCAL PostgreSQL (production is only read)`);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "goldia-prod-opening-diff-")); const data = path.join(dir, "data");
+    localPort = await freePort(55800);
+    let r = run("initdb", ["-D", data, "-U", "postgres", "-A", "trust", "-E", "UTF8", "--no-locale"], { timeoutMs: 10 * MIN });
+    if (r.status !== 0) stop(`initdb failed: ${firstError(r)}`);
+    let up = true; const down = () => { if (!up) return; up = false; run("pg_ctl", ["-D", data, "-m", "fast", "-w", "-t", "60", "stop"], { noPipes: true, timeoutMs: 2 * MIN }); try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* */ } };
+    process.on("exit", down);
+    run("pg_ctl", ["-D", data, "-o", `-p ${localPort} -c listen_addresses=localhost -c max_connections=50 -c jit=off`, "-l", path.join(dir, "pg.log"), "-w", "-t", "120", "start"], { noPipes: true, timeoutMs: 3 * MIN });
+    let ready = false; for (let i = 0; i < 120 && !ready; i++) { ready = psql(localEnv, "select 1").status === 0; if (!ready) sleep(1); }
+    if (!ready) stop("local PostgreSQL did not start");
+    psql(localEnv, `do $$ declare r text; begin foreach r in array array['anon','authenticated','service_role','authenticator','supabase_admin','supabase_auth_admin','supabase_storage_admin','dashboard_user','pgbouncer']
+      loop if not exists (select 1 from pg_roles where rolname = r) then execute format('create role %I nologin', r); end if; end loop; end $$`, { tuples: false });
+    for (const pair of q(remoteEnv, "select coalesce(string_agg(e.extname || ':' || n.nspname, ','), '') from pg_extension e join pg_namespace n on n.oid = e.extnamespace where e.extname <> 'plpgsql'").split(",").filter(Boolean)) {
+      const [name, schema] = pair.split(":"); psql(localEnv, `create schema if not exists "${schema}"; create extension if not exists "${name}" with schema "${schema}"`, { tuples: false });
+    }
+    r = run("pg_restore", ["-w", "--no-owner", "-d", "postgres", dump], { env: localEnv(), timeoutMs: 60 * MIN });
+    const fpDump = q(localEnv, FP_SQL); const fpProd = q(remoteEnv, FP_SQL);
+    out(`  business fingerprint: dump ${fpDump} (length ${fpDump.length}) / production now ${fpProd} (length ${fpProd.length})`);
+    const tables = fpDump === fpProd ? [] : explainFingerprintDiff(localEnv, remoteEnv);
+    // row ids that differ (added / removed / changed) in each differing table - ids only
+    const rowKey = `coalesce(to_jsonb(r) ->> 'id', to_jsonb(r) ->> 'seller_id', to_jsonb(r) ->> 'customer_id', to_jsonb(r) ->> 'organization_id') || coalesce('/' || (to_jsonb(r) ->> 'currency'), '') || coalesce('/' || (to_jsonb(r) ->> 'rate_date'), '')`;
+    for (const t of tables) {
+      const rows = (envFn) => new Map(q(envFn, `select ${rowKey} || '=' || md5((to_jsonb(r) - 'updated_at')::text) from public.${t} r`).split(/\r?\n/).filter(Boolean).map((l) => l.split("=")));
+      const a = rows(localEnv); const b = rows(remoteEnv);
+      const added = [...b.keys()].filter((k) => !a.has(k)); const removed = [...a.keys()].filter((k) => !b.has(k)); const changed = [...a.keys()].filter((k) => b.has(k) && a.get(k) !== b.get(k));
+      const orgOf = q(remoteEnv, `select coalesce(string_agg(distinct coalesce(to_jsonb(r) ->> 'organization_id', '-'), ','), '-') from public.${t} r where ${rowKey} in (${[...added, ...changed].map((k) => `'${k.replace(/'/g, "")}'`).join(",") || "''"})`);
+      out(`    ${t}: added ${added.length}, removed ${removed.length}, changed ${changed.length}; organizations ${orgOf}; ids ${[...added, ...removed, ...changed].slice(0, 8).join(", ")}`);
+    }
+    const unexpected = tables.filter((t) => t !== "financial_backup_verifications");
+    down();
+    out(unexpected.length ? `\nRESULT: DIFF - changed since the dump: ${unexpected.join(", ")} (see the lines above; do NOT restart before this is explained)`
+                          : `\nRESULT: DIFF - only the verification row (expected); no business write since the dump`);
+    process.exit(unexpected.length ? 2 : 0);
   }
   if (Number(unused) > 0 && args["write-verification"]) stop(`an unused verification younger than 24 h already exists for this organization (${unused}); use it or let it expire`);
   if (args.backup && !frozenAt) stop("turn the server-side write freeze ON first (--freeze): the backup must be taken inside it");
