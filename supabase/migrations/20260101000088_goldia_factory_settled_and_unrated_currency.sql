@@ -942,15 +942,21 @@ begin
   v_f := case when v_credit > 0 then v_applied / v_credit else 0 end;
   select * into v_od from public.opening_documents
    where organization_id = v_caller_org and customer_id = v_customer.id and kind = 'customer_currency' and unit = v_cur
-     and side = 'debt' and status = 'active' and seller_id = v_seller_id
+     and side = 'debt' and status = 'active'
    order by created_at limit 1;
-  -- 088: an UNRATED opening debt takes only what is left of it (the rest of the payment is an ordinary sale debt /
-  -- advance); once it is paid off, later payments are ordinary (converted at the handover)
-  if v_od.id is not null and v_od.equiv_585_g is null then
-    v_od_rem := v_od.amount - coalesce((select sum(c.opening_applied_amount) from public.client_currency_settlements c
+  -- 088: a payment takes only what is LEFT of the opening debt (rated or unrated); the rest of it paid an ordinary sale
+  -- debt or is an advance. Once the opening debt is paid off, later payments are ordinary (converted at the handover).
+  if v_od.id is not null then
+    v_od_rem := v_od.amount - coalesce((select sum(coalesce(c.opening_applied_amount, c.applied_to_debt)) from public.client_currency_settlements c
                   where c.opening_document_id = v_od.id and c.status <> 'reversed'), 0);
     v_open_applied := least(v_applied, greatest(v_od_rem, 0));
-    if v_open_applied <= 0 then v_od := null; v_open_applied := 0; end if;
+    if v_open_applied <= 0 then
+      v_od := null; v_open_applied := 0;
+    elsif v_od.seller_id is distinct from v_seller_id then
+      -- the opening debt is part of ANOTHER seller's obligation: its money must go into that seller's till
+      raise exception 'ERR_OPENING_DEBT_OTHER_SELLER: bu mijozning boshlang''ich % qarzi boshqa sotuvchi (%) majburiyatida - to''lov o''sha sotuvchi kassasiga qabul qilinadi',
+        v_cur, coalesce((select coalesce(e.name, e.full_name) from public.employees e where e.id = v_od.seller_id), '-') using errcode = '42501';
+    end if;
   end if;
   if v_od.id is not null and v_open_applied > 0 and v_od.equiv_585_g is null then
     -- 088: UNRATED opening debt: the paid part is valued at THIS payment's rates (084 operation-rate rule) and becomes the
@@ -970,16 +976,15 @@ begin
   elsif v_od.id is not null and v_applied > 0 and v_od.amount > 0 then
     v_snap_g := least(greatest(0, v_od.seller_obligation_g - coalesce((select sum(c.snapshot_released_g) from public.client_currency_settlements c
                         where c.opening_document_id = v_od.id and c.status <> 'reversed'), 0)),
-                      round(v_applied * v_od.seller_obligation_g / v_od.amount, 4));
+                      round(v_open_applied * v_od.seller_obligation_g / v_od.amount, 4));
   end if;
   v_cash_val := case when v_cash <= 0 then 0 when v_cur = 'UZS' then v_cash else v_cash / nullif(v_usd_rate, 0) end;
   v_usd_val  := case when v_usd <= 0 then 0 when v_cur = 'USD' then v_usd else v_usd * v_usd_rate end;
-  -- 088: for an unrated opening debt only its part (+ the advance part, 0 g) enters the valued pool; a part that paid an
-  -- ordinary sale debt stays unvalued and is converted at the handover (rated debts: the 085 rule, unchanged)
-  v_pool_cash := round(v_cash * case when v_od.id is not null and v_od.equiv_585_g is null then (v_open_applied + (v_credit - v_applied)) / v_credit
-                                     when v_od.id is not null then 1 else 1 - v_f end, 2);
-  v_pool_usd  := round(v_usd * case when v_od.id is not null and v_od.equiv_585_g is null then (v_open_applied + (v_credit - v_applied)) / v_credit
-                                    when v_od.id is not null then 1 else 1 - v_f end, 2);
+  -- 088: with an opening debt (rated or unrated) only its part (+ the advance part, 0 g) enters the valued pool; a part
+  -- that paid an ordinary sale debt stays unvalued and is converted at the handover (085 put the whole payment into the
+  -- pool: the seller lost the handover credit for the sale part)
+  v_pool_cash := round(v_cash * case when v_od.id is not null then (v_open_applied + (v_credit - v_applied)) / v_credit else 1 - v_f end, 2);
+  v_pool_usd  := round(v_usd * case when v_od.id is not null then (v_open_applied + (v_credit - v_applied)) / v_credit else 1 - v_f end, 2);
   v_pool_cash_g := case when v_credit > 0 then round(v_snap_g * coalesce(v_cash_val, 0) / v_credit, 6) else 0 end;
   v_pool_usd_g  := case when v_credit > 0 then round(v_snap_g * coalesce(v_usd_val, 0) / v_credit, 6) else 0 end;
   if v_pool_cash > 0 or v_pool_usd > 0 then
@@ -999,7 +1004,7 @@ begin
   values (v_caller_org, v_no, v_customer.id, v_seller_id, v_cur, v_cash, v_usd, v_scrap, v_proba, v_scrap_585, v_usd_rate, v_lom_rate,
     v_credit, v_applied, v_credit - v_applied, nullif(btrim(p_idempotency_key), ''), v_caller_emp_id, p_notes,
     v_od.id, v_snap_g, v_pool_cash, v_pool_cash_g, v_pool_usd, v_pool_usd_g,
-    case when v_od.id is not null and v_od.equiv_585_g is null then v_open_applied end)
+    case when v_od.id is not null then v_open_applied end)
   returning id into v_id;
   if v_od.id is not null and v_od.equiv_585_g is null and coalesce(v_snap_g, 0) > 0 then
     perform public.recalc_seller_gold_account(v_seller_id, v_caller_org);
@@ -1054,6 +1059,16 @@ begin
     raise exception 'Ushbu to''lov allaqachon bekor qilingan (%)', v_row.settlement_no;
   end if;
   select * into v_till from public.seller_gold_accounts where seller_id = v_row.seller_id for update;
+  -- 088: the valued pool is an average; once a handover after this payment took from it, taking this payment's own
+  -- grams out again would lose or invent grams (review: 0.2084 g). Exact path: reverse that handover first (its pool
+  -- share comes back exactly), then this payment, then hand over again.
+  if (coalesce(v_row.pool_cash_uzs, 0) > 0 or coalesce(v_row.pool_usd, 0) > 0)
+     and exists (select 1 from public.gold_settlements g where g.seller_id = v_row.seller_id and g.organization_id = v_caller_org
+                   and g.direction = 'seller_to_manager' and g.created_at > v_row.created_at and g.reversal_of_id is null
+                   and coalesce(g.status, 'confirmed') not in ('reversed', 'cancelled')
+                   and (coalesce(g.till_pool_cash_uzs, 0) > 0 or coalesce(g.till_pool_usd, 0) > 0)) then
+    raise exception 'ERR_TILL_ALREADY_HANDED_OVER: bu to''lovdan keyin sotuvchi menejerga topshiruv qilgan - avval o''sha topshiruvni bekor qiling, keyin to''lovni, so''ng qayta topshiring' using errcode = '55000';
+  end if;
   if coalesce(v_till.seller_till_cash_amount, 0) < v_row.cash_uzs or coalesce(v_till.seller_till_usd_amount, 0) < v_row.usd_amount
      or coalesce(v_till.seller_till_scrap_grams, 0) < v_row.scrap_585_g then
     raise exception 'ERR_TILL_ALREADY_HANDED_OVER: Bu to''lov pullari sotuvchi kassasida qolmagan (topshirilgan). Avval topshiruvni bekor qiling.';

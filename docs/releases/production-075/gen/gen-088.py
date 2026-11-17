@@ -184,19 +184,28 @@ fn = rep(fn, """  v_snap_g        numeric(14, 4) := 0;
   v_od_rem        numeric(18, 2);
   v_open_applied  numeric(18, 2) := 0;
 """)
-fn = rep(fn, """   order by created_at limit 1;
+fn = rep(fn, """     and side = 'debt' and status = 'active' and seller_id = v_seller_id
+   order by created_at limit 1;
   if v_od.id is not null and v_applied > 0 and v_od.amount > 0 then
-    v_snap_g := least(""", """   order by created_at limit 1;
-  -- 088: an UNRATED opening debt takes only what is left of it (the rest of the payment is an ordinary sale debt /
-  -- advance); once it is paid off, later payments are ordinary (converted at the handover)
-  if v_od.id is not null and v_od.equiv_585_g is null then
-    v_od_rem := v_od.amount - coalesce((select sum(c.opening_applied_amount) from public.client_currency_settlements c
+    v_snap_g := least(""", """     and side = 'debt' and status = 'active'
+   order by created_at limit 1;
+  -- 088: a payment takes only what is LEFT of the opening debt (rated or unrated); the rest of it paid an ordinary sale
+  -- debt or is an advance. Once the opening debt is paid off, later payments are ordinary (converted at the handover).
+  if v_od.id is not null then
+    v_od_rem := v_od.amount - coalesce((select sum(coalesce(c.opening_applied_amount, c.applied_to_debt)) from public.client_currency_settlements c
                   where c.opening_document_id = v_od.id and c.status <> 'reversed'), 0);
     v_open_applied := least(v_applied, greatest(v_od_rem, 0));
-    if v_open_applied <= 0 then v_od := null; v_open_applied := 0; end if;
+    if v_open_applied <= 0 then
+      v_od := null; v_open_applied := 0;
+    elsif v_od.seller_id is distinct from v_seller_id then
+      -- the opening debt is part of ANOTHER seller's obligation: its money must go into that seller's till
+      raise exception 'ERR_OPENING_DEBT_OTHER_SELLER: bu mijozning boshlang''ich % qarzi boshqa sotuvchi (%) majburiyatida - to''lov o''sha sotuvchi kassasiga qabul qilinadi',
+        v_cur, coalesce((select coalesce(e.name, e.full_name) from public.employees e where e.id = v_od.seller_id), '-') using errcode = '42501';
+    end if;
   end if;
   if v_od.id is not null and v_applied > 0 and v_od.amount > 0 then
     v_snap_g := least(""")
+fn = rep(fn, """round(v_applied * v_od.seller_obligation_g / v_od.amount, 4));""", """round(v_open_applied * v_od.seller_obligation_g / v_od.amount, 4));""")
 fn = rep(fn, """  if v_od.id is not null and v_applied > 0 and v_od.amount > 0 then
     v_snap_g := least(""", """  if v_od.id is not null and v_open_applied > 0 and v_od.equiv_585_g is null then
     -- 088: UNRATED opening debt: the paid part is valued at THIS payment's rates (084 operation-rate rule) and becomes the
@@ -217,18 +226,17 @@ fn = rep(fn, """  if v_od.id is not null and v_applied > 0 and v_od.amount > 0 t
     v_snap_g := least(""")
 fn = rep(fn, """  v_pool_cash := round(v_cash * case when v_od.id is not null then 1 else 1 - v_f end, 2);
   v_pool_usd  := round(v_usd * case when v_od.id is not null then 1 else 1 - v_f end, 2);""",
-"""  -- 088: for an unrated opening debt only its part (+ the advance part, 0 g) enters the valued pool; a part that paid an
-  -- ordinary sale debt stays unvalued and is converted at the handover (rated debts: the 085 rule, unchanged)
-  v_pool_cash := round(v_cash * case when v_od.id is not null and v_od.equiv_585_g is null then (v_open_applied + (v_credit - v_applied)) / v_credit
-                                     when v_od.id is not null then 1 else 1 - v_f end, 2);
-  v_pool_usd  := round(v_usd * case when v_od.id is not null and v_od.equiv_585_g is null then (v_open_applied + (v_credit - v_applied)) / v_credit
-                                    when v_od.id is not null then 1 else 1 - v_f end, 2);""")
+"""  -- 088: with an opening debt (rated or unrated) only its part (+ the advance part, 0 g) enters the valued pool; a part
+  -- that paid an ordinary sale debt stays unvalued and is converted at the handover (085 put the whole payment into the
+  -- pool: the seller lost the handover credit for the sale part)
+  v_pool_cash := round(v_cash * case when v_od.id is not null then (v_open_applied + (v_credit - v_applied)) / v_credit else 1 - v_f end, 2);
+  v_pool_usd  := round(v_usd * case when v_od.id is not null then (v_open_applied + (v_credit - v_applied)) / v_credit else 1 - v_f end, 2);""")
 fn = rep(fn, """    idempotency_key, recorded_by, notes, opening_document_id, snapshot_released_g, pool_cash_uzs, pool_cash_585_g, pool_usd, pool_usd_585_g)""",
   """    idempotency_key, recorded_by, notes, opening_document_id, snapshot_released_g, pool_cash_uzs, pool_cash_585_g, pool_usd, pool_usd_585_g,
     opening_applied_amount)""")
 fn = rep(fn, """    v_od.id, v_snap_g, v_pool_cash, v_pool_cash_g, v_pool_usd, v_pool_usd_g)""",
   """    v_od.id, v_snap_g, v_pool_cash, v_pool_cash_g, v_pool_usd, v_pool_usd_g,
-    case when v_od.id is not null and v_od.equiv_585_g is null then v_open_applied end)""")
+    case when v_od.id is not null then v_open_applied end)""")
 fn = rep(fn, """  returning id into v_id;
 
   v_existing := jsonb_build_object('status', 'ok', 'settlement_id', v_id,""", """  returning id into v_id;
@@ -242,6 +250,19 @@ out.append('\n' + fn + '\n')
 
 # 7. its reversal: an unrated debt's valued part leaves the seller's obligation again
 fn = body('rpc_reverse_client_currency_settlement', '\n$$;')
+fn = rep(fn, """  select * into v_till from public.seller_gold_accounts where seller_id = v_row.seller_id for update;
+""", """  select * into v_till from public.seller_gold_accounts where seller_id = v_row.seller_id for update;
+  -- 088: the valued pool is an average; once a handover after this payment took from it, taking this payment's own
+  -- grams out again would lose or invent grams (review: 0.2084 g). Exact path: reverse that handover first (its pool
+  -- share comes back exactly), then this payment, then hand over again.
+  if (coalesce(v_row.pool_cash_uzs, 0) > 0 or coalesce(v_row.pool_usd, 0) > 0)
+     and exists (select 1 from public.gold_settlements g where g.seller_id = v_row.seller_id and g.organization_id = v_caller_org
+                   and g.direction = 'seller_to_manager' and g.created_at > v_row.created_at and g.reversal_of_id is null
+                   and coalesce(g.status, 'confirmed') not in ('reversed', 'cancelled')
+                   and (coalesce(g.till_pool_cash_uzs, 0) > 0 or coalesce(g.till_pool_usd, 0) > 0)) then
+    raise exception 'ERR_TILL_ALREADY_HANDED_OVER: bu to''lovdan keyin sotuvchi menejerga topshiruv qilgan - avval o''sha topshiruvni bekor qiling, keyin to''lovni, so''ng qayta topshiring' using errcode = '55000';
+  end if;
+""")
 fn = rep(fn, """   where id = v_row.id;
   insert into public.audit_logs""", """   where id = v_row.id;
   -- 088: an unrated opening debt's valued part leaves the seller's 585 obligation with the payment
