@@ -36,7 +36,7 @@ select 'I2_manager_stock' as check, mva.organization_id, mva.manager_physical_st
        mva.manager_scrap_grams, mva.manager_cash_amount, mva.manager_usd_amount
   from public.manager_vault_account mva;
 
--- I3. Seller accounts: stored vs recomputed with the canonical recalc formula (diff > 0.0001)
+-- I3. Seller accounts: stored vs recomputed with the canonical recalc formula (diff > 0.0001). Needs history >= 085.
 with r as (
   select sga.seller_id, sga.organization_id,
          sga.current_physical_stock_g as stored_stock,
@@ -49,8 +49,11 @@ with r as (
          greatest(0,
            (select coalesce(sum(coalesce(seller_obligation_g, factory_gold_due_grams)), 0) from public.seller_consignments sc
              where sc.seller_id = sga.seller_id and sc.status in ('held_by_seller', 'partially_sold', 'fully_sold'))
-         + (select coalesce(sum(delta_585_g), 0) from public.client_legacy_debts d
-             where d.seller_id = sga.seller_id and d.balance_type = 'debt' and d.status <> 'reversed')
+         -- same formula as recalc_seller_gold_account: legacy never below 0 (076), + 085 opening obligations
+         -- (D documents, rated F snapshots, 088 valued parts of unrated F payments)
+         + greatest(0, (select coalesce(sum(delta_585_g), 0) from public.client_legacy_debts d
+             where d.seller_id = sga.seller_id and d.balance_type = 'debt' and d.status <> 'reversed'))
+         + public._goldia_opening_seller_obligation(sga.seller_id, sga.organization_id)
          - (select coalesce(sum(total_settled_grams), 0) from public.gold_settlements gs
              where gs.seller_id = sga.seller_id and gs.direction in ('seller_to_manager', 'seller_to_factory')
                and coalesce(gs.status, '') not in ('reversed', 'cancelled') and gs.reversal_of_id is null)) as calc_owes,

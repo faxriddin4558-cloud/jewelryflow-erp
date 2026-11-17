@@ -35,7 +35,7 @@ describe("Goldia 087 — backup verification inside the freeze, one restart per 
     S = await t.addUser(org, "s-87@goldia.uz", "Sotuvchi", "sales");
     c1 = (await one(`INSERT INTO public.customers (organization_id, customer_code, contact_name, phone, seller_id) VALUES ('${org}', 'K87-1', 'Mijoz 1', '+998900008701', '${S.employeeId}') RETURNING id`)).id as string;
     await t.asAdmin();
-    await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true)`);
+    await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true), ('${org}', public._goldia_business_date(), 585, ${RATE}, 'UZS', true) ON CONFLICT DO NOTHING`);
   }, 180000);
 
   it("G1 a verification written BEFORE the freeze is refused (ERR_BACKUP_BEFORE_FREEZE); nothing consumed, nothing restarted", async () => {

@@ -4,7 +4,8 @@
 -- Privacy: no customer name / phone / code is printed (customers only as the first 8 characters of their id); free-text
 -- notes are printed only for non-customer documents (A, B, C, C2, D, G, H, I), truncated; "other" (J) prints its type only.
 -- Letters: A manager_inventory, B seller_inventory, C factory_obligation, C2 factory_advance, D seller_obligation,
---          E customer_gram, F customer_currency, G manager_cash, H manager_scrap, I manager_fine_gold, J other.
+--          E customer_gram, F customer_currency, G manager_cash, H manager_scrap, I manager_fine_gold, J other,
+--          S factory_settled (088: seller goods settled with the factory before T0).
 -- Output: AUDIT|<section>|... lines and RESULT|opening_audit|OK|REVIEW (REVIEW = an independent recomputation differs from
 -- the stored balance, a B document is not linked to an A document, a receipt is used twice, or stock does not roll up).
 with
@@ -14,7 +15,7 @@ rst as (select p.organization_id org, p.id period_id, p.status, p.t0, r.id resta
           from per p left join public.financial_restarts r on r.id = p.restart_id),
 letter(kind, l, ord) as (values ('manager_inventory', 'A', 1), ('seller_inventory', 'B', 2), ('factory_obligation', 'C', 3), ('factory_advance', 'C2', 4),
   ('seller_obligation', 'D', 5), ('customer_gram', 'E', 6), ('customer_currency', 'F', 7), ('manager_cash', 'G', 8), ('manager_scrap', 'H', 9),
-  ('manager_fine_gold', 'I', 10), ('other', 'J', 11)),
+  ('manager_fine_gold', 'I', 10), ('other', 'J', 11), ('factory_settled', 'S', 12)),
 docs as (select d.*, lt.l, lt.ord from public.opening_documents d join rst on rst.period_id = d.opening_period_id join letter lt on lt.kind = d.kind),
 act as (select * from docs where status = 'active'),
 -- factory side
@@ -28,6 +29,7 @@ fac as (
     coalesce((select sum(available_physical_g) from op_rcpt_u u where u.org = rst.org), 0) op_avail,
     coalesce((select sum(amount) from act where act.organization_id = rst.org and kind = 'factory_obligation'), 0) c_amt,
     coalesce((select sum(amount) from act where act.organization_id = rst.org and kind = 'factory_advance'), 0) c2_amt,
+    coalesce((select sum(amount) from act where act.organization_id = rst.org and kind = 'factory_settled'), 0) st_amt,
     coalesce((select sum(r.factory_obligation_g) from public.factory_receipts r where r.organization_id = rst.org and r.opening_document_id is null
                and r.status not in ('reversed', 'cancelled') and r.created_at > rst.r_at), 0) post_rcpt_obl,
     coalesce((select sum(r.original_physical_g) from public.factory_receipts r where r.organization_id = rst.org and r.opening_document_id is null
@@ -82,6 +84,24 @@ dup_rcpt as (select organization_id org, factory_receipt_id, count(*) n, string_
                from act where factory_receipt_id is not null and kind = 'manager_inventory' group by 1, 2 having count(*) > 1),
 a_use as (select a.organization_id org, a.document_no, a.physical_g, coalesce(sum(b.physical_g), 0) b_from_it
             from act a left join act b on b.source_document_id = a.id and b.kind = 'seller_inventory' where a.kind = 'manager_inventory' group by 1, 2, 3),
+-- 088 projection (read only): what factory_settled would subtract per B document, and the factory net under the rule
+-- "seller goods at T0 were settled with the factory before T0" - computed two independent ways
+proj as (
+  select b.organization_id org, b.id b_id, b.document_no, b.physical_g, b.source_document_id,
+         case when b.source_document_id is null then (select round(r.factory_obligation_g, 4) from public.factory_receipts r where r.id = b.factory_receipt_id and r.status <> 'reversed')
+              else round(b.physical_g * (1 + coalesce((select a.factory_markup_pct from public.opening_documents a where a.id = b.source_document_id), 0) / 100.0), 4) end settle_g,
+         case when b.source_document_id is null then (select r.factory_markup_pct from public.factory_receipts r where r.id = b.factory_receipt_id)
+              else (select a.factory_markup_pct from public.opening_documents a where a.id = b.source_document_id) end pct,
+         exists (select 1 from act s where s.kind = 'factory_settled' and s.source_document_id = b.id) already_settled
+    from act b where b.kind = 'seller_inventory'),
+proj_tot as (
+  select f.org, coalesce((select sum(settle_g) from proj p where p.org = f.org and not p.already_settled), 0) to_settle,
+         (coalesce(f.v_obl, 0) - coalesce(f.v_adv, 0)) - coalesce((select sum(settle_g) from proj p where p.org = f.org and not p.already_settled), 0) new_net_vault,
+         coalesce((select sum(round((a.physical_g - a.b_from_it) * (1 + coalesce(d.factory_markup_pct, 0) / 100.0), 4)) from a_use a join act d on d.document_no = a.document_no where a.org = f.org), 0)
+           + f.c_amt - f.c2_amt
+           + f.post_rcpt_obl - f.post_hnd new_net_formula,
+         coalesce((select sum(a.physical_g - a.b_from_it) from a_use a where a.org = f.org), 0) manager_a_left_g
+    from fac f),
 flags as (
   select rst.org,
     (select count(*) from blink where blink.org = rst.org and blink.source_document_id is null) b_without_a,
@@ -89,7 +109,7 @@ flags as (
     (select count(*) from dup_rcpt where dup_rcpt.org = rst.org) dup_receipts,
     (select count(*) from a_use where a_use.org = rst.org and a_use.b_from_it > a_use.physical_g + 0.0001) a_overdrawn,
     (select count(*) from sel2 where sel2.org = rst.org and abs(coalesce(sel2.owes, 0) - sel2.recomputed) > 0.0001) seller_diff,
-    abs((f.op_obl + f.c_amt - f.c2_amt + f.post_rcpt_obl - f.post_hnd) - (coalesce(f.v_obl, 0) - coalesce(f.v_adv, 0))) > 0.0001 factory_diff,
+    abs((f.op_obl + f.c_amt - f.c2_amt - f.st_amt + f.post_rcpt_obl - f.post_hnd) - (coalesce(f.v_obl, 0) - coalesce(f.v_adv, 0))) > 0.0001 factory_diff,
     abs((f.op_phys + f.post_rcpt_phys) - (f.mgr_avail + st.held_g + st.op_pieces_left_g)) > 0.0001 stock_diff,
     abs(st.a_phys + st.b_own_phys - f.op_phys) > 0.0001 doc_rollup_diff
   from rst join fac f on f.org = rst.org join stock st on st.org = rst.org),
@@ -124,9 +144,9 @@ lines(k, line) as (
     || '|C_minus_C2=' || (f.c_amt - f.c2_amt) || '|_goldia_opening_factory_net=' || public._goldia_opening_factory_net(f.org)
   from fac f
   union all
-  select '30|' || f.org, 'AUDIT|factory|org=' || f.org || '|opening_receipts_obl_g=' || f.op_obl || '|C=' || f.c_amt || '|C2=' || f.c2_amt
+  select '30|' || f.org, 'AUDIT|factory|org=' || f.org || '|opening_receipts_obl_g=' || f.op_obl || '|C=' || f.c_amt || '|C2=' || f.c2_amt || '|factory_settled_088=' || f.st_amt
     || '|post_opening_receipts_obl_g=' || f.post_rcpt_obl || '|post_opening_handovers_g=' || f.post_hnd
-    || '|independent_net_g=' || (f.op_obl + f.c_amt - f.c2_amt + f.post_rcpt_obl - f.post_hnd)
+    || '|independent_net_g=' || (f.op_obl + f.c_amt - f.c2_amt - f.st_amt + f.post_rcpt_obl - f.post_hnd)
     || '|vault_current_obl_g=' || coalesce(f.v_obl::text, '-') || '|vault_current_adv_g=' || coalesce(f.v_adv::text, '-') || '|vault_net_g=' || (coalesce(f.v_obl, 0) - coalesce(f.v_adv, 0))
     || '|vault_total_obl_g=' || coalesce(f.v_tot_obl::text, '-') || '|vault_total_handed_g=' || coalesce(f.v_tot_hnd::text, '-')
     || '|old_receipts_still_live=' || f.old_live_rcpt
@@ -164,6 +184,16 @@ lines(k, line) as (
     || '|recorded_total_obligation_g=' || coalesce(s.tot_obl::text, '-') || '|legacy_column_g=' || coalesce(s.legacy_col::text, '-') || '|helper_D_plus_F_g=' || s.helper_df
     || '|stock_g=' || coalesce(s.stock_g::text, '-') || '|till_uzs=' || coalesce(s.till_uzs::text, '-') || '|till_usd=' || coalesce(s.till_usd::text, '-') || '|till_lom_g=' || coalesce(s.till_lom::text, '-')
   from sel2 s
+  union all
+  select '70|' || p.org || '|' || p.document_no, 'AUDIT|projection_088_B|' || p.document_no || '|physical_g=' || coalesce(p.physical_g::text, '-') || '|factory_pct=' || coalesce(p.pct::text, '-')
+    || '|source=' || case when p.source_document_id is null then 'own receipt' else 'A' end || '|factory_settled_g=' || coalesce(p.settle_g::text, '-') || '|already_settled=' || p.already_settled
+  from proj p
+  union all
+  select '71|' || t.org, 'AUDIT|projection_088|org=' || t.org || '|manager_A_goods_left_g=' || t.manager_a_left_g || '|to_settle_g=' || t.to_settle
+    || '|new_net_by_vault=vault_net-to_settle=' || round(t.new_net_vault, 4) || '|new_net_by_formula=sum_A(left_g*(1+A%))+C-C2+later_receipts-handovers=' || round(t.new_net_formula, 4)
+    || '|agree=' || (abs(t.new_net_vault - t.new_net_formula) <= 0.001)
+    || '|meaning=' || case when t.new_net_vault < 0 then 'the factory owes the manager ' || round(-t.new_net_vault, 4) || ' g' when t.new_net_vault > 0 then 'the manager owes the factory ' || round(t.new_net_vault, 4) || ' g' else 'closed' end
+  from proj_tot t
   union all
   select '89|' || fl.org, 'AUDIT|flags|org=' || fl.org || '|B_without_A=' || fl.b_without_a || '|B_bad_source=' || fl.b_bad_src || '|duplicate_receipts=' || fl.dup_receipts
     || '|A_overdrawn_by_B=' || fl.a_overdrawn || '|seller_diff=' || fl.seller_diff || '|factory_diff=' || fl.factory_diff || '|stock_diff=' || fl.stock_diff || '|doc_rollup_diff=' || fl.doc_rollup_diff

@@ -12,6 +12,7 @@ import { supabase } from "@/lib/erp-engine";
 import { parseErrorMessage } from "@/lib/error-utils";
 import { isDirectorUiRole, isManagementUiRole } from "@/lib/sales-role-access";
 import { formatTashkent, openingT0Problem, tashkentWallClockToIso } from "@/lib/business-date";
+import { factoryNetWording } from "@/lib/factory-account-summary";
 
 const CONFIRM_TEXT = "MOLIYAVIY HISOBNI QAYTA BOSHLASH";
 const newKey = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `k-${Date.now()}-${Math.random()}`);
@@ -47,7 +48,13 @@ const KINDS: { key: string; label: string }[] = [
   { key: "manager_fine_gold", label: "I. Menejerdagi toza oltin" },
   { key: "other", label: "J. Boshqa aktiv / majburiyat" },
 ];
-const KIND_LABEL: Record<string, string> = Object.fromEntries(KINDS.map((k) => [k.key, k.label.replace(/^[A-Z0-9]+\. /, "")]));
+const KIND_LABEL: Record<string, string> = {
+  ...Object.fromEntries(KINDS.map((k) => [k.key, k.label.replace(/^[A-Z0-9]+\. /, "")])),
+  // 088: created from a B row (button), not from the form
+  factory_settled: "Zavod bilan oldin hisob-kitob qilingan sotuvchi tovari",
+};
+// 088: F rates are optional; without them the debt stays in so'm / USD and has no 585 g yet
+const RATE_OPTIONAL_HINT = "ixtiyoriy - kiritilmasa qarz so'm/USD da saqlanadi, grammi hali hisoblanmagan";
 const CHECK_LABEL: Record<string, string> = {
   seller_tills_empty: "Sotuvchilar kassasi bo'sh (so'm, USD, LOM — O-2)",
   seller_stock_equals_held_pieces: "Sotuvchi ombori = qo'lidagi donalar",
@@ -66,14 +73,19 @@ export function OpeningAccountingSection() {
   const [busy, setBusy] = useState(false);
   const [sellers, setSellers] = useState<{ id: string; name: string }[]>([]);
   const [customers, setCustomers] = useState<{ id: string; label: string }[]>([]);
+  // 088: B documents that already have an active factory_settled document (source_document_id)
+  const [settledSources, setSettledSources] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
-    const [r, s, e, c] = await Promise.all([
+    const [r, s, e, c, fs] = await Promise.all([
       supabase.rpc("current_employee_role_text"),
       supabase.rpc("rpc_get_opening_state"),
       supabase.from("employees").select("id, name, full_name, role, is_active"),
       supabase.from("customers").select("id, contact_name, customer_code").order("contact_name"),
+      supabase.from("opening_documents").select("source_document_id").eq("kind", "factory_settled").eq("status", "active"),
     ]);
+    setSettledSources(new Set(((fs.data ?? []) as { source_document_id: string | null }[])
+      .map((x) => x.source_document_id).filter((x): x is string => !!x)));
     setRole((r.data as string) ?? null);
     if (s.error) setErr(parseErrorMessage(s.error)); else setSt(s.data as State);
     setSellers(((e.data ?? []) as { id: string; name?: string; full_name?: string; role?: string; is_active?: boolean }[])
@@ -153,6 +165,22 @@ export function OpeningAccountingSection() {
     const { error } = await supabase.rpc("rpc_cancel_opening_document", { p_document_id: d.id, p_reason: reason.trim(), p_idempotency_key: `cancel-${d.id}` });
     setBusy(false);
     if (error) setErr(parseErrorMessage(error)); else { setMsg(`${d.document_no} bekor qilindi`); await load(); }
+  };
+
+  // 088: goods of a B document were settled with the factory before T0 -> lowers the factory account only
+  const markFactorySettled = async (d: Doc) => {
+    if (busy) return;
+    const basis = window.prompt(`${d.document_no}: zavod bilan T0 dan oldin hisob-kitob qilinganining asosini yozing (majburiy):`);
+    if (!basis || !basis.trim()) return;
+    setBusy(true); setErr(null); setMsg(null);
+    const { data, error } = await supabase.rpc("rpc_record_opening_document", {
+      p_kind: "factory_settled", p_source_document_id: d.id, p_notes: basis.trim(), p_idempotency_key: newKey(),
+    });
+    setBusy(false);
+    if (error) { setErr(parseErrorMessage(error)); return; }
+    const r = data as { document_no: string; amount: number; formula: string | null };
+    setMsg(`Kiritildi: ${r.document_no} — zavod hisobidan ${fmt(r.amount)} g chiqarildi${r.formula ? ` (${r.formula})` : ""}`);
+    await load();
   };
 
   // ---------------------------------------------------------------- lock (baseline)
@@ -269,9 +297,13 @@ export function OpeningAccountingSection() {
             {need("proba") && (kind !== "other" || f.unit === "GOLD") && <label className="text-xs">Proba
               <input type="number" step="any" min="0" className={inputCls} value={f.proba ?? ""} onChange={set("proba")} data-testid="opening-proba" /></label>}
             {need("usd_rate") && (f.unit === "USD") && <label className="text-xs">USD kursi (so&apos;m)
-              <input type="number" step="any" min="0" className={inputCls} value={f.usd_rate ?? ""} onChange={set("usd_rate")} data-testid="opening-usd-rate" /></label>}
+              <input type="number" step="any" min="0" className={inputCls} value={f.usd_rate ?? ""} onChange={set("usd_rate")} data-testid="opening-usd-rate"
+                placeholder={kind === "customer_currency" ? "ixtiyoriy" : undefined} /></label>}
             {need("lom_rate") && (f.unit === "UZS" || f.unit === "USD") && <label className="text-xs">585 kursi (so&apos;m / g){kind === "customer_currency" ? " — sotuvchi majburiyati shu kurs bilan bir marta hisoblanadi" : ""}
-              <input type="number" step="any" min="0" className={inputCls} value={f.lom_rate ?? ""} onChange={set("lom_rate")} data-testid="opening-lom-rate" /></label>}
+              <input type="number" step="any" min="0" className={inputCls} value={f.lom_rate ?? ""} onChange={set("lom_rate")} data-testid="opening-lom-rate"
+                placeholder={kind === "customer_currency" ? "ixtiyoriy" : undefined} /></label>}
+            {kind === "customer_currency" && (f.unit === "UZS" || f.unit === "USD") && (
+              <div className="text-xs text-slate-400 sm:col-span-2 break-words" data-testid="opening-rate-optional-hint">Kurslar: {RATE_OPTIONAL_HINT}</div>)}
             {need("product_name") && <label className="text-xs">Mahsulot / partiya nomi
               <input className={inputCls} value={f.product_name ?? ""} onChange={set("product_name")} /></label>}
             {need("other_type") && <label className="text-xs">Qarz turi<input className={inputCls} value={f.other_type ?? ""} onChange={set("other_type")} data-testid="opening-other-type" /></label>}
@@ -298,12 +330,17 @@ export function OpeningAccountingSection() {
                     <td>{KIND_LABEL[d.kind] ?? d.kind}{d.side ? ` · ${d.side}` : ""}</td>
                     <td>{d.seller_name ?? d.customer_name ?? d.counterparty ?? "—"}{d.customer_name && d.seller_name ? ` (${d.seller_name})` : ""}</td>
                     <td className="text-right font-mono whitespace-nowrap">{fmt(d.amount)} {d.unit ?? ""}{d.proba ? ` · ${d.proba}` : ""}</td>
-                    <td className="text-right font-mono">{fmt(d.equiv_585_g)}</td>
+                    <td className="text-right font-mono">{d.kind === "customer_currency" && d.side === "debt" && d.equiv_585_g === null
+                      ? <span className="font-sans text-amber-300 whitespace-nowrap" data-testid="opening-unvalued">Hali hisoblanmagan</span> : fmt(d.equiv_585_g)}</td>
                     <td className="text-slate-400">{d.formula ?? ""}{d.usd_rate ? ` · USD ${fmt(d.usd_rate, 2)}` : ""}{d.lom_rate ? ` · 585 ${fmt(d.lom_rate, 2)}` : ""}</td>
                     <td className="text-slate-400 whitespace-nowrap">{d.created_by_name ?? ""} · {new Date(d.created_at).toLocaleString("ru-RU")}</td>
-                    <td>{draft && d.status === "active" && (
-                      <button type="button" onClick={() => void cancelDoc(d)} disabled={busy} data-testid="opening-cancel"
-                        className="min-h-[36px] px-2 rounded-lg bg-slate-800 border border-slate-700">Bekor</button>)}</td>
+                    <td><div className="flex flex-col gap-1 items-stretch">
+                      {draft && d.status === "active" && d.kind === "seller_inventory" && !settledSources.has(d.id) && (
+                        <button type="button" onClick={() => void markFactorySettled(d)} disabled={busy} data-testid="factory-settled-button"
+                          className="min-h-[36px] px-2 rounded-lg bg-amber-900 border border-amber-700 text-amber-100 text-left">Zavod bilan oldin hisob-kitob qilingan</button>)}
+                      {draft && d.status === "active" && (
+                        <button type="button" onClick={() => void cancelDoc(d)} disabled={busy} data-testid="opening-cancel"
+                          className="min-h-[36px] px-2 rounded-lg bg-slate-800 border border-slate-700">Bekor</button>)}</div></td>
                   </tr>))}
               </tbody>
             </table>
@@ -314,6 +351,26 @@ export function OpeningAccountingSection() {
       {st?.period && (
         <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-2" data-testid="opening-reconciliation">
           <h2 className="font-black text-amber-400">Solishtirish</h2>
+          {(() => {
+            const t = st.totals;
+            const net = factoryNetWording(t.factory_net_g === null || t.factory_net_g === undefined ? null : Number(t.factory_net_g));
+            const settled = Number(t.factory_settled_seller_goods_g ?? 0);
+            const uzs = Number(t.customers_uzs_unvalued ?? 0);
+            const usd = Number(t.customers_usd_unvalued ?? 0);
+            return (
+              <div className="space-y-1 text-sm break-words">
+                <div className="rounded-xl bg-slate-950 border border-slate-800 p-2" data-testid="factory-net-card">
+                  <span className="text-slate-400">{net.title}: </span>
+                  <b className="font-mono">{t.factory_net_g === null || t.factory_net_g === undefined ? "—" : `${fmt(net.amountG)} g`}</b>
+                  {settled > 0 && <div className="text-xs text-slate-400">shundan zavod bilan oldin hisob-kitob qilingan sotuvchi tovari: {fmt(settled)} g chiqarildi</div>}
+                </div>
+                {(uzs > 0 || usd > 0) && (
+                  <div className="rounded-xl bg-amber-950/60 border border-amber-800 p-2 text-xs text-amber-200" data-testid="unvalued-currency">
+                    Kursi kiritilmagan mijoz qarzlari: {fmt(uzs, 2)} so&apos;m, {fmt(usd, 2)} USD (585 g jamiga kiritilmagan)
+                  </div>)}
+              </div>
+            );
+          })()}
           <div className="grid gap-1 sm:grid-cols-2 text-xs font-mono">
             {Object.entries(st.totals).map(([k, v]) => <div key={k} className="flex justify-between gap-2"><span className="font-sans text-slate-400">{k}</span><span>{fmt(v)}</span></div>)}
           </div>

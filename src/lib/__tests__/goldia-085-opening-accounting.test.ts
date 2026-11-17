@@ -65,7 +65,8 @@ describe("Goldia 085 — financial restart + opening accounting", () => {
     c2 = await cust(org2, "C-X1", "Boshqa mijoz", s2);
     expect(c2).toBeTruthy();
     await ex(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES
-             ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true), ('${org2}', CURRENT_DATE, 585, ${RATE}, 'UZS', true)`);
+             ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true), ('${org2}', CURRENT_DATE, 585, ${RATE}, 'UZS', true),
+             ('${org}', public._goldia_business_date(), 585, ${RATE}, 'UZS', true), ('${org2}', public._goldia_business_date(), 585, ${RATE}, 'UZS', true) ON CONFLICT DO NOTHING`);
     // ---- the "wrong" pre-restart history: stock, sales, payments, a currency payment WITHOUT debt (advance + till),
     // a legacy gram debt, capital, a currency sale - like the production state found in the audit
     await as(mgr);
@@ -219,7 +220,7 @@ describe("Goldia 085 — financial restart + opening accounting", () => {
     expect(N(D.u1.seller_obligation_g)).toBe(10);
     expect([N((await cur(cA2, "UZS")).d), N((await acc(A)).owes)]).toEqual([8600000, r4(68.6 + 10)]);
     await t.expectError(`SELECT public.rpc_record_opening_document(p_kind := 'customer_currency', p_customer_id := '${cA2}', p_unit := 'UZS', p_side := 'debt', p_amount := 1, p_lom_rate := 860000, p_idempotency_key := 'dup')`, "ERR_OPENING_DUPLICATE");
-    await t.expectError(`SELECT public.rpc_record_opening_document(p_kind := 'customer_currency', p_customer_id := '${cB1}', p_unit := 'USD', p_side := 'debt', p_amount := 100, p_lom_rate := 900000, p_idempotency_key := 'norate')`, "ERR_RATE_REQUIRED");
+    await t.expectError(`SELECT public.rpc_record_opening_document(p_kind := 'customer_currency', p_customer_id := '${cB1}', p_unit := 'USD', p_side := 'debt', p_amount := 100, p_lom_rate := -1, p_idempotency_key := 'norate')`, "manfiy"); // 088: a rate is optional, a wrong one is refused
     D.d1 = await doc(mgr, `p_kind := 'customer_currency', p_customer_id := '${cB1}', p_unit := 'USD', p_side := 'debt', p_amount := 100, p_usd_rate := 12600, p_lom_rate := 900000`);
     expect(N(D.d1.seller_obligation_g)).toBe(r4((100 * 12600) / 900000)); // 1.4
     expect(N((await acc(B)).owes)).toBe(r4(56 + 1.4));
@@ -338,7 +339,7 @@ describe("Goldia 085 — financial restart + opening accounting", () => {
     await t.rpc(`public.rpc_record_sale_return(p_sale_id := '${s.sale_id}', p_weight_grams := 4, p_reason := 'vozvrat', p_destination := 'seller', p_idempotency_key := 'r-1')`);
     expect([N((await acc(A)).st), N((await gram(cA1)).d)]).toEqual([24, r4(36.5 - 4.6)]);
     // a later change of the official rate never revalues the opening obligation (snapshot)
-    await q(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES ('${org}', CURRENT_DATE + 1, 585, 1000000, 'UZS', true)`);
+    await q(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES ('${org}', public._goldia_business_date() + 1, 585, 1000000, 'UZS', true)`);
     await q(`SELECT public.recalc_seller_gold_account('${A.employeeId}', '${org}')`);
     expect(N((await acc(A)).owes)).toBe(r4(owes0 - 1));
     expect(N((await one(`SELECT seller_obligation_g v FROM public.opening_documents WHERE id = '${D.u1.document_id}'`)).v)).toBe(10);

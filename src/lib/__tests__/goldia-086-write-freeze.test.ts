@@ -31,7 +31,7 @@ describe("Goldia 086 — financial write freeze + T0 on the server", () => {
     c1 = (await one(`INSERT INTO public.customers (organization_id, customer_code, contact_name, phone, seller_id) VALUES ('${org}', 'K86-1', 'Mijoz 1', '+998900008601', '${S.employeeId}') RETURNING id`)).id as string;
     c2 = (await one(`INSERT INTO public.customers (organization_id, customer_code, contact_name, phone, seller_id) VALUES ('${org2}', 'K86-2', 'Mijoz 2', '+998900008602', '${S2.employeeId}') RETURNING id`)).id as string;
     await t.asAdmin();
-    await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true), ('${org2}', CURRENT_DATE, 585, ${RATE}, 'UZS', true)`);
+    await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true), ('${org2}', CURRENT_DATE, 585, ${RATE}, 'UZS', true), ('${org}', public._goldia_business_date(), 585, ${RATE}, 'UZS', true), ('${org2}', public._goldia_business_date(), 585, ${RATE}, 'UZS', true) ON CONFLICT DO NOTHING`);
   }, 180000);
 
   it("F0 085 alone has no backup -> restart protection: after a backup verification an ordinary write still passes", async () => {

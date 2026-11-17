@@ -33,7 +33,7 @@ describe("Goldia 085 — final rules D-2 / D-3 / D-4 / D-6", () => {
       VALUES ('${org}', '${code}', 'Mijoz ${code}', '+99890${code.replace(/\D/g, "").padStart(7, "0")}', '${S.employeeId}') RETURNING id`)).id as string;
     cUzs = await c("C-U1"); cUsd = await c("C-U2"); cAdv = await c("C-U3"); cG = await c("C-U4");
     await t.asAdmin();
-    await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true)`);
+    await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true), ('${org}', public._goldia_business_date(), 585, ${RATE}, 'UZS', true) ON CONFLICT DO NOTHING`);
     // 086 / 087: the release tooling freezes first, then takes the backup and writes its verification inside the freeze;
     // the restart needs that verification and a T0 within the last 24 h
     await t.asAdmin();

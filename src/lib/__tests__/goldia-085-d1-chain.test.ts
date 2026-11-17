@@ -36,7 +36,7 @@ describe("Goldia 085 / D-1 — factory -> manager -> seller chain at the opening
       VALUES ('${org}', 'C-D1', 'Mijoz D1', '+998900000801', '${S.employeeId}') RETURNING id`)).id as string;
     await t.asAdmin();
     await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed)
-                     VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true)`);
+                     VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true), ('${org}', public._goldia_business_date(), 585, ${RATE}, 'UZS', true) ON CONFLICT DO NOTHING`);
     // 086 / 087: the release tooling freezes first, then takes the backup and writes its verification inside the freeze;
     // the restart needs that verification and a T0 within the last 24 h
     await t.asAdmin();

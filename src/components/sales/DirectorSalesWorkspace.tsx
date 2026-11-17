@@ -44,6 +44,7 @@ import { CompanyRateDifferenceCard } from "./CompanyRateDifferenceCard";
 import { MarkupDifferenceCard } from "./MarkupDifferenceCard";
 import { tashkentBusinessDate } from "@/lib/business-date";
 import { balanceTotals, goldAdvanceOf, goldDebtOf, netDirectionLabel } from "@/lib/customer-balance";
+import { factoryNetWording, isFactoryAccountMismatch, summarizeFactoryAccount, type OpeningFactoryDocLike } from "@/lib/factory-account-summary";
 
 export type DirectorSalesTab =
   | "factory"
@@ -125,6 +126,8 @@ export function DirectorSalesWorkspace({
   const [refiningBatches, setRefiningBatches] = useState<RefiningBatchRow[]>([]);
   const [goldPurchases, setGoldPurchases] = useState<GoldPurchaseRow[]>([]);
   const [factoryHandovers, setFactoryHandovers] = useState<FactoryGoldHandoverRow[]>([]);
+  // 088: opening C (factory_obligation), C2 (factory_advance) and factory_settled documents (part of the factory account)
+  const [openingFactoryDocs, setOpeningFactoryDocs] = useState<OpeningFactoryDocLike[]>([]);
 
   // Form: Factory Receipt ("Zavod bilan")
   const [rcpProductName, setRcpProductName] = useState("");
@@ -261,6 +264,7 @@ export function DirectorSalesWorkspace({
         handoversRes,
         capTxsRes,
         baselineRes,
+        openingFactoryRes,
       ] = await Promise.all([
         supabase.from("daily_gold_rates").select("*").order("rate_date", { ascending: false }).limit(20),
         supabase.from("sales_markup_presets").select("*").order("display_order", { ascending: true }),
@@ -281,6 +285,7 @@ export function DirectorSalesWorkspace({
         supabase.from("factory_gold_handovers").select("*").order("handover_date", { ascending: false }),
         supabase.from("financial_transactions").select("id, transaction_no, physical_weight_grams, gold_proba, equiv_585_grams").eq("transaction_type", "capital_contribution").in("source_till", ["manager_fine_gold", "fine_gold"]).neq("status", "reversed").order("created_at", { ascending: false }),
         supabase.from("accounting_baselines").select("usd_rate").eq("status", "active").order("baseline_date", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("opening_documents").select("kind, status, amount").eq("status", "active").in("kind", ["factory_obligation", "factory_advance", "factory_settled"]),
       ]);
 
       if (ratesRes.data && ratesRes.data.length > 0) {
@@ -301,6 +306,7 @@ export function DirectorSalesWorkspace({
       if (refiningRes.data) setRefiningBatches(refiningRes.data as RefiningBatchRow[]);
       if (purchasesRes.data) setGoldPurchases(purchasesRes.data as GoldPurchaseRow[]);
       if (handoversRes.data) setFactoryHandovers(handoversRes.data as FactoryGoldHandoverRow[]);
+      if (openingFactoryRes.data) setOpeningFactoryDocs(openingFactoryRes.data as OpeningFactoryDocLike[]);
       if (capTxsRes.data) setCapitalPureTxs(capTxsRes.data as { id: string; transaction_no: string; physical_weight_grams?: number; gold_proba?: number; equiv_585_grams?: number }[]);
       if (baselineRes?.data && "usd_rate" in baselineRes.data && baselineRes.data.usd_rate) {
         const bRate = Number(baselineRes.data.usd_rate);
@@ -1444,18 +1450,23 @@ export function DirectorSalesWorkspace({
           {(() => {
             const activeReceipts = factoryReceipts.filter((r) => r.status !== "reversed");
             const activeHandovers = factoryHandovers.filter((h) => h.status !== "reversed");
-            const totalRcpObligation = activeReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0);
-            const totalHndPaid = activeHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0);
-            const netFactoryDebt = Math.max(0, totalRcpObligation - totalHndPaid);
-            const factoryAdvance = Math.max(0, Number(managerVault?.current_factory_advance_g || 0), totalHndPaid - totalRcpObligation);
             const mgrAvailStock = activeReceipts.reduce((sum, r) => sum + Number(r.available_physical_g || 0), 0);
+            // 088: one factory account (the vault); the cards only explain its parts
+            const fa = summarizeFactoryAccount({ receipts: factoryReceipts, handovers: factoryHandovers, openingDocs: openingFactoryDocs, vault: managerVault });
+            const net = factoryNetWording(fa.vaultNetG);
+            const netTone = net.direction === "manager_owes_factory"
+              ? { box: "bg-rose-950 border-rose-800", head: "text-rose-200", value: "text-rose-400" }
+              : net.direction === "factory_owes_manager"
+                ? { box: "bg-teal-950 border-teal-700", head: "text-teal-200", value: "text-teal-300" }
+                : { box: "bg-slate-900 border-slate-700", head: "text-[#CBD5E1]", value: "text-slate-200" };
 
             return (
-              <div className={`grid grid-cols-1 ${factoryAdvance > 0 ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6" : "md:grid-cols-5"} gap-4`}>
+              <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="bg-slate-900 text-white p-4 rounded-3xl border border-slate-800 shadow-sm">
-                  <div className="text-xs font-bold text-[#CBD5E1]">Jami Qabul Qilingan Tovar</div>
+                  <div className="text-xs font-bold text-[#CBD5E1]">Zavoddan olingan tovar</div>
                   <div className="text-2xl font-black font-mono text-cyan-300 mt-1">
-                    {formatScreenGrams(activeReceipts.reduce((sum, r) => sum + Number(r.original_physical_g || 0), 0))} <span className="text-xs font-normal">fizik</span>
+                    {formatScreenGrams(fa.receivedPhysicalG)} <span className="text-xs font-normal">fizik</span>
                   </div>
                   <div className="text-[11px] text-[#CBD5E1] mt-1">
                     {activeReceipts.length} ta kvitansiya {factoryReceipts.length > activeReceipts.length ? `(${factoryReceipts.length - activeReceipts.length} bekor qilingan)` : ""}
@@ -1470,43 +1481,50 @@ export function DirectorSalesWorkspace({
                   <div className="text-[11px] text-blue-200 mt-1">Sotuvchilarga tarqatish uchun tayyor</div>
                 </div>
 
-                <div className="bg-amber-950 text-white p-4 rounded-3xl border border-amber-800 shadow-sm">
-                  <div className="text-xs font-bold text-amber-200">Zavod Oldidagi Majburiyat</div>
+                <div className="bg-amber-950 text-white p-4 rounded-3xl border border-amber-800 shadow-sm" data-testid="factory-goods-debt-card">
+                  <div className="text-xs font-bold text-amber-200">Tovar bo&apos;yicha qarz</div>
                   <div className="text-2xl font-black font-mono text-amber-400 mt-1">
-                    {formatScreenGrams(totalRcpObligation)} <span className="text-xs font-normal">585</span>
+                    {formatScreenGrams(fa.goodsDebtG)} <span className="text-xs font-normal">585</span>
                   </div>
                   <div className="text-[11px] text-amber-200 mt-1">Ustama foizlari bilan hisoblangan</div>
+                  {fa.settledSellerGoodsG > 0 && (
+                    <div className="text-[11px] text-amber-200 mt-1">
+                      shundan zavod bilan oldin hisob-kitob qilingan sotuvchi tovari: {formatScreenGrams(fa.settledSellerGoodsG)} g chiqarildi
+                    </div>
+                  )}
+                  {fa.obligationWithoutGoodsG > 0 && (
+                    <div className="text-[11px] text-amber-200 mt-1">
+                      + tovarsiz zavod majburiyati (C): {formatScreenGrams(fa.obligationWithoutGoodsG)} g
+                    </div>
+                  )}
                 </div>
 
-                <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm">
-                  <div className="text-xs font-bold text-emerald-200">Zavodga Qaytarilgan Oltin</div>
+                <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm" data-testid="factory-given-gold-card">
+                  <div className="text-xs font-bold text-emerald-200">Oldindan berilgan oltin</div>
                   <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
-                    {formatScreenGrams(totalHndPaid)} <span className="text-xs font-normal">585 eq</span>
+                    {formatScreenGrams(fa.givenGoldG)} <span className="text-xs font-normal">585 eq</span>
                   </div>
                   <div className="text-[11px] text-emerald-200 mt-1">
-                    {activeHandovers.length} ta topshirish hujjati {factoryHandovers.length > activeHandovers.length ? `(${factoryHandovers.length - activeHandovers.length} bekor qilingan)` : ""}
+                    Zavodga Qaytarilgan Oltin: {formatScreenGrams(fa.handoversG)} g · {activeHandovers.length} ta topshirish hujjati {factoryHandovers.length > activeHandovers.length ? `(${factoryHandovers.length - activeHandovers.length} bekor qilingan)` : ""}
                   </div>
+                  {fa.advanceDocumentsG > 0 && (
+                    <div className="text-[11px] text-emerald-200 mt-1">+ boshlang&apos;ich avans (C2): {formatScreenGrams(fa.advanceDocumentsG)} g</div>
+                  )}
                 </div>
 
-                <div className="bg-rose-950 text-white p-4 rounded-3xl border border-rose-800 shadow-sm">
-                  <div className="text-xs font-bold text-rose-200">Hozirgi Sof Zavod Qarzi</div>
-                  <div className="text-2xl font-black font-mono text-rose-400 mt-1">
-                    {formatScreenGrams(netFactoryDebt)} <span className="text-xs font-normal">585</span>
+                <div className={`text-white p-4 rounded-3xl border shadow-sm ${netTone.box}`} data-testid="factory-net-card">
+                  <div className={`text-xs font-bold ${netTone.head}`}>{net.title}</div>
+                  <div className={`text-2xl font-black font-mono mt-1 ${netTone.value}`}>
+                    {fa.vaultNetG === null ? "—" : formatScreenGrams(net.amountG)} <span className="text-xs font-normal">585</span>
                   </div>
-                  <div className="text-[11px] text-rose-200 mt-1">
-                    {netFactoryDebt === 0 ? "Qarz yo'q (to'liq yopilgan)" : "Zavod oldidagi toza qoldiq qarz"}
-                  </div>
+                  <div className={`text-[11px] mt-1 ${netTone.head}`}>Zavod hisobi (menejer seyfi bo&apos;yicha)</div>
                 </div>
-
-                {factoryAdvance > 0 && (
-                  <div className="bg-teal-950 text-white p-4 rounded-3xl border border-teal-700 shadow-sm">
-                    <div className="text-xs font-bold text-teal-200">🏆 Zavoddagi Avansimiz (Haqdorlik)</div>
-                    <div className="text-2xl font-black font-mono text-teal-300 mt-1">
-                      {formatScreenGrams(factoryAdvance)} <span className="text-xs font-normal">585 eq</span>
-                    </div>
-                    <div className="text-[11px] text-teal-200 mt-1">Bizning aktivimiz; keyingi kirimda yopiladi</div>
-                  </div>
-                )}
+              </div>
+              {isFactoryAccountMismatch(fa) && (
+                <div role="status" className="rounded-xl bg-amber-950/60 border border-amber-700 px-3 py-2 text-xs text-amber-200" data-testid="factory-cards-mismatch">
+                  ⚠️ Kartalar zavod hisobi bilan mos emas: {formatScreenGrams(Math.abs(fa.mismatchG ?? 0), 4)} g farq
+                </div>
+              )}
               </div>
             );
           })()}

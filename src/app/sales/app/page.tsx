@@ -12,7 +12,6 @@ import {
   type ConsignmentPieceRow,
   type ManagerVaultAccountRow,
   type FactoryReceiptRow,
-  type FactoryGoldHandoverRow,
   type ErpUser,
 } from "@/lib/erp-engine";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
@@ -22,6 +21,7 @@ import { fetchManagerAvailableStockGrams, isManagementUiRole, isSellerUiRole } f
 import { ManagerSimplePanel } from "@/components/sales/ManagerSimplePanel";
 import { useSessionUser } from "@/lib/use-session-user";
 import { balanceTotals, goldAdvanceOf, goldDebtOf, netDirectionLabel } from "@/lib/customer-balance";
+import { factoryNetWording } from "@/lib/factory-account-summary";
 
 
 // Sellers get their own dashboard only; the company dashboard (and its company-wide queries) is never
@@ -60,7 +60,6 @@ function CompanyDashboardContent() {
   const [managerVault, setManagerVault] = useState<ManagerVaultAccountRow | null>(null);
   const [dailyRate, setDailyRate] = useState<DailyGoldRateRow | null>(null);
   const [factoryReceipts, setFactoryReceipts] = useState<FactoryReceiptRow[]>([]);
-  const [factoryHandovers, setFactoryHandovers] = useState<FactoryGoldHandoverRow[]>([]);
   const [canonicalManagerStock, setCanonicalManagerStock] = useState<number | null>(null);
 
   useEffect(() => {
@@ -73,14 +72,13 @@ function CompanyDashboardContent() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [sellersRes, clientsRes, piecesRes, vaultRes, rateRes, rcpRes, hndRes, salesRes, mgrStockRes] = await Promise.all([
+      const [sellersRes, clientsRes, piecesRes, vaultRes, rateRes, rcpRes, salesRes, mgrStockRes] = await Promise.all([
         supabase.from("seller_gold_accounts").select("*, employee:employees(name, full_name)"),
         supabase.from("client_gold_accounts").select("*"),
         supabase.from("consignment_pieces").select("*, consignment:seller_consignments(id, consignment_no, seller_markup_pct, factory_markup_pct)"),
         supabase.from("manager_vault_account").select("*").limit(1).maybeSingle(),
         supabase.from("daily_gold_rates").select("*").eq("proba", 585).order("rate_date", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("factory_receipts").select("factory_obligation_g, original_physical_g, available_physical_g, transferred_physical_g, status"),
-        supabase.from("factory_gold_handovers").select("agreed_equivalent_g, status"),
         supabase.from("jewelry_sales").select("base_weight_grams, status"),
         fetchManagerAvailableStockGrams(supabase),
       ]);
@@ -97,7 +95,6 @@ function CompanyDashboardContent() {
       if (vaultRes.data) setManagerVault(vaultRes.data as ManagerVaultAccountRow);
       if (rateRes.data) setDailyRate(rateRes.data as DailyGoldRateRow);
       if (rcpRes.data) setFactoryReceipts(rcpRes.data as FactoryReceiptRow[]);
-      if (hndRes.data) setFactoryHandovers(hndRes.data as FactoryGoldHandoverRow[]);
       if (salesRes.data) {
         const soldGrams = salesRes.data
           .filter((s: { status?: string }) => s.status !== "cancelled" && s.status !== "reversed")
@@ -118,14 +115,15 @@ function CompanyDashboardContent() {
   }, [loadData]);
 
   // Calculations
-  // Active non-reversed receipts and handovers
+  // Active non-reversed receipts
   const activeReceipts = factoryReceipts.filter((r) => r.status !== "reversed");
-  const activeHandovers = factoryHandovers.filter((h) => h.status !== "reversed");
 
-  // Tier 1: Canonical Factory Ledger (receipts - handovers)
-  const factoryReceiptsObligation = activeReceipts.reduce((sum, r) => sum + Number(r.factory_obligation_g || 0), 0);
-  const factoryHandoversSettled = activeHandovers.reduce((sum, h) => sum + Number(h.agreed_equivalent_g || 0), 0);
-  const totalFactoryObligation = Math.max(0, factoryReceiptsObligation - factoryHandoversSettled);
+  // Tier 1: the factory account is the vault (088): current_factory_obligation_g - current_factory_advance_g
+  // (receipts - handovers alone ignored the opening C / C2 / factory_settled documents and hid a factory advance)
+  const factoryNet = factoryNetWording(
+    managerVault ? Number(managerVault.current_factory_obligation_g || 0) - Number(managerVault.current_factory_advance_g || 0) : null
+  );
+  const totalFactoryObligation = factoryNet.amountG;
 
   const totalSellerTillScrap = sellerAccounts.reduce(
     (acc, s) => acc + Number(s.seller_till_scrap_585_eq_g ?? s.seller_till_scrap_grams ?? 0),
@@ -261,7 +259,7 @@ function CompanyDashboardContent() {
             <div className="text-xl font-black font-mono text-amber-400 mt-1">
               {formatScreenGrams(totalFactoryObligation)}
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">Zavod oldidagi sof qarz (ustama bilan)</div>
+            <div className="text-[10px] text-slate-400 mt-1" data-testid="dashboard-factory-net-label">{factoryNet.title}</div>
           </div>
 
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm hover:border-blue-500/40 transition">
@@ -405,10 +403,11 @@ function CompanyDashboardContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
-            <div className="text-amber-400 text-xs font-black uppercase">1-Daraja: Zavod Majburiyati (Kirimlar bo&apos;yicha)</div>
+            <div className="text-amber-400 text-xs font-black uppercase">1-Daraja: Zavod Majburiyati</div>
             <div className="text-lg font-black font-mono text-amber-300">
               {formatScreenGrams(totalFactoryObligation)}
             </div>
+            <div className="text-[11px] font-bold text-amber-200">{factoryNet.title}</div>
             <p className="text-[11px] text-slate-400 leading-tight">
               Menejerning zavod oldidagi qarzi. Faqat afinaj qilingan sof quyma yoki 585 lom topshirilganda kamayadi.
             </p>
