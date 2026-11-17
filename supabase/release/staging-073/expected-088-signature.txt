@@ -203,6 +203,7 @@ C client_currency_settlements.opening_document_id uuid
 C client_currency_settlements.organization_id uuid NOT NULL
 C client_currency_settlements.pool_cash_585_g numeric(18,6) NOT NULL
 C client_currency_settlements.pool_cash_uzs numeric(18,2) NOT NULL
+C client_currency_settlements.pool_seq_at_payment bigint
 C client_currency_settlements.pool_usd numeric(18,2) NOT NULL
 C client_currency_settlements.pool_usd_585_g numeric(18,6) NOT NULL
 C client_currency_settlements.rate_lom_uzs numeric(18,2)
@@ -584,6 +585,7 @@ C gold_settlements.idempotency_key text
 C gold_settlements.notes text
 C gold_settlements.organization_id uuid NOT NULL
 C gold_settlements.physical_scrap_grams numeric(14,4)
+C gold_settlements.pool_seq bigint
 C gold_settlements.previous_debt_grams numeric(14,4) NOT NULL
 C gold_settlements.recorded_by uuid
 C gold_settlements.remaining_debt_grams numeric(14,4) NOT NULL
@@ -1100,6 +1102,7 @@ C seller_gold_accounts.current_factory_obligation_grams numeric(14,4) NOT NULL
 C seller_gold_accounts.current_physical_stock_g numeric(14,4) NOT NULL
 C seller_gold_accounts.manager_owes_seller_g numeric(14,4) NOT NULL
 C seller_gold_accounts.organization_id uuid NOT NULL
+C seller_gold_accounts.pool_handover_seq bigint NOT NULL
 C seller_gold_accounts.seller_id uuid NOT NULL
 C seller_gold_accounts.seller_legacy_debt_obligation_g numeric(14,4) NOT NULL
 C seller_gold_accounts.seller_owes_manager_g numeric(14,4) NOT NULL
@@ -1284,6 +1287,7 @@ F _goldia_opening_other(uuid) -> record SECDEF
 F _goldia_opening_seller_obligation(uuid,uuid) -> numeric SECDEF
 F _goldia_operation_rate(uuid,text,text,numeric,numeric) -> numeric SECDEF
 F _goldia_period_effects(uuid) -> TABLE(kind text, d date, seller_id uuid, cnt integer, cust_g numeric, cur_uzs numeric, cur_usd numeric, stock_g numeric, till_uzs numeric, till_usd numeric, till_scrap_g numeric, mgr_uzs numeric, mgr_usd numeric, factory_g numeric, phys_g numeric, due_g numeric, amount numeric, extra numeric) SECDEF
+F _goldia_pool_handover_seq() -> trigger SECDEF
 F _goldia_repair_factory_counters() -> jsonb SECDEF
 F _goldia_repair_weight_sale_pieces() -> jsonb SECDEF
 F _goldia_restore_weight_sale_allocations(uuid) -> integer SECDEF
@@ -1470,6 +1474,7 @@ H _goldia_opening_other(uuid) 5a887651e631c88a63f0bdc8e4e175c1
 H _goldia_opening_seller_obligation(uuid,uuid) 58a57db88e3567f74cd0b9fca65c7e90
 H _goldia_operation_rate(uuid,text,text,numeric,numeric) ce26e5f64390d2a5e37e07f89e10beb5
 H _goldia_period_effects(uuid) 092b3e4e2daa1e76f9b46547fb40c3c9
+H _goldia_pool_handover_seq() 9e6feb7778f78302b2fc8be0b4e56c46
 H _goldia_repair_factory_counters() c0fec62e909d3e1b1327c7f4055e3880
 H _goldia_repair_weight_sale_pieces() a7777a9cd2cff91ce96e419498ffc10a
 H _goldia_restore_weight_sale_allocations(uuid) de64227120cd7b495bd6c6394da9777e
@@ -1539,7 +1544,7 @@ H rpc_get_director_sales_overview() f437c49f079f835db2f1f6d92392bfe6
 H rpc_get_factory_settings(uuid) 7c6467c5ef50cd6fe7525d7cabfc9229
 H rpc_get_financial_reconciliation_summary() 49bd6154b37dbbcec3c16947698ae52a
 H rpc_get_manager_available_stock_grams() ff122356f224410c2356e5d6890ea1da
-H rpc_get_opening_state() c696995d87707bc3f376c6ac77687e1f
+H rpc_get_opening_state() c5659de149a8f01ae968cee9d1116784
 H rpc_get_operation_rate_review(date,date,uuid) 3753c346890bf263dff2c42e3aff9875
 H rpc_get_period_report(date,date,uuid) 67a7d6a176a0c0e7b2cc8a24c5362294
 H rpc_get_piece_sales_reconciliation_report() a74a307ca47780c57366567151d049bc
@@ -1562,7 +1567,7 @@ H rpc_preview_selective_test_cleanup(uuid[]) 36e87150081088723fbbc7e3d08706a8
 H rpc_preview_staging_test_cleanup(text) d2ce985e32df4a6d86ecc4b0b2daa99e
 H rpc_reclassify_capital_transaction(uuid,text,text,numeric,uuid,uuid,text) 186caaec5296d0fcf53ac85c5bf79473
 H rpc_record_barcode_piece_sale(uuid,uuid,uuid,uuid,numeric,numeric,text,text) b12ab02e9ef4e28ec09fd5bcadbc5fd3
-H rpc_record_client_currency_settlement(uuid,text,numeric,numeric,numeric,numeric,numeric,numeric,uuid,text,text) 6bfbe8692bdf84ea3df3b58e382577db
+H rpc_record_client_currency_settlement(uuid,text,numeric,numeric,numeric,numeric,numeric,numeric,uuid,text,text) 2e9f2eddffac46fa9a5b91d9af18105a
 H rpc_record_client_jewelry_sale(uuid,uuid,numeric,text,text) d1099c96e1f4ecf38c290e149ac2e65a
 H rpc_record_client_legacy_debt(uuid,text,numeric,date,text,text,numeric,text,uuid) 6c39874a9758a6b4eb4f7ee2ae668808
 H rpc_record_client_settlement(uuid,uuid,numeric,numeric,numeric,numeric,date,text,text,uuid,numeric,numeric) 49bd10fadc02fd6a6e93428dbb1fd320
@@ -1574,7 +1579,7 @@ H rpc_record_financial_transaction(text,text,numeric,text,text,text,numeric,nume
 H rpc_record_gold_purchase(text,numeric,numeric,numeric,numeric,text,text,text,numeric,numeric) 3ea99578b17b14ad1e631e6f957cf234
 H rpc_record_login_audit(uuid,text,text,text,text,text,text,text,text,text) 863dd7b3bd42b9d360af4877c31b02a0
 H rpc_record_manager_seller_settlement(uuid,numeric,numeric,numeric,text,numeric,text,text) 9a48393315f87fe89e0a38325aecb948
-H rpc_record_opening_document(text,numeric,text,text,uuid,uuid,numeric,numeric,numeric,numeric,numeric,numeric,numeric,jsonb,uuid,uuid,text,text,text,text,text) 5ce588bc6bb4a81ac9feb87945318b74
+H rpc_record_opening_document(text,numeric,text,text,uuid,uuid,numeric,numeric,numeric,numeric,numeric,numeric,numeric,jsonb,uuid,uuid,text,text,text,text,text) 5685ee7b6435599d4544e83f9c660985
 H rpc_record_qc_inspection(text,text,text,integer,integer,integer,integer,text,integer,text,text,text) 22cd8475c3d7e21eb2b0f21800cb36e5
 H rpc_record_refining_batch(numeric,numeric,numeric,numeric,uuid,text,text,numeric) 4ccafaf971acaa2c90d4eb532838de02
 H rpc_record_refining_batch(numeric,numeric,numeric,numeric,uuid,text,text,numeric,numeric) 399500f0d2eed7622a4e669bd9b8660b
@@ -1594,7 +1599,7 @@ H rpc_return_piece_to_manager(uuid,text,text) 54c9e102831ccead16be149fb84df8a7
 H rpc_return_sprue_to_scrap_inventory(text,text,text,numeric,numeric,numeric,text) 9c486fcb348fb141fa620bd932a10e34
 H rpc_reverse_barcode_consignment(uuid,text,text) 3befbc83a3bb17a0c23f2afc190617d9
 H rpc_reverse_barcode_piece_sale(uuid,text,text) bf70d1dddaf4c0af82aa1ae152c5aa19
-H rpc_reverse_client_currency_settlement(uuid,text,text) 06128cce44108a4bfe1176c94077465b
+H rpc_reverse_client_currency_settlement(uuid,text,text) 65e4d42bdee18cd7319cb563921d3be4
 H rpc_reverse_client_legacy_debt(uuid,text,text) ed6067f6577ea237fd487f596fc70e7b
 H rpc_reverse_client_sale(uuid,text,text) 9404b2c4eb9cffd53018df14b63c0136
 H rpc_reverse_client_settlement(uuid,text,text) c29fa9d8d239b1511df03ebccf81bf4c
@@ -1879,6 +1884,7 @@ T gold_lots set_gold_lots_updated_at
 T gold_purchases trg_goldia_opening_draft_guard
 T gold_purchases trg_goldia_rate_difference_from_purchase
 T gold_settlements trg_goldia_opening_draft_guard
+T gold_settlements trg_goldia_pool_handover_seq
 T gold_settlements trg_goldia_seller_till_pool
 T gold_settlements trg_goldia_valued_cash_from_settlement
 T gold_settlements trg_sync_seller_gold_account_settle

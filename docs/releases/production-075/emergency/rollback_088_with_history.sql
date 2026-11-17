@@ -30,6 +30,11 @@ do $g$ begin
   end if; end $g$;
 drop index if exists public.opening_documents_one_factory_settled;
 alter table public.client_currency_settlements drop column if exists opening_applied_amount;
+drop trigger if exists trg_goldia_pool_handover_seq on public.gold_settlements;
+drop function if exists public._goldia_pool_handover_seq();
+alter table public.client_currency_settlements drop column if exists pool_seq_at_payment;
+alter table public.gold_settlements drop column if exists pool_seq;
+alter table public.seller_gold_accounts drop column if exists pool_handover_seq;
 alter table public.opening_documents drop constraint if exists opening_documents_kind_check;
 alter table public.opening_documents add constraint opening_documents_kind_check check (kind in ('manager_inventory', 'seller_inventory', 'factory_obligation', 'factory_advance',
                         'seller_obligation', 'customer_gram', 'customer_currency', 'manager_cash', 'manager_scrap',

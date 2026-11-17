@@ -33,19 +33,24 @@ this session cannot reach it (network 403).
 Illustration only (not production data): with A = 300 g @8 % + 198.21 g @10 %, the new net = 542.031 - 1 717.58 = -1 175.549 g.
 
 ## Tests (local)
-* vitest: see the final run; 088 suite 7/7 (factory before/after, per-B amounts, duplicates, B from A, cancel, unrated UZS / USD,
+* vitest 55 files / 473 tests, tsc, eslint, next build PASS; 088 suites 7/7 + money model 7/7 (factory before/after, per-B amounts, duplicates, B from A, cancel, unrated UZS / USD,
   partial payments at different rates, reversal, handover, overpayment, opening + sale debt of one customer, paid-off debt).
 * real PostgreSQL 17: 088 postflight true; rollback = exact 087 signature; re-apply = exact 088; production-shaped prod-kit
   rehearsal 087 -> 088 (draft opening + active freeze + 58 CRLF) ALL GATES PASS, business fingerprint unchanged.
 * two independent reviews: one MAJOR found and fixed (unrated payment not capped), the rest listed below.
 
-## Open decisions (not changed)
-1. 085 rule: a customer with a RATED opening debt who pays an ordinary currency sale debt: the whole payment enters the valued
-   pool, so the seller gets no handover credit for the sale part (overcharge = that part). Fix = pool only the opening
-   part, like 088 does for unrated debts. Changes 085 behaviour -> needs the director's decision.
-2. 085: reversal of a payment after a partial handover can lose averaged pool grams (probe: 0.2084 g).
-3. 085: a payment taken into another seller's till is not matched to the customer's opening document.
-4. Baseline / profit value all customer UZS / USD receivables (unrated included) at the baseline rate (084 rule).
+## Fixed after the director's review (2026-11-17)
+1. Rated or unrated opening debt + ordinary sale debt of one customer: only the opening part (+ advance at 0 g) enters the
+   valued pool; the sale part keeps its full handover credit (test M1: 10 g + 5 g = 15 g; 085 gave 10 g).
+2. Reversal after a later pooled handover: refused (ERR_TILL_ALREADY_HANDED_OVER) by handover ORDER NUMBERS, not clocks
+   (a concurrent handover gets a later number); exact path = reverse the handover (the 072 pool trigger restores it), then
+   the payment, then hand over again: 0 g lost (M2, M7). Retry / idempotency: one write, one reversal (M3).
+3. A payment of an open opening debt into another seller's till: ERR_OPENING_DEBT_OTHER_SELLER (M4).
+4. Rounding residue of a rated debt paid in many parts: the paying-off payment takes all remaining grams (M6: 25 parts, 0 g).
+5. Baseline values unrated receivables for the report only; seller obligation unchanged at the lock (M5).
+6. Unvalued documents counter counts only documents with something left; currency opening amounts in whole tiyin / cents.
+Independent auditor (fresh reviewer): PASS WITH NOTES; both gram-changing notes fixed above. Remaining cosmetic note: a
+factory_settled document carries the seller of its B document (a seller-filtered period report hides its factory line).
 
 ## Names (applied = proposed by the director; others wait)
 Applied: Zavoddan olingan tovar, Tovar bo'yicha qarz, Oldindan berilgan oltin, Zavodning menejerga qarzi,

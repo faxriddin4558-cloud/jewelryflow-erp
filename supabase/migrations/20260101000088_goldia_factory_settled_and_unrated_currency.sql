@@ -27,8 +27,28 @@ alter table public.opening_documents add constraint opening_documents_kind_check
   'manager_scrap', 'manager_fine_gold', 'other'));
 create unique index if not exists opening_documents_one_factory_settled on public.opening_documents (source_document_id)
   where kind = 'factory_settled' and status = 'active';
--- the part of a payment that paid an UNRATED opening debt (in the debt currency); null for every other payment
+-- the part of a payment that paid an opening debt (in the debt currency); null for every other payment
 alter table public.client_currency_settlements add column if not exists opening_applied_amount numeric(18, 2);
+-- valued-pool order (independent of timestamps): every pooled seller -> manager handover takes the next number of its
+-- seller; a payment remembers the number current when it entered the pool. A payment may be reversed only while no
+-- later-numbered pooled handover is active (a concurrent handover waiting on the seller row gets a later number).
+alter table public.seller_gold_accounts add column if not exists pool_handover_seq bigint not null default 0;
+alter table public.gold_settlements add column if not exists pool_seq bigint;
+alter table public.client_currency_settlements add column if not exists pool_seq_at_payment bigint;
+create or replace function public._goldia_pool_handover_seq()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $f$
+begin
+  if new.direction = 'seller_to_manager' and new.reversal_of_id is null and coalesce(new.status, 'confirmed') = 'confirmed'
+     and (coalesce(new.till_pool_cash_uzs, 0) > 0 or coalesce(new.till_pool_usd, 0) > 0) then
+    update public.seller_gold_accounts set pool_handover_seq = pool_handover_seq + 1
+     where seller_id = new.seller_id returning pool_handover_seq into new.pool_seq;
+  end if;
+  return new;
+end $f$;
+revoke all on function public._goldia_pool_handover_seq() from public, anon, authenticated;
+drop trigger if exists trg_goldia_pool_handover_seq on public.gold_settlements;
+create trigger trg_goldia_pool_handover_seq before insert on public.gold_settlements
+  for each row execute function public._goldia_pool_handover_seq();
 
 create or replace function public._goldia_opening_factory_net(p_org uuid)
 returns numeric language sql stable security definer set search_path = public, pg_temp as $f$
@@ -220,6 +240,7 @@ begin
     v_seller := v_cust.seller_id;
     if v_kind = 'customer_gram' then v_unit := 'G585';
     elsif v_unit not in ('UZS', 'USD') then raise exception 'Valyuta: UZS yoki USD'; end if;
+    if v_kind = 'customer_currency' then v_amt := round(v_amt, 2); end if; -- 088: whole tiyin / cents (payments are 2 decimals)
     -- one opening balance per customer and unit (a second one would count the same debt twice)
     if exists (select 1 from public.opening_documents d where d.opening_period_id = v_per.id and d.customer_id = v_cust.id
                 and d.status = 'active' and d.kind = v_kind and d.unit = v_unit) then
@@ -529,7 +550,8 @@ begin
       'customers_usd_unvalued', (select coalesce(sum(greatest(x.amount - x.paid, 0)), 0) from (select d2.amount, coalesce((select sum(c.opening_applied_amount) from public.client_currency_settlements c
            where c.opening_document_id = d2.id and c.status <> 'reversed'), 0) paid from d d2 where d2.kind = 'customer_currency' and d2.unit = 'USD' and d2.side = 'debt'
            and d2.status = 'active' and d2.equiv_585_g is null) x),
-      'customers_unvalued_documents', (select count(*) from d where kind = 'customer_currency' and side = 'debt' and status = 'active' and equiv_585_g is null),
+      'customers_unvalued_documents', (select count(*) from d d2 where d2.kind = 'customer_currency' and d2.side = 'debt' and d2.status = 'active' and d2.equiv_585_g is null
+           and d2.amount > coalesce((select sum(c.opening_applied_amount) from public.client_currency_settlements c where c.opening_document_id = d2.id and c.status <> 'reversed'), 0)),
       'other_assets_585_g', (select assets_g from public._goldia_opening_other(v_org)),
       'other_liabilities_585_g', (select liabilities_g from public._goldia_opening_other(v_org))),
     'sellers', coalesce((select jsonb_agg(jsonb_build_object('seller_id', s.id, 'name', s.name, 'stock_g', s.stock, 'held_g', s.held,
@@ -976,7 +998,8 @@ begin
   elsif v_od.id is not null and v_applied > 0 and v_od.amount > 0 then
     v_snap_g := least(greatest(0, v_od.seller_obligation_g - coalesce((select sum(c.snapshot_released_g) from public.client_currency_settlements c
                         where c.opening_document_id = v_od.id and c.status <> 'reversed'), 0)),
-                      round(v_open_applied * v_od.seller_obligation_g / v_od.amount, 4));
+                      case when v_open_applied >= v_od_rem then v_od.seller_obligation_g  -- 088: pays it off: all remaining grams, no rounding residue
+                           else round(v_open_applied * v_od.seller_obligation_g / v_od.amount, 4) end);
   end if;
   v_cash_val := case when v_cash <= 0 then 0 when v_cur = 'UZS' then v_cash else v_cash / nullif(v_usd_rate, 0) end;
   v_usd_val  := case when v_usd <= 0 then 0 when v_cur = 'USD' then v_usd else v_usd * v_usd_rate end;
@@ -1000,11 +1023,12 @@ begin
   insert into public.client_currency_settlements (organization_id, settlement_no, customer_id, seller_id, debt_currency, cash_uzs, usd_amount,
     scrap_physical_g, scrap_proba, scrap_585_g, rate_usd_uzs, rate_lom_uzs, credited_amount, applied_to_debt, to_advance,
     idempotency_key, recorded_by, notes, opening_document_id, snapshot_released_g, pool_cash_uzs, pool_cash_585_g, pool_usd, pool_usd_585_g,
-    opening_applied_amount)
+    opening_applied_amount, pool_seq_at_payment)
   values (v_caller_org, v_no, v_customer.id, v_seller_id, v_cur, v_cash, v_usd, v_scrap, v_proba, v_scrap_585, v_usd_rate, v_lom_rate,
     v_credit, v_applied, v_credit - v_applied, nullif(btrim(p_idempotency_key), ''), v_caller_emp_id, p_notes,
     v_od.id, v_snap_g, v_pool_cash, v_pool_cash_g, v_pool_usd, v_pool_usd_g,
-    case when v_od.id is not null then v_open_applied end)
+    case when v_od.id is not null then v_open_applied end,
+    (select a.pool_handover_seq from public.seller_gold_accounts a where a.seller_id = v_seller_id))
   returning id into v_id;
   if v_od.id is not null and v_od.equiv_585_g is null and coalesce(v_snap_g, 0) > 0 then
     perform public.recalc_seller_gold_account(v_seller_id, v_caller_org);
@@ -1064,7 +1088,9 @@ begin
   -- share comes back exactly), then this payment, then hand over again.
   if (coalesce(v_row.pool_cash_uzs, 0) > 0 or coalesce(v_row.pool_usd, 0) > 0)
      and exists (select 1 from public.gold_settlements g where g.seller_id = v_row.seller_id and g.organization_id = v_caller_org
-                   and g.direction = 'seller_to_manager' and g.created_at > v_row.created_at and g.reversal_of_id is null
+                   and g.direction = 'seller_to_manager' and g.reversal_of_id is null
+                   and case when v_row.pool_seq_at_payment is not null and g.pool_seq is not null then g.pool_seq > v_row.pool_seq_at_payment
+                            else g.created_at > v_row.created_at end
                    and coalesce(g.status, 'confirmed') not in ('reversed', 'cancelled')
                    and (coalesce(g.till_pool_cash_uzs, 0) > 0 or coalesce(g.till_pool_usd, 0) > 0)) then
     raise exception 'ERR_TILL_ALREADY_HANDED_OVER: bu to''lovdan keyin sotuvchi menejerga topshiruv qilgan - avval o''sha topshiruvni bekor qiling, keyin to''lovni, so''ng qayta topshiring' using errcode = '55000';

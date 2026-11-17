@@ -17,7 +17,7 @@ describe("Goldia 088 — money model: opening + sale debts, partial handover, re
   const org = "00000000-0000-0000-0000-0000000008e9";
   type U = { userId: string; employeeId: string };
   let dir: U, mgr: U, S1: U, S2: U;
-  let cR = "", cU = "", cX = "";
+  let cR = "", cU = "", cX = "", cZ = "", cW = "";
   let kn = 0;
   const key = (p: string) => `mm-${p}-${++kn}`;
   const RATE = 900000;
@@ -39,7 +39,7 @@ describe("Goldia 088 — money model: opening + sale debts, partial handover, re
     S2 = await t.addUser(org, "s2-mm@goldia.uz", "Sotuvchi 2", "sales");
     const c = async (code: string, s: U) => (await one(`INSERT INTO public.customers (organization_id, customer_code, contact_name, phone, seller_id)
       VALUES ('${org}', '${code}', 'Mijoz ${code}', '+99891${code.replace(/\D/g, "").padStart(7, "0")}', '${s.employeeId}') RETURNING id`)).id as string;
-    cR = await c("MM-1", S1); cU = await c("MM-2", S1); cX = await c("MM-3", S1);
+    cR = await c("MM-1", S1); cU = await c("MM-2", S1); cX = await c("MM-3", S1); cZ = await c("MM-4", S2); cW = await c("MM-5", S2);
     await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true), ('${org}', public._goldia_business_date(), 585, ${RATE}, 'UZS', true) ON CONFLICT DO NOTHING`);
     await t.db.query(`SELECT public._goldia_financial_freeze('${org}', 'mm window', true)`);
     const bv = (await one(`INSERT INTO public.financial_backup_verifications (organization_id, backup_reference, restore_verified) VALUES ('${org}', 'mm.dump', true) RETURNING id`)).id;
@@ -50,6 +50,8 @@ describe("Goldia 088 — money model: opening + sale debts, partial handover, re
     await doc(`p_kind := 'customer_currency', p_customer_id := '${cR}', p_unit := 'UZS', p_side := 'debt', p_amount := 9000000, p_lom_rate := 900000`); // rated: 10 g
     await doc(`p_kind := 'customer_currency', p_customer_id := '${cU}', p_unit := 'UZS', p_side := 'debt', p_amount := 2000000`);                      // unrated
     await doc(`p_kind := 'customer_currency', p_customer_id := '${cX}', p_unit := 'UZS', p_side := 'debt', p_amount := 1000000`);                      // unrated, for the other-seller test
+    await doc(`p_kind := 'customer_currency', p_customer_id := '${cZ}', p_unit := 'UZS', p_side := 'debt', p_amount := 1000000, p_lom_rate := 900000`); // rated 1.1111 g (seller 2)
+    await doc(`p_kind := 'customer_currency', p_customer_id := '${cW}', p_unit := 'UZS', p_side := 'debt', p_amount := 2000000`);                      // unrated (seller 2)
   }, 180000);
 
   it("M5 baseline values unrated UZS debts for the report only: the seller's 585 obligation does not change at the lock", async () => {
@@ -118,5 +120,29 @@ describe("Goldia 088 — money model: opening + sale debts, partial handover, re
     const ok = await t.rpc(`public.rpc_record_client_currency_settlement(p_customer_id := '${cX}', p_currency := 'UZS', p_cash_uzs := 100000, p_lom_rate := 1000000, p_seller_id := '${S1.employeeId}', p_idempotency_key := '${key("o")}')`);
     expect(N(ok.unrated_opening_debt_valued_g)).toBe(0.1);
     expect(await owes(S2)).toBe(s2);
+  });
+
+  it("M6 a rated debt paid in 25 parts and handed over in full leaves no rounding residue on the seller", async () => {
+    const base = await owes(S2); // includes the rated 1.1111 g
+    for (let i = 0; i < 25; i++) await pay(S2, cZ, 40000, 1000000);
+    expect(N((await one(`SELECT debt_amount v FROM public.client_currency_accounts WHERE customer_id = '${cZ}' AND currency = 'UZS'`)).v)).toBe(0);
+    expect(N((await one(`SELECT sum(snapshot_released_g) v FROM public.client_currency_settlements WHERE customer_id = '${cZ}' AND status <> 'reversed'`)).v)).toBe(1.1111);
+    await handover(S2, 1000000, 1000000);
+    expect(await owes(S2)).toBe(r4(base - 1.1111));
+  });
+
+  it("M7 a concurrent handover (its timestamp earlier than the payment's) still blocks the payment's reversal: order numbers, not clocks", async () => {
+    const p1 = await pay(S2, cW, 1000000, 800000);
+    const p2 = await pay(S2, cW, 1000000, 1100000);
+    const h = await handover(S2, 1000000, 1000000);
+    // emulate the race of the audit: the handover's transaction started before the payments committed
+    await t.asAdmin();
+    await t.db.exec(`UPDATE public.gold_settlements SET created_at = created_at - interval '1 hour' WHERE id = '${h.settlement_id}'`);
+    for (const p of [p1, p2]) {
+      await t.asUser(mgr.userId);
+      await t.expectError(`SELECT public.rpc_reverse_client_currency_settlement(p_settlement_id := '${p.settlement_id}', p_reason := 'xato', p_idempotency_key := '${key("x")}')`, "ERR_TILL_ALREADY_HANDED_OVER");
+    }
+    await revHand(h.settlement_id as string);
+    await revPay(p2.settlement_id as string); // allowed again once the handover is reversed
   });
 });

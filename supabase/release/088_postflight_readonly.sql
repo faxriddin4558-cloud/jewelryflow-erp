@@ -18,7 +18,8 @@ select
     and (select position('_goldia_opening_factory_net(v_org)' in prosrc) > 0 and position('customers_uzs_unvalued' in prosrc) > 0 from pg_proc where proname = 'rpc_get_opening_state' and pronamespace = 'public'::regnamespace)
     and (select position('factory_settled' in prosrc) > 0 from pg_proc where proname = '_goldia_period_effects' and pronamespace = 'public'::regnamespace) as opening_state_and_reports,
   (select position('unrated_opening_debt_valued_g' in prosrc) > 0 from pg_proc where proname = 'rpc_record_client_currency_settlement' and pronamespace = 'public'::regnamespace)
-    and (select position('recalc_seller_gold_account(v_row.seller_id' in prosrc) > 0 from pg_proc where proname = 'rpc_reverse_client_currency_settlement' and pronamespace = 'public'::regnamespace) as payments,
+    and (select position('recalc_seller_gold_account(v_row.seller_id' in prosrc) > 0 and position('pool_seq_at_payment' in prosrc) > 0 from pg_proc where proname = 'rpc_reverse_client_currency_settlement' and pronamespace = 'public'::regnamespace)
+    and exists (select 1 from pg_trigger where tgname = 'trg_goldia_pool_handover_seq' and tgrelid = 'public.gold_settlements'::regclass and not tgisinternal) as payments,
   (select bool_and(not has_function_privilege('anon', p.oid, 'EXECUTE')) from pg_proc p where p.pronamespace = 'public'::regnamespace
      and p.proname in ('_goldia_opening_factory_net', '_goldia_opening_seller_obligation', 'rpc_record_opening_document', 'rpc_cancel_opening_document',
                        'rpc_get_opening_state', '_goldia_period_effects', 'rpc_record_client_currency_settlement', 'rpc_reverse_client_currency_settlement')) as no_anon;
