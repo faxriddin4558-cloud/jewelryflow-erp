@@ -4,9 +4,12 @@ begin transaction read only;
 
 select
   exists (select 1 from supabase_migrations.schema_migrations where version = '20260101000088') as recorded,
-  exists (select 1 from pg_constraint where conrelid = 'public.opening_documents'::regclass and conname = 'opening_documents_kind_check'
-            and pg_get_constraintdef(oid) like '%factory_settled%') as kind_allowed,
-  exists (select 1 from pg_indexes where schemaname = 'public' and indexname = 'opening_documents_one_factory_settled') as one_settlement_per_b,
+  exists (select 1 from pg_constraint c where c.conrelid = 'public.opening_documents'::regclass and c.conname = 'opening_documents_kind_check'
+            and (select bool_and(position('''' || k || '''' in pg_get_constraintdef(c.oid)) > 0) from unnest(array['manager_inventory', 'seller_inventory',
+                 'factory_obligation', 'factory_advance', 'factory_settled', 'seller_obligation', 'customer_gram', 'customer_currency', 'manager_cash',
+                 'manager_scrap', 'manager_fine_gold', 'other']) k)) as kind_allowed,
+  exists (select 1 from pg_indexes where schemaname = 'public' and indexname = 'opening_documents_one_factory_settled'
+            and indexdef like 'CREATE UNIQUE INDEX%(source_document_id)%' and indexdef like '%factory_settled%' and indexdef like '%active%') as one_settlement_per_b,
   (select position('factory_settled' in prosrc) > 0 from pg_proc where oid = 'public._goldia_opening_factory_net(uuid)'::regprocedure)
     and (select position('equiv_585_g is null' in prosrc) > 0 from pg_proc where oid = 'public._goldia_opening_seller_obligation(uuid,uuid)'::regprocedure) as helpers,
   (select position('ERR_FACTORY_SETTLED_SOURCE' in prosrc) > 0 and position('hali hisoblanmagan' in prosrc) > 0 and position('ERR_RATE_REQUIRED: 585 kursi (so''m / g) kiritilishi shart' in prosrc) = 0
@@ -16,6 +19,8 @@ select
     and (select position('factory_settled' in prosrc) > 0 from pg_proc where proname = '_goldia_period_effects' and pronamespace = 'public'::regnamespace) as opening_state_and_reports,
   (select position('unrated_opening_debt_valued_g' in prosrc) > 0 from pg_proc where proname = 'rpc_record_client_currency_settlement' and pronamespace = 'public'::regnamespace)
     and (select position('recalc_seller_gold_account(v_row.seller_id' in prosrc) > 0 from pg_proc where proname = 'rpc_reverse_client_currency_settlement' and pronamespace = 'public'::regnamespace) as payments,
-  not has_function_privilege('anon', 'public.rpc_get_opening_state()', 'EXECUTE') as no_anon;
+  (select bool_and(not has_function_privilege('anon', p.oid, 'EXECUTE')) from pg_proc p where p.pronamespace = 'public'::regnamespace
+     and p.proname in ('_goldia_opening_factory_net', '_goldia_opening_seller_obligation', 'rpc_record_opening_document', 'rpc_cancel_opening_document',
+                       'rpc_get_opening_state', '_goldia_period_effects', 'rpc_record_client_currency_settlement', 'rpc_reverse_client_currency_settlement')) as no_anon;
 
 rollback;

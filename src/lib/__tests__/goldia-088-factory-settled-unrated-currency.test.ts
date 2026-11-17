@@ -108,7 +108,8 @@ describe("Goldia 088 — factory_settled + unrated UZS / USD opening debts", () 
 
   it("U1 F without a rate: amount and currency kept, NOT valued (no 0 / 1 / today's rate), no seller grams, shown as not yet valued", async () => {
     const u = await doc(`p_kind := 'customer_currency', p_customer_id := '${c2}', p_unit := 'UZS', p_side := 'debt', p_amount := 10000000`);
-    const d = await doc(`p_kind := 'customer_currency', p_customer_id := '${c3}', p_unit := 'USD', p_side := 'debt', p_amount := 1000, p_lom_rate := 900000`); // USD without the USD rate = not valued
+    await t.expectError(`SELECT public.rpc_record_opening_document(p_kind := 'customer_currency', p_customer_id := '${c3}', p_unit := 'USD', p_side := 'debt', p_amount := 1000, p_lom_rate := 900000, p_idempotency_key := '${key("pr")}')`, "ERR_RATE_PARTIAL");
+    const d = await doc(`p_kind := 'customer_currency', p_customer_id := '${c3}', p_unit := 'USD', p_side := 'debt', p_amount := 1000`);
     for (const id of [u.document_id, d.document_id]) {
       const r = await one(`SELECT equiv_585_g e, seller_obligation_g s, lom_rate l, usd_rate u, formula f FROM public.opening_documents WHERE id = '${id}'`);
       expect(r.e).toBeNull(); expect(N(r.s)).toBe(0); expect(r.l).toBeNull(); expect(r.u).toBeNull(); expect(String(r.f)).toMatch(/hali hisoblanmagan/);
@@ -162,5 +163,34 @@ describe("Goldia 088 — factory_settled + unrated UZS / USD opening debts", () 
     expect(N(p2.to_advance)).toBe(100);
     expect(N(p2.unrated_opening_debt_valued_g)).toBe(r4(700 * 12500 / 1000000));
     expect(await owes(S2)).toBe(r4(s2Base + 4.2 + r4(700 * 12500 / 1000000)));
+  });
+
+  it("U4 review finding: only what is left of the unrated opening debt is valued; an ordinary sale debt of the same customer is not; a paid-off opening debt values nothing later", async () => {
+    const piece = async (s: U) => (await one(`SELECT p.id FROM public.consignment_pieces p WHERE p.organization_id = '${org}' AND p.seller_id = '${s.employeeId}' AND p.status = 'held_by_seller' ORDER BY p.weight_grams LIMIT 1`)).id as string;
+    const pw = async (id: string) => N((await one(`SELECT weight_grams v FROM public.consignment_pieces WHERE id = '${id}'`)).v);
+    // c2 (seller 1): 6 000 000 left of the unrated opening debt; a new ordinary UZS sale of 5 000 000
+    const pc = await piece(S1);
+    await t.asUser(S1.userId);
+    await t.rpc(`public.rpc_record_currency_sale(p_customer_id := '${c2}', p_currency := 'UZS', p_amount := 5000000, p_weight_grams := ${await pw(pc)}, p_piece_ids := array['${pc}']::uuid[], p_idempotency_key := '${key("s")}')`);
+    const o0 = await owes(S1);
+    await t.asUser(S1.userId);
+    const p = await t.rpc(`public.rpc_record_client_currency_settlement(p_customer_id := '${c2}', p_currency := 'UZS', p_cash_uzs := 8000000, p_lom_rate := 1000000, p_idempotency_key := '${key("p")}')`);
+    expect(N(p.applied_to_debt)).toBe(8000000);
+    expect(N(p.unrated_opening_debt_valued_g)).toBe(6); // 6 000 000 / 1 000 000, not 8
+    expect(await owes(S1)).toBe(r4(o0 + 6));
+    const row = await one(`SELECT opening_applied_amount a, pool_cash_uzs pc, pool_cash_585_g pg FROM public.client_currency_settlements WHERE id = '${p.settlement_id}'`);
+    expect([N(row.a), N(row.pc), N(row.pg)]).toEqual([6000000, 6000000, 6]); // the 2 000 000 sale part stays unvalued
+    expect(N((await state()).totals.customers_uzs_unvalued)).toBe(0);
+    // c3 (seller 2): its unrated USD opening debt is paid off; a new sale and its payment are ordinary
+    const pc2 = await piece(S2);
+    await t.asUser(S2.userId);
+    await t.rpc(`public.rpc_record_currency_sale(p_customer_id := '${c3}', p_currency := 'USD', p_amount := 200, p_weight_grams := ${await pw(pc2)}, p_piece_ids := array['${pc2}']::uuid[], p_idempotency_key := '${key("s")}')`);
+    const o2 = await owes(S2);
+    await t.asUser(S2.userId);
+    const q = await t.rpc(`public.rpc_record_client_currency_settlement(p_customer_id := '${c3}', p_currency := 'USD', p_usd_amount := 100, p_usd_rate := 12500, p_lom_rate := 1000000, p_idempotency_key := '${key("p")}')`);
+    expect(q.unrated_opening_debt_valued_g ?? null).toBeNull();
+    expect(await owes(S2)).toBe(o2);
+    const st = await state();
+    expect(N(st.totals.customers_usd_unvalued)).toBe(0);
   });
 });

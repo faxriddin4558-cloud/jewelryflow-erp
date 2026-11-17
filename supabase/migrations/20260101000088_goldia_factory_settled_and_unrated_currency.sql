@@ -27,6 +27,8 @@ alter table public.opening_documents add constraint opening_documents_kind_check
   'manager_scrap', 'manager_fine_gold', 'other'));
 create unique index if not exists opening_documents_one_factory_settled on public.opening_documents (source_document_id)
   where kind = 'factory_settled' and status = 'active';
+-- the part of a payment that paid an UNRATED opening debt (in the debt currency); null for every other payment
+alter table public.client_currency_settlements add column if not exists opening_applied_amount numeric(18, 2);
 
 create or replace function public._goldia_opening_factory_net(p_org uuid)
 returns numeric language sql stable security definer set search_path = public, pg_temp as $f$
@@ -96,7 +98,9 @@ begin
   end if;
   perform set_config('goldia.opening_write', txid_current()::text, true);
   v_payload := jsonb_build_object('kind', v_kind, 'amount', p_amount, 'unit', v_unit, 'side', v_side, 'seller', p_seller_id,
-                                  'customer', p_customer_id, 'physical', p_physical_g, 'pieces', p_pieces);
+                                  'customer', p_customer_id, 'physical', p_physical_g, 'pieces', p_pieces)
+               -- 088: a factory_settled replay must be for the same B document
+               || case when v_kind = 'factory_settled' then jsonb_build_object('source', p_source_document_id, 'notes', p_notes) else '{}'::jsonb end;
   v_existing := public.check_and_lock_idempotency(v_key, 'rpc_record_opening_document', v_payload);
   if v_existing is not null then
     return v_existing;
@@ -231,6 +235,9 @@ begin
         -- decision O-3: the debt creates the seller's 585 g obligation ONCE, at the rate snapshot of this document
         if v_seller is null then raise exception 'Mijozga sotuvchi biriktirilmagan: valyuta qarzi sotuvchi majburiyatini yaratadi' using errcode = '22023'; end if;
         if coalesce(p_lom_rate, 0) < 0 or coalesce(p_usd_rate, 0) < 0 then raise exception 'Kurs manfiy bo''lishi mumkin emas' using errcode = '22023'; end if;
+        if v_unit = 'USD' and (coalesce(p_lom_rate, 0) > 0) <> (coalesce(p_usd_rate, 0) > 0) then
+          raise exception 'ERR_RATE_PARTIAL: USD qarz uchun ikkala kurs (585 va USD) birga kiritiladi yoki ikkalasi ham bo''sh qoldiriladi' using errcode = '22023';
+        end if;
         if coalesce(p_lom_rate, 0) > 0 and (v_unit = 'UZS' or coalesce(p_usd_rate, 0) > 0) then
           v_sobl := round(case when v_unit = 'UZS' then v_amt else v_amt * p_usd_rate end / p_lom_rate, 4);
           v_eq := v_sobl;
@@ -516,10 +523,10 @@ begin
       -- 088
       'factory_settled_seller_goods_g', (select coalesce(sum(amount), 0) from d where kind = 'factory_settled' and status = 'active'),
       'factory_net_g', (select current_factory_obligation_g - current_factory_advance_g from public.manager_vault_account where organization_id = v_org),
-      'customers_uzs_unvalued', (select coalesce(sum(x.amount - x.paid), 0) from (select d2.amount, coalesce((select sum(c.applied_to_debt) from public.client_currency_settlements c
+      'customers_uzs_unvalued', (select coalesce(sum(greatest(x.amount - x.paid, 0)), 0) from (select d2.amount, coalesce((select sum(c.opening_applied_amount) from public.client_currency_settlements c
            where c.opening_document_id = d2.id and c.status <> 'reversed'), 0) paid from d d2 where d2.kind = 'customer_currency' and d2.unit = 'UZS' and d2.side = 'debt'
            and d2.status = 'active' and d2.equiv_585_g is null) x),
-      'customers_usd_unvalued', (select coalesce(sum(x.amount - x.paid), 0) from (select d2.amount, coalesce((select sum(c.applied_to_debt) from public.client_currency_settlements c
+      'customers_usd_unvalued', (select coalesce(sum(greatest(x.amount - x.paid, 0)), 0) from (select d2.amount, coalesce((select sum(c.opening_applied_amount) from public.client_currency_settlements c
            where c.opening_document_id = d2.id and c.status <> 'reversed'), 0) paid from d d2 where d2.kind = 'customer_currency' and d2.unit = 'USD' and d2.side = 'debt'
            and d2.status = 'active' and d2.equiv_585_g is null) x),
       'customers_unvalued_documents', (select count(*) from d where kind = 'customer_currency' and side = 'debt' and status = 'active' and equiv_585_g is null),
@@ -813,6 +820,8 @@ declare
   v_f             numeric;
   v_od            public.opening_documents%rowtype;
   v_snap_g        numeric(14, 4) := 0;
+  v_od_rem        numeric(18, 2);
+  v_open_applied  numeric(18, 2) := 0;
   v_cash_val      numeric;
   v_usd_val       numeric;
   v_pool_cash     numeric(18, 2) := 0;
@@ -935,7 +944,15 @@ begin
    where organization_id = v_caller_org and customer_id = v_customer.id and kind = 'customer_currency' and unit = v_cur
      and side = 'debt' and status = 'active' and seller_id = v_seller_id
    order by created_at limit 1;
-  if v_od.id is not null and v_applied > 0 and v_od.amount > 0 and v_od.equiv_585_g is null then
+  -- 088: an UNRATED opening debt takes only what is left of it (the rest of the payment is an ordinary sale debt /
+  -- advance); once it is paid off, later payments are ordinary (converted at the handover)
+  if v_od.id is not null and v_od.equiv_585_g is null then
+    v_od_rem := v_od.amount - coalesce((select sum(c.opening_applied_amount) from public.client_currency_settlements c
+                  where c.opening_document_id = v_od.id and c.status <> 'reversed'), 0);
+    v_open_applied := least(v_applied, greatest(v_od_rem, 0));
+    if v_open_applied <= 0 then v_od := null; v_open_applied := 0; end if;
+  end if;
+  if v_od.id is not null and v_open_applied > 0 and v_od.equiv_585_g is null then
     -- 088: UNRATED opening debt: the paid part is valued at THIS payment's rates (084 operation-rate rule) and becomes the
     -- seller's 585 obligation now (recalc below); the valued pool takes it, so the handover closes exactly that
     if v_lom_rate is null then
@@ -949,7 +966,7 @@ begin
     if coalesce(v_lom_rate, 0) <= 0 or (v_cur = 'USD' and coalesce(v_usd_rate, 0) <= 0) then
       raise exception 'ERR_RATE_REQUIRED: kursi kiritilmagan boshlang''ich qarz to''lovida 585 kursi% kiritilishi shart', case when v_cur = 'USD' then ' va USD kursi' else '' end using errcode = '22023';
     end if;
-    v_snap_g := round(case when v_cur = 'UZS' then v_applied else v_applied * v_usd_rate end / v_lom_rate, 4);
+    v_snap_g := round(case when v_cur = 'UZS' then v_open_applied else v_open_applied * v_usd_rate end / v_lom_rate, 4);
   elsif v_od.id is not null and v_applied > 0 and v_od.amount > 0 then
     v_snap_g := least(greatest(0, v_od.seller_obligation_g - coalesce((select sum(c.snapshot_released_g) from public.client_currency_settlements c
                         where c.opening_document_id = v_od.id and c.status <> 'reversed'), 0)),
@@ -957,8 +974,12 @@ begin
   end if;
   v_cash_val := case when v_cash <= 0 then 0 when v_cur = 'UZS' then v_cash else v_cash / nullif(v_usd_rate, 0) end;
   v_usd_val  := case when v_usd <= 0 then 0 when v_cur = 'USD' then v_usd else v_usd * v_usd_rate end;
-  v_pool_cash := round(v_cash * case when v_od.id is not null then 1 else 1 - v_f end, 2);
-  v_pool_usd  := round(v_usd * case when v_od.id is not null then 1 else 1 - v_f end, 2);
+  -- 088: for an unrated opening debt only its part (+ the advance part, 0 g) enters the valued pool; a part that paid an
+  -- ordinary sale debt stays unvalued and is converted at the handover (rated debts: the 085 rule, unchanged)
+  v_pool_cash := round(v_cash * case when v_od.id is not null and v_od.equiv_585_g is null then (v_open_applied + (v_credit - v_applied)) / v_credit
+                                     when v_od.id is not null then 1 else 1 - v_f end, 2);
+  v_pool_usd  := round(v_usd * case when v_od.id is not null and v_od.equiv_585_g is null then (v_open_applied + (v_credit - v_applied)) / v_credit
+                                    when v_od.id is not null then 1 else 1 - v_f end, 2);
   v_pool_cash_g := case when v_credit > 0 then round(v_snap_g * coalesce(v_cash_val, 0) / v_credit, 6) else 0 end;
   v_pool_usd_g  := case when v_credit > 0 then round(v_snap_g * coalesce(v_usd_val, 0) / v_credit, 6) else 0 end;
   if v_pool_cash > 0 or v_pool_usd > 0 then
@@ -973,10 +994,12 @@ begin
   v_no := 'CPAY-' || v_cur || '-' || to_char(public._goldia_business_date(), 'YYYYMMDD') || '-' || upper(substr(gen_random_uuid()::text, 1, 6));
   insert into public.client_currency_settlements (organization_id, settlement_no, customer_id, seller_id, debt_currency, cash_uzs, usd_amount,
     scrap_physical_g, scrap_proba, scrap_585_g, rate_usd_uzs, rate_lom_uzs, credited_amount, applied_to_debt, to_advance,
-    idempotency_key, recorded_by, notes, opening_document_id, snapshot_released_g, pool_cash_uzs, pool_cash_585_g, pool_usd, pool_usd_585_g)
+    idempotency_key, recorded_by, notes, opening_document_id, snapshot_released_g, pool_cash_uzs, pool_cash_585_g, pool_usd, pool_usd_585_g,
+    opening_applied_amount)
   values (v_caller_org, v_no, v_customer.id, v_seller_id, v_cur, v_cash, v_usd, v_scrap, v_proba, v_scrap_585, v_usd_rate, v_lom_rate,
     v_credit, v_applied, v_credit - v_applied, nullif(btrim(p_idempotency_key), ''), v_caller_emp_id, p_notes,
-    v_od.id, v_snap_g, v_pool_cash, v_pool_cash_g, v_pool_usd, v_pool_usd_g)
+    v_od.id, v_snap_g, v_pool_cash, v_pool_cash_g, v_pool_usd, v_pool_usd_g,
+    case when v_od.id is not null and v_od.equiv_585_g is null then v_open_applied end)
   returning id into v_id;
   if v_od.id is not null and v_od.equiv_585_g is null and coalesce(v_snap_g, 0) > 0 then
     perform public.recalc_seller_gold_account(v_seller_id, v_caller_org);

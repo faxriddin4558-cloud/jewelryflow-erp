@@ -29,6 +29,7 @@ do $g$ begin
     raise exception 'ROLLBACK 088 REFUSED: unrated opening currency debts exist';
   end if; end $g$;
 drop index if exists public.opening_documents_one_factory_settled;
+alter table public.client_currency_settlements drop column if exists opening_applied_amount;
 alter table public.opening_documents drop constraint if exists opening_documents_kind_check;
 alter table public.opening_documents add constraint opening_documents_kind_check check (kind in ('manager_inventory', 'seller_inventory', 'factory_obligation', 'factory_advance',
                         'seller_obligation', 'customer_gram', 'customer_currency', 'manager_cash', 'manager_scrap',
