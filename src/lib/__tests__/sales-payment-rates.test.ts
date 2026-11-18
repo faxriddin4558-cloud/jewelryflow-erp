@@ -56,7 +56,7 @@ describe("UZS amount inputs accept whole so'm (F-UI-2)", () => {
   const read = (f: string) => fs.readFileSync(path.resolve(process.cwd(), f), "utf8");
   it("payment, handover, purchase and mobile settlement cash fields use step=1 (rate fields unchanged)", () => {
     const ledger = read("src/components/sales/CustomerLedgerAndSheetsSection.tsx");
-    const cashInput = ledger.slice(ledger.indexOf("To&apos;langan Naqd Pul (UZS)"), ledger.indexOf("value={payCashAmount}"));
+    const cashInput = ledger.slice(ledger.indexOf("Mijoz bergan SO&apos;M (UZS)") /* label renamed in the P1 UI (3d87193) */, ledger.indexOf("value={payCashAmount}"));
     expect(cashInput).toContain('step="1"');
     const director = read("src/components/sales/DirectorSalesWorkspace.tsx");
     for (const label of ["Naqd Pul (UZS):", "Sarflangan UZS (So&apos;m):"]) {

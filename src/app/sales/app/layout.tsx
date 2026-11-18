@@ -45,6 +45,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     title: "SAVDO & KASSALAR",
     items: [
       { name: "Sotuvchilar & Bozor Qarzi", href: "/sales/app/sellers", icon: "👥", roles: ["Director", "Production Manager", "manager"] },
+      { name: "Ombor harakati", href: "/sales/app/stock-movements", icon: "📦", roles: ["Director", "Production Manager", "manager"] },
       { name: "Skaner Savdo", href: "/sales/app/scan", icon: "⚡" },
       { name: "Mijozlar va Nasiya", href: "/sales/app/customers", icon: "🛍️" },
       { name: "Kassa & Valyuta", href: "/sales/app/cash", icon: "💰", roles: ["Director", "Production Manager", "manager"] },

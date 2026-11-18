@@ -33,6 +33,7 @@ import { SellerInventoryDashboard } from "./SellerInventoryDashboard";
 import { SheetsImportSection } from "./SheetsImportSection";
 import { TelegramUsersSection } from "./TelegramUsersSection";
 import { SellerReconciliationModal } from "./SellerReconciliationModal";
+import { SellerTillCountModal } from "./SellerTillCountModal";
 import {
   formatScreenGrams,
   formatScreenUZS,
@@ -77,6 +78,8 @@ export function DirectorSalesWorkspace({
   factorySection = "all",
   vaultSection = "all",
 }: DirectorSalesWorkspaceProps = {}) {
+  // 089: till count dialog of one seller card
+  const [tillCountSeller, setTillCountSeller] = useState<{ id: string; name: string; uzs: number; usd: number } | null>(null);
   const [activeTab, setActiveTab] = useState<DirectorSalesTab>(initialTab);
   const [activeFactorySection, setActiveFactorySection] = useState<"all" | "receive" | "handover">(factorySection);
   const [activeVaultSection, setActiveVaultSection] = useState<"all" | "cash" | "refining" | "purchases">(vaultSection);
@@ -1161,6 +1164,7 @@ export function DirectorSalesWorkspace({
   const todaySalesCount = todaySalesList.length;
   const todaySalesGrams = todaySalesList.reduce((acc, s) => acc + Number(s.base_weight_grams || 0), 0);
 
+
   return (
     <div className="space-y-6">
       {/* Toast notifications */}
@@ -2170,6 +2174,17 @@ export function DirectorSalesWorkspace({
                         </div>
                       );
                     })()}
+
+                    {/* 089: count the cash the seller really holds against the till (record only, no new debt) */}
+                    <div className="flex flex-wrap gap-1.5">
+                      <button type="button" onClick={() => setTillCountSeller({ id: String(acc.seller_id), name: sellerName, uzs: Number(acc.seller_till_cash_amount || 0), usd: Number(acc.seller_till_usd_amount || 0) })}
+                        className="py-1.5 px-2.5 rounded-xl border border-slate-300 bg-white text-[11px] font-bold text-[#0F172A] hover:bg-slate-50" data-testid="seller-card-till-count">
+                        🧮 Kassa sanog&apos;i
+                      </button>
+                      <a href={`/sales/app/stock-movements?seller=${acc.seller_id}`} className="py-1.5 px-2.5 rounded-xl border border-slate-300 bg-white text-[11px] font-bold text-[#0F172A] hover:bg-slate-50" data-testid="seller-card-stock-movements">
+                        📦 Ombor harakati
+                      </a>
+                    </div>
 
                     <details className="group" data-testid="seller-card-details">
                       <summary className="cursor-pointer select-none text-[11px] font-bold text-[#475569] py-1">Batafsil (bozor qarzi, olingan / topshirilgan)</summary>
@@ -4075,6 +4090,16 @@ export function DirectorSalesWorkspace({
       {/* RECEIPT MODAL */}
       <SalesReceiptModal data={receiptData} onClose={() => setReceiptData(null)} />
 
+      {tillCountSeller && (
+        <SellerTillCountModal
+          sellerId={tillCountSeller.id}
+          sellerName={tillCountSeller.name}
+          tillUzs={tillCountSeller.uzs}
+          tillUsd={tillCountSeller.usd}
+          onClose={() => setTillCountSeller(null)}
+          onDone={(text) => { setTillCountSeller(null); setSuccessMessage(text); }}
+        />
+      )}
       {/* 7-STEP SELLER RECONCILIATION MODAL (A-G) */}
       {selectedReconSeller && (
         <SellerReconciliationModal

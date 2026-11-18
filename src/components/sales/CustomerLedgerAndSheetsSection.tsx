@@ -9,6 +9,9 @@ import { isSellerRole, ownRatesFromRpc, pickPaymentRates } from "@/lib/sales-pay
 import { CurrencyPaymentModal } from "./CurrencyPaymentModal";
 import { customerBalance, netDirectionLabel } from "@/lib/customer-balance";
 import { SaleReturnModal } from "./SaleReturnModal";
+import { OpeningSaleReturnModal } from "./OpeningSaleReturnModal";
+import { PaymentCorrectionModal } from "./PaymentCorrectionModal";
+import { ledgerTypeLabel, newIdemKey } from "@/lib/goldia-089-ui";
 import { SETTL_SCOPE_TEXT, usdToUzsPreview, wholeDollarsInUzs, wholeDollarsWarning } from "@/lib/payment-hints";
 
 function parseErrorMessage(err: unknown, fallback: string = "Xatolik yuz berdi"): string {
@@ -77,7 +80,8 @@ export interface LegacyDebtRow {
 
 export interface DailyLedgerEntry {
   tx_id: string;
-  tx_type: "sale" | "payment" | "legacy_debt" | "return";
+  // 089: currency_payment = CPAY (UZS / USD debt; 0 g in the gram columns), opening_return = old-sale (pre-T0) return
+  tx_type: "sale" | "payment" | "legacy_debt" | "return" | "currency_payment" | "opening_return";
   tx_date: string;
   customer_id: string;
   customer_code: string;
@@ -275,6 +279,9 @@ export function CustomerLedgerAndSheetsSection() {
   const [reversalTarget, setReversalTarget] = useState<DailyLedgerEntry | null>(null);
   // 083: partial / full customer return of one sale ("↩️ Vozvrat")
   const [returnTarget, setReturnTarget] = useState<DailyLedgerEntry | null>(null);
+  // 089: old-sale return of a customer, payment currency correction
+  const [openingReturnCustomer, setOpeningReturnCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [correctionTarget, setCorrectionTarget] = useState<DailyLedgerEntry | null>(null);
   const [reversalReason, setReversalReason] = useState("");
   const [reversalError, setReversalError] = useState<string | null>(null);
 
@@ -820,6 +827,21 @@ export function CustomerLedgerAndSheetsSection() {
           p_reason: reversalReason.trim(),
         });
         if (error) throw error;
+      } else if (reversalTarget.tx_type === "currency_payment") {
+        // 089: CPAY rows are reversed by their own function (pool-order and freeze checks inside)
+        const { error } = await supabase.rpc("rpc_reverse_client_currency_settlement", {
+          p_settlement_id: reversalTarget.tx_id,
+          p_reason: reversalReason.trim(),
+          p_idempotency_key: newIdemKey("CPAY-REV"),
+        });
+        if (error) throw error;
+      } else if (reversalTarget.tx_type === "opening_return") {
+        const { error } = await supabase.rpc("rpc_reverse_opening_sale_return", {
+          p_return_id: reversalTarget.tx_id,
+          p_reason: reversalReason.trim(),
+          p_idempotency_key: newIdemKey("OSR-REV"),
+        });
+        if (error) throw error;
       } else if (reversalTarget.tx_type === "legacy_debt") {
         const { error } = await supabase.rpc("rpc_reverse_client_legacy_debt", {
           p_legacy_debt_id: reversalTarget.tx_id,
@@ -1303,6 +1325,15 @@ export function CustomerLedgerAndSheetsSection() {
                   </div>
                 </div>
 
+                {isPrivileged && (
+                  <button
+                    type="button"
+                    onClick={() => setOpeningReturnCustomer({ id: c.id, name: c.contact_name })}
+                    className="w-full px-2 py-2 bg-amber-950/80 text-amber-200 border border-amber-600/80 rounded-xl text-[11px] font-bold"
+                  >
+                    ↩️ Eski savdo vozvrati (T0 dan oldingi tovar)
+                  </button>
+                )}
                 {/* 3 Action Buttons Permanently Visible on Mobile */}
                 <div className="grid grid-cols-3 gap-1.5 pt-1">
                   <button
@@ -1446,6 +1477,17 @@ export function CustomerLedgerAndSheetsSection() {
                         >
                           <span>📋</span> Eski qarz
                         </button>
+                        {isPrivileged && (
+                          <button
+                            type="button"
+                            data-testid="open-opening-return"
+                            onClick={() => setOpeningReturnCustomer({ id: c.id, name: c.contact_name })}
+                            className="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 text-amber-200 border border-amber-600/80 rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-sm"
+                            title="Boshlang'ichdan (T0) oldin sotilgan tovar qaytdi - boshlang'ich qarzga yoziladi"
+                          >
+                            <span>↩️</span> Eski savdo vozvrati
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
@@ -1568,9 +1610,13 @@ export function CustomerLedgerAndSheetsSection() {
                         <span className="px-2 py-0.5 bg-amber-950 text-amber-300 border border-amber-800 rounded text-[10px] font-bold" data-testid="ledger-return-badge">
                           ↩️ Vozvrat
                         </span>
+                      ) : r.tx_type === "currency_payment" || r.tx_type === "opening_return" ? (
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${r.tx_type === "currency_payment" ? "bg-sky-950 text-sky-300 border-sky-800" : "bg-amber-950 text-amber-200 border-amber-700"}`} data-testid={`ledger-${r.tx_type}-badge`}>
+                          {ledgerTypeLabel(r.tx_type)}
+                        </span>
                       ) : (
                         <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded text-[10px] font-bold">
-                          💰 To&apos;lov
+                          💰 To&apos;lov (585 g)
                         </span>
                       )}
                     </td>
@@ -1630,6 +1676,18 @@ export function CustomerLedgerAndSheetsSection() {
                             className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-amber-700/80 bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 hover:text-white transition flex items-center gap-1"
                           >
                             <span>↩️</span> Vozvrat
+                          </button>
+                        )}
+                        {isPrivileged && (r.tx_type === "payment" || r.tx_type === "currency_payment") && (
+                          <button
+                            type="button"
+                            data-testid="open-payment-correction"
+                            onClick={() => setCorrectionTarget(r)}
+                            disabled={busy}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-sky-800/80 bg-sky-950/40 text-sky-300 hover:bg-sky-900/60 hover:text-white transition flex items-center gap-1"
+                            title="Noto'g'ri valyutada kiritilgan to'lovni bekor qilib, to'g'ri valyutada qayta yozish (bitta amalda)"
+                          >
+                            <span>💱</span> Valyutani tuzatish
                           </button>
                         )}
                         {(isPrivileged || (r.tx_type === "sale" && r.item_id)) && (
@@ -2462,6 +2520,31 @@ export function CustomerLedgerAndSheetsSection() {
               type: "success",
               text: `Vozvrat ${res.return_no} saqlandi: ${formatScreenGrams(res.returned_weight_g, 4)} qaytdi; ${res.unit === "XAU585" ? formatScreenGrams(res.returned_value, 4) : `${res.unit} ${Number(res.returned_value).toLocaleString("ru-RU")}`} — qarzdan ${Number(res.debt_reduced)}, avans ${Number(res.advance_created)}.`,
             });
+            void loadDailyLedger();
+            void loadCustomers();
+          }}
+        />
+      )}
+      {openingReturnCustomer && (
+        <OpeningSaleReturnModal
+          customerId={openingReturnCustomer.id}
+          customerName={openingReturnCustomer.name}
+          onClose={() => setOpeningReturnCustomer(null)}
+          onDone={(res) => {
+            setOpeningReturnCustomer(null);
+            setMessage({ type: "success", text: `Eski savdodan vozvrat ${res.return_no} saqlandi: qiymat ${Number(res.credit)} ${res.unit === "G585" ? "g (585)" : res.unit} — qarzdan ${Number(res.debt_reduced)}, avansga ${Number(res.advance_created)}.` });
+            void loadDailyLedger();
+            void loadCustomers();
+          }}
+        />
+      )}
+      {correctionTarget && (
+        <PaymentCorrectionModal
+          target={correctionTarget}
+          onClose={() => setCorrectionTarget(null)}
+          onDone={(text) => {
+            setCorrectionTarget(null);
+            setMessage({ type: "success", text });
             void loadDailyLedger();
             void loadCustomers();
           }}
