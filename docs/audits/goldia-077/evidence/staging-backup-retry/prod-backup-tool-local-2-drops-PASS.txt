@@ -1,0 +1,69 @@
+[3/9] Backups (outside the repository) (6:23:18 PM)
+  -> production baseline before dump: 91 lines
+  pg_dump full backup... (6:23:19 PM)
+  full dump: attempt 1/5 FAILED (0 s): pg_dump: error: connection to server at "127.0.0.1", port 1 failed: Connection refused | Is the server running on that host and accepting TCP/IP connections?
+  waiting 15 s, then until the database answers again (at most 10 min)...
+  database answers again after 30 s
+  full dump: attempt 2/5 FAILED (0 s): pg_dump: error: connection to server at "127.0.0.1", port 1 failed: Connection refused | Is the server running on that host and accepting TCP/IP connections?
+  waiting 30 s, then until the database answers again (at most 10 min)...
+  database answers again
+  full dump: attempt 3 ok (0 s)
+  -> schemas in backup: public, auth, storage, supabase_migrations
+  schema dump: attempt 1 ok (0 s)
+  -> schema backup: ok
+  data dump: attempt 1 ok (0 s)
+  -> data backup: ok
+  -> roles backup: ok
+  -> production baseline unchanged during dump: yes
+  -> rows changed during backup: none
+  565b1a1d0510eab01cc7ed8e9c4ea8b4de318b89925eb6adfb98ef6144fae399  goldia-data.dump  41137 bytes
+  01024e3c52cea137ba5ee56ae63dd186c7ad199322ebc2b3e926764173c830c6  goldia-full.dump  1497290 bytes
+  bcee64ffd5729e1290c19a7c025c36d3d58665c66f93f92edbce246e796c1281  goldia-roles.sql  1300 bytes
+  41989534e75fffe4d4a593a52eaaecd5d6525977d619cb598d2962a004d61d38  goldia-schema.sql  1311487 bytes
+[4/9] Restore test into a disposable LOCAL PostgreSQL (never production) (6:24:35 PM)
+[4/9] Restore test into a disposable LOCAL PostgreSQL (never production) (6:24:35 PM)
+  initdb (6:24:35 PM)
+  starting local PostgreSQL on port 55432 (6:24:35 PM)
+  local PostgreSQL ready (6:24:35 PM)
+  -> extensions not available locally (Supabase platform only): none
+  pg_restore 1 MB (can take several minutes) (6:24:35 PM)
+  pg_restore finished (6:24:36 PM)
+  -> restore errors (Supabase platform objects may account for some): 0
+  -> public functions/policies/views prod vs restored: 187/130/5 vs 187/130/5
+  -> tables compared: 78
+  -> row-count differences prod vs restored: none
+  -> BASELINE (grams, debts, tills, vault, factory, rows, fingerprint) production = restored copy: IDENTICAL
+  -> RECOVERY preflight: n/a for target 089 (the 072 preflight applies to production at 072 only)
+  -> BACKUP: VERIFIED (restored copy matches production row counts)
+[5/9] Migration 088/089 status + preflight (read only)
+  -> migration 088 applied: VERIFIED
+  -> migration 089 already applied: no
+  -> max overloads of touched functions: 1
+  -> 064 manager-stock fix present: no
+  -> pieces in returned_to_factory: 0
+  -> demo accounts in production auth: 0
+  -> 585 rates available: 0
+  -> PREFLIGHT: PASS
+  -> preflight output: preflight.txt (ERRORS — see file)
+  -> investigation output: investigation.txt
+  -> security-advisor output: security-advisor.txt
+[6/9] Accounting consistency findings
+  -> finding I2_manager_stock: 1 row(s)
+  -> CRITICAL ACCOUNTING FINDINGS: none
+[7/9] Security Advisor equivalents
+  -> advisor A1_security_definer_view: 4
+  -> advisor A3_mutable_search_path: 272
+  -> advisor A4_definer_executable_by_anon: 11
+  -> advisor A5_permissive_write_policy: 1
+  -> advisor A6_anon_write_grant: 61
+[8/9] Migration 089 on the restored LOCAL copy (production untouched)
+  -> 089 applies on production schema copy: yes
+  -> 089 changed row counts: no
+  -> rollback + re-apply on copy: ok
+  -> 089 COMPATIBILITY: PASS
+[9/9] Decision
+  -> GATES: backup=true preflight=true migration088=true compat089=true accounting=true baseline=true recovery=true
+
+RESULT: ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval
+Send this file back for review: /opt/goldia-audit/pbk89/goldia-prod-2026-11-18T18-23-18/SUMMARY.txt
+Keep the backup folder private (it contains customer data and login records). Do not commit it.

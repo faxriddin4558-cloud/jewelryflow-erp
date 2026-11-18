@@ -39,6 +39,7 @@ const path = require("path");
 const crypto = require("crypto");
 const net = require("net");
 const { spawnSync } = require("child_process");
+const DUMPR = require("./lib/goldia-dump-retry");
 
 const REPO = path.resolve(__dirname, "..");
 const args = parseArgs(process.argv.slice(2));
@@ -143,6 +144,7 @@ function findPgBin() {
 let PG;
 
 const MIN = 60 * 1000;
+const sleep = (s) => spawnSync(process.execPath, ["-e", `setTimeout(() => {}, ${s * 1000})`]);
 
 function run(tool, argList, { env = {}, input, quiet, timeoutMs = 30 * MIN, noPipes = false } = {}) {
   const res = spawnSync(PG.tool(tool), argList, {
@@ -474,20 +476,53 @@ async function main() {
     baseBefore = baseline(prodEnv, "production-before-dump");
     note("production baseline before dump", baseBefore ? `${baseBefore.split("\n").length} lines` : "FAILED");
     full = path.join(outDir, "goldia-full.dump");
+    // 2026-11-18 (same as the staging tool, 9926d4b): a slow / unstable link closed one long pg_dump connection while
+    // busy and the next attempts never reached the pooler. pg_dump now connects with longer TCP keepalives, a failed
+    // attempt is retried (at most DUMP_ATTEMPTS) after a pause AND only once the database answers again (max 10 min);
+    // each attempt writes a fresh file that counts only when pg_restore --list reads it. Everything after (schema /
+    // data / roles dumps, counts + baseline before / after, SHA256SUMS, restore test, fingerprints) is unchanged.
+    const conn = DUMPR.dumpConninfo(PROD.db);
+    let simDumpFail = LOCAL_TARGET ? Number(args["simulate-dump-failures"] || 0) : 0;   // local tests only
+    let simProbeFail = LOCAL_TARGET ? Number(args["simulate-probe-failures"] || 0) : 0; // local tests only
+    const probe = () => {
+      if (simProbeFail > 0) { simProbeFail--; return false; }
+      return psql(prodEnv, readOnly("select 1"), { timeoutMs: 60000 }).status === 0;
+    };
+    const dumpWithRetry = (dumpArgs, file, what, mustList) => {
+      for (let attempt = 1; attempt <= DUMPR.DUMP_ATTEMPTS; attempt++) {
+        const part = `${file}.attempt${attempt}`;
+        const t0 = Date.now();
+        const env = simDumpFail > 0 ? { ...prodEnv(), PGPORT: "1" } : prodEnv();
+        if (simDumpFail > 0) simDumpFail--;
+        const r = run("pg_dump", ["-w", "-d", conn, ...dumpArgs, "-f", part], { env, timeoutMs: 60 * MIN });
+        const listed = r.status === 0 && mustList ? run("pg_restore", ["--list", part], { timeoutMs: 10 * MIN }) : null;
+        const ok = r.status === 0 && (!mustList || (listed && listed.status === 0 && /TABLE DATA public /.test(listed.stdout)));
+        if (ok) { fs.renameSync(part, file); log(`  ${what}: attempt ${attempt} ok (${Math.round((Date.now() - t0) / 1000)} s)`); return true; }
+        try { fs.rmSync(part, { force: true }); } catch { /* partial file */ }
+        const why = r.status !== 0 ? (DUMPR.stderrTail(r.stderr) || `exit ${r.status}`) : "file not readable by pg_restore --list";
+        fs.writeFileSync(path.join(outDir, `pg_dump-${what.replace(/\W+/g, "-")}-attempt${attempt}.err.txt`), String(r.stderr || why));
+        log(`  ${what}: attempt ${attempt}/${DUMPR.DUMP_ATTEMPTS} FAILED (${Math.round((Date.now() - t0) / 1000)} s): ${why}`);
+        if (attempt === DUMPR.DUMP_ATTEMPTS) return false;
+        const wait = DUMPR.pauseAfter(attempt);
+        log(`  waiting ${wait} s, then until the database answers again (at most 10 min)...`);
+        sleep(wait);
+        const nw = DUMPR.waitForNetwork(probe, sleep, { maxSeconds: 600, everySeconds: 15 });
+        if (!nw.ok) fail(`${what}: the database did not answer for ${nw.waitedSeconds} s after attempt ${attempt} (network down on this computer?) - production was only read; check the internet connection and re-run`);
+        log(`  database answers again${nw.waitedSeconds ? ` after ${nw.waitedSeconds} s` : ""}`);
+      }
+      return false;
+    };
     log(`  pg_dump full backup... ${ts()}`);
-    let r = run("pg_dump", ["-w", "-Fc", ...schemaFlags(schemas), "-f", full], { env: prodEnv(), timeoutMs: 60 * MIN });
-    if (r.status !== 0) {
+    let r;
+    if (!dumpWithRetry(["-Fc", ...schemaFlags(schemas)], full, "full dump", true)) {
       log("  full dump with auth/storage failed, retrying public + supabase_migrations only");
       schemas = ["public", "supabase_migrations"];
-      r = run("pg_dump", ["-w", "-Fc", ...schemaFlags(schemas), "-f", full], { env: prodEnv(), timeoutMs: 60 * MIN });
-      if (r.status !== 0) fail("pg_dump failed (see run.log)");
+      if (!dumpWithRetry(["-Fc", ...schemaFlags(schemas)], full, "full dump (public + supabase_migrations)", true)) fail("pg_dump failed (see run.log and pg_dump-*-attempt*.err.txt)");
       note("WARNING", "auth/storage schemas NOT in backup (logins must be recreated after a disaster)");
     }
     note("schemas in backup", schemas.join(", "));
-    r = run("pg_dump", ["-w", "--schema-only", ...schemaFlags(schemas), "-f", path.join(outDir, "goldia-schema.sql")], { env: prodEnv(), timeoutMs: 30 * MIN });
-    note("schema backup", r.status === 0 ? "ok" : "FAILED");
-    r = run("pg_dump", ["-w", "-Fc", "--data-only", ...schemaFlags(schemas), "-f", path.join(outDir, "goldia-data.dump")], { env: prodEnv(), timeoutMs: 60 * MIN });
-    note("data backup", r.status === 0 ? "ok" : "FAILED");
+    note("schema backup", dumpWithRetry(["--schema-only", ...schemaFlags(schemas)], path.join(outDir, "goldia-schema.sql"), "schema dump", false) ? "ok" : "FAILED");
+    note("data backup", dumpWithRetry(["-Fc", "--data-only", ...schemaFlags(schemas)], path.join(outDir, "goldia-data.dump"), "data dump", false) ? "ok" : "FAILED");
     r = run("pg_dumpall", ["-w", "--roles-only", "--no-role-passwords", "-l", PROD.db, "-f", path.join(outDir, "goldia-roles.sql")], { env: prodEnv(), timeoutMs: 10 * MIN });
     note("roles backup", r.status === 0 ? "ok" : "not permitted on Supabase pooler (non-critical: Supabase recreates platform roles)");
     after = counts(prodEnv);
