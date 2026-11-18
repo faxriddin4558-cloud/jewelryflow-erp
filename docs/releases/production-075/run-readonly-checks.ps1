@@ -35,7 +35,7 @@
   file through the same read-only wrapper, used to prove that a write attempt fails).
 #>
 param(
-  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging", "staging-function-parity-080", "staging-function-parity-081", "production-drift-audit", "production-opening-recon", "production-opening-audit")][string]$Target,
+  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging", "staging-function-parity-080", "staging-function-parity-081", "production-drift-audit", "production-opening-recon", "production-opening-audit", "production-ui-release")][string]$Target,
   [string]$PoolerHost = "",
   [int]$Port = 5432,
   [string]$PgBin = "C:\Program Files\PostgreSQL\17\bin",
@@ -43,7 +43,9 @@ param(
   [switch]$LocalRehearsal,
   [switch]$SimulatePoolerWithoutOptions,
   [string]$ExtraCheckFile = "",
-  [string]$BaselineBefore = ""
+  [string]$BaselineBefore = "",
+  # production-ui-release: the migration level production must have (the newest migration of the released commit)
+  [string]$ExpectLevel = ""
 )
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
@@ -51,7 +53,7 @@ $script:SummaryFile = $null
 
 $Refs = @{ production = "vrozlllcaxinavzxueif"; staging = "vouehtlmsunebracahon" }
 $Never = @("yvvbdoqncubtwlzskgml", "hbbuskyifxkowlozsaym", "vrozlilcaxinavzxueif")   # JFS demo, ERP, typo of prod ref
-$RefKey = $Target; if ($Target -eq "production-post" -or $Target -eq "production-prelaunch" -or $Target -eq "production-drift-audit" -or $Target -eq "production-opening-recon" -or $Target -eq "production-opening-audit") { $RefKey = "production" }
+$RefKey = $Target; if ($Target -eq "production-post" -or $Target -eq "production-prelaunch" -or $Target -eq "production-drift-audit" -or $Target -eq "production-opening-recon" -or $Target -eq "production-opening-audit" -or $Target -eq "production-ui-release") { $RefKey = "production" }
 if ($Target -like "staging-function-parity-*") { $RefKey = "staging" }
 $Ref = $Refs[$RefKey]
 
@@ -118,6 +120,12 @@ if ($Target -eq "production") {
     @{ Name = "opening_old_balances_recon"; File = "supabase/release/opening_old_balances_recon_readonly.sql"; Kind = "recon" },
     @{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" }
   )
+} elseif ($Target -eq "production-ui-release") {
+  # 2026-11-18: UI-only production release (no migration): identity, the history EXACTLY at the commit's newest migration,
+  # that level's postflight, full function parity with the repository and the opening / freeze protections. The level
+  # dependent files are added after the identity probe.
+  if ($ExpectLevel -notmatch '^20260101000\d{3}$') { Finish "FAIL" "production-ui-release needs -ExpectLevel 20260101000NNN (the newest migration of the released commit)" }
+  $checks = @(@{ Name = "09_ui_release_lock"; File = "docs/releases/production-075/09_ui_release_lock_readonly.sql"; Kind = "postflight" })
 } elseif ($Target -eq "production-opening-audit") {
   # 2026-11-17 (read only, history 085..087): independent audit of the CURRENT opening (A-J documents, factory, stock,
   # sellers) - no customer names, no notes of customer documents
@@ -213,13 +221,21 @@ Add-Content -Path $script:SummaryFile -Value $idLine -Encoding ASCII
 if ($pp[1] -ne "on") { Finish "FAIL" "the explicit read-only transaction is not read-only (transaction_read_only=" + $pp[1] + ")" }
 if ($pp[3] -ne "true") { Finish "FAIL" "deployment_environment() exists - this is a JewelryFlow SaaS demo database" }
 if ($Target -like "staging-function-parity-*" -and $pp[4] -ne ("20260101000" + $Target.Substring($Target.Length - 3))) { Finish "FAIL" ($Target + " expects migration history at 20260101000" + $Target.Substring($Target.Length - 3) + ", found " + $pp[4]) }
+if ($Target -eq "production-ui-release") {
+  if ($pp[4] -ne $ExpectLevel) { Finish "FAIL" ("UI-only release: production history is at " + $pp[4] + " but the released commit needs " + $ExpectLevel + " - this is a DATABASE change, use the full release (without -UiOnly)") }
+  $lv = ([string]$pp[4]).Substring(11)
+  $extra = @(@{ Name = ($lv + "_postflight"); File = ("supabase/release/" + $lv + "_postflight_readonly.sql"); Kind = "postflight" },
+             @{ Name = ("function_body_parity_" + $lv + "_full"); File = ("supabase/release/function_body_parity_" + $lv + "_full_readonly.sql"); Kind = "fnparity" })
+  foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
+  $checks = @($checks) + $extra
+}
 if ($Target -eq "production-opening-audit" -and @("20260101000085", "20260101000086", "20260101000087", "20260101000088") -notcontains $pp[4]) { Finish "FAIL" ("production-opening-audit expects migration history at 085 ... 088, found " + $pp[4]) }
 if ($Target -eq "production-opening-recon" -and @("20260101000085", "20260101000086", "20260101000087") -notcontains $pp[4]) { Finish "FAIL" ("production-opening-recon expects migration history at 085, 086 or 087, found " + $pp[4]) }
-if ($Target -eq "production-prelaunch" -and @("20260101000075", "20260101000076", "20260101000080", "20260101000085", "20260101000087") -notcontains $pp[4]) { Finish "FAIL" ("production-prelaunch expects migration history at 075 (before 076), 076 (before 077..080), 080 (before 081), 085 (before 086 / 087) or 087 (before 088), found " + $pp[4]) }
+if ($Target -eq "production-prelaunch" -and @("20260101000075", "20260101000076", "20260101000080", "20260101000085", "20260101000087", "20260101000088") -notcontains $pp[4]) { Finish "FAIL" ("production-prelaunch expects migration history at 075 (before 076), 076 (before 077..080), 080 (before 081), 085 (before 086 / 087), 087 (before 088) or 088 (before a later migration), found " + $pp[4]) }
 # 2026-11-14 (F3, before the 086 -> 087 chain): at 085 the prelaunch is the full read-only verification of that level - the
 # same set as production-drift-audit: history continuity / unknown versions + frontend RPC presence (08), postflights
 # 073..085, the CR-tolerant parity of ALL functions at 085, RLS isolation and the pre-release business baseline
-$prelaunchFull = ($Target -eq "production-prelaunch" -and @("20260101000085", "20260101000087") -contains $pp[4])
+$prelaunchFull = ($Target -eq "production-prelaunch" -and @("20260101000085", "20260101000087", "20260101000088") -contains $pp[4])
 if ($prelaunchFull) {
   $d8 = @{ Name = "08_drift_audit"; File = "docs/releases/production-075/08_drift_audit_readonly.sql"; Kind = "drift" }
   $d8.Path = Join-Path $repo $d8.File; if (-not (Test-Path -LiteralPath $d8.Path)) { Finish "FAIL" ("missing " + $d8.File + " - run from the release branch checkout") }

@@ -61,7 +61,12 @@ param(
   # documents on top of it. Accepted only when TestedCommit is an ancestor of the approved commit, staging serves exactly
   # TestedCommit (build), every changed path is on the non-runtime allow-list below, and every runtime input (src, public,
   # supabase/migrations, supabase/rollback, package files, Next / TS / Tailwind / Vercel config) has the identical git tree.
-  [string]$TestedCommit = ""
+  [string]$TestedCommit = "",
+  # 2026-11-18: production release of a commit that changes NO database object (frontend only). Instead of the database
+  # chain it checks, read only: production identity, the history EXACTLY at this commit's newest migration (otherwise STOP:
+  # use the full release), that level's postflight, full function parity, the opening / freeze protections; then the
+  # frontend, the same checks again and the smoke. The full release (without -UiOnly) keeps every database gate.
+  [switch]$UiOnly
 )
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Continue"
@@ -95,6 +100,7 @@ if ($Target -eq "production" -and $RepairStagingHistory) { Stop-Release "-Repair
 if ($ExpectProductionLevel -and $ExpectProductionLevel -notmatch '^\d{3}$') { Stop-Release "-ExpectProductionLevel must be three digits, e.g. 076" }
 if ($RepairStagingHistory -and $RepairStagingHistory -notmatch '^\d{3}(,\d{3})*$') { Stop-Release "-RepairStagingHistory must be a comma list of three-digit numbers, e.g. 057,058" }
 if ($TestedCommit -and $Target -ne "production") { Stop-Release "-TestedCommit is a production-only switch" }
+if ($UiOnly -and $Target -ne "production") { Stop-Release "-UiOnly is a production-only switch (staging always runs its own dry run / UP TO DATE check)" }
 if ($TestedCommit -and $TestedCommit -notmatch '^[0-9a-fA-F]{7,40}$') { Stop-Release "-TestedCommit must be a commit sha" }
 if ($Target -eq "production" -and -not $ApprovedCommit) { Stop-Release "-ApprovedCommit <sha> is required for production (the owner's written approval names the commit)" }
 $git = Get-Command git -ErrorAction SilentlyContinue; if (-not $git) { Stop-Release "git not found" }
@@ -197,6 +203,22 @@ Write-Host ("  staging runs " + $liveOnStaging + " (build)" + $(if ($TestedCommi
 $typed = Read-Host ("Type PRODUCTION " + $sha7 + " to release every missing migration up to " + $Newest + " (production level is read and shown next) and the frontend to production")
 if ($typed.Trim() -ne ("PRODUCTION " + $sha7)) { Pop-Location; Stop-Release "confirmation did not match" }
 $ro = Join-Path $wt "docs\releases\production-075\run-readonly-checks.ps1"
+if ($UiOnly) {
+  $lvl = "20260101000" + $Newest
+  Step ("1/4 UI-only: production read-only checks (identity, history exactly " + $Newest + ", postflight, full function parity, opening / freeze protections)")
+  Run-Ps1 $ro @("-Target", "production-ui-release", "-ExpectLevel", $lvl) "production UI-release prelaunch" @(0)
+  Step "2/4 production frontend (Vercel goldia-sales-production) - no database step"
+  Run-Ps1 (Join-Path $wt "docs\releases\production-075\production-frontend.ps1") @("-Apply", "-ReleaseCandidate", $head) "production frontend deploy"
+  Step "3/4 production read-only checks again (the database must be unchanged at the same level)"
+  Run-Ps1 $ro @("-Target", "production-ui-release", "-ExpectLevel", $lvl) "production UI-release post-check" @(0)
+  Step "4/4 production read-only browser smoke"
+  Run-Ps1 (Join-Path $wt "docs\releases\production-075\run-production-smoke.ps1") @("-ExpectCommit", $sha7) "production smoke" @(0)
+  Pop-Location
+  Write-Host ""
+  Write-Host ("RELEASE PRODUCTION (UI only) " + $sha7 + " DONE (database unchanged at " + $Newest + ", frontend, checks, smoke PASS). Log: " + $log) -ForegroundColor Green
+  try { Stop-Transcript | Out-Null } catch { }
+  exit 0
+}
 Step "1/5 production read-only prelaunch checks"
 Run-Ps1 $ro @("-Target", "production-prelaunch") "production-prelaunch" @(0)
 $prodArgs = @("scripts\goldia-prod-release.js", "--auto")
