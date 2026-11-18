@@ -1,0 +1,30 @@
+GOLDIA SALES — staging release <detected level> -> 089 (DRY RUN: staging is only read)
+
+started: 2026-11-18T17:24:44.563Z  mode: DRY RUN (LOCAL REHEARSAL)
+[1/10] tools: /opt/goldia-audit/pg17root/wrap (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
+  checkout: 89 migration files, newest 089
+[2/10] connection
+  host=127.0.0.1 port=55488 user=postgres
+  server: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2), user postgres
+[3/10] identity and state gates (read only)
+  organizations=1 employees=0 auth.users=0 jewelry_sales=0
+  history: 88 rows, latest 20260101000088 (level 088)
+  repository: 89 migration files, newest 089
+  unrecorded repository versions below the level (gaps): none
+  recorded versions unknown to this checkout: none
+  history repair requested: none
+  migrations to apply: 089
+  RELEASE PLAN (detected): staging 088 -> 089
+  chain file: chain-089-089.sql sha256=756d797f42739f08 (1 migrations)
+[4/10] fresh backup (outside the repository)
+  full dump: attempt 1/5 FAILED (0 s): pg_dump: error: connection to server at "127.0.0.1", port 1 failed: Connection refused | Is the server running on that host and accepting TCP/IP connections?
+  waiting 15 s, then until the database answers again (at most 10 min)...
+  database answers again after 30 s
+  full dump: attempt 2 ok (0 s, readable by pg_restore --list)
+  schemas: public, auth, storage, supabase_migrations; roles dump: ok
+  ea6ec315cc86d05cdd7da57a5869bd25ceabdaeb9a5c7ca357454b59324496aa  staging-full.dump  1497290 bytes
+  19e2103f995c385d5ad8ff15e7e0e219e1c37c8cd06d65b6798a701017b658b1  staging-roles.sql  1300 bytes
+  b7424a9ec092211e3bad801d61177d5edd62ab1f61921ef4fd842e18f7fb5344  staging-schema.sql  1311487 bytes
+[5/10] restore test into a disposable LOCAL PostgreSQL (staging untouched)
+  extensions not available locally (platform only): none
+  restored copy vs staging row counts: identical (78 tables)

@@ -25,7 +25,8 @@
  *     or --host). Hidden password prompt (or PGPASSWORD); never printed or saved.
  *  3. Identity + state gates (read only): PostgreSQL 17, not a JFS demo database, 074 recorded, nothing > 074.
  *  4. Fresh FULL backup (pg_dump -Fc public/auth/storage/supabase_migrations + schema + roles), SHA256SUMS. No partial
- *     fallback; TCP keepalives; at most 3 attempts (15 s / 30 s pause), each a fresh file accepted only when pg_restore
+ *     fallback; TCP keepalives (~6 min of silence tolerated); at most 5 attempts, before each retry a pause and a wait
+ *     until the database answers again (at most 10 min), each a fresh file accepted only when pg_restore
  *     --list reads it (a network drop through the session pooler no longer ends the release).
  *  5. Restore test into a disposable LOCAL cluster; row counts must match staging.
  *  6. Schema parity of the restored copy with repository 001..074 (reported; the 075 parity in step 7 decides).
@@ -58,6 +59,7 @@ const net = require("net");
 const path = require("path");
 const crypto = require("crypto");
 const { spawnSync } = require("child_process");
+const DUMPR = require("./lib/goldia-dump-retry");
 const checks = require("./lib/goldia-release-checks");
 
 const REPO = path.resolve(__dirname, "..");
@@ -479,8 +481,16 @@ async function main() {
   // pg_dump holds one long connection through the Supabase session pooler; a network drop on the way ("server closed
   // the connection unexpectedly" / pooler: ECLIENTSOCKETCLOSED while busy) fails it. So: TCP keepalives, and at most
   // DUMP_ATTEMPTS attempts with a growing pause, each into a fresh file that only counts after pg_restore --list reads it.
-  const DUMP_ATTEMPTS = 3;
-  const keepalive = `dbname=${TARGET.db} keepalives=1 keepalives_idle=30 keepalives_interval=10 keepalives_count=6 connect_timeout=30`;
+  // 2026-11-18: a slow / unstable link (089 staging run: one dump streamed 133 s, then the client closed it; the next
+  // attempts never reached the pooler) - longer keepalive tolerance, 5 attempts, and before each retry wait until the
+  // database answers again (at most 10 min) instead of a fixed pause. Acceptance of a dump file is unchanged.
+  const DUMP_ATTEMPTS = DUMPR.DUMP_ATTEMPTS;
+  const keepalive = DUMPR.dumpConninfo(TARGET.db);
+  let probeFailuresLeft = REHEARSAL ? Number(args["simulate-probe-failures"] || 0) : 0; // local rehearsal only
+  const probe = () => {
+    if (probeFailuresLeft > 0) { probeFailuresLeft--; return false; }
+    return psql(remoteEnv, ro("select 1"), { timeoutMs: 60000 }).status === 0;
+  };
   let dumpOk = false;
   for (let attempt = 1; attempt <= DUMP_ATTEMPTS && !dumpOk; attempt++) {
     const part = `${backupPath}.attempt${attempt}`;
@@ -495,11 +505,18 @@ async function main() {
       dumpOk = true;
       out(`  full dump: attempt ${attempt} ok (${Math.round((Date.now() - t0) / 1000)} s, readable by pg_restore --list)`);
     } else {
-      const why = r.status !== 0 ? firstError(r) : "dump file not readable by pg_restore --list";
+      const why = r.status !== 0 ? (DUMPR.stderrTail(clean(r.stderr)) || firstError(r)) : "dump file not readable by pg_restore --list";
       fs.writeFileSync(path.join(outDir, `pg_dump-attempt${attempt}.err.txt`), clean(r.stderr || why));
       try { fs.rmSync(part, { force: true }); } catch { /* partial file */ }
       out(`  full dump: attempt ${attempt}/${DUMP_ATTEMPTS} FAILED (${Math.round((Date.now() - t0) / 1000)} s): ${why}`);
-      if (attempt < DUMP_ATTEMPTS) { const wait = attempt * 15; out(`  waiting ${wait} s before the next attempt...`); sleep(wait); }
+      if (attempt < DUMP_ATTEMPTS) {
+        const wait = DUMPR.pauseAfter(attempt);
+        out(`  waiting ${wait} s, then until the database answers again (at most 10 min)...`);
+        sleep(wait);
+        const net = DUMPR.waitForNetwork(probe, sleep, { maxSeconds: 600, everySeconds: 15 });
+        if (!net.ok) stop(`full backup: the database did not answer for ${net.waitedSeconds} s after attempt ${attempt} (network down on this computer?) - nothing was changed; check the internet connection and re-run`);
+        out(`  database answers again${net.waitedSeconds ? ` after ${net.waitedSeconds} s` : ""}`);
+      }
     }
   }
   if (!dumpOk) stop(`full backup failed ${DUMP_ATTEMPTS} times (see pg_dump-attempt*.err.txt) - nothing was changed; check the network and re-run`);
