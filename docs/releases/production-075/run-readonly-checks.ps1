@@ -35,7 +35,7 @@
   file through the same read-only wrapper, used to prove that a write attempt fails).
 #>
 param(
-  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging", "staging-function-parity-080", "staging-function-parity-081", "production-drift-audit", "production-opening-recon", "production-opening-audit", "production-ui-release")][string]$Target,
+  [Parameter(Mandatory = $true)][ValidateSet("production", "production-post", "production-prelaunch", "staging", "staging-function-parity-080", "staging-function-parity-081", "production-drift-audit", "production-opening-recon", "production-opening-audit", "production-ui-release", "production-balance-snapshot")][string]$Target,
   [string]$PoolerHost = "",
   [int]$Port = 5432,
   [string]$PgBin = "C:\Program Files\PostgreSQL\17\bin",
@@ -53,7 +53,7 @@ $script:SummaryFile = $null
 
 $Refs = @{ production = "vrozlllcaxinavzxueif"; staging = "vouehtlmsunebracahon" }
 $Never = @("yvvbdoqncubtwlzskgml", "hbbuskyifxkowlozsaym", "vrozlilcaxinavzxueif")   # JFS demo, ERP, typo of prod ref
-$RefKey = $Target; if ($Target -eq "production-post" -or $Target -eq "production-prelaunch" -or $Target -eq "production-drift-audit" -or $Target -eq "production-opening-recon" -or $Target -eq "production-opening-audit" -or $Target -eq "production-ui-release") { $RefKey = "production" }
+$RefKey = $Target; if ($Target -eq "production-post" -or $Target -eq "production-prelaunch" -or $Target -eq "production-drift-audit" -or $Target -eq "production-opening-recon" -or $Target -eq "production-opening-audit" -or $Target -eq "production-ui-release" -or $Target -eq "production-balance-snapshot") { $RefKey = "production" }
 if ($Target -like "staging-function-parity-*") { $RefKey = "staging" }
 $Ref = $Refs[$RefKey]
 
@@ -126,6 +126,10 @@ if ($Target -eq "production") {
   # dependent files are added after the identity probe.
   if ($ExpectLevel -notmatch '^20260101000\d{3}$') { Finish "FAIL" "production-ui-release needs -ExpectLevel 20260101000NNN (the newest migration of the released commit)" }
   $checks = @(@{ Name = "09_ui_release_lock"; File = "docs/releases/production-075/09_ui_release_lock_readonly.sql"; Kind = "postflight" })
+} elseif ($Target -eq "production-balance-snapshot") {
+  # 2026-11-18: the business baseline of THIS moment only (aggregates, no names) - run-production-smoke.ps1 takes one right
+  # before and one right after the browser smoke and compares the director's API balances with them (smoke B3)
+  $checks = @(@{ Name = "01_baseline"; File = "docs/releases/production-075/01_baseline_readonly.sql"; Kind = "baseline" })
 } elseif ($Target -eq "production-opening-audit") {
   # 2026-11-17 (read only, history 085..087): independent audit of the CURRENT opening (A-J documents, factory, stock,
   # sellers) - no customer names, no notes of customer documents

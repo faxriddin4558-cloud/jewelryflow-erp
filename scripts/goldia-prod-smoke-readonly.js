@@ -16,7 +16,9 @@
  * vault, factory obligation) = the organization line of the post-release SQL baseline, 6 RLS through safe GET reads
  * (other organization / other seller / anonymous), 7 mobile 390 px without horizontal overflow.
  *
- *   node scripts/goldia-prod-smoke-readonly.js --target production [--expect-commit fec64ec] [--baseline <01_baseline.txt>]
+ *   node scripts/goldia-prod-smoke-readonly.js --target production [--expect-commit fec64ec] [--baseline <01_baseline.txt>] [--defer-balances]
+ *   node scripts/goldia-prod-smoke-readonly.js --target production --compare-balances <smoke folder> --baseline <db before> --baseline-after <db after>
+ *        (the balances are compared with database snapshots of the same moment; run-production-smoke.ps1 does both steps)
  *        [--channel msedge|chrome|chromium] [--out <dir>] [--roles director,manager,seller] [--no-screenshots]
  * Passwords are asked hidden; they are never printed or written. Output: <out>/smoke-<target>-<time>/ (SUMMARY.txt and
  * RESULT.json: aggregates only; screenshots/*.png show real screens - keep the folder private).
@@ -73,6 +75,40 @@ const T = TARGETS[targetName];
 if (flag("self-test-guard") && targetName !== "staging") { console.error("STOPPED: --self-test-guard is accepted only with --target staging"); process.exit(1); }
 const expectCommit = opt("expect-commit", "");
 const baselineFile = opt("baseline", "");
+const baselineAfterFile = opt("baseline-after", "");
+const deferBalances = flag("defer-balances");
+const BAL = require("./lib/goldia-smoke-balances");
+const BASELINE_MAX_AGE_MIN = 20;
+
+// --compare-balances <smoke folder> --baseline <db before> --baseline-after <db after>: second step of the live balance
+// check (run-production-smoke.ps1). Reads the folder's director-balances.json + RESULT.json, decides B3 against the
+// database snapshots taken right before and right after the browser run, rewrites RESULT.json, prints the final RESULT.
+if (opt("compare-balances", "")) {
+  const dir = path.resolve(opt("compare-balances", ""));
+  const rf = path.join(dir, "RESULT.json"), bf = path.join(dir, "director-balances.json");
+  const out = (s) => { console.log(s); fs.appendFileSync(path.join(dir, "SUMMARY.txt"), s + os.EOL); };
+  if (!fs.existsSync(rf)) { console.error("STOPPED: no RESULT.json in " + dir); process.exit(1); }
+  const res = JSON.parse(fs.readFileSync(rf, "utf8"));
+  if (res.target !== targetName) { console.error(`STOPPED: the smoke folder is for ${res.target}, not ${targetName}`); process.exit(1); }
+  const checks = res.checks.filter((c) => c.id !== "B3");
+  let b3;
+  if (!fs.existsSync(bf)) b3 = { state: "FAIL", detail: "director-balances.json missing (director session did not read the balances)" };
+  else if (!baselineFile || !baselineAfterFile) b3 = { state: "FAIL", detail: "--baseline and --baseline-after are both required" };
+  else {
+    const api = JSON.parse(fs.readFileSync(bf, "utf8"));
+    const c = BAL.compareLive(api.api, BAL.parseBaseline(fs.readFileSync(baselineFile, "utf8")), BAL.parseBaseline(fs.readFileSync(baselineAfterFile, "utf8")), api.organization_id);
+    b3 = { state: c.state, detail: c.detail };
+    fs.writeFileSync(path.join(dir, "balances-live-compare.json"), JSON.stringify({ before: baselineFile, after: baselineAfterFile, quiet: c.quiet, rows: c.rows }, null, 2));
+  }
+  checks.push({ id: "B3", area: "balances", state: b3.state, title: "director's balances (API) = database balances of the same moment (snapshots right before / after the run)", detail: b3.detail });
+  out(`${b3.state.padEnd(6)} B3 director's balances (API) = database balances of the same moment | ${String(b3.detail).slice(0, 600)}`);
+  const pass = checks.filter((x) => x.state === "PASS").length, rev = checks.filter((x) => x.state === "REVIEW").length, fail = checks.filter((x) => x.state === "FAIL").length;
+  const result = fail ? "FAIL" : rev ? "REVIEW" : "PASS";
+  fs.writeFileSync(rf, JSON.stringify({ ...res, result, counts: { pass, review: rev, fail }, checks }, null, 2));
+  out("");
+  out(`RESULT: ${result} - ${pass} PASS, ${rev} REVIEW, ${fail} FAIL (balances compared with live database snapshots); nothing was written; folder ${dir}`);
+  process.exit(result === "PASS" ? 0 : result === "REVIEW" ? 2 : 1);
+}
 const roles = opt("roles", "director,manager,seller").split(",").map((s) => s.trim()).filter(Boolean);
 for (const r of roles) if (!PAGES[r]) { console.error("STOPPED: unknown role " + r); process.exit(1); }
 const channel = opt("channel", process.platform === "win32" ? "msedge" : "chromium");
@@ -349,12 +385,18 @@ async function login(br, role, cred, viewport) {
       check("B1", "balances", foreign === 0 ? "PASS" : "FAIL", "director sees only own organization's balance rows", `foreign rows=${foreign}`);
       check("B2", "balances", "INFO", "director's organization totals (API)", Object.entries(api).map(([k, x]) => `${k}=${Number(x).toFixed(4)}`).join(" "));
       fs.writeFileSync(path.join(outDir, "director-balances.json"), JSON.stringify({ organization_id: org, api }, null, 2));
-      if (!baseLines) check("B3", "balances", "REVIEW", "balances compared with the post-release SQL baseline", "no --baseline file given");
-      else if (!baseLines["org " + org]) check("B3", "balances", "FAIL", "balances compared with the post-release SQL baseline", "organization line not in the baseline file");
+      // B3 compares with the database of the SAME moment, never with an old (opening / release day) baseline: once real
+      // sales run, an old baseline is not the current state. Live mode: run-production-smoke.ps1 takes read-only snapshots
+      // right before and right after this run and decides B3 with --compare-balances (--defer-balances here).
+      const baseAgeMin = baselineFile ? (Date.now() - fs.statSync(baselineFile).mtimeMs) / 60000 : null;
+      if (deferBalances) check("B3", "balances", "INFO", "balances: compared after the run with the database snapshots taken right before / after it", "deferred");
+      else if (!baseLines) check("B3", "balances", "REVIEW", "balances compared with the database", "no --baseline file given (use run-production-smoke.ps1: it takes live database snapshots)");
+      else if (!baseLines["org " + org]) check("B3", "balances", "FAIL", "balances compared with the database", "organization line not in the baseline file");
+      else if (baseAgeMin > BASELINE_MAX_AGE_MIN) check("B3", "balances", "REVIEW", "balances compared with the database", `NOT compared: the baseline file is ${Math.round(baseAgeMin)} min old - it is not the current database state (real sales change the balances); use run-production-smoke.ps1 (live snapshots)`);
       else {
-        const b = {}; for (const kv of baseLines["org " + org].split(" ")) { const [k, x] = kv.split("="); b[k] = x; }
-        const diffs = Object.keys(api).filter((k) => b[k] !== undefined && !near(api[k], b[k], k.endsWith("_g") ? 0.00005 : 0.005)).map((k) => `${k}: api=${Number(api[k]).toFixed(4)} sql=${b[k]}`);
-        check("B3", "balances", diffs.length === 0 ? "PASS" : "REVIEW", "director's balances (debt, advance, stock, tills, vault, factory obligation) = SQL baseline of the organization", diffs.join("; ") || "all equal");
+        const c = BAL.compareLive(api, baseLines, baseLines, org);
+        // one fresh snapshot cannot prove the database was quiet: a difference is REVIEW, not FAIL
+        check("B3", "balances", c.state === "PASS" ? "PASS" : "REVIEW", `director's balances = database snapshot (${Math.round(baseAgeMin)} min old)`, c.detail);
       }
     }
   } else check("B0", "balances", "REVIEW", "balances", "director session not available");
