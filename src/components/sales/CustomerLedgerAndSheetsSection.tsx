@@ -9,6 +9,7 @@ import { isSellerRole, ownRatesFromRpc, pickPaymentRates } from "@/lib/sales-pay
 import { CurrencyPaymentModal } from "./CurrencyPaymentModal";
 import { customerBalance, netDirectionLabel } from "@/lib/customer-balance";
 import { SaleReturnModal } from "./SaleReturnModal";
+import { SETTL_SCOPE_TEXT, usdToUzsPreview, wholeDollarsInUzs, wholeDollarsWarning } from "@/lib/payment-hints";
 
 function parseErrorMessage(err: unknown, fallback: string = "Xatolik yuz berdi"): string {
   if (!err) return fallback;
@@ -1969,6 +1970,7 @@ export function CustomerLedgerAndSheetsSection() {
               <h3 className="text-lg font-black text-emerald-400 flex items-center gap-2">
                 <span>💰</span> Mijozdan To&apos;lov Qabul Qilish
               </h3>
+              <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-700 text-[11px] font-bold text-amber-200" data-testid="settl-scope">{SETTL_SCOPE_TEXT}</div>
               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1">
                 <div className="font-bold text-white text-sm">{targetCustomer.contact_name}</div>
                 <div className="text-slate-400 font-mono">
@@ -2013,7 +2015,7 @@ export function CustomerLedgerAndSheetsSection() {
                 {/* 2. Naqd Pul UZS va USD */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="font-bold text-emerald-300 block mb-1">To&apos;langan Naqd Pul (UZS)</label>
+                    <label className="font-bold text-emerald-300 block mb-1">Mijoz bergan SO&apos;M (UZS)</label>
                     <input
                       type="number"
                       step="1"
@@ -2025,7 +2027,7 @@ export function CustomerLedgerAndSheetsSection() {
                     />
                   </div>
                   <div>
-                    <label className="font-bold text-blue-300 block mb-1">To&apos;langan Valyuta (USD $)</label>
+                    <label className="font-bold text-blue-300 block mb-1">Mijoz bergan DOLLAR (USD) — so&apos;mga aylantirmang</label>
                     <input
                       type="number"
                       step="1"
@@ -2038,6 +2040,16 @@ export function CustomerLedgerAndSheetsSection() {
                   </div>
                 </div>
 
+                {usdToUzsPreview(payUsdAmount, payUsdRate) !== null && (
+                  <div className="font-mono text-blue-300 bg-blue-950/40 border border-blue-800 rounded-xl p-2" data-testid="settl-usd-preview">
+                    {Number(payUsdAmount).toLocaleString("en-US")} USD × {Number(payUsdRate).toLocaleString("ru-RU")} = {usdToUzsPreview(payUsdAmount, payUsdRate)?.toLocaleString("ru-RU")} so&apos;m (585 gramm qarzidan ayriladi)
+                  </div>
+                )}
+                {wholeDollarsInUzs(payCashAmount, payUsdRate) !== null && (
+                  <div role="alert" className="font-bold text-amber-200 bg-amber-950/60 border border-amber-600 rounded-xl p-2" data-testid="settl-usd-as-uzs">
+                    {wholeDollarsWarning(wholeDollarsInUzs(payCashAmount, payUsdRate) as number)}
+                  </div>
+                )}
                 {/* 3. Kurslar */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>

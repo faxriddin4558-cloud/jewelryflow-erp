@@ -29,6 +29,7 @@ import {
 import { ModelPhotoThumbnail } from "./ModelPhotoThumbnail";
 import { MarkupDifferenceCard } from "./MarkupDifferenceCard";
 import { parseErrorMessage } from "@/lib/error-utils";
+import { SETTL_SCOPE_TEXT, usdToUzsPreview, wholeDollarsInUzs, wholeDollarsWarning } from "@/lib/payment-hints";
 
 interface CustomerItem {
   id: string;
@@ -1544,6 +1545,8 @@ export function SellerMobileWorkspace({
               </select>
             </div>
 
+            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-900" data-testid="settl-scope">{SETTL_SCOPE_TEXT}</div>
+
             {/* Current Debt & Advance notice */}
             {settleCustomerId && (
               <div className="bg-slate-50 border p-3 rounded-2xl flex justify-between items-center text-xs">
@@ -1598,7 +1601,7 @@ export function SellerMobileWorkspace({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label htmlFor="settleCashAmountInput" className="block text-xs font-bold text-[#475569] mb-1">
-                  Naqd UZS:
+                  Mijoz bergan SO&apos;M (UZS):
                 </label>
                 <input
                   id="settleCashAmountInput"
@@ -1618,7 +1621,7 @@ export function SellerMobileWorkspace({
 
               <div>
                 <label htmlFor="settleUsdAmountInput" className="block text-xs font-bold text-[#475569] mb-1">
-                  Naqd USD ($):
+                  Mijoz bergan DOLLAR (USD) — so&apos;mga aylantirmang:
                 </label>
                 <input
                   id="settleUsdAmountInput"
@@ -1632,6 +1635,17 @@ export function SellerMobileWorkspace({
                 />
               </div>
             </div>
+
+            {usdToUzsPreview(settleUsdAmount, settleUsdRate) !== null && (
+              <div className="text-[11px] font-mono text-blue-800 bg-blue-50 border border-blue-200 rounded-xl p-2" data-testid="settl-usd-preview">
+                {Number(settleUsdAmount).toLocaleString("en-US")} USD × {Number(settleUsdRate).toLocaleString("ru-RU")} = {usdToUzsPreview(settleUsdAmount, settleUsdRate)?.toLocaleString("ru-RU")} so&apos;m (585 gramm qarzidan ayriladi)
+              </div>
+            )}
+            {wholeDollarsInUzs(settleCashAmount, settleUsdRate) !== null && (
+              <div role="alert" className="text-[11px] font-bold text-amber-900 bg-amber-100 border border-amber-300 rounded-xl p-2" data-testid="settl-usd-as-uzs">
+                {wholeDollarsWarning(wholeDollarsInUzs(settleCashAmount, settleUsdRate) as number)}
+              </div>
+            )}
 
             {/* Rates: 585 Gold & USD */}
             <div className="grid grid-cols-2 gap-2">

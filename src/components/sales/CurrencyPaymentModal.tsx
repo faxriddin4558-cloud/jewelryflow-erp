@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/erp-engine";
 import { parseErrorMessage } from "@/lib/error-utils";
 import { isSellerRole } from "@/lib/sales-payment-rates";
+import { cpayScopeText, usdToUzsPreview, wholeDollarsInUzs, wholeDollarsWarning } from "@/lib/payment-hints";
 
 type Props = {
   customer: { id: string; contact_name: string; seller_id?: string | null };
@@ -114,6 +115,7 @@ export function CurrencyPaymentModal({ customer, currentRole, onClose, onDone }:
           <h3 className="font-bold text-emerald-300">💵 Valyuta qarziga to&apos;lov — {customer.contact_name}</h3>
           <button type="button" onClick={onClose} className="text-slate-400 font-bold">✕</button>
         </div>
+        <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-700 text-[11px] font-bold text-emerald-200" data-testid="cpay-scope">{cpayScopeText(currency)}</div>
         <div className="grid grid-cols-2 gap-2 text-xs" data-testid="currency-balances">
           {(["UZS", "USD"] as const).map((c) => {
             const b = bal.find((x) => x.currency === c);
@@ -128,9 +130,9 @@ export function CurrencyPaymentModal({ customer, currentRole, onClose, onDone }:
           })}
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <label className="space-y-1"><span className="text-slate-400">Naqd so&apos;m</span>
+          <label className="space-y-1"><span className="text-slate-400">Mijoz bergan SO&apos;M</span>
             <input data-testid="cpay-cash" type="number" min="0" step="1" value={cash} onChange={(e) => setCash(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 font-mono" /></label>
-          <label className="space-y-1"><span className="text-slate-400">Dollar (USD)</span>
+          <label className="space-y-1"><span className="text-slate-400">Mijoz bergan DOLLAR (USD) — so&apos;mga aylantirmang</span>
             <input data-testid="cpay-usd" type="number" min="0" step="0.01" value={usd} onChange={(e) => setUsd(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 font-mono" /></label>
           <label className="space-y-1"><span className="text-slate-400">Lom (fizik g)</span>
             <input data-testid="cpay-scrap" type="number" min="0" step="0.0001" value={scrap} onChange={(e) => setScrap(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 font-mono" /></label>
@@ -144,6 +146,16 @@ export function CurrencyPaymentModal({ customer, currentRole, onClose, onDone }:
           <label className="space-y-1"><span className="text-slate-400">LOM 585 kursi (so&apos;m/g)</span>
             <input data-testid="cpay-lom-rate" type="number" min="0" step="1" value={lomRate} onChange={(e) => setLomRate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 font-mono" /></label>
         </div>
+        {usdToUzsPreview(usd, usdRate) !== null && (
+          <div className="text-[11px] font-mono text-blue-300 bg-blue-950/40 border border-blue-800 rounded-xl p-2" data-testid="cpay-usd-preview">
+            {Number(usd).toLocaleString("en-US")} USD × {Number(usdRate).toLocaleString("ru-RU")} = {usdToUzsPreview(usd, usdRate)?.toLocaleString("ru-RU")} so&apos;m{currency === "USD" ? " (USD qarzga to'g'ridan-to'g'ri USD sifatida yoziladi; kurs faqat ma'lumot)" : " (UZS qarzga shu so'm bilan yoziladi)"}
+          </div>
+        )}
+        {wholeDollarsInUzs(cash, usdRate) !== null && (
+          <div role="alert" className="text-[11px] font-bold text-amber-200 bg-amber-950/60 border border-amber-600 rounded-xl p-2" data-testid="cpay-usd-as-uzs">
+            {wholeDollarsWarning(wholeDollarsInUzs(cash, usdRate) as number)}
+          </div>
+        )}
         <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1" data-testid="cpay-preview">
           <div>Qarzga yoziladi: <b className="font-mono">{Number.isFinite(credited) ? credited.toLocaleString("ru-RU") : "—"} {currency}</b>{scrap585 > 0 && <span className="text-slate-400"> (lom {scrap585} g 585)</span>}</div>
           <div className="text-slate-400">Hozirgi {currency} qarz: {Number(cur?.debt_amount ?? 0).toLocaleString("ru-RU")}; ortiqchasi avansga o&apos;tadi. Pul / lom sotuvchi kassasiga bir marta tushadi.</div>
