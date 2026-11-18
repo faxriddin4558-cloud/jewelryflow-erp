@@ -20,6 +20,7 @@ select
     and (select position('insert into public.seller_consignments' in prosrc) > 0 from pg_proc where proname = 'rpc_record_opening_sale_return' and pronamespace = 'public'::regnamespace)
     and (select position('update public.consignment_pieces' in prosrc) > 0 from pg_proc where proname = 'rpc_reverse_opening_sale_return' and pronamespace = 'public'::regnamespace) as draft_guard,
   -- the changed bodies carry the 089 rule
+  exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'opening_sale_returns' and column_name = 'seller_lot_obligation_g') as seller_lot_obligation,
   (select position('opening_sale_returns' in prosrc) > 0 and position('equiv_585_g is null' in prosrc) > 0 from pg_proc where oid = 'public._goldia_opening_seller_obligation(uuid,uuid)'::regprocedure) as seller_obligation,
   (select position('_goldia_opening_returned(v_od.id)' in prosrc) > 0 and position('unrated_opening_debt_valued_g' in prosrc) > 0
      from pg_proc where proname = 'rpc_record_client_currency_settlement' and pronamespace = 'public'::regnamespace) as cpay_takes_rest,
@@ -30,7 +31,7 @@ select
   (select count(*) = 6 from pg_proc where pronamespace = 'public'::regnamespace and proname in ('rpc_preview_opening_sale_return', 'rpc_record_opening_sale_return',
      'rpc_reverse_opening_sale_return', 'rpc_correct_client_payment', 'rpc_record_seller_till_count', 'rpc_get_seller_stock_movements')) as functions,
   (select bool_and(provolatile = 's') from pg_proc where pronamespace = 'public'::regnamespace and proname in ('rpc_preview_opening_sale_return', 'rpc_get_seller_stock_movements', '_goldia_opening_return_calc')) as reads_are_stable,
-  (select bool_and(position('ERR_CONFIRM_REQUIRED' in prosrc) > 0 and position('check_and_lock_idempotency' in prosrc) > 0 and position('assert_erp_permission' in prosrc) > 0)
+  (select bool_and(position('ERR_CONFIRM_REQUIRED' in prosrc) > 0 and position('ERR_SELLER_KEEP_NOT_DOCUMENTED' in prosrc) > 0 and position('ERR_SELLER_PCT_NOT_USED' in prosrc) > 0 and position('check_and_lock_idempotency' in prosrc) > 0 and position('assert_erp_permission' in prosrc) > 0)
      from pg_proc where proname = 'rpc_record_opening_sale_return' and pronamespace = 'public'::regnamespace) as return_rules,
   (select bool_and(not has_function_privilege('anon', p.oid, 'EXECUTE')) from pg_proc p where p.pronamespace = 'public'::regnamespace
      and p.proname in ('rpc_preview_opening_sale_return', 'rpc_record_opening_sale_return', 'rpc_reverse_opening_sale_return', 'rpc_correct_client_payment',

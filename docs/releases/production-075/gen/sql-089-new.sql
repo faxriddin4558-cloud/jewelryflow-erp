@@ -19,6 +19,8 @@ declare
   v_snap   numeric(14, 4);
   v_ret    record;
   v_leg    numeric(18, 4);
+  v_contrib numeric(18, 4);
+  v_keep   text;
   v_formula text;
 begin
   if v_unit not in ('G585', 'UZS', 'USD') then raise exception 'Qarz birligi: G585 (585 gramm), UZS yoki USD' using errcode = '22023'; end if;
@@ -66,7 +68,11 @@ begin
   v_adv := v_credit - v_debt;
   v_open := least(v_debt, greatest(coalesce(v_rem, 0), 0));
   if v_unit = 'G585' then
-    v_rel := round(v_open, 4);
+    -- the seller's OLD obligation of this debt, from the documents: what the E document's legacy row put into this
+    -- seller's obligation (076 rule; 0 when the row is not booked on this seller), pro rata of the paid opening part
+    select coalesce(sum(l.delta_585_g), 0) into v_contrib from public.client_legacy_debts l
+     where l.id = v_doc.legacy_debt_id and l.seller_id = v_doc.seller_id and l.status <> 'reversed' and l.balance_type = 'debt';
+    v_rel := case when v_open <= 0 or v_contrib <= 0 then 0 else round(v_open * least(v_contrib, v_doc.amount) / v_doc.amount, 4) end;
   elsif v_doc.equiv_585_g is not null and coalesce(v_doc.seller_obligation_g, 0) > 0 then
     -- rated F: the paid part's share of the document's rate snapshot (the whole rest when it pays the opening debt off)
     v_snap := greatest(0, v_doc.seller_obligation_g - coalesce((select sum(c.snapshot_released_g) from public.client_currency_settlements c
@@ -76,30 +82,40 @@ begin
   else
     v_rel := 0; -- unrated F: the unpaid opening debt was never in the seller's obligation
   end if;
+  -- goods kept by the seller: his old obligation moves unchanged from the opening debt onto the returned goods - allowed
+  -- only when the whole value is covered by the documented opening obligation (no advance, no part without obligation)
+  v_keep := case when v_rel <= 0 then 'hujjatda bu qarz bo''yicha sotuvchi majburiyati yo''q (kurssiz qarz yoki sotuvchiga yozilmagan)'
+                 when v_adv > 0 or v_open < v_credit then 'qiymatning ' || (v_credit - v_open) || ' qismi ochiq boshlang''ich qarzdan tashqarida (avans / to''langan qism) - uning sotuvchi majburiyati hujjatda yo''q'
+            end;
   v_formula := v_formula || '; qarzdan ' || v_debt || ', avansga ' || v_adv
-               || '; boshlang''ich qarz qismi ' || v_open || ' -> sotuvchi majburiyatidan ' || v_rel || ' g';
+               || '; boshlang''ich qarz qismi ' || v_open || '; hujjatdagi eski sotuvchi majburiyati ' || v_rel || ' g';
   return jsonb_build_object('opening_document_id', v_doc.id, 'opening_document_no', v_doc.document_no, 'seller_id', v_doc.seller_id,
     'unit', v_unit, 'weight_g', v_w, 'customer_pct', p_customer_pct, 'credit', v_credit, 'customer_net_before', v_net,
     'debt_reduced', v_debt, 'advance_created', v_adv, 'customer_net_after', v_net - v_credit,
-    'opening_remaining', v_rem, 'opening_part', v_open, 'seller_obligation_released_g', v_rel,
+    'opening_remaining', v_rem, 'opening_part', v_open, 'seller_obligation_released_g', v_rel, 'old_obligation_g', v_rel,
+    'seller_keep_allowed', v_keep is null, 'seller_keep_refusal', v_keep,
     'rated', (v_unit = 'G585' or v_doc.equiv_585_g is not null), 'formula', v_formula);
 end $f$;
 revoke all on function public._goldia_opening_return_calc(uuid, uuid, text, numeric, numeric, numeric) from public, anon, authenticated;
 
 -- preview (read only): exactly what the record would do, so the operator confirms the numbers before writing
 create or replace function public.rpc_preview_opening_sale_return(p_customer_id uuid, p_unit text, p_weight_grams numeric,
-  p_customer_markup_pct numeric default null, p_credit_amount numeric default null)
+  p_customer_markup_pct numeric default null, p_credit_amount numeric default null, p_receiver text default null)
 returns jsonb
 language plpgsql stable security definer set search_path = public, pg_temp as $f$
-declare v_org uuid := public.current_organization_id();
+declare v_org uuid := public.current_organization_id(); v_c jsonb;
 begin
   if v_org is null then raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501'; end if;
   perform public.assert_erp_permission(array['admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'boshqaruvchi']);
   if not exists (select 1 from public.customers where id = p_customer_id and organization_id = v_org) then raise exception 'Mijoz topilmadi'; end if;
-  return public._goldia_opening_return_calc(v_org, p_customer_id, p_unit, p_weight_grams, p_customer_markup_pct, p_credit_amount);
+  v_c := public._goldia_opening_return_calc(v_org, p_customer_id, p_unit, p_weight_grams, p_customer_markup_pct, p_credit_amount);
+  -- the seller's obligation: unchanged when he keeps the goods (old obligation moves onto them), minus the old
+  -- obligation when the manager takes them
+  return v_c || jsonb_build_object('receiver', lower(p_receiver),
+    'seller_obligation_change_g', case lower(coalesce(p_receiver, '')) when 'seller' then 0 when 'manager' then -(v_c ->> 'old_obligation_g')::numeric end);
 end $f$;
-revoke all on function public.rpc_preview_opening_sale_return(uuid, text, numeric, numeric, numeric) from public, anon;
-grant execute on function public.rpc_preview_opening_sale_return(uuid, text, numeric, numeric, numeric) to authenticated, service_role;
+revoke all on function public.rpc_preview_opening_sale_return(uuid, text, numeric, numeric, numeric, text) from public, anon;
+grant execute on function public.rpc_preview_opening_sale_return(uuid, text, numeric, numeric, numeric, text) to authenticated, service_role;
 
 create or replace function public.rpc_record_opening_sale_return(
   p_customer_id          uuid,
@@ -148,13 +164,9 @@ begin
   if p_confirmed is distinct from true then
     raise exception 'ERR_CONFIRM_REQUIRED: avval hisob-kitobni (rpc_preview_opening_sale_return) ko''rib tasdiqlang' using errcode = '22023';
   end if;
-  if v_recv = 'seller' then
-    if p_seller_markup_pct is null or p_seller_markup_pct < 0 or p_seller_markup_pct > 100 then
-      raise exception 'ERR_PCT_REQUIRED: sotuvchi javoniga qaytsa, sotuvchi majburiyati foizi (0 - 100) kiritilishi shart' using errcode = '22023';
-    end if;
-    v_spct := round(p_seller_markup_pct::numeric, 2);
-  else
-    v_spct := 0; -- the lot goes straight on to the manager: the seller's obligation for it is added and removed (net 0)
+  -- the seller's obligation for the returned goods is taken from the documents (never from an entered %)
+  if p_seller_markup_pct is not null then
+    raise exception 'ERR_SELLER_PCT_NOT_USED: sotuvchi foizi kiritilmaydi - eski majburiyat hujjatdan olinadi' using errcode = '22023';
   end if;
   v_payload := jsonb_build_object('action', 'record_opening_sale_return', 'customer_id', p_customer_id, 'unit', v_unit,
     'weight_grams', p_weight_grams, 'customer_pct', p_customer_markup_pct, 'credit_amount', p_credit_amount,
@@ -171,6 +183,9 @@ begin
   end if;
   v_c := public._goldia_opening_return_calc(v_org, v_cust.id, v_unit, p_weight_grams, p_customer_markup_pct, p_credit_amount);
   v_seller := (v_c ->> 'seller_id')::uuid;
+  if v_recv = 'seller' and not (v_c ->> 'seller_keep_allowed')::boolean then
+    raise exception 'ERR_SELLER_KEEP_NOT_DOCUMENTED: tovarni sotuvchida qoldirib bo''lmaydi: % - menejer omboriga qabul qiling', v_c ->> 'seller_keep_refusal' using errcode = '22023';
+  end if;
   v_credit := (v_c ->> 'credit')::numeric;
   v_w := (v_c ->> 'weight_g')::numeric;
   v_net_after := (v_c ->> 'customer_net_after')::numeric;
@@ -193,31 +208,40 @@ begin
 
   -- the goods: a return lot on the seller (no factory receipt, no factory obligation)
   v_no := 'OSR-' || to_char(public._goldia_business_date(), 'YYYYMMDD') || '-' || upper(substr(replace(v_id::text, '-', ''), 1, 6));
-  v_sobl := round(v_w * (1 + v_spct / 100.0), 4);
+  if v_recv = 'seller' then
+    -- the old obligation (documents) moves unchanged onto the returned goods: released from the opening debt below, the
+    -- same grams on the lot - the seller's total obligation does not change; a later sale / return uses these grams
+    v_sobl := (v_c ->> 'old_obligation_g')::numeric;
+    v_spct := round((v_sobl / v_w - 1) * 100, 2); -- display only (the obligation itself is v_sobl)
+    if v_spct < 0 or v_spct > 100 then v_spct := null; end if;
+  else
+    -- straight on to the manager: the lot's obligation is added and removed again (net 0); the seller loses his old one
+    v_sobl := v_w; v_spct := 0;
+  end if;
   insert into public.seller_consignments (organization_id, consignment_no, seller_id, factory_receipt_id, product_name, quantity,
     base_weight_grams, proba, factory_markup_pct, factory_gold_due_grams, factory_remaining_gold_grams, seller_markup_pct,
     seller_obligation_g, status, notes, issued_at)
   -- factory_gold_due_grams must be > 0 (table check): grams x (1 + 0 %) for display only - there is no factory receipt, the
   -- factory account (vault) is not touched; the seller's obligation is seller_obligation_g
-  values (v_org, 'CONS-' || v_no, v_seller, null, 'Eski savdodan vozvrat', 1, v_w, 585, 0, v_w, v_w, v_spct, v_sobl, 'held_by_seller',
+  values (v_org, 'CONS-' || v_no, v_seller, null, 'Eski savdodan vozvrat', 1, v_w, 585, 0, v_w, v_w, coalesce(v_spct, 0), v_sobl, 'held_by_seller',
     'ESKI SAVDODAN VOZVRAT ' || v_no || ' (' || (v_c ->> 'opening_document_no') || ')', clock_timestamp())
   returning id into v_con_id;
   insert into public.consignment_pieces (organization_id, consignment_id, model_code, model_name, category, purity, proba, weight_grams,
     status, seller_id, seller_markup_pct, seller_obligation_grams, notes)
-  values (v_org, v_con_id, 'VOZVRAT', 'Eski savdodan vozvrat', 'Buyum', 585, 585, v_w, 'held_by_seller', v_seller, v_spct, v_sobl,
+  values (v_org, v_con_id, 'VOZVRAT', 'Eski savdodan vozvrat', 'Buyum', 585, 585, v_w, 'held_by_seller', v_seller, coalesce(v_spct, 0), v_sobl,
     'ESKI SAVDODAN VOZVRAT ' || v_no)
   returning id into v_piece_id;
 
   insert into public.opening_sale_returns (id, organization_id, return_no, opening_document_id, customer_id, seller_id, unit,
     returned_weight_grams, customer_markup_pct, credit_amount, debt_reduced, advance_created, opening_part, seller_obligation_released_g,
-    receiver, receiver_seller_markup_pct, consignment_id, piece_id, customer_net_before, customer_net_after, formula, reason,
+    receiver, receiver_seller_markup_pct, seller_lot_obligation_g, consignment_id, piece_id, customer_net_before, customer_net_after, formula, reason,
     idempotency_key, created_by)
   values (v_id, v_org, v_no, (v_c ->> 'opening_document_id')::uuid, v_cust.id, v_seller, v_unit, v_w,
     case when v_unit = 'G585' then round(p_customer_markup_pct::numeric, 2) end, v_credit, (v_c ->> 'debt_reduced')::numeric,
     (v_c ->> 'advance_created')::numeric, (v_c ->> 'opening_part')::numeric, (v_c ->> 'seller_obligation_released_g')::numeric,
-    v_recv, case when v_recv = 'seller' then v_spct end, v_con_id, v_piece_id, (v_c ->> 'customer_net_before')::numeric, v_net_after,
-    (v_c ->> 'formula') || case when v_recv = 'seller' then '; javonga: ' || v_w || ' g x (1 + ' || v_spct || ' %) = ' || v_sobl || ' g sotuvchi majburiyati'
-                                else '; menejer omboriga ' || v_w || ' g' end,
+    v_recv, case when v_recv = 'seller' then v_spct end, case when v_recv = 'seller' then v_sobl else 0 end, v_con_id, v_piece_id, (v_c ->> 'customer_net_before')::numeric, v_net_after,
+    (v_c ->> 'formula') || case when v_recv = 'seller' then '; sotuvchida qoldi: eski majburiyat ' || v_sobl || ' g tovarga o''tdi (sotuvchi majburiyati o''zgarmadi)'
+                                else '; menejer omboriga ' || v_w || ' g; sotuvchi majburiyati -' || (v_c ->> 'old_obligation_g') || ' g' end,
     v_reason, v_key, v_emp);
   perform public.recalc_seller_gold_account(v_seller, v_org);
   if v_recv = 'manager' then
@@ -231,6 +255,7 @@ begin
     v_reason);
   v_res := v_c || jsonb_build_object('status', 'ok', 'return_id', v_id, 'return_no', v_no, 'receiver', v_recv,
     'consignment_id', v_con_id, 'piece_id', v_piece_id, 'seller_goods_obligation_g', case when v_recv = 'seller' then v_sobl else 0 end,
+    'seller_obligation_change_g', case when v_recv = 'seller' then 0 else -(v_c ->> 'old_obligation_g')::numeric end,
     'manager', v_mgr);
   perform public.save_idempotency_response(v_key, 'rpc_record_opening_sale_return', v_res, v_payload);
   return v_res;

@@ -6,7 +6,7 @@ do $g$ begin
 end $g$;
 drop function if exists public.rpc_record_opening_sale_return(uuid, text, numeric, numeric, numeric, text, numeric, text, boolean, text);
 drop function if exists public.rpc_reverse_opening_sale_return(uuid, text, text);
-drop function if exists public.rpc_preview_opening_sale_return(uuid, text, numeric, numeric, numeric);
+drop function if exists public.rpc_preview_opening_sale_return(uuid, text, numeric, numeric, numeric, text);
 drop function if exists public.rpc_correct_client_payment(text, uuid, text, jsonb, text, text);
 drop function if exists public.rpc_record_seller_till_count(uuid, numeric, numeric, text, text, text);
 drop function if exists public._goldia_opening_return_calc(uuid, uuid, text, numeric, numeric, numeric);

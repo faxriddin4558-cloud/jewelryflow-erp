@@ -1,4 +1,4 @@
-started: 2026-11-18T17:24:44.563Z  mode: DRY RUN (LOCAL REHEARSAL)
+started: 2026-11-18T18:09:56.404Z  mode: DRY RUN (LOCAL REHEARSAL)
 [1/10] tools: /opt/goldia-audit/pg17root/wrap (pg_dump (PostgreSQL) 17.11 (Debian 17.11-1.pgdg13+2))
   checkout: 89 migration files, newest 089
 [2/10] connection
@@ -13,16 +13,16 @@ started: 2026-11-18T17:24:44.563Z  mode: DRY RUN (LOCAL REHEARSAL)
   history repair requested: none
   migrations to apply: 089
   RELEASE PLAN (detected): staging 088 -> 089
-  chain file: chain-089-089.sql sha256=756d797f42739f08 (1 migrations)
+  chain file: chain-089-089.sql sha256=1621b0100a4a6ce9 (1 migrations)
 [4/10] fresh backup (outside the repository)
   full dump: attempt 1/5 FAILED (0 s): pg_dump: error: connection to server at "127.0.0.1", port 1 failed: Connection refused | Is the server running on that host and accepting TCP/IP connections?
   waiting 15 s, then until the database answers again (at most 10 min)...
-  database answers again after 30 s
+  database answers again after 15 s
   full dump: attempt 2 ok (0 s, readable by pg_restore --list)
   schemas: public, auth, storage, supabase_migrations; roles dump: ok
-  ea6ec315cc86d05cdd7da57a5869bd25ceabdaeb9a5c7ca357454b59324496aa  staging-full.dump  1497290 bytes
-  19e2103f995c385d5ad8ff15e7e0e219e1c37c8cd06d65b6798a701017b658b1  staging-roles.sql  1300 bytes
-  b7424a9ec092211e3bad801d61177d5edd62ab1f61921ef4fd842e18f7fb5344  staging-schema.sql  1311487 bytes
+  04e22b18e5282ca6a3a1f70dccc0785f1ae22c2d9ba9503a192f000f88140c91  staging-full.dump  1497290 bytes
+  6f8492cad7cb227498fb68c47ac5b78117605ed18cc32e1b226000e2edd70c52  staging-roles.sql  1300 bytes
+  fa708104eb8e4c280d1507541e7c44e4a9075331f04c69347ce63c04fac07a1f  staging-schema.sql  1311487 bytes
 [5/10] restore test into a disposable LOCAL PostgreSQL (staging untouched)
   extensions not available locally (platform only): none
   restored copy vs staging row counts: identical (78 tables)
@@ -46,4 +46,4 @@ started: 2026-11-18T17:24:44.563Z  mode: DRY RUN (LOCAL REHEARSAL)
   LOCAL COPY: PASS
 [8/10] DRY RUN PASS — staging was only read. To apply, run the same command with --apply.
 
-RESULT: DRY RUN PASS. Report: /opt/goldia-audit/reh89/goldia-staging-2026-11-18T17-24-44/STAGING-089-RESULT.txt
+RESULT: DRY RUN PASS. Report: /opt/goldia-audit/reh89b/goldia-staging-2026-11-18T18-09-56/STAGING-089-RESULT.txt

@@ -15,7 +15,7 @@ describe("Goldia 089 — old-sale returns, CPAY journal, payment correction, til
   const org = "00000000-0000-0000-0000-000000000891";
   type U = { userId: string; employeeId: string };
   let dir: U, mgr: U, S1: U, S2: U;
-  let cE = "", cE2 = "", cR = "", cU = "", cP = "";
+  let cE = "", cE2 = "", cR = "", cU = "", cP = "", cX = "";
   let kn = 0;
   const key = (p: string) => `t89-${p}-${++kn}`;
   const RATE = 900000;
@@ -40,7 +40,7 @@ describe("Goldia 089 — old-sale returns, CPAY journal, payment correction, til
     S2 = await t.addUser(org, "s2-89@goldia.uz", "Sotuvchi 2", "sales");
     const c = async (code: string, s: U) => (await one(`INSERT INTO public.customers (organization_id, customer_code, contact_name, phone, seller_id)
       VALUES ('${org}', '${code}', 'Mijoz ${code}', '+99890${code.replace(/\D/g, "").padStart(7, "0")}', '${s.employeeId}') RETURNING id`)).id as string;
-    cE = await c("E-1", S1); cE2 = await c("E-2", S1); cR = await c("R-3", S1); cU = await c("U-4", S1); cP = await c("P-5", S2);
+    cE = await c("E-1", S1); cE2 = await c("E-2", S1); cR = await c("R-3", S1); cU = await c("U-4", S1); cP = await c("P-5", S2); cX = await c("X-6", S2);
     await t.db.exec(`INSERT INTO public.daily_gold_rates (organization_id, rate_date, proba, rate_per_gram, currency, is_confirmed) VALUES ('${org}', CURRENT_DATE, 585, ${RATE}, 'UZS', true), ('${org}', public._goldia_business_date(), 585, ${RATE}, 'UZS', true) ON CONFLICT DO NOTHING`);
     await t.db.query(`SELECT public._goldia_financial_freeze('${org}', 't89 window', true)`);
     const bv = (await one(`INSERT INTO public.financial_backup_verifications (organization_id, backup_reference, restore_verified) VALUES ('${org}', 't89.dump', true) RETURNING id`)).id;
@@ -53,45 +53,77 @@ describe("Goldia 089 — old-sale returns, CPAY journal, payment correction, til
     await doc(`p_kind := 'customer_currency', p_customer_id := '${cR}', p_unit := 'UZS', p_side := 'debt', p_amount := 9000000, p_lom_rate := 900000`); // rated 10 g
     await doc(`p_kind := 'customer_currency', p_customer_id := '${cU}', p_unit := 'UZS', p_side := 'debt', p_amount := 2000000`);                       // unrated
     await doc(`p_kind := 'customer_gram', p_customer_id := '${cP}', p_side := 'debt', p_amount := 8`);
+    await doc(`p_kind := 'customer_gram', p_customer_id := '${cX}', p_side := 'debt', p_amount := 10`);
     await t.asUser(mgr.userId);
     await t.rpc(`public.rpc_confirm_accounting_baseline(p_notes := 'T0 t89', p_idempotency_key := '${key("b")}', p_usd_rate := 12500)`);
   }, 240000);
 
   it("O1 refused before writing: no % / no amount / not confirmed / a seller / no opening debt / the draft guard covers the table", async () => {
     await t.asUser(mgr.userId);
-    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "null", "null", "seller", "10")})`, "ERR_PCT_REQUIRED");
-    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cR, "UZS", 5, "null", "null", "seller", "10")})`, "ERR_AMOUNT_REQUIRED");
-    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "20", "null", "seller", "null")})`, "ERR_PCT_REQUIRED");
-    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "20", "null", "seller", "10").replace("p_confirmed := true", "p_confirmed := false")})`, "ERR_CONFIRM_REQUIRED");
-    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "USD", 10, "null", "100", "seller", "10")})`, "ERR_NO_OPENING_DEBT");
+    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "null", "null", "seller", "null")})`, "ERR_PCT_REQUIRED");
+    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cR, "UZS", 5, "null", "null", "seller", "null")})`, "ERR_AMOUNT_REQUIRED");
+    // the seller's obligation is never an entered %: it comes from the documents
+    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "20", "null", "seller", "10")})`, "ERR_SELLER_PCT_NOT_USED");
+    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "20", "null", "seller", "null").replace("p_confirmed := true", "p_confirmed := false")})`, "ERR_CONFIRM_REQUIRED");
+    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "USD", 10, "null", "100", "seller", "null")})`, "ERR_NO_OPENING_DEBT");
     await t.asUser(S1.userId);
-    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "20", "null", "seller", "10")})`, "ermission");
-    await t.expectError(`SELECT public.rpc_preview_opening_sale_return('${cE}', 'G585', 10, 20, null)`, "ermission");
+    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "20", "null", "seller", "null")})`, "ermission");
+    await t.expectError(`SELECT public.rpc_preview_opening_sale_return('${cE}', 'G585', 10, 20, null, 'seller')`, "ermission");
     await t.asAdmin();
     // the guard stays on its 12 tables; an active freeze refuses an old return through the guarded consignment tables
     expect(N((await one(`SELECT count(DISTINCT tgrelid) n FROM pg_trigger WHERE tgname = 'trg_goldia_opening_draft_guard' AND NOT tgisinternal`)).n)).toBe(12);
     await t.db.query(`SELECT public._goldia_financial_freeze('${org}', 't89 freeze probe', true)`);
     await t.asUser(mgr.userId);
-    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 1, "20", "null", "seller", "10")})`, "ERR_FINANCIAL_FREEZE");
+    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 1, "20", "null", "seller", "null")})`, "ERR_FINANCIAL_FREEZE");
     await t.asAdmin();
     await t.db.query(`SELECT public._goldia_financial_freeze('${org}', 't89 freeze probe', false)`);
     expect(N((await one(`SELECT count(*) n FROM public.opening_sale_returns`)).n)).toBe(0);
   });
 
-  it("O2 585 (E) return to the SELLER: customer -12 g, seller obligation -12 + 10 x 1.10 = -1 g, stock +10 g, preview = record, replay = same document", async () => {
+  it("O0 owner's example: 5 g at 20 % back, the SELLER keeps it: customer -6 g, seller obligation UNCHANGED (old 6 g moves onto the goods); later to the manager: exactly the documented 6 g leaves the seller", async () => {
+    const o0 = await owes(S2), st0 = N((await sacc(S2)).st), m0 = await mgrStock();
+    await t.asUser(mgr.userId);
+    const pv = await t.rpc(`public.rpc_preview_opening_sale_return('${cX}', 'G585', 5, 20, null, 'seller')`);
+    expect([N(pv.credit), N(pv.old_obligation_g), N(pv.seller_obligation_change_g), pv.seller_keep_allowed]).toEqual([6, 6, 0, true]);
+    const pm = await t.rpc(`public.rpc_preview_opening_sale_return('${cX}', 'G585', 5, 20, null, 'manager')`);
+    expect(N(pm.seller_obligation_change_g)).toBe(-6);
+    const r = await ret(retArgs(cX, "G585", 5, "20", "null", "seller", "null"));
+    expect([N(r.credit), N(r.seller_goods_obligation_g), N(r.seller_obligation_change_g)]).toEqual([6, 6, 0]);
+    expect(await gnet(cX)).toBe(4);
+    expect(r4(await owes(S2) - o0)).toBe(0);                       // NOT -6 + 5.60
+    expect(r4(N((await sacc(S2)).st) - st0)).toBe(5);
+    expect(N((await one(`SELECT seller_lot_obligation_g v FROM public.opening_sale_returns WHERE id = '${r.return_id}'`)).v)).toBe(6);
+    // the goods go on to the manager later through the ordinary function: the documented 6 g leave the seller once
+    await t.asUser(mgr.userId);
+    await t.rpc(`public.rpc_return_piece_to_manager('${r.piece_id}', 'menejerga', null)`);
+    expect(r4(await owes(S2) - o0)).toBe(-6);
+    expect(r4(N((await sacc(S2)).st) - st0)).toBe(0);
+    expect(r4(await mgrStock() - m0)).toBe(5);
+  });
+
+  it("O0b the seller cannot keep goods without a documented obligation: value above the open opening debt, or an unrated UZS debt", async () => {
+    await t.asUser(mgr.userId);
+    // cX has 4 g of opening debt left: 5 g at 20 % = 6 g -> 2 g would have no documented seller obligation
+    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cX, "G585", 5, "20", "null", "seller", "null")})`, "ERR_SELLER_KEEP_NOT_DOCUMENTED");
+    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cU, "UZS", 1, "null", "100000", "seller", "null")})`, "ERR_SELLER_KEEP_NOT_DOCUMENTED");
+    const pv = await t.rpc(`public.rpc_preview_opening_sale_return('${cU}', 'UZS', 1, null, 100000, 'seller')`);
+    expect(pv.seller_keep_allowed).toBe(false);
+  });
+
+  it("O2 585 (E) return to the SELLER: customer -12 g, seller obligation unchanged (12 g moved onto the goods), stock +10 g, preview = record, replay = same document", async () => {
     const o0 = await owes(S1), st0 = N((await sacc(S1)).st), n0 = await gnet(cE);
     expect(n0).toBe(50);
     await t.asUser(mgr.userId);
-    const pv = await t.rpc(`public.rpc_preview_opening_sale_return('${cE}', 'G585', 10, 20, null)`);
+    const pv = await t.rpc(`public.rpc_preview_opening_sale_return('${cE}', 'G585', 10, 20, null, 'seller')`);
     expect([N(pv.credit), N(pv.debt_reduced), N(pv.advance_created), N(pv.seller_obligation_released_g)]).toEqual([12, 12, 0, 12]);
     const k = key("r");
-    const r = await ret(retArgs(cE, "G585", 10, "20", "null", "seller", "10", k));
+    const r = await ret(retArgs(cE, "G585", 10, "20", "null", "seller", "null", k));
     expect(N(r.credit)).toBe(12);
-    expect(N(r.seller_goods_obligation_g)).toBe(11);
-    const again = await ret(retArgs(cE, "G585", 10, "20", "null", "seller", "10", k));
+    expect(N(r.seller_goods_obligation_g)).toBe(12);
+    const again = await ret(retArgs(cE, "G585", 10, "20", "null", "seller", "null", k));
     expect(again.return_id).toBe(r.return_id);
     expect(await gnet(cE)).toBe(38);
-    expect(r4(await owes(S1) - o0)).toBe(-1);
+    expect(r4(await owes(S1) - o0)).toBe(0);
     expect(r4(N((await sacc(S1)).st) - st0)).toBe(10);
     expect((await one(`SELECT status s FROM public.consignment_pieces WHERE id = '${r.piece_id}'`)).s).toBe("held_by_seller");
     // the 585 ledger recomputes the account from documents: it keeps exactly 38 g
@@ -124,11 +156,12 @@ describe("Goldia 089 — old-sale returns, CPAY journal, payment correction, til
 
   it("O4 rated UZS (F) return: 4 500 000 releases 5 g of the 10 g snapshot; a later payment takes only the rest (5 g) - counted once", async () => {
     const o0 = await owes(S1);
-    const r = await ret(retArgs(cR, "UZS", 4, "null", "4500000", "seller", "10"));
+    const r = await ret(retArgs(cR, "UZS", 4, "null", "4500000", "seller", "null"));
     expect([N(r.debt_reduced), N(r.opening_part), N(r.seller_obligation_released_g)]).toEqual([4500000, 4500000, 5]);
     expect(await cnet(cR, "UZS")).toBe(4500000);
-    // obligation: -5 g (released) + 4 x 1.10 (goods) = -0.6 g
-    expect(r4(await owes(S1) - o0)).toBe(-0.6);
+    // the seller keeps the goods: the documented 5 g (snapshot share) move onto them - obligation unchanged
+    expect(N(r.seller_goods_obligation_g)).toBe(5);
+    expect(r4(await owes(S1) - o0)).toBe(0);
     const o1 = await owes(S1);
     const p = await pay(S1, cR, 6000000, 1000000);
     expect(N(p.opening_snapshot_585_g)).toBe(5);
@@ -150,14 +183,16 @@ describe("Goldia 089 — old-sale returns, CPAY journal, payment correction, til
 
   it("O6 reversal restores customer, seller obligation, stock and manager stock; second reversal refused; goods used -> refused", async () => {
     await t.asAdmin();
-    const r = await ret(retArgs(cP, "G585", 3, "10", "null", "seller", "5"));
+    const o0 = await owes(S2);
+    const r = await ret(retArgs(cP, "G585", 3, "10", "null", "seller", "null"));
     const o1 = await owes(S2), st1 = N((await sacc(S2)).st);
+    expect(r4(o1 - o0)).toBe(0);
     expect(await gnet(cP)).toBe(4.7);
     await t.asUser(mgr.userId);
     const k = key("rv");
     await t.rpc(`public.rpc_reverse_opening_sale_return('${r.return_id}', 'xato', '${k}')`);
     expect(await gnet(cP)).toBe(8);
-    expect(r4(await owes(S2) - o1)).toBe(r4(3.3 - 3.15));
+    expect(r4(await owes(S2) - o1)).toBe(0);
     expect(r4(N((await sacc(S2)).st) - st1)).toBe(-3);
     await t.expectError(`SELECT public.rpc_reverse_opening_sale_return('${r.return_id}', 'xato', '${key("rv")}')`, "allaqachon");
     await t.rpc(`public.rpc_get_unified_customer_ledger(p_customer_id := '${cP}')`);
@@ -166,12 +201,14 @@ describe("Goldia 089 — old-sale returns, CPAY journal, payment correction, til
     const m0 = await mgrStock();
     const r2 = await ret(retArgs(cP, "G585", 2, "10", "null", "manager", "null"));
     expect(r4(await mgrStock() - m0)).toBe(2);
+    expect(r4(await owes(S2) - o0)).toBe(-2.2);                  // to the manager: the documented 2.2 g leave the seller
     await t.asUser(mgr.userId);
     await t.rpc(`public.rpc_reverse_opening_sale_return('${r2.return_id}', 'xato', '${key("rv")}')`);
     expect(r4(await mgrStock() - m0)).toBe(0);
+    expect(r4(await owes(S2) - o0)).toBe(0);
     expect(await gnet(cP)).toBe(8);
     // goods sold after the return -> the return cannot be reversed
-    const r3 = await ret(retArgs(cP, "G585", 1, "10", "null", "seller", "5"));
+    const r3 = await ret(retArgs(cP, "G585", 1, "10", "null", "seller", "null"));
     await t.asAdmin();
     await t.db.exec(`UPDATE public.consignment_pieces SET status = 'sold' WHERE id = '${r3.piece_id}'`);
     await t.asUser(mgr.userId);

@@ -44,9 +44,10 @@ out = ['''-- 089 - Goldia Sales (2026-11-18): the remaining post-launch function
 --      seller  only the part that pays the OPENING debt releases the seller's opening obligation (E: its grams; rated F:
 --              its share of the document's rate snapshot; unrated F: 0 - it was never in the obligation); a later payment
 --              takes only what is left of the opening debt (rated snapshot / unrated value) - counted once
---      goods   a new return lot on the seller's shelf (seller obligation grams x (1 + the seller %, entered explicitly)),
---              or straight to the manager through the existing rpc_return_piece_to_manager (seller net 0, manager stock
---              +grams); never a factory receipt / factory obligation (pre-T0 goods were settled before T0, 088)
+--      goods   kept by the seller: his OLD obligation of that debt (from the documents) moves unchanged onto a return
+--              lot - his total obligation does not change (refused when part of the value has no documented obligation);
+--              to the manager: through the existing rpc_return_piece_to_manager, the seller loses the old obligation,
+--              manager stock +grams; never a factory receipt / factory obligation (pre-T0 goods were settled before T0, 088)
 --    Management only, mandatory idempotency key, reason and explicit confirmation, audited; reversible
 --    (rpc_reverse_opening_sale_return) while the returned piece is untouched. The opening documents are never changed.
 -- 2. CPAY (UZS / USD debt payments) and opening returns appear in the daily / customer journal as their own types
@@ -84,6 +85,8 @@ create table if not exists public.opening_sale_returns (
   seller_obligation_released_g  numeric(14, 4) not null default 0 check (seller_obligation_released_g >= 0),
   receiver                      text not null check (receiver in ('seller', 'manager')),
   receiver_seller_markup_pct    numeric(6, 2) check (receiver_seller_markup_pct is null or (receiver_seller_markup_pct >= 0 and receiver_seller_markup_pct <= 100)),
+  -- goods kept by the seller: his OLD obligation (from the documents) moved onto the return lot; 0 for the manager
+  seller_lot_obligation_g       numeric(14, 4) not null default 0 check (seller_lot_obligation_g >= 0),
   consignment_id                uuid references public.seller_consignments(id),
   piece_id                      uuid references public.consignment_pieces(id),
   customer_net_before           numeric(18, 4) not null,
@@ -335,7 +338,7 @@ do $g$ begin
 end $g$;
 drop function if exists public.rpc_record_opening_sale_return(uuid, text, numeric, numeric, numeric, text, numeric, text, boolean, text);
 drop function if exists public.rpc_reverse_opening_sale_return(uuid, text, text);
-drop function if exists public.rpc_preview_opening_sale_return(uuid, text, numeric, numeric, numeric);
+drop function if exists public.rpc_preview_opening_sale_return(uuid, text, numeric, numeric, numeric, text);
 drop function if exists public.rpc_correct_client_payment(text, uuid, text, jsonb, text, text);
 drop function if exists public.rpc_record_seller_till_count(uuid, numeric, numeric, text, text, text);
 drop function if exists public._goldia_opening_return_calc(uuid, uuid, text, numeric, numeric, numeric);

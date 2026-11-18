@@ -24,9 +24,15 @@ opening debt (E = 585 g, F = UZS / USD). Without such a debt the return is refus
   OPENING debt releases the seller's opening obligation — E: its grams; rated F: its share of the document's rate
   snapshot (the whole remainder when it pays the debt off); unrated F: 0 (it was never in the obligation). A later CPAY
   takes only what is left of the opening debt — counted once.
-* Goods: a return lot on the seller's shelf, obligation grams × (1 + seller %, required) — or straight to the manager
-  through the existing `rpc_return_piece_to_manager` (seller net 0, manager stock + grams). Never a factory receipt or
-  factory obligation (pre-T0 goods were settled before T0, 088).
+* Seller obligation (corrected 2026-11-18, owner's rule): the OLD obligation of the returned goods is taken from the
+  documents - E: what the E document's legacy row put into this seller's obligation, pro rata of the paid opening part;
+  rated F: its share of the rate snapshot; unrated F: 0. No seller % is entered (`ERR_SELLER_PCT_NOT_USED`).
+  - kept by the SELLER: that old obligation moves unchanged from the opening debt onto the return lot
+    (`seller_lot_obligation_g`) - the seller's total obligation does NOT change (5 g at 20 %: customer -6 g, seller 0;
+    never "-6 + 5.60"); a later sale / return to the manager uses exactly those grams. Refused when part of the value has
+    no documented obligation (advance part, unrated debt): `ERR_SELLER_KEEP_NOT_DOCUMENTED` -> receive at the manager.
+  - to the MANAGER: the old obligation leaves the seller, manager stock + grams (existing `rpc_return_piece_to_manager`).
+  Never a factory receipt or factory obligation (pre-T0 goods were settled before T0, 088).
 * Mandatory idempotency key, reason, `p_confirmed = true` after the preview; audit rows; reversible while the returned
   piece is untouched (`ERR_RETURN_GOODS_USED` otherwise). A draft opening or an active freeze refuses it (the lot rows are
   in the guarded consignment tables; the guard itself stays on its 12 tables, as 086 / the UI-release lock expect).
@@ -39,9 +45,9 @@ Stock movements — read only; differences and duplicates are shown, never corre
 ## 3. Evidence (local, production-shaped; nothing against staging / production from here)
 | Check | Result |
 |---|---|
-| New suite `goldia-089-remaining-features` (PGlite, real `authenticated` role + RLS): refusals (no %, no amount, no confirm, seller, no opening debt, active freeze); E to seller (−12 g customer, obligation −1 g, stock +10, replay = same doc, ledger recompute keeps 38 g, opening doc unchanged); E to manager with advance (6.6 = 5 + 1.6, released 5, manager +5.5); rated F (5 g of 10 g released, next CPAY takes exactly the other 5 g); unrated F (0 released, next CPAY values only the rest); reversals (customer, obligation, stock, manager stock restored; double reversal and used goods refused); journal CPAY / old-return rows; correction USD-typed-as-UZS → USD (atomic failure leaves the old payment, till −6 325 000 so'm / +500 USD, one audit row); till count (record only, reason required, seller refused, RLS); stock movements (all-time = stored stock for every seller, seller sees only himself); period effects (stock column = stored stock, old-return 585 effect = documents); rollback refused with 089 rows | **12/12** |
+| New suite `goldia-089-remaining-features` (PGlite, real `authenticated` role + RLS): refusals (no %, no amount, no confirm, seller, no opening debt, active freeze); E to seller (−12 g customer, obligation −1 g, stock +10, replay = same doc, ledger recompute keeps 38 g, opening doc unchanged); E to manager with advance (6.6 = 5 + 1.6, released 5, manager +5.5); rated F (5 g of 10 g released, next CPAY takes exactly the other 5 g); unrated F (0 released, next CPAY values only the rest); reversals (customer, obligation, stock, manager stock restored; double reversal and used goods refused); journal CPAY / old-return rows; correction USD-typed-as-UZS → USD (atomic failure leaves the old payment, till −6 325 000 so'm / +500 USD, one audit row); till count (record only, reason required, seller refused, RLS); stock movements (all-time = stored stock for every seller, seller sees only himself); period effects (stock column = stored stock, old-return 585 effect = documents); rollback refused with 089 rows; owner's example 5 g @ 20 % kept by the seller (customer -6 g, seller unchanged, later to the manager exactly -6 g); seller keep refused without a documented obligation | **14/14** |
 | UI helpers `goldia-089-ui` | 3/3 |
-| Full vitest regression (083 returns, 084 rates, 085 opening, 086 freeze, 088 money model, role access, …) | **495/495** |
+| Full vitest regression (083 returns, 084 rates, 085 opening, 086 freeze, 088 money model, role access, …) | **497/497** |
 | `scripts/lib` tests | 6/6 |
 | `tsc --noEmit`, eslint (changed files), `next build` (new route `/sales/app/stock-movements`) | PASS |
 | Native PostgreSQL 17, migrations 001–089 from LF files: postflights 073–089 | all columns true |

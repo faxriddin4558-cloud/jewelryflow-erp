@@ -2,7 +2,9 @@
 
 // 089 — "↩️ Eski savdodan vozvrat": goods sold BEFORE the opening (T0) come back. No sale is invented: the return is
 // written against the customer's locked opening debt (585 g or UZS / USD). The operator enters the original customer %
-// (585) or the original amount (UZS / USD) - nothing is guessed - asks the SERVER for the exact effect
+// (585) or the original amount (UZS / USD) - nothing is guessed - asks the SERVER for the exact effect. The seller's
+// obligation is never entered: kept by the seller, his old documented obligation moves onto the goods (unchanged);
+// to the manager, that old obligation leaves him
 // (rpc_preview_opening_sale_return), confirms it, and only then records (rpc_record_opening_sale_return).
 // One idempotency key per opened dialog + a busy lock: a double click records one return only.
 
@@ -16,7 +18,8 @@ type OpeningDebt = { id: string; document_no: string; kind: string; unit: string
 type Preview = {
   credit: number; debt_reduced: number; advance_created: number; opening_part: number; opening_remaining: number;
   seller_obligation_released_g: number; customer_net_before: number; customer_net_after: number; formula: string;
-  opening_document_no: string; rated: boolean;
+  opening_document_no: string; rated: boolean; old_obligation_g: number; seller_keep_allowed: boolean;
+  seller_keep_refusal: string | null; seller_obligation_change_g: number;
 };
 export type OpeningReturnResult = { return_no: string; unit: string; credit: number; debt_reduced: number; advance_created: number };
 
@@ -33,7 +36,6 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
   const [pct, setPct] = useState("");
   const [amount, setAmount] = useState("");
   const [receiver, setReceiver] = useState<"seller" | "manager">("seller");
-  const [sellerPct, setSellerPct] = useState("");
   const [reason, setReason] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -54,7 +56,7 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
   }, [customerId]);
 
   // any change of the inputs invalidates the confirmed numbers
-  useEffect(() => { setPreview(null); setConfirmed(false); }, [unit, weight, pct, amount, receiver, sellerPct]);
+  useEffect(() => { setPreview(null); setConfirmed(false); }, [unit, weight, pct, amount, receiver]);
 
   const w = toNum(weight);
   const is585 = unit === "G585";
@@ -62,7 +64,6 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
     : !(w > 0) ? "Qaytgan vaznni kiriting"
     : is585 && !(toNum(pct) >= 0 && toNum(pct) <= 100) ? "Mijozga sotilgan ASL foizni kiriting (taxmin qilinmaydi)"
     : !is585 && !(toNum(amount) > 0) ? `Qaytgan tovarning ASL ${unit} qiymatini kiriting (kurs bilan hisoblanmaydi)`
-    : receiver === "seller" && !(toNum(sellerPct) >= 0 && toNum(sellerPct) <= 100) ? "Sotuvchi majburiyati foizini kiriting"
     : null;
 
   const args = () => ({
@@ -73,7 +74,7 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
   const doPreview = async () => {
     if (inputError) { setError(inputError); return; }
     setBusy(true); setError(null);
-    const { data, error: e } = await supabase.rpc("rpc_preview_opening_sale_return", args());
+    const { data, error: e } = await supabase.rpc("rpc_preview_opening_sale_return", { ...args(), p_receiver: receiver });
     setBusy(false);
     if (e) { setError(parseErrorMessage(e, "Hisoblab bo'lmadi")); return; }
     setPreview(data as unknown as Preview);
@@ -84,7 +85,7 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
     if (!reason.trim()) { setError("Vozvrat sababini kiriting"); return; }
     setBusy(true); setError(null);
     const { data, error: e } = await supabase.rpc("rpc_record_opening_sale_return", {
-      ...args(), p_receiver: receiver, p_seller_markup_pct: receiver === "seller" ? toNum(sellerPct) : null,
+      ...args(), p_receiver: receiver, p_seller_markup_pct: null,
       p_reason: reason.trim(), p_confirmed: true, p_idempotency_key: idemKey,
     });
     setBusy(false);
@@ -141,12 +142,11 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
                 Menejer omboriga
               </button>
             </div>
-            {receiver === "seller" && (
-              <label className="block">
-                <span className="text-slate-300 font-bold text-xs">Sotuvchi majburiyati foizi (%) — javonga qaytgan tovar uchun</span>
-                <input className={cls} inputMode="decimal" value={sellerPct} onChange={(e) => setSellerPct(e.target.value)} data-testid="osr-seller-pct" />
-              </label>
-            )}
+            <p className="text-[11px] text-slate-400">
+              {receiver === "seller"
+                ? "Sotuvchida qoladi: uning eski majburiyati (hujjatdan) tovarga o'tadi — sotuvchi majburiyati o'zgarmaydi. Foiz kiritilmaydi."
+                : "Menejerga: sotuvchining shu qarz bo'yicha eski majburiyati (hujjatdan) kamayadi, menejer ombori oshadi."}
+            </p>
             <button type="button" onClick={() => void doPreview()} disabled={busy || Boolean(inputError)}
               className="w-full rounded-lg bg-slate-800 border border-slate-600 py-2 font-bold text-white disabled:opacity-50" data-testid="osr-preview">
               Hisoblash (server)
@@ -158,8 +158,13 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
                 <div className="text-amber-200 font-bold">{preview.formula}</div>
                 <div>Qiymat: <b>{fmtUnit(unit, preview.credit)}</b> → qarzdan <b>{fmtUnit(unit, preview.debt_reduced)}</b>, avansga <b>{fmtUnit(unit, preview.advance_created)}</b></div>
                 <div>Mijoz: {fmtUnit(unit, preview.customer_net_before)} → <b>{fmtUnit(unit, preview.customer_net_after)}</b> (manfiy = avans)</div>
-                <div>Boshlang&apos;ich qarz ({preview.opening_document_no}) qismi: {fmtUnit(unit, preview.opening_part)}; sotuvchi majburiyatidan: <b>−{formatScreenGrams(preview.seller_obligation_released_g, 4)}</b>{!preview.rated && " (kurssiz qarz — majburiyatda bo'lmagan)"}</div>
-                <div>{receiver === "seller" ? `Sotuvchi ombori +${formatScreenGrams(w, 4)}, majburiyat +${formatScreenGrams(Math.round(w * (1 + toNum(sellerPct) / 100) * 1e4) / 1e4, 4)}` : `Menejer ombori +${formatScreenGrams(w, 4)}; sotuvchi omboriga ta'sir yo'q`}. Zavod hisobi o&apos;zgarmaydi.</div>
+                <div>Boshlang&apos;ich qarz ({preview.opening_document_no}) qismi: {fmtUnit(unit, preview.opening_part)}; hujjatdagi eski sotuvchi majburiyati: <b>{formatScreenGrams(preview.old_obligation_g, 4)}</b>{!preview.rated && " (kurssiz qarz — majburiyatda bo'lmagan)"}</div>
+                <div data-testid="osr-seller-effect">{receiver === "seller"
+                  ? `Sotuvchi ombori +${formatScreenGrams(w, 4)}; sotuvchi majburiyati O'ZGARMAYDI (eski ${formatScreenGrams(preview.old_obligation_g, 4)} tovarga o'tadi)`
+                  : `Menejer ombori +${formatScreenGrams(w, 4)}; sotuvchi majburiyati ${formatScreenGrams(preview.seller_obligation_change_g, 4)}`}. Zavod hisobi o&apos;zgarmaydi.</div>
+                {receiver === "seller" && !preview.seller_keep_allowed && (
+                  <div className="text-rose-300 font-bold" data-testid="osr-keep-refused">Sotuvchida qoldirib bo&apos;lmaydi: {preview.seller_keep_refusal}. Menejer omboriga qabul qiling.</div>
+                )}
                 <label className="flex items-center gap-2 pt-1 text-white font-bold">
                   <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} data-testid="osr-confirm" />
                   Raqamlarni tekshirdim, tasdiqlayman
@@ -175,7 +180,7 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
         {error && <p className="text-rose-300 text-xs" data-testid="osr-error">{error}</p>}
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300">Yopish</button>
-          <button type="button" onClick={() => void doRecord()} disabled={!preview || !confirmed || busy || !reason.trim()}
+          <button type="button" onClick={() => void doRecord()} disabled={!preview || !confirmed || busy || !reason.trim() || (receiver === "seller" && !preview.seller_keep_allowed)}
             className="px-4 py-2 rounded-lg bg-amber-600 text-black font-black disabled:opacity-40" data-testid="osr-save">
             {busy ? "Saqlanmoqda…" : "Vozvratni saqlash"}
           </button>
