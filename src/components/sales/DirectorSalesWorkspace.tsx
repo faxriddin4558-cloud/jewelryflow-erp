@@ -45,6 +45,7 @@ import { MarkupDifferenceCard } from "./MarkupDifferenceCard";
 import { tashkentBusinessDate } from "@/lib/business-date";
 import { balanceTotals, goldAdvanceOf, goldDebtOf, netDirectionLabel } from "@/lib/customer-balance";
 import { factoryNetWording, isFactoryAccountMismatch, summarizeFactoryAccount, type OpeningFactoryDocLike } from "@/lib/factory-account-summary";
+import { sellerCardMetrics } from "@/lib/seller-card-metrics";
 
 export type DirectorSalesTab =
   | "factory"
@@ -2114,9 +2115,6 @@ export function DirectorSalesWorkspace({
                 const sellerName = seller?.name || seller?.full_name || "Sotuvchi";
                 const sellerPhone = (seller && "phone" in seller ? (seller as { phone?: string }).phone : undefined) || acc.seller?.phone;
                 const factoryObligation = Number(acc.current_factory_obligation_grams || acc.remaining_factory_gold_due_grams || 0);
-                const tillScrap = Number(acc.seller_till_scrap_grams || 0);
-                const tillCash = Number(acc.seller_till_cash_amount || 0);
-                const tillUsd = Number(acc.seller_till_usd_amount || 0);
                 const sellerOwes = Number(acc.seller_owes_manager_g || 0);
                 const managerOwes = Number(acc.manager_owes_seller_g || 0);
                 const isSellerDebtor = sellerOwes > 0.001 || (acc.bozor_qarzi_signed_g !== undefined && Number(acc.bozor_qarzi_signed_g) < -0.001);
@@ -2124,17 +2122,58 @@ export function DirectorSalesWorkspace({
                 const activeDebtAmount = isSellerDebtor ? (sellerOwes || Math.abs(Number(acc.bozor_qarzi_signed_g || 0))) : (managerOwes || Number(acc.bozor_qarzi_signed_g || 0));
 
                 return (
-                  <div key={acc.seller_id} className="bg-white text-[#0F172A] rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4 hover:shadow-md transition">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-bold text-base text-[#0F172A]">{sellerName}</div>
+                  <div key={acc.seller_id} className="bg-white text-[#0F172A] rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-3 hover:shadow-md transition" data-testid="seller-card">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <div className="font-bold text-base text-[#0F172A] truncate">{sellerName}</div>
                         {sellerPhone && <div className="text-xs text-[#475569]">{sellerPhone}</div>}
                       </div>
-                      <span className="bg-blue-50 text-blue-700 text-[11px] font-bold px-2.5 py-1 rounded-full border border-blue-200">
-                        Sotuvchi
-                      </span>
+                      <button
+                        onClick={() => handleOpenSurrender(acc)}
+                        className="shrink-0 py-2 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+                        data-testid="seller-card-receive"
+                      >
+                        <span>📥</span> Qabul Qilish
+                      </button>
                     </div>
 
+                    {/* P0 (2026-11-18): the numbers a manager needs at once, compact on a phone */}
+                    {(() => {
+                      const m = sellerCardMetrics(acc);
+                      const cell = "rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 min-w-0";
+                      return (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px]" data-testid="seller-card-metrics">
+                          <div className={`${cell} col-span-2 sm:col-span-1 ${m.direction === "seller_owes" ? "bg-rose-50 border-rose-200" : m.direction === "manager_owes" ? "bg-emerald-50 border-emerald-200" : ""}`}>
+                            <div className="text-[#475569]">Majburiyat</div>
+                            <div className={`font-mono font-black text-sm ${m.direction === "seller_owes" ? "text-[#B91C1C]" : m.direction === "manager_owes" ? "text-[#047857]" : "text-[#0F172A]"}`}>
+                              {m.direction === "seller_owes" ? "-" : m.direction === "manager_owes" ? "+" : ""}{formatScreenGrams(m.obligationG, 2)}
+                            </div>
+                          </div>
+                          <div className={cell}>
+                            <div className="text-[#475569]">Ombor</div>
+                            <div className="font-mono font-bold text-sm text-[#0F172A]">{formatScreenGrams(m.stockG, 2)}</div>
+                          </div>
+                          <div className={cell}>
+                            <div className="text-[#475569]">LOM</div>
+                            <div className="font-mono font-bold text-sm text-[#0F172A]">{formatScreenGrams(m.tillLomG, 2)}</div>
+                          </div>
+                          <div className={cell}>
+                            <div className="text-[#475569]">UZS</div>
+                            <div className="font-mono font-bold text-sm text-[#047857] truncate">{formatScreenUZS(m.tillUzs)}</div>
+                          </div>
+                          <div className={cell}>
+                            <div className="text-[#475569]">USD</div>
+                            <div className="font-mono font-bold text-sm text-blue-700">
+                              ${m.tillUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <details className="group" data-testid="seller-card-details">
+                      <summary className="cursor-pointer select-none text-[11px] font-bold text-[#475569] py-1">Batafsil (bozor qarzi, olingan / topshirilgan)</summary>
+                      <div className="space-y-3 pt-2">
                     {/* Signed Bozor Qarzi Card */}
                     <div className={`p-4 rounded-2xl border space-y-1 ${
                       isSellerDebtor
@@ -2197,24 +2236,8 @@ export function DirectorSalesWorkspace({
                       </div>
                     </div>
 
-                    <div className={`grid ${tillUsd > 0 ? "grid-cols-3" : "grid-cols-2"} gap-2 text-xs bg-slate-50 p-3 rounded-2xl border border-slate-200 text-[#0F172A]`}>
-                      <div>
-                        <span className="text-[#475569] block">Kassasidagi Lom:</span>
-                        <span className="font-mono font-bold text-[#0F172A] text-sm">{formatScreenGrams(tillScrap, 2)}</span>
                       </div>
-                      <div>
-                        <span className="text-[#475569] block">Kassasidagi Naqd:</span>
-                        <span className="font-mono font-bold text-[#047857] text-sm">{formatScreenUZS(tillCash)}</span>
-                      </div>
-                      {tillUsd > 0 && (
-                        <div>
-                          <span className="text-[#475569] block">Kassasidagi USD:</span>
-                          <span className="font-mono font-bold text-blue-700 text-sm">
-                            ${tillUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    </details>
 
                     <div className="flex flex-col sm:flex-row gap-2 pt-1">
                       <button
@@ -2225,12 +2248,6 @@ export function DirectorSalesWorkspace({
                         className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center justify-center gap-1.5"
                       >
                         <span>📋</span> Rekonsilyatsiya (A-G)
-                      </button>
-                      <button
-                        onClick={() => handleOpenSurrender(acc)}
-                        className="py-2 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
-                      >
-                        <span>📥</span> Qabul Qilish
                       </button>
                     </div>
                   </div>
