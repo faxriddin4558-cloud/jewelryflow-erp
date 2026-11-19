@@ -29,6 +29,7 @@ import { ScannerDiagnostics } from "./ScannerDiagnostics";
 import { isManagementUiRole } from "@/lib/sales-role-access";
 import { BarTenderModelManager } from "./BarTenderModelManager";
 import { ScannerConsignmentSection } from "./ScannerConsignmentSection";
+import { FactoryGoodsReturnSection } from "./FactoryGoodsReturnSection";
 import { SellerInventoryDashboard } from "./SellerInventoryDashboard";
 import { SheetsImportSection } from "./SheetsImportSection";
 import { TelegramUsersSection } from "./TelegramUsersSection";
@@ -1929,6 +1930,10 @@ export function DirectorSalesWorkspace({
               </form>
             )}
           </div>
+
+          {/* 090: manager stock -> factory goods return (every route that shows this factory tab: /sales/app/factory,
+              /sales/director, /sales/app/handovers, /sales); the server allows management only (manager = director) */}
+          {(activeFactorySection === "all" || activeFactorySection === "handover") && <FactoryGoodsReturnSection />}
 
           {/* Tables: Factory Receipts & Handovers */}
           <div className="space-y-4">
