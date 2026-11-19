@@ -1690,9 +1690,11 @@ export function CustomerLedgerAndSheetsSection() {
                             <span>💱</span> Valyutani tuzatish
                           </button>
                         )}
-                        {(isPrivileged || (r.tx_type === "sale" && r.item_id)) && (
+                        {/* 090: a seller cancels only HIS OWN sale (server: own + recorded by him, no later payment, open period) */}
+                        {(isPrivileged || (r.tx_type === "sale" && !!currentEmployeeId && r.seller_id === currentEmployeeId)) && (
                         <button
                           type="button"
+                          data-testid="open-sale-cancel"
                           onClick={() => openReversalModal(r)}
                           disabled={busy}
                           className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-rose-800/80 bg-rose-950/40 text-rose-300 hover:bg-rose-900/60 hover:text-white transition flex items-center gap-1 mx-auto"

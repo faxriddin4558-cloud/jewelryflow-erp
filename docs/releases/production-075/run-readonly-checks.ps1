@@ -233,13 +233,13 @@ if ($Target -eq "production-ui-release") {
   foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
   $checks = @($checks) + $extra
 }
-if ($Target -eq "production-opening-audit" -and @("20260101000085", "20260101000086", "20260101000087", "20260101000088", "20260101000089") -notcontains $pp[4]) { Finish "FAIL" ("production-opening-audit expects migration history at 085 ... 089, found " + $pp[4]) }
+if ($Target -eq "production-opening-audit" -and @("20260101000085", "20260101000086", "20260101000087", "20260101000088", "20260101000089", "20260101000090") -notcontains $pp[4]) { Finish "FAIL" ("production-opening-audit expects migration history at 085 ... 090, found " + $pp[4]) }
 if ($Target -eq "production-opening-recon" -and @("20260101000085", "20260101000086", "20260101000087") -notcontains $pp[4]) { Finish "FAIL" ("production-opening-recon expects migration history at 085, 086 or 087, found " + $pp[4]) }
-if ($Target -eq "production-prelaunch" -and @("20260101000075", "20260101000076", "20260101000080", "20260101000085", "20260101000087", "20260101000088", "20260101000089") -notcontains $pp[4]) { Finish "FAIL" ("production-prelaunch expects migration history at 075 (before 076), 076 (before 077..080), 080 (before 081), 085 (before 086 / 087), 087 (before 088), 088 (before 089) or 089 (before a later migration), found " + $pp[4]) }
+if ($Target -eq "production-prelaunch" -and @("20260101000075", "20260101000076", "20260101000080", "20260101000085", "20260101000087", "20260101000088", "20260101000089", "20260101000090") -notcontains $pp[4]) { Finish "FAIL" ("production-prelaunch expects migration history at 075 (before 076), 076 (before 077..080), 080 (before 081), 085 (before 086 / 087), 087 (before 088), 088 (before 089 / 090), 089 (before 090) or 090 (before a later migration), found " + $pp[4]) }
 # 2026-11-14 (F3, before the 086 -> 087 chain): at 085 the prelaunch is the full read-only verification of that level - the
 # same set as production-drift-audit: history continuity / unknown versions + frontend RPC presence (08), postflights
 # 073..085, the CR-tolerant parity of ALL functions at 085, RLS isolation and the pre-release business baseline
-$prelaunchFull = ($Target -eq "production-prelaunch" -and @("20260101000085", "20260101000087", "20260101000088", "20260101000089") -contains $pp[4])
+$prelaunchFull = ($Target -eq "production-prelaunch" -and @("20260101000085", "20260101000087", "20260101000088", "20260101000089", "20260101000090") -contains $pp[4])
 if ($prelaunchFull) {
   $d8 = @{ Name = "08_drift_audit"; File = "docs/releases/production-075/08_drift_audit_readonly.sql"; Kind = "drift" }
   $d8.Path = Join-Path $repo $d8.File; if (-not (Test-Path -LiteralPath $d8.Path)) { Finish "FAIL" ("missing " + $d8.File + " - run from the release branch checkout") }
@@ -267,7 +267,7 @@ if ($Target -eq "production-prelaunch" -and $pp[4] -eq "20260101000076") {
 if ($Target -eq "production-drift-audit" -or $prelaunchFull) {
   $lv = ([string]$pp[4]).Substring(11)
   $extra = @()
-  foreach ($v in @("073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088", "089")) {
+  foreach ($v in @("073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088", "089", "090")) {
     if ([string]::CompareOrdinal([string]$pp[4], "20260101000" + $v) -ge 0) { $extra += @{ Name = ($v + "_postflight"); File = ("supabase/release/" + $v + "_postflight_readonly.sql"); Kind = "postflight" } }
   }
   $pf = "supabase/release/function_body_parity_" + $lv + "_full_readonly.sql"
@@ -281,11 +281,11 @@ if ($Target -eq "production-drift-audit" -or $prelaunchFull) {
   foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }
   $checks = @($checks) + $extra
 }
-if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077", "20260101000078", "20260101000079", "20260101000080", "20260101000081", "20260101000082", "20260101000083", "20260101000084", "20260101000085", "20260101000086", "20260101000087", "20260101000088", "20260101000089") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075 ... 089, found " + $pp[4]) }
+if ($Target -eq "production-post" -and @("20260101000075", "20260101000076", "20260101000077", "20260101000078", "20260101000079", "20260101000080", "20260101000081", "20260101000082", "20260101000083", "20260101000084", "20260101000085", "20260101000086", "20260101000087", "20260101000088", "20260101000089", "20260101000090") -notcontains $pp[4]) { Finish "FAIL" ("production-post expects migration history at 075 ... 090, found " + $pp[4]) }
 if ($Target -eq "production-post" -and $pp[4] -ne "20260101000075") {
   # after 076 / 077 their postflights run too (073/074/075 must stay true)
   $extra = @(@{ Name = "076_postflight"; File = "supabase/release/076_postflight_readonly.sql"; Kind = "postflight" })
-  foreach ($v in @("077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088", "089")) {
+  foreach ($v in @("077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088", "089", "090")) {
     if ([string]::CompareOrdinal([string]$pp[4], "20260101000" + $v) -ge 0) { $extra += @{ Name = ($v + "_postflight"); File = ("supabase/release/" + $v + "_postflight_readonly.sql"); Kind = "postflight" } }
   }
   foreach ($x in $extra) { $x.Path = Join-Path $repo $x.File; if (-not (Test-Path -LiteralPath $x.Path)) { Finish "FAIL" ("missing " + $x.File + " - run from the release branch checkout") } }

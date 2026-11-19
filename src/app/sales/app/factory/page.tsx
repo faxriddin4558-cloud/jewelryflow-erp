@@ -1,6 +1,7 @@
 "use client";
 
 import { DirectorSalesWorkspace } from "@/components/sales/DirectorSalesWorkspace";
+import { FactoryGoodsReturnSection } from "@/components/sales/FactoryGoodsReturnSection";
 
 export default function FactoryLedgerPage() {
   return (
@@ -17,6 +18,8 @@ export default function FactoryLedgerPage() {
       </div>
 
       <DirectorSalesWorkspace initialTab="factory" factorySection="all" hideTopBanner={true} hideTabBar={true} />
+
+      <FactoryGoodsReturnSection />
     </div>
   );
 }
