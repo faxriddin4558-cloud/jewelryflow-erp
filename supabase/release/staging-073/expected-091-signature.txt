@@ -1580,7 +1580,7 @@ H _goldia_guard_baseline_freeze() bd681a57da938bc97a6f23c96908f253
 H _goldia_guard_customer_archive() 9d5f037a0147e294d4a0c8ab632dd9cd
 H _goldia_guard_customer_assignment() 8f98a0f96b82a9a5abbc04dba6b9ee06
 H _goldia_guard_customer_code() bfb3283e9fb88a12cacc9801c602eba0
-H _goldia_guard_finished_goods_handover() 022d3e154ac347c5d34a74af1b1fa6dc
+H _goldia_guard_finished_goods_handover() 27f307d8caab86c9f216208eb769b3b9
 H _goldia_guard_opening_draft() 975ad9cb979f1fdc36a441b90ae00b1f
 H _goldia_guard_restart_t0() 8ae1fcb1e3f634ff00ce84599dde4f18
 H _goldia_guard_sale_archived_customer() 17be19b76645ef25e280271499fcca7c
@@ -1654,11 +1654,11 @@ H rpc_dispatch_stage_handover(text,text,integer,text,text,integer,text,text,text
 H rpc_edit_client_sale(uuid,text,text,numeric,numeric,uuid,uuid[],numeric) 70ebd07b7928d3ae423478362d958a4c
 H rpc_execute_affinaj_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text) 4d859c624ae436b2e79c743c51449706
 H rpc_execute_alloy_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text,numeric,text,numeric,text) e45b94b30ebdaa9a9a560b706725290e
-H rpc_execute_full_test_reset(text,text) a4e1bd89b050f47c23fb4cfdb1a98366
+H rpc_execute_full_test_reset(text,text) 51b550e2c4d9b7ffc4308a925a1ec9a1
 H rpc_execute_selective_test_cleanup(uuid[],text,text) 2ea00d514179828f439976b6962f1809
 H rpc_execute_sheets_historical_import(text,text,jsonb,boolean,text) 58c5cf791f11077afc1d5bf5b6b21e6b
 H rpc_execute_staging_test_cleanup(text,text) b3aa0c85f05a886fdb5b363c35f02b47
-H rpc_financial_restart(text,text,timestamp with time zone,uuid,text) e3ea970e19e9ddefc1f9746b6c7b5227
+H rpc_financial_restart(text,text,timestamp with time zone,uuid,text) ba4332fabae58ae08a510df4dec3a63a
 H rpc_generate_telegram_link_code(uuid) 3a2db19d603ea0b0da430fc85cbe442e
 H rpc_get_accounting_profit_summary(date,date,numeric,numeric,uuid) ecfbfd1d8888446040c6cf550650d07c
 H rpc_get_active_sales_markups(text) 3510221858105b9bc34ea514573b61f2
@@ -1714,7 +1714,7 @@ H rpc_record_refining_batch(numeric,numeric,numeric,numeric,uuid,text,text,numer
 H rpc_record_salary_transaction(text,text,text,text,text,numeric,numeric,numeric,text,text) 21fe9bea8b857694ecf95666022425fa
 H rpc_record_sale_return(uuid,numeric,text,text,text) b049c6a1dd28d3ade62ae3be2efaa688
 H rpc_record_sale_with_stock_deduction(text,text,text,integer,numeric,numeric,text,numeric,numeric,text,text) d5c1c21f49d21624dfceb249e942db83
-H rpc_record_seller_lom_purchase(numeric,numeric,text,numeric,numeric,uuid,date,text,text) fdb7b23dbf38c05ebdf93c59c561d33a
+H rpc_record_seller_lom_purchase(numeric,numeric,text,numeric,numeric,uuid,date,text,text) dcb69c8c6ede3220f5b8671e6941b8e0
 H rpc_record_seller_till_count(uuid,numeric,numeric,text,text,text) ac28692681563e1d701c754a4de601ee
 H rpc_record_seller_to_factory_settlement(uuid,numeric,numeric,numeric,date,text,text) 407a69126cd3f7e341e62b6315d61aef
 H rpc_record_seller_to_manager_settlement(uuid,numeric,numeric,numeric,text,text,numeric,numeric,numeric) 71f05ee7965ad9cafcc2dcf355d7faf5
@@ -1743,7 +1743,7 @@ H rpc_reverse_gold_purchase(uuid,text,text) 856b2cb63f057008859fe100db013696
 H rpc_reverse_jewelry_sale(uuid,text,text) df74f51915c62e75369b58b2fbde46f5
 H rpc_reverse_opening_sale_return(uuid,text,text) 97ea87b012cc64e73e1acf20e825dbc2
 H rpc_reverse_refining_batch(uuid,text,text) ff5b2fd72d827104df23f5ec9c740aa8
-H rpc_reverse_seller_lom_purchase(uuid,text,text) a49b65a3149c2c055e47f0acd215e41f
+H rpc_reverse_seller_lom_purchase(uuid,text,text) 8c8bc05bba5f591901e8a8e21b1041ea
 H rpc_reverse_seller_to_manager_settlement(uuid,text,text) c302e7312e6e38050d0e332b718229aa
 H rpc_set_daily_gold_rate(numeric,numeric,date,text,text,text,numeric) 24a4f67c49af00b8e47dabec7d5d5d2d
 H rpc_set_my_seller_rates(numeric,numeric,text) 4770b2d22915c7bf1454ea0ee22e06bb

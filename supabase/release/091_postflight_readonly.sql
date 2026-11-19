@@ -15,11 +15,12 @@ select
   not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname not in ('_goldia_repair_factory_counters', 'rpc_financial_restart', 'rpc_execute_full_test_reset')
                 and prosrc ~ 'total_factory_handed_over_g\s*=\s*v_new_handed_over') as no_recompute_left,
   -- the generic reversal still refuses a finished-goods return; restart / test reset may reverse it
-  (select position('goldia.opening_write' in prosrc) > 0 and position('goldia.test_reset' in prosrc) > 0 and position('ERR_FINISHED_GOODS_HANDOVER' in prosrc) > 0
+  (select position('goldia.fgr_bulk' in prosrc) > 0 and position('goldia.opening_write' in prosrc) = 0 and position('ERR_FINISHED_GOODS_HANDOVER' in prosrc) > 0
      from pg_proc where proname = '_goldia_guard_finished_goods_handover' and pronamespace = 'public'::regnamespace)
     and exists (select 1 from pg_trigger where tgname = 'trg_goldia_guard_finished_goods_handover' and tgenabled = 'O') as goods_guard,
-  (select position('seller_lom_purchases' in prosrc) > 0 and position('factory_goods_returns' in prosrc) > 0
-     from pg_proc where proname = 'rpc_financial_restart' and pronamespace = 'public'::regnamespace) as restart_covers_new_tables,
+  (select bool_and(position('seller_lom_purchases' in prosrc) > 0 and position('factory_goods_returns' in prosrc) > 0
+                   and position('set_config(''goldia.fgr_bulk'', '''', true)' in prosrc) > 0)
+     from pg_proc where proname in ('rpc_financial_restart', 'rpc_execute_full_test_reset') and pronamespace = 'public'::regnamespace) as restart_covers_new_tables,
   -- seller LOM purchase: table read-only for users, RLS, constraints; RPCs management / own seller, idempotent, audited
   (select c.relrowsecurity from pg_class c where c.oid = 'public.seller_lom_purchases'::regclass)
     and has_table_privilege('authenticated', 'public.seller_lom_purchases', 'SELECT')

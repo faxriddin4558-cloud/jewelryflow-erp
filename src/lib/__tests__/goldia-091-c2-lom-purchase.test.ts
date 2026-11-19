@@ -97,6 +97,13 @@ describe("Goldia 091 — C2 handover fix, seller LOM purchase", () => {
     await t.asUser(S2.userId);
     await t.expectError(`SELECT public.rpc_record_seller_lom_purchase(p_physical_g := 1, p_proba := 585, p_idempotency_key := '${key("x6")}', p_uzs_amount := 900000, p_seller_id := '${S1.employeeId}')`, "ERR_NOT_OWN_TILL");
     await t.expectError(`SELECT public.rpc_record_seller_lom_purchase(p_physical_g := 1, p_proba := 585, p_idempotency_key := '${key("x7")}', p_uzs_amount := 900000)`, "ERR_");
+    // a backup / restart freeze blocks the purchase like every other till operation
+    await t.asAdmin();
+    await t.db.query(`SELECT public._goldia_financial_freeze('${org}', 't91 freeze', true)`);
+    await t.asUser(S1.userId);
+    await t.expectError(`SELECT public.rpc_record_seller_lom_purchase(p_physical_g := 1, p_proba := 585, p_idempotency_key := '${key("x8")}', p_uzs_amount := 900000)`, "ERR_FINANCIAL_FREEZE");
+    await t.asAdmin();
+    await t.db.exec(`UPDATE public.financial_write_freezes SET released_at = now() WHERE organization_id = '${org}' AND released_at IS NULL`);
     expect(await till(S1)).toEqual(t0);
     // isolation: S2 sees none of S1's purchases; the table cannot be written directly
     await t.asUser(S2.userId);
@@ -162,6 +169,23 @@ describe("Goldia 091 — C2 handover fix, seller LOM purchase", () => {
     await t.expectError(`SELECT public.rpc_reverse_factory_gold_handover('${r.handover_id}', 'x', '${key("gx")}')`, "ERR_FINISHED_GOODS_HANDOVER");
     await as(mgr, `public.rpc_reverse_factory_goods_return('${r.return_id}', 'xato', '${key("gr")}')`);
     expect(await net()).toBe(n0);
+  });
+
+  it("C3 a later financial restart reverses goods returns and LOM purchases too (the 090 guard lets only its bulk statement through)", async () => {
+    const rc = (await one(`SELECT id FROM public.factory_receipts WHERE organization_id = '${org}' AND product_name = 'Kirim 2'`)).id as string;
+    await as(mgr, `public.rpc_return_goods_to_factory('${rc}', 1, 'qaytarish', '${key("g2")}')`);
+    await as(mgr, `public.rpc_record_factory_receipt(p_product_name := 'x', p_original_physical_g := 1, p_factory_markup_pct := 1, p_idempotency_key := '${key("rx")}')`);
+    await as(S1, `public.rpc_record_seller_lom_purchase(p_physical_g := 0.5, p_proba := 585, p_idempotency_key := '${key("p9")}', p_uzs_amount := 450000)`);
+    await t.asAdmin();
+    await t.db.query(`SELECT public._goldia_financial_freeze('${org}', 't91 b', true)`);
+    await new Promise((r) => setTimeout(r, 20));
+    const bv = (await one(`INSERT INTO public.financial_backup_verifications (organization_id, backup_reference, restore_verified) VALUES ('${org}', 't91b.dump', true) RETURNING id`)).id;
+    await as(dir, `public.rpc_financial_restart('MOLIYAVIY HISOBNI QAYTA BOSHLASH', 't91 b', '${new Date(Date.now() - 1000).toISOString()}', '${bv}', '${key("restart2")}')`);
+    const left = await one(`SELECT (SELECT count(*) FROM public.factory_goods_returns WHERE organization_id = '${org}' AND status = 'confirmed') g,
+      (SELECT count(*) FROM public.seller_lom_purchases WHERE organization_id = '${org}' AND status = 'confirmed') l,
+      (SELECT count(*) FROM public.factory_gold_handovers WHERE organization_id = '${org}' AND status <> 'reversed') h`);
+    expect([N(left.g), N(left.l), N(left.h)]).toEqual([0, 0, 0]);
+    expect(await till(S1)).toMatchObject({ uzs: "0.00", lp: "0.0000" });
   });
 
   it("R1 rollback 091 is refused while a seller LOM purchase exists", async () => {

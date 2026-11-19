@@ -10,7 +10,7 @@
 --    an exchange inside the seller's till - UZS down, LOM physical + 585 equivalent up; customer debt, seller
 --    obligation, factory and profit untouched; in the period report as its own kind (never a collection / expense).
 -- 3. The financial restart and the staging test reset also reverse 090 goods returns and 091 LOM purchases; the 090
---    finished-goods handover guard lets them through (their own transaction flag), the generic reversal stays refused.
+--    finished-goods handover guard lets only their one bulk handover statement through, the generic reversal stays refused.
 -- ------------------------------------------------------------------ seller buys LOM at the bazaar with his till UZS
 -- An exchange INSIDE the seller's till: UZS cash -> LOM (physical + 585 equivalent kept apart). Not a sale, not an
 -- expense, not capital: customer debt, seller obligation, factory account and profit are not touched. The UZS that
@@ -381,9 +381,9 @@ returns trigger language plpgsql security definer set search_path = public, pg_t
 begin
   if old.source_type = 'finished_goods_return' and new.status is distinct from old.status
      and current_setting('goldia.fgr_reverse', true) is distinct from txid_current()::text
-     -- 091: the financial restart (goldia.opening_write) and the staging test reset reverse everything at once
-     and current_setting('goldia.opening_write', true) is distinct from txid_current()::text
-     and current_setting('goldia.test_reset', true) is distinct from txid_current()::text then
+     -- 091: the financial restart and the staging test reset reverse ALL handovers in one statement; they set this
+     -- flag right before that statement and clear it right after (never left on for the rest of the transaction)
+     and current_setting('goldia.fgr_bulk', true) is distinct from txid_current()::text then
     raise exception 'ERR_FINISHED_GOODS_HANDOVER: tayyor mahsulot qaytarishini "Zavodga qaytarishni bekor qilish" orqali bekor qiling' using errcode = '55000';
   end if;
   return new;
@@ -494,8 +494,10 @@ begin
    where organization_id = v_org and status not in ('reversed', 'cancelled');
   get diagnostics v_n = row_count; v_counts := v_counts || jsonb_build_object('factory_receipts', v_n);
   insert into public.financial_restart_items select v_id, 'factory_gold_handovers', id, status from public.factory_gold_handovers where organization_id = v_org and status <> 'reversed';
+  perform set_config('goldia.fgr_bulk', txid_current()::text, true); -- 091: finished-goods handovers too (090 guard)
   update public.factory_gold_handovers set status = 'reversed', reversed_at = v_ts, notes = coalesce(notes, '') || ' [' || v_note || ']', updated_at = v_ts
    where organization_id = v_org and status <> 'reversed';
+  perform set_config('goldia.fgr_bulk', '', true);
   get diagnostics v_n = row_count; v_counts := v_counts || jsonb_build_object('factory_handovers', v_n);
   insert into public.financial_restart_items select v_id, 'refining_batches', id, status from public.refining_batches where organization_id = v_org and status not in ('cancelled', 'reversed');
   update public.refining_batches set status = 'reversed', reversed_at = v_ts, reversed_by = v_emp, reversal_reason = v_note, updated_at = v_ts
@@ -600,7 +602,6 @@ begin
   perform public.assert_erp_permission(array[
     'admin', 'director', 'owner', 'direktor', 'rahbar'
   ]);
-  perform set_config('goldia.test_reset', txid_current()::text, true); -- 091: lets the reset reverse finished-goods handovers
 
   if v_caller_emp_id is null then
     select id into v_caller_emp_id from public.employees where user_id = auth.uid() and organization_id = v_caller_org limit 1;
@@ -702,11 +703,13 @@ begin
   get diagnostics v_rcp_rev = row_count;
 
   -- H. Reverse factory gold handovers
+  perform set_config('goldia.fgr_bulk', txid_current()::text, true); -- 091: finished-goods handovers too (090 guard)
   update public.factory_gold_handovers
      set status = 'reversed',
          notes = coalesce(notes, '') || ' [' || v_rev_note || ']',
          updated_at = v_rev_ts
    where organization_id = v_caller_org and status <> 'reversed';
+  perform set_config('goldia.fgr_bulk', '', true);
   get diagnostics v_hnd_rev = row_count;
 
   -- I. Cancel refining batches
@@ -1121,15 +1124,18 @@ begin
   if exists (select 1 from public.opening_periods p where p.organization_id = v_org and p.status in ('locked', 'closed') and v_date < public._goldia_business_date(p.created_at)) then
     raise exception 'ERR_BEFORE_OPENING_LOCK: sana boshlang''ich hisobdan (T0) oldin';
   end if;
-  -- the same write gate as every till operation: no opening draft, no backup / restart freeze (never waits)
-  if not pg_try_advisory_xact_lock_shared(hashtext('goldia_financial_restart'), hashtext(v_org::text)) then
-    raise exception 'ERR_OPENING_DRAFT: moliyaviy hisob hozir qayta boshlanmoqda - amalni keyinroq takrorlang' using errcode = '55000';
-  end if;
-  if exists (select 1 from public.opening_periods where organization_id = v_org and status = 'draft') then
-    raise exception 'ERR_OPENING_DRAFT: boshlang''ich hisob tasdiqlanmagan - oddiy moliyaviy amallar qulflangan' using errcode = '55000';
-  end if;
-  if public._goldia_active_freeze(v_org) is not null then
-    raise exception 'ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqtincha to''xtatilgan (backup va qayta boshlash) - amal bajarilmadi' using errcode = '55000';
+  -- the same write gate as every till operation (_goldia_guard_opening_draft): no opening draft, no backup / restart
+  -- freeze (never waits); the opening's own transaction (goldia.opening_write) passes, exactly as in that guard
+  if current_setting('goldia.opening_write', true) is distinct from txid_current()::text then
+    if not pg_try_advisory_xact_lock_shared(hashtext('goldia_financial_restart'), hashtext(v_org::text)) then
+      raise exception 'ERR_OPENING_DRAFT: moliyaviy hisob hozir qayta boshlanmoqda - amalni keyinroq takrorlang' using errcode = '55000';
+    end if;
+    if exists (select 1 from public.opening_periods where organization_id = v_org and status = 'draft') then
+      raise exception 'ERR_OPENING_DRAFT: boshlang''ich hisob tasdiqlanmagan - oddiy moliyaviy amallar qulflangan' using errcode = '55000';
+    end if;
+    if public._goldia_active_freeze(v_org) is not null then
+      raise exception 'ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqtincha to''xtatilgan (backup va qayta boshlash) - amal bajarilmadi' using errcode = '55000';
+    end if;
   end if;
 
   v_payload := jsonb_build_object('action', 'seller_lom_purchase', 'seller_id', v_seller, 'physical_g', v_phys, 'proba', v_proba,
@@ -1204,11 +1210,13 @@ begin
   v_payload := jsonb_build_object('action', 'reverse_seller_lom_purchase', 'purchase_id', p_purchase_id);
   v_existing := public.check_and_lock_idempotency(v_key, 'rpc_reverse_seller_lom_purchase', v_payload);
   if v_existing is not null then return v_existing; end if;
-  if not pg_try_advisory_xact_lock_shared(hashtext('goldia_financial_restart'), hashtext(v_org::text)) then
-    raise exception 'ERR_OPENING_DRAFT: moliyaviy hisob hozir qayta boshlanmoqda - amalni keyinroq takrorlang' using errcode = '55000';
-  end if;
-  if public._goldia_active_freeze(v_org) is not null then
-    raise exception 'ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqtincha to''xtatilgan (backup va qayta boshlash) - amal bajarilmadi' using errcode = '55000';
+  if current_setting('goldia.opening_write', true) is distinct from txid_current()::text then
+    if not pg_try_advisory_xact_lock_shared(hashtext('goldia_financial_restart'), hashtext(v_org::text)) then
+      raise exception 'ERR_OPENING_DRAFT: moliyaviy hisob hozir qayta boshlanmoqda - amalni keyinroq takrorlang' using errcode = '55000';
+    end if;
+    if public._goldia_active_freeze(v_org) is not null then
+      raise exception 'ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqtincha to''xtatilgan (backup va qayta boshlash) - amal bajarilmadi' using errcode = '55000';
+    end if;
   end if;
   select * into x from public.seller_lom_purchases where id = p_purchase_id and organization_id = v_org for update;
   if not found then raise exception 'ERR_NOT_FOUND: xarid hujjati topilmadi'; end if;

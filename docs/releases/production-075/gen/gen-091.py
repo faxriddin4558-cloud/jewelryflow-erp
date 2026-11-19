@@ -45,7 +45,7 @@ out = ['''-- 091 - Goldia Sales (2026-11-19), on top of 090. Nothing existing is
 --    an exchange inside the seller's till - UZS down, LOM physical + 585 equivalent up; customer debt, seller
 --    obligation, factory and profit untouched; in the period report as its own kind (never a collection / expense).
 -- 3. The financial restart and the staging test reset also reverse 090 goods returns and 091 LOM purchases; the 090
---    finished-goods handover guard lets them through (their own transaction flag), the generic reversal stays refused.
+--    finished-goods handover guard lets only their one bulk handover statement through, the generic reversal stays refused.
 ''', NEW.split('-- @@@ FUNCTIONS @@@')[0]]
 
 VAULT_ADD = '''  -- 091: the handover moves the factory account by exactly its 585 equivalent (C / C2 / goods returns stay in the total)
@@ -77,12 +77,19 @@ out.append('\n-- ===== rpc_reverse_factory_gold_handover (from ' + src + ')\n' +
 fn, src = ORIG['_goldia_guard_finished_goods_handover']
 fn = rep(fn, '''     and current_setting('goldia.fgr_reverse', true) is distinct from txid_current()::text then''',
          '''     and current_setting('goldia.fgr_reverse', true) is distinct from txid_current()::text
-     -- 091: the financial restart (goldia.opening_write) and the staging test reset reverse everything at once
-     and current_setting('goldia.opening_write', true) is distinct from txid_current()::text
-     and current_setting('goldia.test_reset', true) is distinct from txid_current()::text then''')
+     -- 091: the financial restart and the staging test reset reverse ALL handovers in one statement; they set this
+     -- flag right before that statement and clear it right after (never left on for the rest of the transaction)
+     and current_setting('goldia.fgr_bulk', true) is distinct from txid_current()::text then''')
 out.append('\n-- ===== _goldia_guard_finished_goods_handover (from ' + src + ')\n' + fn + '\n')
 
 fn, src = ORIG['rpc_financial_restart']
+fn = rep(fn, '''  update public.factory_gold_handovers set status = 'reversed', reversed_at = v_ts, notes = coalesce(notes, '') || ' [' || v_note || ']', updated_at = v_ts
+   where organization_id = v_org and status <> 'reversed';
+''', '''  perform set_config('goldia.fgr_bulk', txid_current()::text, true); -- 091: finished-goods handovers too (090 guard)
+  update public.factory_gold_handovers set status = 'reversed', reversed_at = v_ts, notes = coalesce(notes, '') || ' [' || v_note || ']', updated_at = v_ts
+   where organization_id = v_org and status <> 'reversed';
+  perform set_config('goldia.fgr_bulk', '', true);
+''')
 anchor = '''  get diagnostics v_n = row_count; v_counts := v_counts || jsonb_build_object('purchases', v_n);
 '''
 fn = rep(fn, anchor, anchor + '''  -- 091: 090 goods returns and 091 seller LOM purchases are reversed with everything else
@@ -96,13 +103,18 @@ fn = rep(fn, anchor, anchor + '''  -- 091: 090 goods returns and 091 seller LOM 
 out.append('\n-- ===== rpc_financial_restart (from ' + src + ')\n' + fn + '\n')
 
 fn, src = ORIG['rpc_execute_full_test_reset']
-fn = rep(fn, '''  perform public.assert_erp_permission(array[
-    'admin', 'director', 'owner', 'direktor', 'rahbar'
-  ]);
-''', '''  perform public.assert_erp_permission(array[
-    'admin', 'director', 'owner', 'direktor', 'rahbar'
-  ]);
-  perform set_config('goldia.test_reset', txid_current()::text, true); -- 091: lets the reset reverse finished-goods handovers
+fn = rep(fn, '''  update public.factory_gold_handovers
+     set status = 'reversed',
+         notes = coalesce(notes, '') || ' [' || v_rev_note || ']',
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org and status <> 'reversed';
+''', '''  perform set_config('goldia.fgr_bulk', txid_current()::text, true); -- 091: finished-goods handovers too (090 guard)
+  update public.factory_gold_handovers
+     set status = 'reversed',
+         notes = coalesce(notes, '') || ' [' || v_rev_note || ']',
+         updated_at = v_rev_ts
+   where organization_id = v_caller_org and status <> 'reversed';
+  perform set_config('goldia.fgr_bulk', '', true);
 ''')
 fn = rep(fn, '''  get diagnostics v_purch_rev = row_count;
 ''', '''  get diagnostics v_purch_rev = row_count;

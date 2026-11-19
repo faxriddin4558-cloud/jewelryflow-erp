@@ -95,15 +95,18 @@ begin
   if exists (select 1 from public.opening_periods p where p.organization_id = v_org and p.status in ('locked', 'closed') and v_date < public._goldia_business_date(p.created_at)) then
     raise exception 'ERR_BEFORE_OPENING_LOCK: sana boshlang''ich hisobdan (T0) oldin';
   end if;
-  -- the same write gate as every till operation: no opening draft, no backup / restart freeze (never waits)
-  if not pg_try_advisory_xact_lock_shared(hashtext('goldia_financial_restart'), hashtext(v_org::text)) then
-    raise exception 'ERR_OPENING_DRAFT: moliyaviy hisob hozir qayta boshlanmoqda - amalni keyinroq takrorlang' using errcode = '55000';
-  end if;
-  if exists (select 1 from public.opening_periods where organization_id = v_org and status = 'draft') then
-    raise exception 'ERR_OPENING_DRAFT: boshlang''ich hisob tasdiqlanmagan - oddiy moliyaviy amallar qulflangan' using errcode = '55000';
-  end if;
-  if public._goldia_active_freeze(v_org) is not null then
-    raise exception 'ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqtincha to''xtatilgan (backup va qayta boshlash) - amal bajarilmadi' using errcode = '55000';
+  -- the same write gate as every till operation (_goldia_guard_opening_draft): no opening draft, no backup / restart
+  -- freeze (never waits); the opening's own transaction (goldia.opening_write) passes, exactly as in that guard
+  if current_setting('goldia.opening_write', true) is distinct from txid_current()::text then
+    if not pg_try_advisory_xact_lock_shared(hashtext('goldia_financial_restart'), hashtext(v_org::text)) then
+      raise exception 'ERR_OPENING_DRAFT: moliyaviy hisob hozir qayta boshlanmoqda - amalni keyinroq takrorlang' using errcode = '55000';
+    end if;
+    if exists (select 1 from public.opening_periods where organization_id = v_org and status = 'draft') then
+      raise exception 'ERR_OPENING_DRAFT: boshlang''ich hisob tasdiqlanmagan - oddiy moliyaviy amallar qulflangan' using errcode = '55000';
+    end if;
+    if public._goldia_active_freeze(v_org) is not null then
+      raise exception 'ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqtincha to''xtatilgan (backup va qayta boshlash) - amal bajarilmadi' using errcode = '55000';
+    end if;
   end if;
 
   v_payload := jsonb_build_object('action', 'seller_lom_purchase', 'seller_id', v_seller, 'physical_g', v_phys, 'proba', v_proba,
@@ -178,11 +181,13 @@ begin
   v_payload := jsonb_build_object('action', 'reverse_seller_lom_purchase', 'purchase_id', p_purchase_id);
   v_existing := public.check_and_lock_idempotency(v_key, 'rpc_reverse_seller_lom_purchase', v_payload);
   if v_existing is not null then return v_existing; end if;
-  if not pg_try_advisory_xact_lock_shared(hashtext('goldia_financial_restart'), hashtext(v_org::text)) then
-    raise exception 'ERR_OPENING_DRAFT: moliyaviy hisob hozir qayta boshlanmoqda - amalni keyinroq takrorlang' using errcode = '55000';
-  end if;
-  if public._goldia_active_freeze(v_org) is not null then
-    raise exception 'ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqtincha to''xtatilgan (backup va qayta boshlash) - amal bajarilmadi' using errcode = '55000';
+  if current_setting('goldia.opening_write', true) is distinct from txid_current()::text then
+    if not pg_try_advisory_xact_lock_shared(hashtext('goldia_financial_restart'), hashtext(v_org::text)) then
+      raise exception 'ERR_OPENING_DRAFT: moliyaviy hisob hozir qayta boshlanmoqda - amalni keyinroq takrorlang' using errcode = '55000';
+    end if;
+    if public._goldia_active_freeze(v_org) is not null then
+      raise exception 'ERR_FINANCIAL_FREEZE: moliyaviy yozuvlar vaqtincha to''xtatilgan (backup va qayta boshlash) - amal bajarilmadi' using errcode = '55000';
+    end if;
   end if;
   select * into x from public.seller_lom_purchases where id = p_purchase_id and organization_id = v_org for update;
   if not found then raise exception 'ERR_NOT_FOUND: xarid hujjati topilmadi'; end if;
