@@ -65,7 +65,9 @@ describe("Goldia 089 — old-sale returns, CPAY journal, payment correction, til
     // the seller's obligation is never an entered %: it comes from the documents
     await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "20", "null", "seller", "10")})`, "ERR_SELLER_PCT_NOT_USED");
     await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "20", "null", "seller", "null").replace("p_confirmed := true", "p_confirmed := false")})`, "ERR_CONFIRM_REQUIRED");
-    await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "USD", 10, "null", "100", "seller", "null")})`, "ERR_NO_OPENING_DEBT");
+    // 092 (owner rule): no opening debt of that unit no longer blocks - the preview (read only) shows old 0 / new 0 / advance 100
+    const pv = await t.rpc(`public.rpc_preview_opening_sale_return(p_customer_id := '${cE}', p_unit := 'USD', p_weight_grams := 10, p_customer_markup_pct := null, p_credit_amount := 100, p_receiver := 'manager')`);
+    expect([pv.has_opening_document, N(pv.opening_part), N(pv.new_debt_part), N(pv.advance_created)]).toEqual([false, 0, 0, 100]);
     await t.asUser(S1.userId);
     await t.expectError(`SELECT public.rpc_record_opening_sale_return(${retArgs(cE, "G585", 10, "20", "null", "seller", "null")})`, "ermission");
     await t.expectError(`SELECT public.rpc_preview_opening_sale_return('${cE}', 'G585', 10, 20, null, 'seller')`, "ermission");

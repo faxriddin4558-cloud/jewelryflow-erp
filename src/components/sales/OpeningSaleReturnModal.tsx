@@ -18,7 +18,7 @@ type OpeningDebt = { id: string; document_no: string; kind: string; unit: string
 type Preview = {
   credit: number; debt_reduced: number; advance_created: number; opening_part: number; opening_remaining: number;
   seller_obligation_released_g: number; customer_net_before: number; customer_net_after: number; formula: string;
-  opening_document_no: string; rated: boolean; old_obligation_g: number; seller_keep_allowed: boolean;
+  opening_document_no: string | null; rated: boolean; new_debt_part?: number; has_opening_document?: boolean; old_obligation_g: number; seller_keep_allowed: boolean;
   seller_keep_refusal: string | null; seller_obligation_change_g: number;
 };
 export type OpeningReturnResult = { return_no: string; unit: string; credit: number; debt_reduced: number; advance_created: number };
@@ -51,7 +51,7 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
       if (e) { setError(parseErrorMessage(e, "Boshlang'ich qarzlar yuklanmadi")); setDebts([]); return; }
       const list = (data ?? []) as OpeningDebt[];
       setDebts(list);
-      if (list[0]) setUnit(list[0].unit);
+      setUnit(list[0]?.unit ?? "G585"); // 092: a return is possible without an opening debt too (old part 0)
     })();
   }, [customerId]);
 
@@ -105,16 +105,17 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none" aria-label="Yopish">×</button>
         </div>
 
-        {debts === null ? <p className="text-slate-400">Yuklanmoqda…</p> : debts.length === 0 ? (
-          <p className="text-rose-300">Bu mijozda tasdiqlangan boshlang&apos;ich qarz yo&apos;q — eski savdodan vozvrat yozib bo&apos;lmaydi.</p>
-        ) : (
+        {debts === null ? <p className="text-slate-400">Yuklanmoqda…</p> : (
           <>
             <label className="block">
-              <span className="text-slate-300 font-bold text-xs">Boshlang&apos;ich qarz</span>
-              <select className={cls} value={unit} onChange={(e) => setUnit(e.target.value)}>
-                {debts.map((d) => (
-                  <option key={d.id} value={d.unit}>{d.document_no}: {fmtUnit(d.unit, Number(d.amount))}{d.unit !== "G585" && d.equiv_585_g === null ? " (kurssiz)" : ""}</option>
-                ))}
+              <span className="text-slate-300 font-bold text-xs">Qarz birligi (avval eski qarzdan, keyin yangi qarzdan, qolgani avansga)</span>
+              <select className={cls} value={unit} onChange={(e) => setUnit(e.target.value)} data-testid="osr-unit">
+                {["G585", "UZS", "USD"].map((u) => {
+                  const d = debts.find((x) => x.unit === u);
+                  return (
+                    <option key={u} value={u}>{u === "G585" ? "585 gramm" : u}{d ? ` — boshlang'ich qarz ${d.document_no}: ${fmtUnit(d.unit, Number(d.amount))}${d.unit !== "G585" && d.equiv_585_g === null ? " (kurssiz)" : ""}` : " — boshlang'ich qarz yo'q"}</option>
+                  );
+                })}
               </select>
             </label>
             <label className="block">
@@ -158,7 +159,8 @@ export function OpeningSaleReturnModal({ customerId, customerName, onClose, onDo
                 <div className="text-amber-200 font-bold">{preview.formula}</div>
                 <div>Qiymat: <b>{fmtUnit(unit, preview.credit)}</b> → qarzdan <b>{fmtUnit(unit, preview.debt_reduced)}</b>, avansga <b>{fmtUnit(unit, preview.advance_created)}</b></div>
                 <div>Mijoz: {fmtUnit(unit, preview.customer_net_before)} → <b>{fmtUnit(unit, preview.customer_net_after)}</b> (manfiy = avans)</div>
-                <div>Boshlang&apos;ich qarz ({preview.opening_document_no}) qismi: {fmtUnit(unit, preview.opening_part)}; hujjatdagi eski sotuvchi majburiyati: <b>{formatScreenGrams(preview.old_obligation_g, 4)}</b>{!preview.rated && " (kurssiz qarz — majburiyatda bo'lmagan)"}</div>
+                <div data-testid="osr-parts">Eski qarzdan: <b>{fmtUnit(unit, preview.opening_part)}</b>{preview.opening_document_no ? ` (${preview.opening_document_no})` : " (boshlang'ich qarz yo'q)"} · yangi qarzdan: <b>{fmtUnit(unit, Number(preview.new_debt_part ?? preview.debt_reduced - preview.opening_part))}</b> · avansga: <b>{fmtUnit(unit, preview.advance_created)}</b></div>
+                <div>Hujjatdagi eski sotuvchi majburiyati: <b>{formatScreenGrams(preview.old_obligation_g, 4)}</b>{!preview.rated && " (kurssiz qarz — majburiyatda bo'lmagan)"}</div>
                 <div data-testid="osr-seller-effect">{receiver === "seller"
                   ? `Sotuvchi ombori +${formatScreenGrams(w, 4)}; sotuvchi majburiyati O'ZGARMAYDI (eski ${formatScreenGrams(preview.old_obligation_g, 4)} tovarga o'tadi)`
                   : `Menejer ombori +${formatScreenGrams(w, 4)}; sotuvchi majburiyati ${formatScreenGrams(preview.seller_obligation_change_g, 4)}`}. Zavod hisobi o&apos;zgarmaydi.</div>
