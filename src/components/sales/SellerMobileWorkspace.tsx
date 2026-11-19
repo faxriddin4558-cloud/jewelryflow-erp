@@ -1,5 +1,7 @@
 "use client";
 
+import { SellerLomPurchaseSection } from "./SellerLomPurchaseSection";
+import { isSellerUiRole } from "@/lib/sales-role-access";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   supabase,
@@ -2029,6 +2031,9 @@ export function SellerMobileWorkspace({
               )}
             </div>
           </div>
+          {/* 091: bazaar LOM purchase with till UZS - wherever this Kassam tab is shown (/sales/app/kassam, /sales);
+              a seller uses his own till, management chooses the seller (the server checks both) */}
+          <SellerLomPurchaseSection mode={isSellerUiRole(RBAC.getCurrentUser()?.role) ? "seller" : "management"} />
         </div>
       )}
 
