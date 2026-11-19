@@ -1,5 +1,5 @@
 -- GOLDIA 090 staging end-to-end AFTER the staging release (staging at 090): new synthetic organization, ONE transaction, ROLLED BACK.
--- Every row of the final select must be ok = true (17 rows). Nothing persists.
+-- Every row of the final select must be ok = true (19 rows). Nothing persists.
 begin;
 -- GOLDIA 090 end-to-end on a NEW synthetic organization; runs right after migration 090 inside the SAME transaction,
 -- which is ROLLED BACK at the end. Business calls run as the real `authenticated` role (RLS on). Nothing persists.
@@ -8,7 +8,7 @@ do $e2e$
 declare
   v_org uuid := gen_random_uuid();
   u_dir uuid := gen_random_uuid(); u_mgr uuid := gen_random_uuid(); u_s1 uuid := gen_random_uuid(); u_s2 uuid := gen_random_uuid();
-  e_s1 uuid; e_s2 uuid; c_a uuid; c_b uuid; v_bv uuid; v_a uuid; v_arcp uuid; v_r2 uuid; v_r3 uuid;
+  e_s1 uuid; e_s2 uuid; c_a uuid; c_b uuid; c_e uuid; v_bv uuid; v_a uuid; v_arcp uuid; v_r2 uuid; v_r3 uuid;
   r jsonb; r2 jsonb; c1 jsonb; v_err text; st0 numeric; o0 numeric; m0 numeric; n0 numeric; n1 numeric; pe0 numeric; pe1 numeric; x numeric; y numeric;
   v_ok boolean; v_cnt int;
 begin
@@ -168,11 +168,39 @@ begin
   execute 'reset role';
   insert into _e2e (name, ok, detail) values ('S5 the manager cancels the sale he recorded (safe flow unchanged)',
     (select status from public.jewelry_sales where id = (r ->> 'sale_id')::uuid) = 'reversed', null);
+  -- ---------------- E sale edit (seller: own sale; atomic; audit old -> new)
+  insert into public.customers (organization_id, customer_code, contact_name, phone, seller_id) values (v_org, 'E9-E', 'E2E mijoz E', '+998900000905', e_s1) returning id into c_e;
+  x := coalesce((select current_debt_grams - advance_balance_grams from public.client_gold_accounts where customer_id = c_e), 0);
+  perform set_config('request.jwt.claim.sub', u_s1::text, true); execute 'set local role authenticated';
+  r := public.rpc_record_weight_sale(p_customer_id := c_e, p_weight_grams := 1, p_client_markup_pct := 20, p_idempotency_key := 'e2e90-ed1-' || v_org);
+  r2 := public.rpc_edit_client_sale(p_sale_id := (r ->> 'sale_id')::uuid, p_reason := 'gramm xato', p_idempotency_key := 'e2e90-ed2-' || v_org, p_weight_grams := 1.5, p_client_markup_pct := 10);
+  c1 := public.rpc_edit_client_sale(p_sale_id := (r ->> 'sale_id')::uuid, p_reason := 'gramm xato', p_idempotency_key := 'e2e90-ed2-' || v_org, p_weight_grams := 1.5, p_client_markup_pct := 10);
+  execute 'reset role';
+  y := coalesce((select current_debt_grams - advance_balance_grams from public.client_gold_accounts where customer_id = c_e), 0);
+  insert into _e2e (name, ok, detail) values ('E1 seller edits own sale 1 g 20 % -> 1.5 g 10 %: debt +1.65, original reversed, audit old/new, replay idempotent',
+    round(y - x, 4) = 1.65 and (select status from public.jewelry_sales where id = (r ->> 'sale_id')::uuid) = 'reversed'
+      and c1 ->> 'new_sale_id' = r2 ->> 'new_sale_id'
+      and (select old_values ->> 'weight_g' || '->' || (new_values ->> 'weight_g') from public.sale_edits where original_sale_id = (r ->> 'sale_id')::uuid) = '1.0000->1.5000'
+      and exists (select 1 from public.audit_logs where action = 'EDIT_CLIENT_SALE' and record_id = r ->> 'sale_id'),
+    format('debt delta %s, new %s', round(y - x, 4), r2 ->> 'new_sale_no'));
+  perform set_config('request.jwt.claim.sub', u_s2::text, true); execute 'set local role authenticated';
+  v_err := null; begin perform public.rpc_edit_client_sale(p_sale_id := (r2 ->> 'new_sale_id')::uuid, p_reason := 'x', p_idempotency_key := 'e2e90-ed3-' || v_org, p_weight_grams := 2); exception when others then v_err := sqlerrm; end;
+  execute 'reset role';
+  perform set_config('request.jwt.claim.sub', u_mgr::text, true); execute 'set local role authenticated';
+  r := public.rpc_record_weight_sale(p_customer_id := c_e, p_seller_id := e_s1, p_weight_grams := 1, p_client_markup_pct := 10, p_idempotency_key := 'e2e90-ed4-' || v_org);
+  execute 'reset role';
+  perform set_config('request.jwt.claim.sub', u_s1::text, true); execute 'set local role authenticated';
+  begin perform public.rpc_edit_client_sale(p_sale_id := (r ->> 'sale_id')::uuid, p_reason := 'x', p_idempotency_key := 'e2e90-ed5-' || v_org, p_weight_grams := 2); v_ok := false;
+  exception when others then v_ok := sqlerrm like 'ERR_NOT_RECORDED_BY_SELLER%'; end;
+  execute 'reset role';
+  insert into _e2e (name, ok, detail) values ('E2 edit refused: another seller (ERR_NOT_OWN_SALE), a sale recorded by the manager; originals untouched',
+    v_err like 'ERR_NOT_OWN_SALE%' and v_ok and (select status from public.jewelry_sales where id = (r ->> 'sale_id')::uuid) <> 'reversed'
+      and (select status from public.jewelry_sales where id = (r2 ->> 'new_sale_id')::uuid) <> 'reversed', v_err);
   -- RLS: the new tables of this org are invisible to another organization (the anon role has no access at all)
   insert into _e2e (name, ok, detail) values ('R1 new tables: no anon access, allocations / goods returns only through RPCs',
     not has_table_privilege('anon', 'public.factory_goods_returns', 'SELECT') and not has_table_privilege('authenticated', 'public.consignment_receipt_allocations', 'INSERT')
       and not has_table_privilege('authenticated', 'public.factory_goods_returns', 'UPDATE'), null);
 end $e2e$;
-insert into _e2e (name, ok, detail) select 'M1 the 10 changed/new 090 function bodies are identical to the repository', (select md5(string_agg(p.proname || md5(p.prosrc), ',' order by p.oid::regprocedure::text)) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('rpc_issue_barcode_consignment','rpc_return_piece_to_manager','rpc_reverse_barcode_consignment','_goldia_period_effects','rpc_get_seller_stock_movements','_goldia_restore_consignment_receipts','rpc_return_goods_to_factory','rpc_reverse_factory_goods_return','_goldia_guard_finished_goods_handover','_goldia_guard_seller_sale_cancel')) = '428ae7b42162419628624d60423fdca4', (select md5(string_agg(p.proname || md5(p.prosrc), ',' order by p.oid::regprocedure::text)) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('rpc_issue_barcode_consignment','rpc_return_piece_to_manager','rpc_reverse_barcode_consignment','_goldia_period_effects','rpc_get_seller_stock_movements','_goldia_restore_consignment_receipts','rpc_return_goods_to_factory','rpc_reverse_factory_goods_return','_goldia_guard_finished_goods_handover','_goldia_guard_seller_sale_cancel'));
+insert into _e2e (name, ok, detail) select 'M1 the 11 changed/new 090 function bodies are identical to the repository', (select md5(string_agg(p.proname || md5(p.prosrc), ',' order by p.oid::regprocedure::text)) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('rpc_issue_barcode_consignment','rpc_return_piece_to_manager','rpc_reverse_barcode_consignment','_goldia_period_effects','rpc_get_seller_stock_movements','_goldia_restore_consignment_receipts','rpc_return_goods_to_factory','rpc_reverse_factory_goods_return','_goldia_guard_finished_goods_handover','_goldia_guard_seller_sale_cancel','rpc_edit_client_sale')) = 'f52e0f6170d8d5a5f401c52e6d21a915', (select md5(string_agg(p.proname || md5(p.prosrc), ',' order by p.oid::regprocedure::text)) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('rpc_issue_barcode_consignment','rpc_return_piece_to_manager','rpc_reverse_barcode_consignment','_goldia_period_effects','rpc_get_seller_stock_movements','_goldia_restore_consignment_receipts','rpc_return_goods_to_factory','rpc_reverse_factory_goods_return','_goldia_guard_finished_goods_handover','_goldia_guard_seller_sale_cancel','rpc_edit_client_sale'));
 select n, name, ok, detail from _e2e order by n;
 rollback;

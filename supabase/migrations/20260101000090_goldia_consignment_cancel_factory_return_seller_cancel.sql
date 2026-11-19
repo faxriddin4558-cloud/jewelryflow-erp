@@ -84,6 +84,33 @@ grant select on public.factory_goods_returns to authenticated;
 alter table public.jewelry_sales add column if not exists recorded_by uuid references public.employees(id) default public.current_employee_id();
 
 
+-- 090: a sale EDIT = the original sale reversed + the corrected sale recorded, in ONE transaction; the pair is kept here
+create table if not exists public.sale_edits (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  original_sale_id uuid not null unique references public.jewelry_sales(id),
+  new_sale_id      uuid not null unique references public.jewelry_sales(id),
+  edited_by        uuid references public.employees(id),
+  edited_role      text,
+  reason           text not null check (length(btrim(reason)) > 0),
+  old_values       jsonb not null,
+  new_values       jsonb not null,
+  idempotency_key  text not null unique,
+  created_at       timestamptz not null default now()
+);
+create index if not exists idx_sale_edits_new_sale on public.sale_edits (new_sale_id);
+alter table public.sale_edits enable row level security;
+drop policy if exists sale_edits_select_policy on public.sale_edits;
+create policy sale_edits_select_policy on public.sale_edits for select to authenticated
+  using (organization_id = public.current_organization_id()
+         and (public._goldia_is_management_role(public.current_employee_role_text())
+              or public.current_employee_role_text() in ('accountant', 'buxgalter')
+              or exists (select 1 from public.jewelry_sales s where s.id = sale_edits.new_sale_id and s.seller_id = public.current_employee_id())));
+revoke all on public.sale_edits from anon;
+revoke insert, update, delete, truncate on public.sale_edits from authenticated;
+grant select on public.sale_edits to authenticated;
+
+
 -- ===== rpc_issue_barcode_consignment (from 20260101000064_goldia_audit_production_fixes.sql)
 CREATE OR REPLACE FUNCTION public.rpc_issue_barcode_consignment(
   p_seller_id          uuid,
@@ -1131,5 +1158,146 @@ revoke all on function public._goldia_guard_seller_sale_cancel() from public, an
 drop trigger if exists trg_goldia_guard_seller_sale_cancel on public.jewelry_sales;
 create trigger trg_goldia_guard_seller_sale_cancel before update of status on public.jewelry_sales
   for each row execute function public._goldia_guard_seller_sale_cancel();
+
+
+-- ------------------------------------------------------------------ 4. sale EDIT (seller: own sale only; management: any sale of the org)
+-- Built only from the existing, tested operations, in ONE transaction:
+--   rpc_reverse_client_sale (customer debt / advance, pieces or weight allocations, seller account, currency debt)
+--   + rpc_record_weight_sale / rpc_record_barcode_piece_sale / rpc_record_currency_sale with the corrected values.
+-- The original stays in the history as 'reversed', the corrected sale is a new document; sale_edits + audit_logs keep
+-- who / when / why / old / new. Any failure (not enough stock, wrong piece, ...) rolls the whole edit back.
+-- For a SELLER the 090 guard of the reversal applies: own sale, recorded by him, no payment after it, open period.
+-- For everyone: no customer return on the sale (083), no closed report period, not before the opening lock (T0),
+-- every piece of the sale still where the sale left it. (T0: sales between the opening draft and its lock are refused
+-- by the draft / freeze guard, so 'before the opening period' = before T0.)
+create or replace function public.rpc_edit_client_sale(
+  p_sale_id uuid, p_reason text, p_idempotency_key text,
+  p_weight_grams numeric default null, p_client_markup_pct numeric default null,
+  p_piece_id uuid default null, p_piece_ids uuid[] default null, p_sale_amount numeric default null)
+returns jsonb language plpgsql security definer set search_path = public, pg_temp as $f$
+declare
+  v_org uuid := public.current_organization_id();
+  v_role text := public.current_employee_role_text();
+  v_emp uuid := public.current_employee_id();
+  v_reason text := nullif(btrim(p_reason), '');
+  v_key text := nullif(btrim(p_idempotency_key), '');
+  s public.jewelry_sales%rowtype;
+  v_kind text; v_cur text; v_w numeric; v_pct numeric; v_amt numeric; v_piece uuid; v_pieces uuid[];
+  v_old_piece uuid; v_old_pieces uuid[]; v_acc numeric; x record;
+  v_payload jsonb; v_existing jsonb; v_new jsonb; v_old jsonb; v_newv jsonb; v_res jsonb; v_new_id uuid;
+begin
+  if v_org is null then raise exception 'Permission denied: User must belong to an active organization' using errcode = '42501'; end if;
+  perform public.assert_erp_permission(array['admin', 'director', 'owner', 'direktor', 'rahbar', 'manager', 'production_manager', 'boshqaruvchi', 'sales', 'seller', 'sotuvchi']);
+  if v_reason is null then raise exception 'ERR_REASON_REQUIRED: tahrirlash sababi kiritilishi shart'; end if;
+  if v_key is null then raise exception 'ERR_IDEMPOTENCY_REQUIRED: idempotency kaliti majburiy'; end if;
+  v_payload := jsonb_build_object('action', 'edit_client_sale', 'sale_id', p_sale_id, 'weight_grams', p_weight_grams, 'markup_pct', p_client_markup_pct,
+    'piece_id', p_piece_id, 'piece_ids', to_jsonb(p_piece_ids), 'sale_amount', p_sale_amount, 'reason', v_reason);
+  v_existing := public.check_and_lock_idempotency(v_key, 'rpc_edit_client_sale', v_payload);
+  if v_existing is not null then return v_existing; end if;
+
+  -- one edit at a time per sale: the row lock serializes parallel edits / reversals; the second one sees 'reversed'
+  select * into s from public.jewelry_sales where id = p_sale_id and organization_id = v_org for update;
+  if not found then raise exception 'ERR_SALE_NOT_FOUND: savdo topilmadi'; end if;
+  if s.status in ('reversed', 'cancelled') then raise exception 'ERR_SALE_ALREADY_REVERSED: bu savdo allaqachon bekor qilingan yoki tahrirlangan (%)', s.sale_no; end if;
+  if public._goldia_is_seller_role(v_role) and s.seller_id is distinct from v_emp then
+    raise exception 'ERR_NOT_OWN_SALE: sotuvchi faqat o''z savdosini tahrirlay oladi' using errcode = '42501';
+  end if;
+  if exists (select 1 from public.goldia_report_periods p where p.organization_id = v_org and s.sale_date between p.period_start and p.period_end) then
+    raise exception 'ERR_PERIOD_CLOSED: savdo sanasi yopilgan hisobot davrida - tahrirlab bo''lmaydi';
+  end if;
+  if exists (select 1 from public.opening_periods p where p.organization_id = v_org and p.status in ('locked', 'closed') and s.created_at < p.created_at) then
+    raise exception 'ERR_BEFORE_OPENING_LOCK: savdo boshlang''ich hisob (T0) qulflanishidan oldin - tahrirlab bo''lmaydi';
+  end if;
+  if exists (select 1 from public.jewelry_sale_returns r where r.sale_id = s.id and r.status = 'confirmed') then
+    raise exception 'ERR_SALE_HAS_RETURNS: savdo bo''yicha vozvrat bor - tahrirlab bo''lmaydi';
+  end if;
+
+  v_cur := coalesce(s.sale_currency, 'XAU585');
+  v_kind := case when v_cur <> 'XAU585' then 'currency' when s.sale_type = 'piece' then 'piece' when s.sale_type = 'weight' then 'weight' else null end;
+  if v_kind is null then raise exception 'ERR_EDIT_UNSUPPORTED: bu turdagi savdoni (%) tahrirlab bo''lmaydi - menejer bekor qilib qayta kiritadi', coalesce(s.sale_type, '?'); end if;
+
+  -- the pieces of the sale must still be where the sale left them (else the reversal could not put them back exactly)
+  if v_kind = 'piece' then
+    select id into v_old_piece from public.consignment_pieces where sale_id = s.id and organization_id = v_org;
+    if v_old_piece is null or exists (select 1 from public.consignment_pieces cp join public.seller_consignments c on c.id = cp.consignment_id
+                                       where cp.id = v_old_piece and (cp.status <> 'sold' or c.status in ('cancelled', 'reversed'))) then
+      raise exception 'ERR_SALE_LINKED_PIECE_MOVED: savdo donasi joyida emas - tahrirlab bo''lmaydi';
+    end if;
+  else
+    select array_agg(a.piece_id order by a.created_at, a.id) into v_old_pieces from public.weight_sale_allocations a where a.sale_id = s.id and a.reversed_at is null;
+    if exists (select 1 from public.weight_sale_allocations a join public.consignment_pieces cp on cp.id = a.piece_id join public.seller_consignments c on c.id = cp.consignment_id
+                where a.sale_id = s.id and a.reversed_at is null
+                  and (cp.status not in ('held_by_seller', 'sold') or c.status in ('cancelled', 'reversed') or cp.seller_id is distinct from s.seller_id)) then
+      raise exception 'ERR_SALE_LINKED_PIECE_MOVED: savdo donalaridan biri sotuvchida emas - tahrirlab bo''lmaydi';
+    end if;
+  end if;
+
+  -- corrected values (a value not given stays as it was)
+  v_w := round(coalesce(p_weight_grams, s.base_weight_grams)::numeric, 4);
+  v_pct := round(coalesce(p_client_markup_pct, s.client_markup_pct)::numeric, 2);
+  v_amt := round(coalesce(p_sale_amount, s.sale_amount)::numeric, 2);
+  v_piece := coalesce(p_piece_id, v_old_piece);
+  if v_kind = 'piece' and p_weight_grams is not null then raise exception 'ERR_PIECE_WEIGHT_FIXED: dona savdosida vazn donaning o''zidan olinadi - boshqa donani tanlang'; end if;
+  if v_kind = 'currency' and p_client_markup_pct is not null then raise exception 'ERR_CURRENCY_NO_MARKUP: valyuta narxidagi savdoda foiz yo''q - narxni tahrirlang'; end if;
+  if v_kind <> 'currency' and p_sale_amount is not null then raise exception 'ERR_GRAM_SALE_NO_AMOUNT: gramm savdosida narx foiz bilan beriladi'; end if;
+  if v_w <= 0 or (v_kind = 'currency' and coalesce(v_amt, 0) <= 0) then raise exception 'ERR_VALUE_NOT_POSITIVE: vazn va narx 0 dan katta bo''lishi shart'; end if;
+  if v_kind = 'piece' and v_piece = v_old_piece and v_pct = s.client_markup_pct
+     or v_kind = 'weight' and v_w = s.base_weight_grams and v_pct = s.client_markup_pct and p_piece_ids is null
+     or v_kind = 'currency' and v_w = s.base_weight_grams and v_amt = s.sale_amount and p_piece_ids is null then
+    raise exception 'ERR_EDIT_NO_CHANGE: hech narsa o''zgarmadi';
+  end if;
+
+  v_old := jsonb_build_object('sale_no', s.sale_no, 'kind', v_kind, 'sale_date', s.sale_date, 'weight_g', s.base_weight_grams, 'markup_pct', s.client_markup_pct,
+    'client_due_g', s.client_gold_due_grams, 'currency', v_cur, 'amount', s.sale_amount, 'piece_id', v_old_piece, 'piece_ids', to_jsonb(v_old_pieces),
+    'product', s.product_name, 'model_code', s.model_code);
+
+  -- 1. the original out (its own rules, the seller guard included)
+  perform public.rpc_reverse_client_sale(s.id, 'TAHRIR: ' || v_reason, v_key || ':rev');
+  if v_kind <> 'piece' then
+    if p_piece_ids is not null then v_pieces := p_piece_ids;
+    elsif v_old_pieces is not null then
+      -- the same pieces as before (now back with the seller), as many as the corrected weight needs
+      v_acc := 0; v_pieces := array[]::uuid[];
+      for x in select cp.id, cp.weight_grams w from unnest(v_old_pieces) with ordinality u(pid, n) join public.consignment_pieces cp on cp.id = u.pid
+                where cp.status = 'held_by_seller' and cp.sale_id is null order by u.n loop
+        exit when v_acc >= v_w - 0.00005;
+        v_pieces := v_pieces || x.id; v_acc := v_acc + x.w;
+      end loop;
+      if v_acc < v_w - 0.00005 then v_pieces := null; end if; -- more grams than those pieces: the sale picks pieces as usual (FIFO)
+    end if;
+  end if;
+  -- 2. the corrected sale in, for the same customer and seller
+  if v_kind = 'weight' then
+    v_new := public.rpc_record_weight_sale(p_customer_id := s.customer_id, p_seller_id := s.seller_id, p_weight_grams := v_w, p_client_markup_pct := v_pct,
+      p_notes := 'TAHRIR ' || s.sale_no || ': ' || v_reason, p_idempotency_key := v_key || ':new', p_piece_ids := v_pieces);
+  elsif v_kind = 'piece' then
+    v_new := public.rpc_record_barcode_piece_sale(p_customer_id := s.customer_id, p_seller_id := s.seller_id, p_piece_id := v_piece, p_client_markup_pct := v_pct,
+      p_notes := 'TAHRIR ' || s.sale_no || ': ' || v_reason, p_idempotency_key := v_key || ':new');
+  else
+    v_new := public.rpc_record_currency_sale(p_customer_id := s.customer_id, p_currency := v_cur, p_amount := v_amt, p_weight_grams := v_w, p_piece_ids := v_pieces,
+      p_seller_id := s.seller_id, p_notes := 'TAHRIR ' || s.sale_no || ': ' || v_reason, p_idempotency_key := v_key || ':new');
+  end if;
+  v_new_id := (v_new ->> 'sale_id')::uuid;
+  if v_new_id is null then raise exception 'ERR_EDIT_FAILED: yangi savdo yozilmadi'; end if;
+
+  select jsonb_build_object('sale_no', n.sale_no, 'kind', v_kind, 'sale_date', n.sale_date, 'weight_g', n.base_weight_grams, 'markup_pct', n.client_markup_pct,
+    'client_due_g', n.client_gold_due_grams, 'currency', coalesce(n.sale_currency, 'XAU585'), 'amount', n.sale_amount,
+    'piece_id', (select id from public.consignment_pieces where sale_id = n.id limit 1),
+    'piece_ids', (select to_jsonb(array_agg(a.piece_id order by a.created_at, a.id)) from public.weight_sale_allocations a where a.sale_id = n.id and a.reversed_at is null),
+    'product', n.product_name, 'model_code', n.model_code)
+    into v_newv from public.jewelry_sales n where n.id = v_new_id;
+
+  insert into public.sale_edits (organization_id, original_sale_id, new_sale_id, edited_by, edited_role, reason, old_values, new_values, idempotency_key)
+  values (v_org, s.id, v_new_id, v_emp, v_role, v_reason, v_old, v_newv, v_key);
+  insert into public.audit_logs (organization_id, table_name, record_id, action, actor_id, old_data, new_data, reason)
+  values (v_org, 'jewelry_sales', s.id::text, 'EDIT_CLIENT_SALE', auth.uid(), v_old, v_newv || jsonb_build_object('new_sale_id', v_new_id), v_reason);
+
+  v_res := jsonb_build_object('status', 'ok', 'original_sale_id', s.id, 'original_sale_no', s.sale_no, 'new_sale_id', v_new_id,
+    'new_sale_no', v_new ->> 'sale_no', 'old', v_old, 'new', v_newv);
+  perform public.save_idempotency_response(v_key, 'rpc_edit_client_sale', v_res, v_payload);
+  return v_res;
+end $f$;
+revoke all on function public.rpc_edit_client_sale(uuid, text, text, numeric, numeric, uuid, uuid[], numeric) from public, anon;
+grant execute on function public.rpc_edit_client_sale(uuid, text, text, numeric, numeric, uuid, uuid[], numeric) to authenticated;
 
 notify pgrst, 'reload schema';

@@ -1076,6 +1076,17 @@ C salary_ledger.stage_order integer
 C salary_ledger.tx_type text NOT NULL
 C salary_ledger.weight_done numeric(14,4) NOT NULL
 C salary_ledger.worker_name text NOT NULL
+C sale_edits.created_at timestamp with time zone NOT NULL
+C sale_edits.edited_by uuid
+C sale_edits.edited_role text
+C sale_edits.id uuid NOT NULL
+C sale_edits.idempotency_key text NOT NULL
+C sale_edits.new_sale_id uuid NOT NULL
+C sale_edits.new_values jsonb NOT NULL
+C sale_edits.old_values jsonb NOT NULL
+C sale_edits.organization_id uuid NOT NULL
+C sale_edits.original_sale_id uuid NOT NULL
+C sale_edits.reason text NOT NULL
 C sales.client_name text NOT NULL
 C sales.created_at timestamp with time zone NOT NULL
 C sales.debt_amount numeric(18,2) NOT NULL
@@ -1416,6 +1427,7 @@ F rpc_create_order_with_advance(text,text,text,text,text,numeric,integer,numeric
 F rpc_create_product_with_bom(text,text,numeric,integer,numeric,numeric,numeric,numeric,numeric,numeric,text,text,jsonb,text) -> jsonb SECDEF
 F rpc_diagnose_piece_inventory_conflicts() -> jsonb SECDEF
 F rpc_dispatch_stage_handover(text,text,integer,text,text,integer,text,text,text,text,integer,numeric,text,text,numeric,text,text,boolean,text,text) -> jsonb SECDEF
+F rpc_edit_client_sale(uuid,text,text,numeric,numeric,uuid,uuid[],numeric) -> jsonb SECDEF
 F rpc_execute_affinaj_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text) -> jsonb SECDEF
 F rpc_execute_alloy_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text,numeric,text,numeric,text) -> jsonb SECDEF
 F rpc_execute_full_test_reset(text,text) -> jsonb SECDEF
@@ -1616,6 +1628,7 @@ H rpc_create_order_with_advance(text,text,text,text,text,numeric,integer,numeric
 H rpc_create_product_with_bom(text,text,numeric,integer,numeric,numeric,numeric,numeric,numeric,numeric,text,text,jsonb,text) f99fbe8bb7b2a9405b32944fd47c7ba6
 H rpc_diagnose_piece_inventory_conflicts() 2fa214b8b8e62675ad4d1ac86ff5e37f
 H rpc_dispatch_stage_handover(text,text,integer,text,text,integer,text,text,text,text,integer,numeric,text,text,numeric,text,text,boolean,text,text) b91faa44a5c21383a93a7058086292cb
+H rpc_edit_client_sale(uuid,text,text,numeric,numeric,uuid,uuid[],numeric) 70ebd07b7928d3ae423478362d958a4c
 H rpc_execute_affinaj_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text) 4d859c624ae436b2e79c743c51449706
 H rpc_execute_alloy_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text,numeric,text,numeric,text) e45b94b30ebdaa9a9a560b706725290e
 H rpc_execute_full_test_reset(text,text) 1995b76e66a82c08ba84507b71e21b8d
@@ -1839,6 +1852,7 @@ P quality_control quality_control_tenant_update UPDATE
 P refining_batches refining_batches_select_policy SELECT
 P salary_ledger salary_ledger_tenant_admin_insert INSERT
 P salary_ledger salary_ledger_tenant_select SELECT
+P sale_edits sale_edits_select_policy SELECT
 P sales sales_tenant_manage ALL
 P sales sales_tenant_select SELECT
 P sales_login_audit_logs sales_login_audit_logs_org_policy ALL
@@ -1927,6 +1941,7 @@ R qc_inspections
 R quality_control
 R refining_batches
 R salary_ledger
+R sale_edits
 R sales
 R sales_login_audit_logs
 R sales_markup_presets

@@ -2,6 +2,7 @@
 -- 090 (a goods return exists).
 do $g$ begin
   if exists (select 1 from public.factory_goods_returns) then raise exception 'ROLLBACK 090 REFUSED: factory goods returns exist'; end if;
+  if exists (select 1 from public.sale_edits) then raise exception 'ROLLBACK 090 REFUSED: sale edits exist'; end if;
 end $g$;
 do $g2$ begin
   if exists (select 1 from public.factory_gold_handovers where source_type = 'finished_goods_return') then raise exception 'ROLLBACK 090 REFUSED: finished-goods handovers exist'; end if;
@@ -15,6 +16,7 @@ drop trigger if exists trg_goldia_guard_seller_sale_cancel on public.jewelry_sal
 drop function if exists public._goldia_guard_seller_sale_cancel();
 drop function if exists public.rpc_return_goods_to_factory(uuid, numeric, text, text);
 drop function if exists public.rpc_reverse_factory_goods_return(uuid, text, text);
+drop function if exists public.rpc_edit_client_sale(uuid, text, text, numeric, numeric, uuid, uuid[], numeric);
 
 CREATE OR REPLACE FUNCTION public.rpc_issue_barcode_consignment(
   p_seller_id          uuid,
@@ -883,6 +885,7 @@ begin
 end $f$;
 
 drop function if exists public._goldia_restore_consignment_receipts(uuid, numeric, boolean);
+drop table if exists public.sale_edits;
 drop table if exists public.factory_goods_returns;
 drop table if exists public.consignment_receipt_allocations;
 alter table public.jewelry_sales drop column if exists recorded_by;

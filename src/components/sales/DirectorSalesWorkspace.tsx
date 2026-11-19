@@ -1486,12 +1486,15 @@ export function DirectorSalesWorkspace({
                   <div className="text-[11px] text-blue-200 mt-1">Sotuvchilarga tarqatish uchun tayyor</div>
                 </div>
 
-                <div className="bg-amber-950 text-white p-4 rounded-3xl border border-amber-800 shadow-sm" data-testid="factory-goods-debt-card">
-                  <div className="text-xs font-bold text-amber-200">Tovar bo&apos;yicha qarz</div>
+                <div className="bg-amber-950 text-white p-4 rounded-3xl border border-amber-800 shadow-sm" data-testid="factory-goods-debt-card"
+                  title="Jami (T0 dan beri) yig'indi: har bir faol zavod kirimi = fizik gramm × (1 + kirim foizi). Boshlang'ich A kirimlari + T0 dan keyingi kirimlar, minus zavod bilan oldin hisob-kitob qilingan sotuvchi tovari (B). Kirim qo'shilsa oshadi, kirim bekor qilinsa kamayadi; to'lov uni kamaytirmaydi.">
+                  <div className="text-xs font-bold text-amber-200">Zavod tovari uchun majburiyat (jami) ⓘ</div>
                   <div className="text-2xl font-black font-mono text-amber-400 mt-1">
                     {formatScreenGrams(fa.goodsDebtG)} <span className="text-xs font-normal">585</span>
                   </div>
-                  <div className="text-[11px] text-amber-200 mt-1">Ustama foizlari bilan hisoblangan</div>
+                  <div className="text-[11px] text-amber-200 mt-1" data-testid="factory-goods-debt-split">
+                    boshlang&apos;ich A (T0): {formatScreenGrams(fa.openingReceiptsObligationG)} g · T0 dan keyingi kirimlar: {formatScreenGrams(fa.laterReceiptsObligationG)} g
+                  </div>
                   {fa.settledSellerGoodsG > 0 && (
                     <div className="text-[11px] text-amber-200 mt-1">
                       shundan zavod bilan oldin hisob-kitob qilingan sotuvchi tovari: {formatScreenGrams(fa.settledSellerGoodsG)} g chiqarildi
@@ -1504,25 +1507,33 @@ export function DirectorSalesWorkspace({
                   )}
                 </div>
 
-                <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm" data-testid="factory-given-gold-card">
-                  <div className="text-xs font-bold text-emerald-200">Oldindan berilgan oltin</div>
+                <div className="bg-emerald-950 text-white p-4 rounded-3xl border border-emerald-800 shadow-sm" data-testid="factory-given-gold-card"
+                  title="Jami (T0 dan beri) yig'indi, joriy qoldiq emas: boshlang'ich avans C2 (T0 dagi hujjat, qulflangan - o'zgarmaydi) + T0 dan keyin zavodga topshirilgan oltin va zavodga qaytarilgan tovar (585 ekv). Har bir topshiruvda oshadi, topshiruv bekor qilinsa kamayadi.">
+                  <div className="text-xs font-bold text-emerald-200">Zavodga berilgan oltin (jami) ⓘ</div>
                   <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
                     {formatScreenGrams(fa.givenGoldG)} <span className="text-xs font-normal">585 eq</span>
                   </div>
-                  <div className="text-[11px] text-emerald-200 mt-1">
-                    Zavodga Qaytarilgan Oltin: {formatScreenGrams(fa.handoversG)} g · {activeHandovers.length} ta topshirish hujjati {factoryHandovers.length > activeHandovers.length ? `(${factoryHandovers.length - activeHandovers.length} bekor qilingan)` : ""}
-                  </div>
                   {fa.advanceDocumentsG > 0 && (
-                    <div className="text-[11px] text-emerald-200 mt-1">+ boshlang&apos;ich avans (C2): {formatScreenGrams(fa.advanceDocumentsG)} g</div>
+                    <div className="text-[11px] text-emerald-200 mt-1" data-testid="factory-given-c2">shundan boshlang&apos;ich avans C2 (T0, o&apos;zgarmaydi): {formatScreenGrams(fa.advanceDocumentsG)} g</div>
+                  )}
+                  <div className="text-[11px] text-emerald-200 mt-1" data-testid="factory-given-after-t0">
+                    {fa.advanceDocumentsG > 0 ? "+ " : ""}T0 dan keyin topshirilgan oltin: {formatScreenGrams(fa.goldHandoversG)} g · {activeHandovers.length} ta hujjat {factoryHandovers.length > activeHandovers.length ? `(${factoryHandovers.length - activeHandovers.length} bekor qilingan)` : ""}
+                  </div>
+                  {fa.finishedGoodsReturnsG > 0 && (
+                    <div className="text-[11px] text-emerald-200 mt-1">+ zavodga qaytarilgan tovar: {formatScreenGrams(fa.finishedGoodsReturnsG)} g</div>
                   )}
                 </div>
 
-                <div className={`text-white p-4 rounded-3xl border shadow-sm ${netTone.box}`} data-testid="factory-net-card">
+                <div className={`text-white p-4 rounded-3xl border shadow-sm ${netTone.box}`} data-testid="factory-net-card"
+                  title="JORIY QOLDIQ (menejer seyfidagi zavod hisobi): zavod tovari uchun majburiyat + tovarsiz majburiyat (C) − zavodga berilgan oltin. Zavod kirimi qo'shilsa menejer qarzi oshadi; zavodga oltin topshirilsa yoki tovar qaytarilsa kamayadi (qarz 0 dan o'tsa zavodning qarzi = avans).">
                   <div className={`text-xs font-bold ${netTone.head}`}>{net.title}</div>
                   <div className={`text-2xl font-black font-mono mt-1 ${netTone.value}`}>
                     {fa.vaultNetG === null ? "—" : formatScreenGrams(net.amountG)} <span className="text-xs font-normal">585</span>
                   </div>
-                  <div className={`text-[11px] mt-1 ${netTone.head}`}>Zavod hisobi (menejer seyfi bo&apos;yicha)</div>
+                  <div className={`text-[11px] mt-1 ${netTone.head}`}>Joriy qoldiq (menejer seyfi bo&apos;yicha) ⓘ</div>
+                  <div className={`text-[11px] mt-1 font-mono ${netTone.head}`} data-testid="factory-net-formula">
+                    = {formatScreenGrams(fa.goodsDebtG)}{fa.obligationWithoutGoodsG > 0 ? ` + ${formatScreenGrams(fa.obligationWithoutGoodsG)}` : ""} − {formatScreenGrams(fa.givenGoldG)}
+                  </div>
                 </div>
               </div>
               {isFactoryAccountMismatch(fa) && (

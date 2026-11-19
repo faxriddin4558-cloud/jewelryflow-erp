@@ -12,8 +12,8 @@ export const FACTORY_ACCOUNT_EPS = 0.0001;
 type Num = number | string | null | undefined;
 const n = (v: Num) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? 0 : Number(v));
 
-export type FactoryReceiptLike = { status?: string | null; factory_obligation_g?: Num; original_physical_g?: Num };
-export type FactoryHandoverLike = { status?: string | null; agreed_equivalent_g?: Num };
+export type FactoryReceiptLike = { status?: string | null; factory_obligation_g?: Num; original_physical_g?: Num; opening_document_id?: string | null };
+export type FactoryHandoverLike = { status?: string | null; agreed_equivalent_g?: Num; source_type?: string | null };
 export type OpeningFactoryDocLike = { kind: string; status?: string | null; amount?: Num };
 export type FactoryVaultLike = { current_factory_obligation_g?: Num; current_factory_advance_g?: Num } | null | undefined;
 
@@ -31,6 +31,11 @@ export type FactoryAccountSummary = {
   partsNetG: number;
   vaultNetG: number | null;
   mismatchG: number | null;
+  // 090 (display only, same totals split): opening A receipts vs receipts after T0; gold handovers vs finished goods sent back
+  openingReceiptsObligationG: number;
+  laterReceiptsObligationG: number;
+  goldHandoversG: number;
+  finishedGoodsReturnsG: number;
 };
 
 export function summarizeFactoryAccount(input: {
@@ -55,7 +60,11 @@ export function summarizeFactoryAccount(input: {
   const partsNetG = goodsDebtG + obligationWithoutGoodsG - givenGoldG;
   const vaultNetG = input.vault ? n(input.vault.current_factory_obligation_g) - n(input.vault.current_factory_advance_g) : null;
   const mismatchG = vaultNetG === null ? null : partsNetG - vaultNetG;
+  const openingReceiptsObligationG = receipts.filter((r) => !!r.opening_document_id).reduce((s, r) => s + n(r.factory_obligation_g), 0);
+  const finishedGoodsReturnsG = handovers.filter((h) => h.source_type === "finished_goods_return").reduce((s, h) => s + n(h.agreed_equivalent_g), 0);
   return {
+    openingReceiptsObligationG, laterReceiptsObligationG: receiptsObligationG - openingReceiptsObligationG,
+    goldHandoversG: handoversG - finishedGoodsReturnsG, finishedGoodsReturnsG,
     receivedPhysicalG, receiptsObligationG, settledSellerGoodsG, goodsDebtG, obligationWithoutGoodsG,
     advanceDocumentsG, handoversG, givenGoldG, partsNetG, vaultNetG, mismatchG,
   };

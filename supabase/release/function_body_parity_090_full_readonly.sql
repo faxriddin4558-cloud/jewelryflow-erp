@@ -94,6 +94,7 @@ with expected(sig, h) as (values
   ('rpc_create_product_with_bom(text,text,numeric,integer,numeric,numeric,numeric,numeric,numeric,numeric,text,text,jsonb,text)', 'f99fbe8bb7b2a9405b32944fd47c7ba6'),
   ('rpc_diagnose_piece_inventory_conflicts()', '2fa214b8b8e62675ad4d1ac86ff5e37f'),
   ('rpc_dispatch_stage_handover(text,text,integer,text,text,integer,text,text,text,text,integer,numeric,text,text,numeric,text,text,boolean,text,text)', 'b91faa44a5c21383a93a7058086292cb'),
+  ('rpc_edit_client_sale(uuid,text,text,numeric,numeric,uuid,uuid[],numeric)', '70ebd07b7928d3ae423478362d958a4c'),
   ('rpc_execute_affinaj_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text)', '4d859c624ae436b2e79c743c51449706'),
   ('rpc_execute_alloy_transaction(text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text,numeric,text,numeric,text)', 'e45b94b30ebdaa9a9a560b706725290e'),
   ('rpc_execute_full_test_reset(text,text)', '1995b76e66a82c08ba84507b71e21b8d'),

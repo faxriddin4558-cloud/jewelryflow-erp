@@ -1028,6 +1028,7 @@ export interface FactoryReceiptRow {
   reversal_reason?: string | null;
   notes?: string | null;
   created_at?: string;
+  opening_document_id?: string | null; // 085: an opening A receipt (manager stock at T0)
 }
 
 export interface ManagerVaultAccountRow {
@@ -1103,7 +1104,7 @@ export interface FactoryGoldHandoverRow {
   organization_id?: string;
   handover_no: string;
   handover_date: string;
-  source_type: "refined_gold" | "purchased_gold" | "scrap_gold" | "capital_pure_gold";
+  source_type: "refined_gold" | "purchased_gold" | "scrap_gold" | "capital_pure_gold" | "finished_goods_return";
   physical_weight_g: number;
   proba: number;
   agreed_equivalent_g: number;

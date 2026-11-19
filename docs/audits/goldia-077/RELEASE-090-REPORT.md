@@ -45,41 +45,61 @@ Fixes:
 - Idempotent.
 - Reversal `rpc_reverse_factory_goods_return` restores everything. The generic handover reversal is refused for these rows.
 
-### d. Seller cancels own sale
-The existing `rpc_reverse_client_sale` does the atomic work: customer debt, pieces, stock, seller account, row locks, mandatory reason, document kept as `reversed`.
+### d. Sale edit (replaces "seller cancels own sale"; no new cancel right)
+Existing mechanism checked first: `rpc_reverse_client_sale` (atomic storno: customer debt / advance, pieces or weight
+allocations, seller account, currency debt, row locks, reason) + the three sale functions (weight / piece / UZS-USD).
+A field-by-field UPDATE of a sale would have to re-implement all of that (big, risky). The minimal safe edit is
+`rpc_edit_client_sale(sale, reason, key, grams?, %?, piece?, pieces?, price?)`:
+original reversed + corrected sale recorded with the same customer and seller, in ONE transaction, from those existing
+functions only (any failure, e.g. not enough stock, rolls everything back). The original stays as `reversed`, the
+corrected sale is a new document dated today; `sale_edits` (+ `audit_logs` EDIT_CLIENT_SALE) keep who / when / why /
+old / new values. Weight sale: grams, %, (pieces; default = the same pieces again); piece sale: another piece, %;
+UZS / USD sale: price, grams.
+Refused for a seller: another seller's sale, a sale recorded by someone else, a payment after the sale, a customer
+return, a closed report period. For everyone: return, closed period, before T0, a sale whose pieces moved, no change,
+no reason. Idempotent; parallel edits of one sale serialize on the row lock (the second one is refused). Manager and
+director: any sale of the organization (same rights).
+The seller-side guard on reversals (own + self-recorded + no later payment + open period) is kept: it RESTRICTS the
+existing seller reversal of piece sales; the UI cancel button condition is back to the original one (no new right).
 
-A new trigger applies only when the caller is a seller. It refuses a sale that:
-- belongs to another seller;
-- was recorded by someone else (new `jewelry_sales.recorded_by` column; old rows stay null);
-- has a later payment (SETTL or CPAY);
-- falls in a closed report period.
-
-Sales with a vozvrat were already refused by 083.
-
-The manager / director flow is unchanged.
+### d2. Factory page cards (UI only; formulas, balances, LOCK unchanged)
+Source: `src/lib/factory-account-summary.ts` (data: factory_receipts, factory_gold_handovers, opening_documents, manager_vault_account; same queries and RLS for director and manager).
+| Card | Formula | Kind |
+|---|---|---|
+| Zavoddan olingan tovar | sum original_physical_g of active receipts | cumulative since T0 |
+| Menejer omboridagi tovar | sum available_physical_g | current stock |
+| Zavod tovari uchun majburiyat (jami) | sum receipt g x (1 + %) - B factory_settled; now split: opening A / receipts after T0 | cumulative since T0 |
+| Zavodga berilgan oltin (jami) | C2 factory_advance (T0 document, locked) + active handovers (all after T0: the 085 restart reversed every earlier one) + goods sent back; now split | cumulative since T0 |
+| Joriy qoldiq | vault obligation - advance; now with "= goods + C - given" line | CURRENT balance: + receipt, - handover / goods return |
+1717.58 g = production C2 (opening factory_advance, a T0 document, does not change). 2248.18 g and 575.38 g are
+production values only the read-only `supabase/release/factory_cards_readonly.sql` can tie to a card (expected:
+2248.18 = "berilgan oltin" = C2 1717.58 + 530.60 handed after T0; 575.38 = one of the current-balance values) - not
+assumed here. Labels, tooltips and split lines added; nothing recomputed.
 
 ### e. UI
 - **Factory page:** "Menejer omboridan zavodga tovar qaytarish" — the server computes the values, a history list, reversal with a reason.
-- **Customer journal:** the "Bekor qilish" button shows for a seller on his own sales. Server errors are shown in the reason modal.
+- **Customer journal:** "✏️ Tahrirlash" on sale rows (management: every sale; seller: his own); server errors shown in the dialog. "Bekor qilish" unchanged.
+- **Factory page cards:** clearer names, tooltips, T0 split lines.
 
 ## 2. Tests
 | Check | Result |
 |---|---|
-| vitest (all) | 60 files / 506 tests PASS |
-| 090 suite | 9/9 PASS |
-| tsc | PASS |
+| vitest (all) | 61 files / 513 tests PASS (090 suites: consignment / factory 9/9, sale edit 6/6, factory cards split 1) |
+| tsc, next build | PASS |
 | eslint | no new problems (24 old harness-file problems, the same without 090) |
-| next build | PASS |
-| PG17 empty 001 → 090 | applies; postflights 073–090 all true; parity 200/200 identical |
-| PG17 rollback | 090 → emergency rollback → signature equals 089 exactly; re-apply equals 090; second apply makes no change |
-| Production-like local 088 (seeded: opening, LOM, CPAY, receipt, consignments, sale) | auto release 088 → 089 → 090: full backup, restore, business fingerprint, chain, emergency rollback to 088, re-apply, postflights, RLS isolation, parity — ALL PASS. A login-log writer ran during the dump; it was not deciding |
-| Staging E2E (`e2e_090_staging_rolledback.sql`) | 17/17 PASS locally (on 089 + 090 in one transaction, and on 090) |
-
-The E2E runs on real staging only after the staging release.
+| PG17 empty 001 -> 090 | applies; postflights 073-090 all true (090: 20 columns); parity 201/201 identical |
+| PG17 rollback | 090 -> emergency rollback -> signature equals 089 exactly; re-apply equals 090; second apply makes no change; rollback refused while goods returns / sale edits exist |
+| PG17 parallel edit | two edits of one sale at once: one wins, the other ERR_SALE_ALREADY_REVERSED; the same key twice in parallel: one edit, same answer; customer debt exact (3.6 -> 4.2 -> 4.8) |
+| Production-like local 088 (seeded) | auto release 088 -> 089 -> 090: full backup, restore, business fingerprint, chain, emergency rollback to 088, re-apply, postflights, RLS isolation, parity - ALL PASS (a login-log writer ran, not deciding) |
+| Staging E2E (`e2e_090_staging_rolledback.sql`) | 19/19 PASS locally (089 + 090 in one transaction, and on 090); runs on real staging after the staging release |
 
 ## 3. Found, not changed (needs the owner's decision)
-`rpc_record_factory_gold_handover` (073) recomputes `total_factory_handed_over_g = Σ factory_gold_handovers`. This drops the opening C2 factory advance that `_goldia_vault_factory_add` had added.
-
-Local proof: net 58 → 103 instead of 53 after a 5 g scrap handover.
-
-It affects production if a scrap-gold handover is recorded after the opening (C2 = 1 717.58 g). This is outside the 090 scope; the fix would make the handover update delta-based.
+`rpc_record_factory_gold_handover` (073) sets `total_factory_handed_over_g = sum of handover rows`; this drops the opening
+C2 factory advance. Local proof (cards SQL on a copy): C2 100 g + one 5 g scrap handover -> stored handed-over total
+5 g instead of 105 g; current-balance card 181.6 g instead of 81.6 g; the page shows "Kartalar ... mos emas: 100 g".
+In production (C2 = 1717.58 g) the same happens on the first scrap / refined gold handover after T0.
+`supabase/release/factory_cards_readonly.sql` shows it (column `kartalar_farqi_g` = -1717.58 when affected).
+The fix (handover booked as a delta, plus a document-based repair of the stored total) changes balances, so it is not
+in 090 without the owner's approval.
+`scripts/verify-prod-final-ui.js` (old standalone UI check, not in the release flow) still looks for the old card text
+"Zavodga Qaytarilgan Oltin".

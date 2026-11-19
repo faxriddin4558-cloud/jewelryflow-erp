@@ -9,6 +9,7 @@ import { isSellerRole, ownRatesFromRpc, pickPaymentRates } from "@/lib/sales-pay
 import { CurrencyPaymentModal } from "./CurrencyPaymentModal";
 import { customerBalance, netDirectionLabel } from "@/lib/customer-balance";
 import { SaleReturnModal } from "./SaleReturnModal";
+import { SaleEditModal } from "./SaleEditModal";
 import { OpeningSaleReturnModal } from "./OpeningSaleReturnModal";
 import { PaymentCorrectionModal } from "./PaymentCorrectionModal";
 import { ledgerTypeLabel, newIdemKey } from "@/lib/goldia-089-ui";
@@ -279,6 +280,7 @@ export function CustomerLedgerAndSheetsSection() {
   const [reversalTarget, setReversalTarget] = useState<DailyLedgerEntry | null>(null);
   // 083: partial / full customer return of one sale ("↩️ Vozvrat")
   const [returnTarget, setReturnTarget] = useState<DailyLedgerEntry | null>(null);
+  const [editTarget, setEditTarget] = useState<DailyLedgerEntry | null>(null);
   // 089: old-sale return of a customer, payment currency correction
   const [openingReturnCustomer, setOpeningReturnCustomer] = useState<{ id: string; name: string } | null>(null);
   const [correctionTarget, setCorrectionTarget] = useState<DailyLedgerEntry | null>(null);
@@ -1690,11 +1692,21 @@ export function CustomerLedgerAndSheetsSection() {
                             <span>💱</span> Valyutani tuzatish
                           </button>
                         )}
-                        {/* 090: a seller cancels only HIS OWN sale (server: own + recorded by him, no later payment, open period) */}
-                        {(isPrivileged || (r.tx_type === "sale" && !!currentEmployeeId && r.seller_id === currentEmployeeId)) && (
+                        {/* 090: edit = correct grams / % / piece / price; a seller only his own sale (the server checks the rules) */}
+                        {r.tx_type === "sale" && r.status !== "cancelled" && (isPrivileged || (!!currentEmployeeId && r.seller_id === currentEmployeeId)) && (
+                          <button
+                            type="button"
+                            data-testid="open-sale-edit"
+                            onClick={() => setEditTarget(r)}
+                            disabled={busy}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-sky-800/80 bg-sky-950/40 text-sky-300 hover:bg-sky-900/60 hover:text-white transition flex items-center gap-1"
+                          >
+                            <span>✏️</span> Tahrirlash
+                          </button>
+                        )}
+                        {(isPrivileged || (r.tx_type === "sale" && r.item_id)) && (
                         <button
                           type="button"
-                          data-testid="open-sale-cancel"
                           onClick={() => openReversalModal(r)}
                           disabled={busy}
                           className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-rose-800/80 bg-rose-950/40 text-rose-300 hover:bg-rose-900/60 hover:text-white transition flex items-center gap-1 mx-auto"
@@ -2510,6 +2522,19 @@ export function CustomerLedgerAndSheetsSection() {
         );
       })()}
       {/* MODAL: REVERSAL / BEKOR QILISH (Compensating Transaction) */}
+      {editTarget && (
+        <SaleEditModal
+          saleId={editTarget.tx_id}
+          customerName={editTarget.customer_name}
+          onClose={() => setEditTarget(null)}
+          onDone={(res) => {
+            setEditTarget(null);
+            setMessage({ type: "success", text: `Savdo ${res.original_sale_no} tahrirlandi: yangi hujjat ${res.new_sale_no} (asl savdo tarixda bekor qilingan bo'lib qoldi).` });
+            void loadDailyLedger();
+            void loadCustomers();
+          }}
+        />
+      )}
       {returnTarget && (
         <SaleReturnModal
           saleId={returnTarget.tx_id}

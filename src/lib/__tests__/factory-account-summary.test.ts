@@ -44,4 +44,14 @@ describe("factory account summary (088)", () => {
     expect(factoryNetWording(0).title).toBe("Zavod bilan hisob yopiq");
     expect(factoryNetWording(null).direction).toBe("closed");
   });
+
+  it("090 display split: opening A vs later receipts, gold handovers vs finished goods returns - totals unchanged", () => {
+    const s = summarizeFactoryAccount({
+      receipts: [{ factory_obligation_g: 108, opening_document_id: "a" }, { factory_obligation_g: 55 }, { factory_obligation_g: 9, status: "reversed" }],
+      handovers: [{ agreed_equivalent_g: 30, source_type: "scrap_gold" }, { agreed_equivalent_g: 5.5, source_type: "finished_goods_return" }, { agreed_equivalent_g: 7, status: "reversed" }],
+      openingDocs: [{ kind: "factory_advance", amount: 100 }], vault: null,
+    });
+    expect([s.openingReceiptsObligationG, s.laterReceiptsObligationG, s.receiptsObligationG]).toEqual([108, 55, 163]);
+    expect([s.goldHandoversG, s.finishedGoodsReturnsG, s.handoversG, s.givenGoldG]).toEqual([30, 5.5, 35.5, 135.5]);
+  });
 });
