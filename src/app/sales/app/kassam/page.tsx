@@ -8,6 +8,7 @@ import { isSellerUiRole } from "@/lib/sales-role-access";
 import { formatScreenGrams, formatScreenUZS } from "@/lib/barcode-scanner-engine";
 import { SellerRatesCard } from "@/components/sales/SellerRatesCard";
 import { SellerMobileWorkspace } from "@/components/sales/SellerMobileWorkspace";
+import { SellerLomPurchaseSection } from "@/components/sales/SellerLomPurchaseSection";
 
 type Handover = {
   id: string; settlement_no: string; created_at: string; status: string; cash_paid_amount: number; usd_paid_amount: number;
@@ -50,6 +51,7 @@ export default function KassamPage() {
       <h1 className="text-lg font-black text-white rounded-2xl bg-slate-900 border border-slate-800 p-4">🏦 Kassam</h1>
       <SellerRatesCard onChanged={() => setReloadKey((k) => k + 1)} />
       <SellerMobileWorkspace key={reloadKey} tabs={["till"]} initialTab="till" />
+      <SellerLomPurchaseSection mode="seller" />
       <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
         <div className="text-[11px] uppercase font-bold tracking-wide text-slate-400 mb-2">Boshqaruvchiga topshirishlar</div>
         <p className="text-[11px] text-slate-500 mb-2">Topshirishni boshqaruvchi qabul qilib yozadi. Yozilgan topshirish sizning bozor qarzingizni yopadi.</p>

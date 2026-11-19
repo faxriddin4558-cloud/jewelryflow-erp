@@ -1,6 +1,7 @@
 "use client";
 
 import { DirectorSalesWorkspace } from "@/components/sales/DirectorSalesWorkspace";
+import { SellerLomPurchaseSection } from "@/components/sales/SellerLomPurchaseSection";
 
 export default function CashVaultPage() {
   return (
@@ -17,6 +18,8 @@ export default function CashVaultPage() {
       </div>
 
       <DirectorSalesWorkspace initialTab="vault" vaultSection="cash" hideTopBanner={true} hideTabBar={true} />
+
+      <SellerLomPurchaseSection mode="management" />
     </div>
   );
 }

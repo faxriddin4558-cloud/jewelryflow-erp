@@ -39,6 +39,7 @@ const KIND_LABEL: Record<string, string> = {
   payment_uzs: "To'lov: UZS qarzga", payment_usd: "To'lov: USD qarzga", reversal_payment_uzs: "To'lov bekor qilindi (UZS)", reversal_payment_usd: "To'lov bekor qilindi (USD)",
   handover: "Sotuvchidan menejerga topshiruv", reversal_handover: "Topshiruv bekor qilindi",
   factory_handover: "Zavodga topshirildi", reversal_factory_handover: "Zavodga topshiruv bekor qilindi",
+  seller_lom_purchase: "Sotuvchi bozordan LOM xaridi (kassa ichida UZS → lom)", reversal_seller_lom_purchase: "Sotuvchi LOM xaridi bekor qilindi",
   purchase: "Naqdga oltin xarid", reversal_purchase: "Xarid bekor qilindi", fin_reclassify: "Kapital qayta tasniflandi", reversal_fin: "Moliyaviy operatsiya bekor qilindi",
   reversal_legacy: "Eski qarz yozuvi bekor qilindi",
 };
