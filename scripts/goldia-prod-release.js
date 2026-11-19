@@ -42,8 +42,26 @@ const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const levelLib = require("./lib/goldia-level");
+const BCMP = require("./lib/goldia-baseline-compare");
 
 const REPO = path.resolve(__dirname, "..");
+
+// 2026-11-19: the backup covers ONE moment. Right before the migration, production's business baseline (balances,
+// debts, stock, tills, vault, factory, every business row count) must still equal the backup's last production read
+// (baseline-production-after-dump.txt); a payment or sale written after the backup -> STOP (the backup would not
+// contain it). Log-table rows (login audit, audit trail, idempotency keys) are listed, not deciding. Read only.
+function unchangedSinceBackup(dir, stopFn, outFn) {
+  const f = path.join(dir, "baseline-production-after-dump.txt");
+  if (!fs.existsSync(f)) stopFn("the backup's production baseline (baseline-production-after-dump.txt) is missing - nothing is migrated");
+  const sql = fs.readFileSync(path.join(REPO, "docs/releases/production-075/01_baseline_readonly.sql"), "utf8").replace(/\r/g, "")
+    .split("\n").filter((l) => !/^\s*(begin|rollback)\b/i.test(l) && !/^\s*--/.test(l)).join("\n").trim().replace(/;\s*$/, "");
+  const now = ro(sql);
+  if (now.status !== 0 || !/BASELINE\|fingerprint business\|/.test(String(now.stdout))) stopFn("cannot read the production baseline before the migration - nothing is migrated");
+  fs.writeFileSync(path.join(dir, "baseline-production-before-migration.txt"), String(now.stdout));
+  const d = BCMP.baselineDiff(fs.readFileSync(f, "utf8"), now.stdout);
+  outFn(`  production unchanged since the backup (business): ${d.business.length ? "NO" : "yes"}${d.other.length ? `; not deciding (log tables / md5 of all keys, compared key by key above): ${d.other.join("; ")}` : ""}`);
+  if (d.business.length) stopFn(`production BUSINESS data changed after the backup (${d.business.slice(0, 6).join("; ")}) - the backup does not contain it; nothing is migrated. Keep sales / payments paused and run the release again`);
+}
 const args = {};
 for (let i = 2; i < process.argv.length; i++) {
   const a = process.argv[i];
@@ -334,6 +352,7 @@ async function main() {
     const typed = await promptVisible(`Type the production project ref (vrozlllcaxinavzxueif) to apply migration ${TARGET}: `);
     if (typed.trim() !== "vrozlllcaxinavzxueif") stop("confirmation did not match — nothing was changed");
   }
+  unchangedSinceBackup(latest, stop, out);
   // 4. Atomic migration
   out(`[3/4] migration ${TARGET} (single transaction)`);
   const counts = ro(COUNTS);
@@ -494,6 +513,7 @@ async function mainChain() {
     if (typed.trim() !== "vrozlllcaxinavzxueif") stopChain("confirmation did not match — nothing was changed");
   }
 
+  unchangedSinceBackup(latest, stopChain, out);
   out(`[3/5] chain ${TARGET}..${CHAIN_TO} (ONE transaction; per-migration postflight + business fingerprint gates)`);
   const counts = ro(COUNTS); const balances = ro(BALANCES); const fpBefore = ro(chainLib.fingerprintSql());
   if (counts.status !== 0 || balances.status !== 0 || fpBefore.status !== 0) stopChain("cannot read row counts / balances / fingerprint");

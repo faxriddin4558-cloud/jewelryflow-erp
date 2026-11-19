@@ -40,6 +40,7 @@ const crypto = require("crypto");
 const net = require("net");
 const { spawnSync } = require("child_process");
 const DUMPR = require("./lib/goldia-dump-retry");
+const BCMP = require("./lib/goldia-baseline-compare");
 
 const REPO = path.resolve(__dirname, "..");
 const args = parseArgs(process.argv.slice(2));
@@ -302,6 +303,9 @@ function diffCounts(a, b) {
   return out;
 }
 
+// business baseline unchanged across the dump (log-table rows and the migration history may differ, listed apart)
+function baseDuringOk(a, b) { return !!(a && b && BCMP.baselineDiff(a, b).business.length === 0); }
+
 function sha256(file) {
   const h = crypto.createHash("sha256");
   const fd = fs.openSync(file, "r");
@@ -454,7 +458,8 @@ async function main() {
   let full;
   let before;
   let after;
-  let liveChanges = [];
+  let liveChanges = [];   // BUSINESS row-count changes during the dump (log tables are listed apart, see BCMP)
+  let liveLog = [];
   let baseBefore = null;
   let baseAfter = null;
   const reuseDir = findReusableBackup(outRoot);
@@ -529,10 +534,15 @@ async function main() {
     r = run("pg_dumpall", ["-w", "--roles-only", "--no-role-passwords", "-l", PROD.db, "-f", path.join(outDir, "goldia-roles.sql")], { env: prodEnv(), timeoutMs: 10 * MIN });
     note("roles backup", r.status === 0 ? "ok" : "not permitted on Supabase pooler (non-critical: Supabase recreates platform roles)");
     after = counts(prodEnv);
-    liveChanges = diffCounts(before, after);
+    // 2026-11-19: business vs log tables. A business write during the dump (e.g. a 32.74 g payment) means the dump is
+    // a consistent snapshot of the moment BEFORE that write, not of the state that will be migrated -> NO-GO (pause
+    // sales and take the backup again). Login / audit log rows are listed but do not decide.
+    { const d = BCMP.countsDiff(before, after); liveChanges = d.business; liveLog = d.other; }
     baseAfter = baseline(prodEnv, "production-after-dump");
-    note("production baseline unchanged during dump", baseBefore && baseAfter && baseBefore === baseAfter ? "yes" : "NO (production changed or baseline failed - run again in a quiet window)");
-    note("rows changed during backup", liveChanges.length ? liveChanges.join("; ") : "none");
+    const baseDuring = baseBefore && baseAfter ? BCMP.baselineDiff(baseBefore, baseAfter) : null;
+    note("production BUSINESS data unchanged during dump", !baseDuring ? "baseline FAILED" : baseDuring.business.length ? `NO - ${baseDuring.business.join("; ")}` : "yes");
+    note("BUSINESS rows written during the dump", liveChanges.length ? `${liveChanges.join("; ")} -> the backup is a consistent snapshot of the moment before these writes and does NOT cover them: pause sales / payments and run again` : "none");
+    note("log rows written during the dump (not business, listed only)", [...liveLog, ...(baseDuring ? baseDuring.other : [])].join("; ") || "none");
     const checksums = fs.readdirSync(outDir).filter((f) => /\.(dump|sql)$/.test(f))
       .map((f) => `${sha256(path.join(outDir, f))}  ${f}  ${fs.statSync(path.join(outDir, f)).size} bytes`);
     fs.writeFileSync(path.join(outDir, "SHA256SUMS.txt"), checksums.join(os.EOL) + os.EOL);
@@ -596,8 +606,11 @@ async function main() {
     note("restore errors (Supabase platform objects may account for some)", restoreErrors);
 
     const local = counts(localEnv) || {};
-    const restoreDiff = diffCounts(liveChanges.length ? after : before, local)
-      .filter((d) => !schemas.includes("auth") ? !d.startsWith("auth.") : true);
+    // the restored copy is the dump's snapshot: business tables must equal production around the dump (before = after);
+    // log tables may differ by rows written between the counts and the snapshot (listed)
+    const rd = BCMP.countsDiff(liveChanges.length ? before : after, local);
+    const restoreDiff = rd.business.filter((d) => !schemas.includes("auth") ? !d.startsWith("auth.") : true);
+    note("restored copy vs production: log-table differences (not business)", rd.other.join("; ") || "none");
     // Project objects only (extension member functions excluded)
     const OBJ_SQL = `select (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
         and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e'))
@@ -610,7 +623,9 @@ async function main() {
     gate.backup = restoreDiff.length === 0 && liveChanges.length === 0 && fnProd === fnLocal && Object.keys(local).length > 0;
     note("row-count differences prod vs restored", restoreDiff.length ? restoreDiff.join("; ") : "none");
     const baseLocal = baseline(localEnv, "restored-copy");
-    gate.baseline = !!(baseBefore && baseAfter && baseLocal && baseBefore === baseAfter && baseAfter === baseLocal);
+    const baseRestore = baseAfter && baseLocal ? BCMP.baselineDiff(baseAfter, baseLocal) : null;
+    gate.baseline = !!(baseDuringOk(baseBefore, baseAfter) && baseRestore && baseRestore.business.length === 0);
+    if (baseRestore && baseRestore.business.length) note("BUSINESS baseline production vs restored copy", baseRestore.business.join("; "));
     if (baseAfter && baseLocal && baseAfter !== baseLocal) {
       const a = new Set(baseAfter.split("\n")), b = new Set(baseLocal.split("\n"));
       fs.writeFileSync(path.join(outDir, "baseline-diff.txt"), [...[...a].filter((x) => !b.has(x)).map((x) => "production: " + x), ...[...b].filter((x) => !a.has(x)).map((x) => "restored:   " + x)].join(os.EOL) + os.EOL);

@@ -1,0 +1,27 @@
+== A business writes DURING the dump -> NO-GO, nothing migrated
+  -> BUSINESS rows written during the dump: public.organizations: 4 -> 6 -> the backup is a consistent snapshot of the moment before these writes and does NOT cover them: pause sales / payments and run again
+  -> GATES: fullBackup=true backup=false preflight=true migration088=true compat089=true accounting=true baseline=false recovery=true chainTo=true
+STOPPED: the FULL backup / restore / fingerprint gate did not PASS - nothing is migrated (no partial backup is accepted)
+Production database was not changed (the chain runs in one transaction; nothing was committed).
+
+== B business write AFTER the backup, before the migration -> STOP, nothing migrated
+  -> GATES: fullBackup=true backup=true preflight=true migration088=true compat089=true accounting=true baseline=true recovery=true chainTo=true
+RESULT: ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval
+  production unchanged since the backup (business): NO; log rows since the backup (not business): fingerprint business: aad059b4f2807ec46161f9882db238f3 -> e257ccaeefb13486cf997dcf8c5338d2
+STOPPED: production BUSINESS data changed after the backup (org 8f628725-3b5b-4a0e-8fb9-2faa7e88bd58: missing -> cust=0 debt_g=0 adv_g=0 sel_obl_g=0 sel_owes_g=0 sel_stock_g=0 till_uzs=0 till_usd=0 till_scrap_g=0 till_valued_g=0 mgr_stock_g
+Production database was not changed (the chain runs in one transaction; nothing was committed).
+
+== C only log rows (audit_logs) during the run -> PASS, 088 -> 089 applied on the LOCAL copy
+  -> production BUSINESS data unchanged during dump: yes
+  -> BUSINESS rows written during the dump: none
+  -> log rows written during the dump (not business, listed only): public.audit_logs: 3 -> 5; rows audit_logs: 3 -> 5
+  -> restored copy vs production: log-table differences (not business): public.audit_logs: 5 -> 3
+  -> chain-to: business fingerprint unchanged by 089..089 (value per category, CR-safe): yes (86 categories)
+  -> GATES: fullBackup=true backup=true preflight=true migration088=true compat089=true accounting=true baseline=true recovery=true chainTo=true
+RESULT: ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval
+  production unchanged since the backup (business): yes; not deciding (log tables / md5 of all keys, compared key by key above): rows audit_logs: 5 -> 19
+  row counts unchanged: yes
+  balances unchanged: yes
+  business fingerprint unchanged (86 categories, value per category): yes
+  POSTFLIGHT: PASS
+RESULT: CHAIN 089..089 APPLIED, POSTFLIGHT PASS. Report: /opt/goldia-audit/relC/goldia-prod-2026-11-19T06-22-38/RELEASE-089-089-RESULT.txt
