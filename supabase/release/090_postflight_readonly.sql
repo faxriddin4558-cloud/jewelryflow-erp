@@ -10,8 +10,24 @@ select
                    and not has_table_privilege('authenticated', t, 'UPDATE') and not has_table_privilege('authenticated', t, 'DELETE')
                    and not has_table_privilege('anon', t, 'SELECT'))
      from unnest(array['public.consignment_receipt_allocations', 'public.factory_goods_returns', 'public.sale_edits']) t) as tables_read_only_for_users,
-  -- 090 writes no business row: the new tables start empty, recorded_by stays null on the existing sales
-  (select count(*) = 0 from public.factory_goods_returns) and (select count(*) = 0 from public.sale_edits) as no_rows_written,
+  -- in the transaction that applies 090 (release chain): the migration wrote no business row - the new tables are empty. At a LATER level
+  -- (a prelaunch re-runs this file) the tables hold the operations' own rows: then every row must be consistent with
+  -- its documents (goods return: its finished-goods handover, value = g x (1 + %), status pair, audit; sale edit:
+  -- original reversed, corrected sale of the same customer / seller, audit) - never just "ignored"
+  -- (090 applied in THIS transaction = the history row's xmin is this transaction's id)
+  case when (select (h.xmin::text)::bigint from supabase_migrations.schema_migrations h where h.version = '20260101000090')
+              = (pg_current_xact_id_if_assigned()::text::bigint % 4294967296)
+       then (select count(*) = 0 from public.factory_goods_returns) and (select count(*) = 0 from public.sale_edits)
+       else not exists (select 1 from public.factory_goods_returns x left join public.factory_gold_handovers h on h.id = x.handover_id
+                         where h.id is null or h.source_type <> 'finished_goods_return' or h.organization_id <> x.organization_id
+                            or abs(h.agreed_equivalent_g - x.factory_value_g) >= 0.00005
+                            or abs(x.factory_value_g - round(x.grams * (1 + x.factory_markup_pct / 100.0), 4)) >= 0.00005
+                            or (x.status = 'confirmed') <> (h.status not in ('reversed', 'cancelled'))
+                            or not exists (select 1 from public.audit_logs l where l.record_id = x.id::text and l.action = 'RETURN_GOODS_TO_FACTORY'))
+        and not exists (select 1 from public.sale_edits e left join public.jewelry_sales o on o.id = e.original_sale_id left join public.jewelry_sales n on n.id = e.new_sale_id
+                         where o.status is distinct from 'reversed' or n.id is null or n.organization_id <> e.organization_id
+                            or n.customer_id <> o.customer_id or n.seller_id <> o.seller_id
+                            or not exists (select 1 from public.audit_logs l where l.record_id = e.original_sale_id::text and l.action = 'EDIT_CLIENT_SALE')) end as no_rows_written_or_rows_consistent,
   exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'jewelry_sales' and column_name = 'recorded_by') as sale_recorded_by,
   (select position('finished_goods_return' in pg_get_constraintdef(oid)) > 0 from pg_constraint
     where conrelid = 'public.factory_gold_handovers'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%source_type%') as handover_source_type,

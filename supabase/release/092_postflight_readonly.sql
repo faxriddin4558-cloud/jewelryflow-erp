@@ -7,8 +7,11 @@ select
   (select is_nullable = 'YES' from information_schema.columns where table_schema = 'public' and table_name = 'opening_sale_returns' and column_name = 'opening_document_id') as document_optional,
   (select is_generated = 'ALWAYS' and generation_expression like '%debt_reduced - opening_part%'
      from information_schema.columns where table_schema = 'public' and table_name = 'opening_sale_returns' and column_name = 'new_debt_part') as new_part_stored,
-  -- 092 writes no business row: every return so far still has its opening document
-  not exists (select 1 from public.opening_sale_returns where opening_document_id is null) as no_rows_written,
+  -- in the transaction that applies 092: every return still has its document; any later check: a return without one has NO old part
+  -- (092 applied in THIS transaction = the history row's xmin is this transaction's id)
+  case when (select (h.xmin::text)::bigint from supabase_migrations.schema_migrations h where h.version = '20260101000092')
+              = (pg_current_xact_id_if_assigned()::text::bigint % 4294967296) then not exists (select 1 from public.opening_sale_returns where opening_document_id is null)
+       else not exists (select 1 from public.opening_sale_returns where opening_document_id is null and opening_part <> 0) end as no_rows_written_or_rows_consistent,
   -- the 089 checks stay: value split, opening part never above the debt part
   exists (select 1 from pg_constraint where conrelid = 'public.opening_sale_returns'::regclass and conname = 'opening_sale_returns_value_split')
     and exists (select 1 from pg_constraint where conrelid = 'public.opening_sale_returns'::regclass and conname = 'opening_sale_returns_opening_part') as split_checks,

@@ -30,7 +30,14 @@ select
     and not has_table_privilege('anon', 'public.seller_lom_purchases', 'SELECT') as lom_table_read_only,
   exists (select 1 from pg_constraint where conrelid = 'public.seller_lom_purchases'::regclass and conname = 'seller_lom_purchases_equiv')
     and exists (select 1 from pg_constraint where conrelid = 'public.seller_lom_purchases'::regclass and conname = 'seller_lom_purchases_reversal') as lom_constraints,
-  (select count(*) = 0 from public.seller_lom_purchases) as no_rows_written,
+  -- in the transaction that applies 091: no row; any later check: every purchase consistent (585 = g x proba / 585, status pair, audit)
+  -- (091 applied in THIS transaction = the history row's xmin is this transaction's id)
+  case when (select (h.xmin::text)::bigint from supabase_migrations.schema_migrations h where h.version = '20260101000091')
+              = (pg_current_xact_id_if_assigned()::text::bigint % 4294967296) then (select count(*) = 0 from public.seller_lom_purchases)
+       else not exists (select 1 from public.seller_lom_purchases x
+                         where abs(x.equiv_585_g - round(x.physical_g * x.proba / 585.0, 4)) >= 0.00005
+                            or (x.status = 'reversed') <> (x.reversed_at is not null)
+                            or not exists (select 1 from public.audit_logs l where l.record_id = x.id::text and l.action = 'SELLER_LOM_PURCHASE')) end as no_rows_written_or_rows_consistent,
   (select bool_and(position(x in prosrc) > 0) from pg_proc, unnest(array['ERR_INSUFFICIENT_CASH_BALANCE', 'ERR_NOT_OWN_TILL', 'ERR_PROBA', 'ERR_FINANCIAL_FREEZE', 'ERR_OPENING_DRAFT',
        'check_and_lock_idempotency', 'for update', 'till_valued_cash_585_g', 'seller_till_scrap_physical_g', 'SELLER_LOM_PURCHASE', '/ 585.0']) x
     where proname = 'rpc_record_seller_lom_purchase' and pronamespace = 'public'::regnamespace) as lom_purchase_rules,
