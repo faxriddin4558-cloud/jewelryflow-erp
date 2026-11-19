@@ -1,0 +1,19 @@
+== T1 normal fresh full backup
+  -> BASELINE (grams, debts, tills, vault, factory, rows, fingerprint) production = restored copy: IDENTICAL
+  -> BACKUP: VERIFIED (restored copy matches production row counts)
+  -> FULL BACKUP (every schema in the dump): yes: public, auth, storage, supabase_migrations
+  -> GATES: fullBackup=true backup=true preflight=true migration088=true compat089=true accounting=true baseline=true recovery=true
+RESULT: ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval
+
+== T2 full dump fails 5x -> STOP, no partial backup, no GATES.json
+  full dump: attempt 1/5 FAILED (0 s): pg_dump: error: connection to server at "127.0.0.1", port 1 failed: Connection refused | Is the server running on that host and accepting TCP/IP connections?
+  full dump: attempt 2/5 FAILED (0 s): pg_dump: error: connection to server at "127.0.0.1", port 1 failed: Connection refused | Is the server running on that host and accepting TCP/IP connections?
+  full dump: attempt 3/5 FAILED (0 s): pg_dump: error: connection to server at "127.0.0.1", port 1 failed: Connection refused | Is the server running on that host and accepting TCP/IP connections?
+  full dump: attempt 4/5 FAILED (0 s): pg_dump: error: connection to server at "127.0.0.1", port 1 failed: Connection refused | Is the server running on that host and accepting TCP/IP connections?
+  full dump: attempt 5/5 FAILED (0 s): pg_dump: error: connection to server at "127.0.0.1", port 1 failed: Connection refused | Is the server running on that host and accepting TCP/IP connections?
+STOPPED: STOP: the FULL backup (public, auth, storage, supabase_migrations) failed after every attempt - no partial backup is taken and nothing is migrated (see run.log and pg_dump-*-attempt*.err.txt)
+
+== T3 reused PARTIAL backup -> NO-GO
+  -> FULL BACKUP (every schema in the dump): NO - only public, supabase_migrations (release refused)
+  -> GATES: fullBackup=false backup=false preflight=true migration088=true compat089=false accounting=true baseline=false recovery=true
+RESULT: NO-GO — see failed gates above

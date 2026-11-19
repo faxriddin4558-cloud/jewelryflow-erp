@@ -514,15 +514,18 @@ async function main() {
     };
     log(`  pg_dump full backup... ${ts()}`);
     let r;
+    // 2026-11-19 (owner's condition for 088 -> 089): a FULL backup is mandatory - no partial (public-only) fallback.
+    // If the full dump of public + auth + storage + supabase_migrations cannot be taken, the run STOPS before any
+    // restore or migration test; production is only read.
     if (!dumpWithRetry(["-Fc", ...schemaFlags(schemas)], full, "full dump", true)) {
-      log("  full dump with auth/storage failed, retrying public + supabase_migrations only");
-      schemas = ["public", "supabase_migrations"];
-      if (!dumpWithRetry(["-Fc", ...schemaFlags(schemas)], full, "full dump (public + supabase_migrations)", true)) fail("pg_dump failed (see run.log and pg_dump-*-attempt*.err.txt)");
-      note("WARNING", "auth/storage schemas NOT in backup (logins must be recreated after a disaster)");
+      fail("STOP: the FULL backup (public, auth, storage, supabase_migrations) failed after every attempt - no partial backup is taken and nothing is migrated (see run.log and pg_dump-*-attempt*.err.txt)");
     }
     note("schemas in backup", schemas.join(", "));
-    note("schema backup", dumpWithRetry(["--schema-only", ...schemaFlags(schemas)], path.join(outDir, "goldia-schema.sql"), "schema dump", false) ? "ok" : "FAILED");
-    note("data backup", dumpWithRetry(["-Fc", "--data-only", ...schemaFlags(schemas)], path.join(outDir, "goldia-data.dump"), "data dump", false) ? "ok" : "FAILED");
+    // the schema and data dumps are part of the backup set: a missing one STOPS (no incomplete backup set)
+    if (!dumpWithRetry(["--schema-only", ...schemaFlags(schemas)], path.join(outDir, "goldia-schema.sql"), "schema dump", false)) fail("STOP: schema dump failed after every attempt - incomplete backup set, nothing is migrated");
+    note("schema backup", "ok");
+    if (!dumpWithRetry(["-Fc", "--data-only", ...schemaFlags(schemas)], path.join(outDir, "goldia-data.dump"), "data dump", false)) fail("STOP: data dump failed after every attempt - incomplete backup set, nothing is migrated");
+    note("data backup", "ok");
     r = run("pg_dumpall", ["-w", "--roles-only", "--no-role-passwords", "-l", PROD.db, "-f", path.join(outDir, "goldia-roles.sql")], { env: prodEnv(), timeoutMs: 10 * MIN });
     note("roles backup", r.status === 0 ? "ok" : "not permitted on Supabase pooler (non-critical: Supabase recreates platform roles)");
     after = counts(prodEnv);
@@ -622,6 +625,14 @@ async function main() {
       note("RECOVERY preflight", `n/a for target ${TARGET} (the 072 preflight applies to production at 072 only)`);
     }
     note("BACKUP", gate.backup ? "VERIFIED (restored copy matches production row counts)" : "FAILED");
+    // 2026-11-19: the backup must contain EVERY schema (public, auth, storage, supabase_migrations) - checked in the
+    // dump's own table of contents, for a fresh and a reused backup alike; otherwise no release
+    {
+      const toc = run("pg_restore", ["--list", full], { timeoutMs: 10 * MIN });
+      const present = SCHEMAS.filter((x) => x === "public" ? /TABLE DATA public /.test(toc.stdout) : new RegExp(`SCHEMA - ${x} `).test(toc.stdout));
+      gate.fullBackup = toc.status === 0 && present.length === SCHEMAS.length && schemas.length === SCHEMAS.length;
+      note("FULL BACKUP (every schema in the dump)", gate.fullBackup ? `yes: ${present.join(", ")}` : `NO - only ${present.join(", ") || "none"} (release refused)`);
+    }
 
     // 5-6. Read-only checks on production
     log(`[5/9] Migration ${PREVIOUS}/${TARGET} status + preflight (read only)`);
@@ -846,11 +857,11 @@ async function main() {
 
   // 9. Decision
   log("[9/9] Decision");
-  const ready = gate.backup && gate.preflight && gate.compat && gate.accounting && gate.baseline && gate.recovery && (!args.chain || gate.chain) && (!args["chain-to"] || gate.chainTo);
+  const ready = gate.fullBackup && gate.backup && gate.preflight && gate.compat && gate.accounting && gate.baseline && gate.recovery && (!args.chain || gate.chain) && (!args["chain-to"] || gate.chainTo);
   const verdict = ready
     ? "ALL AUTOMATED GATES PASS — send SUMMARY.txt for review; production change still needs explicit owner approval"
     : "NO-GO — see failed gates above";
-  note("GATES", `backup=${!!gate.backup} preflight=${!!gate.preflight} migration${PREVIOUS}=${!!gate.migration064} compat${TARGET}=${!!gate.compat} accounting=${!!gate.accounting} baseline=${!!gate.baseline} recovery=${!!gate.recovery}${args.chain ? ` chain=${!!gate.chain}` : ""}${args["chain-to"] ? ` chainTo=${!!gate.chainTo}` : ""}`);
+  note("GATES", `fullBackup=${!!gate.fullBackup} backup=${!!gate.backup} preflight=${!!gate.preflight} migration${PREVIOUS}=${!!gate.migration064} compat${TARGET}=${!!gate.compat} accounting=${!!gate.accounting} baseline=${!!gate.baseline} recovery=${!!gate.recovery}${args.chain ? ` chain=${!!gate.chain}` : ""}${args["chain-to"] ? ` chainTo=${!!gate.chainTo}` : ""}`);
   writeSummary(verdict);
   log(`\nRESULT: ${verdict}`);
   log(`Send this file back for review: ${path.join(outDir, "SUMMARY.txt")}`);

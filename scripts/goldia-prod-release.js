@@ -302,6 +302,8 @@ async function main() {
   out(`started: ${new Date().toISOString()}`);
   const gates = JSON.parse(fs.readFileSync(path.join(latest, "GATES.json"), "utf8"));
   out(`[1/4] backup folder ${latest}: ${JSON.stringify(gates)}`);
+  // 2026-11-19: a FULL backup (every schema) verified by restore + fingerprint is mandatory before any migration
+  if (gates.fullBackup !== true || gates.backup !== true || gates.baseline !== true) stop("the FULL backup / restore / fingerprint gate did not PASS - nothing is migrated (no partial backup is accepted)");
   if (backup.status !== 0 || !gates.ready || gates.target !== TARGET) stop("a backup/preflight/compatibility gate failed (see SUMMARY.txt in that folder)");
 
   // 3. Gates
@@ -439,6 +441,7 @@ async function mainChain() {
   out(`started: ${new Date().toISOString()}  mode: CHAIN ${PREVIOUS} -> ${CHAIN_TO}${args["local-rehearsal"] ? " (LOCAL REHEARSAL)" : ""}`);
   const gates = JSON.parse(fs.readFileSync(path.join(latest, "GATES.json"), "utf8"));
   out(`[1/5] backup folder ${latest}: ${JSON.stringify(gates)}`);
+  if (gates.fullBackup !== true || gates.backup !== true || gates.baseline !== true) stopChain("the FULL backup / restore / fingerprint gate did not PASS - nothing is migrated (no partial backup is accepted)");
   if (backup.status !== 0 || !gates.ready || gates.target !== TARGET || gates.chainToTarget !== CHAIN_TO || gates.chainToPass !== true) {
     stopChain("a backup / restore / copy-chain / rollback gate failed (see SUMMARY.txt in that folder)");
   }
